@@ -3,8 +3,25 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EvoSim 3D v2.5</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>EvoSim 3D v2.5 - Еволюційна пісочниця</title>
+
+    <!-- PWA Meta теги -->
+    <meta name="description" content="Інтерактивна 3D симуляція біологічної еволюції. Спостерігайте за взаємодією хижаків та травоїдних у віртуальній екосистемі.">
+    <meta name="theme-color" content="#10b981">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="EvoSim 3D">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="EvoSim 3D - Еволюційна пісочниця">
+    <meta property="og:description" content="Інтерактивна 3D симуляція біологічної еволюції">
+    <meta property="og:type" content="website">
+
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; overflow: hidden; background-color: #050505; color: white; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
@@ -51,6 +68,15 @@
           cursor: pointer;
           background: rgba(255,255,255,0.1);
           border-radius: 2px;
+        }
+
+        /* Анімації */
+        @keyframes fadeOut {
+          0% { opacity: 1; }
+          100% { opacity: 0; pointer-events: none; }
+        }
+        .animate-fadeOut {
+          animation: fadeOut 0.5s ease-out 0.5s forwards;
         }
     </style>
 <script type="importmap">
