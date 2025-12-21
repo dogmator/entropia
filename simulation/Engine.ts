@@ -260,7 +260,10 @@ export class SimulationEngine {
 
   /** Підписатися на події */
   public addEventListener(callback: (event: SimulationEvent) => void): () => void {
-    return this.eventBus.on('TickUpdated', callback as any);
+    // EventBus.on приймає конкретний тип події, але addEventListener дозволяє слухати всі події
+    // Тому використовуємо type assertion до EventCallback
+    type EventCallback = (event: SimulationEvent) => void;
+    return this.eventBus.on('TickUpdated', callback as EventCallback);
   }
 
   /** Головний цикл оновлення - РЕФАКТОРЕНА ВЕРСІЯ */
