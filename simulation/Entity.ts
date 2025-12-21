@@ -1,6 +1,6 @@
 
 /**
- * EVOSIM 3D — Сутності симуляції
+ * Entropia 3D — Сутності симуляції
  *
  * Академічно коректна ієрархія класів для:
  * - Організмів (травоїдні та хижаки)
@@ -55,7 +55,7 @@ export abstract class Entity {
     public readonly id: EntityId,
     public position: MutableVector3,
     public radius: number
-  ) {}
+  ) { }
 
   /** Квадрат відстані до іншої точки (швидше ніж sqrt) */
   distanceSquaredTo(other: Vector3): number {

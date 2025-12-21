@@ -1,5 +1,5 @@
 /**
- * EVOSIM 3D — Система Поведінки
+ * Entropia 3D — Система Поведінки
  *
  * Відповідальність: AI та поведінка організмів
  * - Boids алгоритм (separation, alignment, cohesion)
@@ -31,7 +31,7 @@ export class BehaviorSystem {
     private readonly spatialGrid: SpatialHashGrid,
     private readonly config: SimulationConfig,
     private readonly zones: Map<string, EcologicalZone>
-  ) {}
+  ) { }
 
   /**
    * Оновити поведінку всіх організмів
