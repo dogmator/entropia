@@ -12,6 +12,7 @@
 
 import {
   EntityType,
+  EntityId,
   OrganismId,
   FoodId,
   ObstacleId,
@@ -51,7 +52,7 @@ export abstract class Entity {
   public abstract readonly type: EntityType;
 
   constructor(
-    public readonly id: string,
+    public readonly id: EntityId,
     public position: MutableVector3,
     public radius: number
   ) {}
@@ -170,7 +171,7 @@ export class Obstacle extends Entity {
  * - Генетичну інформацію
  */
 export class Organism extends Entity {
-  public readonly type: EntityType.PREY | EntityType.PREDATOR;
+  public readonly type: typeof EntityType.PREY | typeof EntityType.PREDATOR;
 
   // Фізика
   public velocity: MutableVector3;
@@ -206,7 +207,7 @@ export class Organism extends Entity {
   ) {
     super(id, position, genome.size);
     this.genome = genome;
-    this.type = genome.type as EntityType.PREY | EntityType.PREDATOR;
+    this.type = genome.type as typeof EntityType.PREY | typeof EntityType.PREDATOR;
     this.parentOrganismId = parentOrganismId;
 
     // Ініціалізація фізики
