@@ -170,6 +170,14 @@ export interface PopulationSnapshot {
   readonly avgEnergy: number;
 }
 
+/** Тип для історії популяції (використовується в графіках) */
+export interface PopulationDataPoint {
+  readonly time: number;
+  readonly prey: number;
+  readonly pred: number;
+  readonly food?: number;
+}
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
