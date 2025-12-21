@@ -53,11 +53,11 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
       {/* Статистичні картки - основні */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Травоїдні з енергією */}
-        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
+        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-green-500/30 hover:shadow-[0_0_20px_rgba(74,222,128,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Травоїдні</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-green-400 transition-colors">Травоїдні</span>
           </div>
-          <span className="text-xl sm:text-lg font-mono font-black text-green-400">{stats.preyCount}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-green-400 group-hover:drop-shadow-[0_0_8px_rgba(74,222,128,0.5)] transition-all">{stats.preyCount}</span>
           <div className="flex items-center gap-1 mt-1">
             <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
               <div
@@ -70,11 +70,11 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
         </div>
 
         {/* Хижаки з енергією */}
-        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
+        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-red-500/30 hover:shadow-[0_0_20px_rgba(248,113,113,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Хижаки</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-red-400 transition-colors">Хижаки</span>
           </div>
-          <span className="text-xl sm:text-lg font-mono font-black text-red-400">{stats.predatorCount}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-red-400 group-hover:drop-shadow-[0_0_8px_rgba(248,113,113,0.5)] transition-all">{stats.predatorCount}</span>
           <div className="flex items-center gap-1 mt-1">
             <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
               <div
@@ -87,35 +87,35 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
         </div>
 
         {/* Кристали */}
-        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
+        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-yellow-500/30 hover:shadow-[0_0_20px_rgba(250,204,21,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Кристали</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-yellow-400 transition-colors">Кристали</span>
           </div>
-          <span className="text-xl sm:text-lg font-mono font-black text-yellow-400">{stats.foodCount}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-yellow-400 group-hover:drop-shadow-[0_0_8px_rgba(250,204,21,0.5)] transition-all">{stats.foodCount}</span>
         </div>
 
         {/* Покоління */}
-        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
+        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Макс. Покоління</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-purple-400 transition-colors">Макс. Покоління</span>
           </div>
-          <span className="text-xl sm:text-lg font-mono font-black text-purple-400">{stats.maxGeneration}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-purple-400 group-hover:drop-shadow-[0_0_8px_rgba(168,85,247,0.5)] transition-all">{stats.maxGeneration}</span>
         </div>
       </div>
 
       {/* Статистика народжень/смертей */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        <div className="bg-emerald-950/20 rounded-lg p-2 border border-emerald-500/10 text-center">
-          <span className="text-[8px] sm:text-[7px] text-emerald-400/60 uppercase tracking-widest block mb-1">Народжень</span>
-          <span className="text-base sm:text-sm font-mono font-bold text-emerald-400">{stats.totalBirths}</span>
+        <div className="bg-emerald-950/20 rounded-lg p-2 border border-emerald-500/10 text-center hover:bg-emerald-950/40 hover:border-emerald-500/30 hover:scale-105 transition-all duration-300 cursor-pointer group">
+          <span className="text-[8px] sm:text-[7px] text-emerald-400/60 uppercase tracking-widest block mb-1 group-hover:text-emerald-400 transition-colors">Народжень</span>
+          <span className="text-base sm:text-sm font-mono font-bold text-emerald-400 group-hover:drop-shadow-[0_0_6px_rgba(16,185,129,0.5)] transition-all">{stats.totalBirths}</span>
         </div>
-        <div className="bg-gray-950/30 rounded-lg p-2 border border-gray-500/10 text-center">
-          <span className="text-[8px] sm:text-[7px] text-gray-400/60 uppercase tracking-widest block mb-1">Смертей</span>
-          <span className="text-base sm:text-sm font-mono font-bold text-gray-400">{stats.totalDeaths}</span>
+        <div className="bg-gray-950/30 rounded-lg p-2 border border-gray-500/10 text-center hover:bg-gray-950/50 hover:border-gray-500/30 hover:scale-105 transition-all duration-300 cursor-pointer group">
+          <span className="text-[8px] sm:text-[7px] text-gray-400/60 uppercase tracking-widest block mb-1 group-hover:text-gray-300 transition-colors">Смертей</span>
+          <span className="text-base sm:text-sm font-mono font-bold text-gray-400 group-hover:text-gray-300 transition-all">{stats.totalDeaths}</span>
         </div>
-        <div className="bg-purple-950/20 rounded-lg p-2 border border-purple-500/10 text-center col-span-2 sm:col-span-1">
-          <span className="text-[8px] sm:text-[7px] text-purple-400/60 uppercase tracking-widest block mb-1">Рекорд Віку</span>
-          <span className="text-base sm:text-sm font-mono font-bold text-purple-400">{stats.maxAge}</span>
+        <div className="bg-purple-950/20 rounded-lg p-2 border border-purple-500/10 text-center col-span-2 sm:col-span-1 hover:bg-purple-950/40 hover:border-purple-500/30 hover:scale-105 transition-all duration-300 cursor-pointer group">
+          <span className="text-[8px] sm:text-[7px] text-purple-400/60 uppercase tracking-widest block mb-1 group-hover:text-purple-400 transition-colors">Рекорд Віку</span>
+          <span className="text-base sm:text-sm font-mono font-bold text-purple-400 group-hover:drop-shadow-[0_0_6px_rgba(168,85,247,0.5)] transition-all">{stats.maxAge}</span>
         </div>
       </div>
 
