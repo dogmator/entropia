@@ -63,11 +63,11 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
           <span className="text-[10px] sm:text-[9px] text-emerald-500/80 font-mono font-black px-2 py-0.5 bg-emerald-500/10 rounded border border-emerald-500/20">v2.5</span>
         </div>
       </div>
-      
+
       {/* Scrollable Content */}
       <div className={`transition-all duration-500 ease-in-out ${collapsed ? 'max-h-0 opacity-0' : 'max-h-[1600px] opacity-100'}`}>
         <div className="p-4 sm:p-5 space-y-9 overflow-y-auto custom-scrollbar max-h-[60vh]">
-          
+
           {/* Group 1: Physics & Core */}
           <section>
             <h3 className="text-[10px] sm:text-[9px] text-emerald-400 font-black uppercase tracking-[0.4em] mb-4 flex items-center gap-3">
@@ -77,6 +77,23 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
             </h3>
             <Slider label="Темп їжі" param="foodSpawnRate" value={config.foodSpawnRate} min={0} max={1} step={0.05} />
             <Slider label="Ліміт їжі" param="maxFood" value={config.maxFood} min={50} max={2000} step={50} />
+            <Slider label="Ліміт організмів" param="maxOrganisms" value={config.maxOrganisms} min={10} max={1000} step={10} />
+
+            <div className="flex justify-between items-center mb-4 mt-6">
+              <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Аномалії (Перешкоди)</span>
+              <button
+                onClick={() => {
+                  const newVal = !config.showObstacles;
+                  const newConfig = { ...config, showObstacles: newVal };
+                  setConfig(newConfig);
+                  Object.assign(engine.config, { showObstacles: newVal });
+                }}
+                className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showObstacles ? 'bg-emerald-500' : 'bg-white/10'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showObstacles ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+            </div>
+
             <Slider label="Опір (Drag)" param="drag" value={config.drag} min={0.8} max={1.0} step={0.005} />
             <Slider label="Шанс Мутації" param="mutationFactor" value={config.mutationFactor} min={0.01} max={0.5} step={0.01} />
             <Slider label="Поріг Поділу" param="reproductionThreshold" value={config.reproductionThreshold} min={100} max={500} step={10} />
@@ -112,9 +129,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
 
         {/* Panel Footer */}
         <div className="px-4 sm:px-5 py-3 bg-white/[0.02] border-t border-white/5 flex justify-center">
-           <div className="text-[9px] sm:text-[8px] text-gray-600 font-black uppercase tracking-widest animate-pulse">
-             Система активна • Стабільна частота
-           </div>
+          <div className="text-[9px] sm:text-[8px] text-gray-600 font-black uppercase tracking-widest animate-pulse">
+            Система активна • Стабільна частота
+          </div>
         </div>
       </div>
     </div>
