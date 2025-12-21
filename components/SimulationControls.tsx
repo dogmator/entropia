@@ -15,9 +15,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({
   return (
     <div className="flex flex-col gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
       <div className="flex items-center justify-between gap-3">
-        <button 
+        <button
           onClick={onTogglePause}
-          className={`flex-1 h-10 rounded-lg flex items-center justify-center gap-2 transition-all font-bold text-[10px] uppercase tracking-widest ${
+          className={`flex-1 h-12 sm:h-10 rounded-lg flex items-center justify-center gap-2 transition-all font-bold text-[11px] sm:text-[10px] uppercase tracking-widest touch-manipulation ${
             isPaused 
               ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 ring-1 ring-emerald-500/20' 
               : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 ring-1 ring-amber-500/20'
@@ -36,9 +36,9 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({
           )}
         </button>
 
-        <button 
+        <button
           onClick={onReset}
-          className="w-10 h-10 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center hover:bg-rose-500/20 transition-all border border-rose-500/20"
+          className="w-12 h-12 sm:w-10 sm:h-10 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center hover:bg-rose-500/20 transition-all border border-rose-500/20 touch-manipulation"
           title="Скинути симуляцію"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -48,19 +48,19 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex justify-between text-[8px] uppercase tracking-[0.2em] text-gray-500 font-black">
+        <div className="flex justify-between text-[9px] sm:text-[8px] uppercase tracking-[0.2em] text-gray-500 font-black">
           <span>Швидкість Часу</span>
           <span className="text-white font-mono bg-white/5 px-2 py-0.5 rounded">{speed.toFixed(1)}x</span>
         </div>
-        <input 
-          type="range" 
-          min={0.1} max={5.0} step={0.1} 
-          value={speed} 
+        <input
+          type="range"
+          min={0.1} max={5.0} step={0.1}
+          value={speed}
           onInput={(e: any) => onSpeedChange(parseFloat(e.target.value))}
           onChange={(e: any) => onSpeedChange(parseFloat(e.target.value))}
-          className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:bg-white/20 transition-colors"
+          className="w-full h-2 sm:h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:bg-white/20 transition-colors touch-manipulation"
         />
-        <div className="flex justify-between text-[7px] text-gray-600 font-bold uppercase mt-1">
+        <div className="flex justify-between text-[8px] sm:text-[7px] text-gray-600 font-bold uppercase mt-1">
           <span>Уповільнення</span>
           <span>Прискорення</span>
         </div>
