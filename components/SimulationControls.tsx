@@ -56,8 +56,8 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({
           type="range"
           min={0.1} max={5.0} step={0.1}
           value={speed}
-          onInput={(e: any) => onSpeedChange(parseFloat(e.target.value))}
-          onChange={(e: any) => onSpeedChange(parseFloat(e.target.value))}
+          onInput={(e: React.ChangeEvent<HTMLInputElement>) => onSpeedChange(parseFloat(e.target.value))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSpeedChange(parseFloat(e.target.value))}
           className="w-full h-2 sm:h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:bg-white/20 transition-colors touch-manipulation"
         />
         <div className="flex justify-between text-[8px] sm:text-[7px] text-gray-600 font-bold uppercase mt-1">

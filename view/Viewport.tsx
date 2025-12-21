@@ -93,11 +93,15 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
   // TOOLTIP UTILS
   // ============================================================================
 
-  const isOrganism = (e: any): e is Organism =>
-    e && (e.type === EntityType.PREY || e.type === EntityType.PREDATOR);
-  const isObstacle = (e: any): e is Obstacle =>
-    e && e.type === EntityType.OBSTACLE;
-  const isFood = (e: any): e is Food => e && e.type === EntityType.FOOD;
+  const isOrganism = (e: unknown): e is Organism =>
+    e !== null &&
+    typeof e === 'object' &&
+    'type' in e &&
+    (e.type === EntityType.PREY || e.type === EntityType.PREDATOR);
+  const isObstacle = (e: unknown): e is Obstacle =>
+    e !== null && typeof e === 'object' && 'type' in e && e.type === EntityType.OBSTACLE;
+  const isFood = (e: unknown): e is Food =>
+    e !== null && typeof e === 'object' && 'type' in e && e.type === EntityType.FOOD;
 
   const getStateLabel = (state: OrganismState): string => {
     const labels: Record<OrganismState, string> = {
