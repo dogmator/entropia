@@ -10,7 +10,7 @@
  * - Допоміжні об'єкти
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { SimulationEngine } from '../../simulation/Engine';
 import { WORLD_SIZE, COLORS, RENDER, ZONE_DEFAULTS } from '../../constants';
@@ -49,7 +49,7 @@ export function useSceneObjects(
   scene: THREE.Scene | null,
   engine: SimulationEngine
 ) {
-  const objectsRef = useRef<SceneObjects | null>(null);
+  const [objectsData, setObjectsData] = useState<SceneObjects | null>(null);
 
   useEffect(() => {
     if (!scene) return;
@@ -180,7 +180,7 @@ export function useSceneObjects(
       food: new Map<number, string>(),
     };
 
-    objectsRef.current = {
+    setObjectsData({
       preyMesh,
       predMesh,
       foodMesh,
@@ -198,7 +198,7 @@ export function useSceneObjects(
       boxGeo,
       boxEdges,
       boxMat,
-    };
+    });
 
     // Cleanup
     return () => {
@@ -223,5 +223,5 @@ export function useSceneObjects(
     };
   }, [scene, engine]);
 
-  return objectsRef.current;
+  return objectsData;
 }

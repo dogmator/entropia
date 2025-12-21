@@ -9,7 +9,7 @@
  * - Освітлення
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { WORLD_SIZE } from '../../constants';
@@ -22,7 +22,7 @@ export interface ThreeScene {
 }
 
 export function useThreeScene(containerRef: React.RefObject<HTMLDivElement>) {
-  const sceneRef = useRef<ThreeScene | null>(null);
+  const [sceneData, setSceneData] = useState<ThreeScene | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -72,7 +72,7 @@ export function useThreeScene(containerRef: React.RefObject<HTMLDivElement>) {
     fillLight.position.set(-WORLD_SIZE, WORLD_SIZE * 0.5, -WORLD_SIZE);
     scene.add(fillLight);
 
-    sceneRef.current = { scene, camera, renderer, controls };
+    setSceneData({ scene, camera, renderer, controls });
 
     // Resize handler
     const handleResize = () => {
@@ -92,5 +92,5 @@ export function useThreeScene(containerRef: React.RefObject<HTMLDivElement>) {
     };
   }, [containerRef]);
 
-  return sceneRef.current;
+  return sceneData;
 }
