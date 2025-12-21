@@ -46,10 +46,34 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
   const isPausedRef = useRef(isPaused);
 
   const [hoveredEntity, setHoveredEntity] = useState<Organism | Food | Obstacle | null>(null);
+  const [tooltipVisible, setTooltipVisible] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const fadeTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => { speedRef.current = speed; }, [speed]);
   useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+
+  // Плавне з'явлення/зникнення tooltip
+  useEffect(() => {
+    if (hoveredEntity) {
+      // Показати одразу
+      setTooltipVisible(true);
+      // Очистити попередній таймер
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+      }
+    } else {
+      // Приховати з затримкою 180ms
+      fadeTimeoutRef.current = window.setTimeout(() => {
+        setTooltipVisible(false);
+      }, 180);
+    }
+    return () => {
+      if (fadeTimeoutRef.current) {
+        clearTimeout(fadeTimeoutRef.current);
+      }
+    };
+  }, [hoveredEntity]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -485,9 +509,9 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden">
-      {hoveredEntity && (
+      {tooltipVisible && (
         <div
-          className="fixed pointer-events-none bg-black/90 backdrop-blur-2xl border border-white/10 p-5 rounded-2xl text-[11px] z-50 shadow-2xl ring-1 ring-white/10 min-w-[200px]"
+          className={`fixed pointer-events-none bg-black/90 backdrop-blur-2xl border border-white/10 p-5 rounded-2xl text-[11px] z-50 shadow-2xl ring-1 ring-white/10 min-w-[200px] transition-opacity duration-[180ms] ${hoveredEntity ? 'opacity-100' : 'opacity-0'}`}
           style={{ left: tooltipPos.x + 20, top: tooltipPos.y + 20 }}
         >
           {isOrganism(hoveredEntity) ? (

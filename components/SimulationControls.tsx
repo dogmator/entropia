@@ -17,10 +17,10 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={onTogglePause}
-          className={`flex-1 h-12 sm:h-10 rounded-lg flex items-center justify-center gap-2 transition-all font-bold text-[11px] sm:text-[10px] uppercase tracking-widest touch-manipulation ${
-            isPaused 
-              ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 ring-1 ring-emerald-500/20' 
-              : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 ring-1 ring-amber-500/20'
+          className={`flex-1 h-12 sm:h-10 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 font-bold text-[11px] sm:text-[10px] uppercase tracking-widest touch-manipulation hover:scale-[1.02] active:scale-95 ${
+            isPaused
+              ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 hover:shadow-[0_0_20px_rgba(16,185,129,0.2)] ring-1 ring-emerald-500/20 hover:ring-emerald-500/40'
+              : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] ring-1 ring-amber-500/20 hover:ring-amber-500/40'
           }`}
         >
           {isPaused ? (
@@ -38,7 +38,7 @@ const SimulationControls: React.FC<SimulationControlsProps> = ({
 
         <button
           onClick={onReset}
-          className="w-12 h-12 sm:w-10 sm:h-10 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center hover:bg-rose-500/20 transition-all border border-rose-500/20 touch-manipulation"
+          className="w-12 h-12 sm:w-10 sm:h-10 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center hover:bg-rose-500/20 hover:shadow-[0_0_20px_rgba(244,63,94,0.2)] transition-all duration-300 border border-rose-500/20 hover:border-rose-500/40 touch-manipulation hover:scale-110 active:scale-95 hover:rotate-180"
           title="Скинути симуляцію"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
