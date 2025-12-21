@@ -12,7 +12,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SimulationEngine } from '../simulation/Engine';
 import { WORLD_SIZE, COLORS, RENDER, ZONE_DEFAULTS } from '../constants';
 import { EntityType, OrganismState } from '../types';
@@ -500,12 +500,12 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
               <div className="space-y-1">
                 <div className="flex justify-between text-[9px]">
                   <span className="text-gray-500">Енергія</span>
-                  <span className="text-blue-400 font-bold">{Math.round(hoveredEntity.energy)}</span>
+                  <span className="text-blue-400 font-bold">{Math.round(hoveredEntity.energy ?? 0)}</span>
                 </div>
                 <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-gradient-to-r from-red-500 via-yellow-500 to-emerald-500 transition-all"
-                    style={{ width: `${hoveredEntity.normalizedEnergy * 100}%` }}
+                    style={{ width: `${(hoveredEntity.normalizedEnergy ?? 0) * 100}%` }}
                   />
                 </div>
               </div>
@@ -515,16 +515,16 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
                 <span className={`text-right font-bold ${getStateColor(hoveredEntity.state)}`}>{getStateLabel(hoveredEntity.state)}</span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">Покоління</span>
-                <span className="text-purple-400 text-right font-bold">#{hoveredEntity.genome.generation}</span>
+                <span className="text-purple-400 text-right font-bold">#{hoveredEntity.genome?.generation ?? 0}</span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">Швидкість</span>
-                <span className="text-white text-right">{hoveredEntity.genome.maxSpeed.toFixed(2)}</span>
+                <span className="text-white text-right">{(hoveredEntity.genome?.maxSpeed ?? 0).toFixed(2)}</span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">Зір</span>
-                <span className="text-white text-right">{Math.round(hoveredEntity.genome.senseRadius)}</span>
+                <span className="text-white text-right">{Math.round(hoveredEntity.genome?.senseRadius ?? 0)}</span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">Вік</span>
-                <span className="text-white text-right">{hoveredEntity.age}</span>
+                <span className="text-white text-right">{hoveredEntity.age ?? 0}</span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">Шлейф</span>
                 <span className={`${hoveredEntity.trailEnabled ? 'text-emerald-400' : 'text-gray-600'} text-right font-bold`}>

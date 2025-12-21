@@ -400,7 +400,7 @@ export class SimulationEngine {
     let targetPos: Vector3 | null = null;
 
     // Визначення поточного стану
-    let newState = OrganismState.IDLE;
+    let newState: OrganismState = OrganismState.IDLE;
 
     for (let i = 0; i < neighbors.length; i++) {
       const n = neighbors[i];
