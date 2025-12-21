@@ -77,7 +77,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
             </h3>
             <Slider label="Темп їжі" param="foodSpawnRate" value={config.foodSpawnRate} min={0} max={1} step={0.05} />
             <Slider label="Ліміт їжі" param="maxFood" value={config.maxFood} min={50} max={2000} step={50} />
-            <Slider label="Опір (Drag)" param="physicsDrag" value={config.physicsDrag} min={0.8} max={1.0} step={0.005} />
+            <Slider label="Опір (Drag)" param="drag" value={config.drag} min={0.8} max={1.0} step={0.005} />
             <Slider label="Шанс Мутації" param="mutationFactor" value={config.mutationFactor} min={0.01} max={0.5} step={0.01} />
             <Slider label="Поріг Поділу" param="reproductionThreshold" value={config.reproductionThreshold} min={100} max={500} step={10} />
           </section>
