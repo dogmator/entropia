@@ -10,15 +10,20 @@ const App: React.FC = () => {
   const engine = useMemo(() => new SimulationEngine(), []);
   const [isPaused, setIsPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
-  // Initial state for stats including all required properties of SimulationStats
+  // Початковий стан статистики з усіма обов'язковими полями SimulationStats
   const [stats, setStats] = useState<SimulationStats>({
     preyCount: 0,
     predatorCount: 0,
     foodCount: 0,
     avgEnergy: 0,
+    avgPreyEnergy: 0,
+    avgPredatorEnergy: 0,
     generation: 0,
+    maxGeneration: 0,
     maxAge: 0,
-    totalDeaths: 0
+    totalDeaths: 0,
+    totalBirths: 0,
+    extinctionRisk: 0
   });
   const [history, setHistory] = useState<any[]>([]);
   const historyRef = useRef<any[]>([]);
