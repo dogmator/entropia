@@ -12,7 +12,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { SimulationEngine } from '../simulation/Engine';
 import { WORLD_SIZE, COLORS, RENDER, ZONE_DEFAULTS } from '../constants';
 import { EntityType, OrganismState } from '../types';
