@@ -1,0 +1,5 @@
+{
+  "name": "EvoSim: Biological Evolution Sandbox",
+  "description": "A high-performance 2D evolutionary simulation built with Three.js and TypeScript, featuring toroidal topology, spatial hash partitioning, and genetic inheritance.",
+  "requestFramePermissions": []
+}
