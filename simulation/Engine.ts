@@ -1,81 +1,203 @@
 
-import { 
-  EntityType, 
-  SimulationEvent, 
-  Genome, 
-  SimulationStats, 
+/**
+ * EVOSIM 3D — Симуляційний Движок
+ *
+ * Високопродуктивний движок еволюційної симуляції з:
+ * - Просторовим хешуванням O(1) для пошуку сусідів
+ * - Boids-алгоритмом для реалістичної поведінки
+ * - Генетичним деревом для відстеження родоводу
+ * - Екологічними зонами для різноманіття середовища
+ * - Подієвою архітектурою для візуалізації
+ */
+
+import {
+  EntityType,
+  OrganismId,
+  FoodId,
+  SimulationEvent,
+  SimulationStats,
+  SimulationConfig,
   Vector3,
-  SimulationConfig 
+  MutableVector3,
+  OrganismState,
+  EcologicalZone,
+  ZoneType,
+  GeneticTreeNode,
+  GenomeId,
+  EntitySpawnedEvent,
+  EntityDiedEvent,
+  EntityReproducedEvent,
+  createFoodId,
 } from '../types';
-import { 
-  WORLD_SIZE, 
-  INITIAL_PREY, 
-  INITIAL_PREDATOR, 
-  MAX_FOOD, 
-  FOOD_SPAWN_RATE, 
+import {
+  WORLD_SIZE,
+  INITIAL_PREY,
+  INITIAL_PREDATOR,
+  MAX_FOOD,
+  FOOD_SPAWN_RATE,
   METABOLIC_CONSTANTS,
   PHYSICS,
   REPRODUCTION_ENERGY_THRESHOLD,
   MAX_TOTAL_ORGANISMS,
-  INITIAL_VIS_CONFIG
+  INITIAL_VIS_CONFIG,
+  MIN_REPRODUCTION_AGE,
+  ZONE_DEFAULTS,
+  GENETICS,
 } from '../constants';
-import { Organism, Food, Obstacle } from './Entity';
+import { Organism, Food, Obstacle, OrganismFactory, isPrey, isPredator } from './Entity';
 import { SpatialHashGrid } from './SpatialHashGrid';
 import { MathUtils } from './MathUtils';
 
-export class SimulationEngine {
-  public organisms: Map<string, Organism> = new Map();
-  public food: Map<string, Food> = new Map();
-  public obstacles: Map<string, Obstacle> = new Map();
-  private grid: SpatialHashGrid = new SpatialHashGrid();
-  private nextId: number = 0;
-  private listeners: ((event: SimulationEvent) => void)[] = [];
-  
-  private stats_totalDeaths: number = 0;
-  private stats_maxAge: number = 0;
+// ============================================================================
+// ТИПИ
+// ============================================================================
 
-  public config: SimulationConfig = {
-    foodSpawnRate: FOOD_SPAWN_RATE,
-    maxFood: MAX_FOOD,
-    mutationFactor: 0.1,
-    reproductionThreshold: REPRODUCTION_ENERGY_THRESHOLD,
-    physicsDrag: PHYSICS.drag,
-    separationWeight: PHYSICS.separationWeight,
-    seekWeight: PHYSICS.seekWeight,
-    avoidWeight: PHYSICS.avoidWeight,
-    ...INITIAL_VIS_CONFIG
+type EventListener = (event: SimulationEvent) => void;
+
+interface NewbornData {
+  parent: Organism;
+}
+
+// ============================================================================
+// ГОЛОВНИЙ КЛАС ДВИГУНА
+// ============================================================================
+
+export class SimulationEngine {
+  // Колекції сутностей
+  public readonly organisms: Map<string, Organism> = new Map();
+  public readonly food: Map<string, Food> = new Map();
+  public readonly obstacles: Map<string, Obstacle> = new Map();
+  public readonly zones: Map<string, EcologicalZone> = new Map();
+
+  // Генетичне дерево
+  public readonly geneticTree: Map<GenomeId, GeneticTreeNode> = new Map();
+  public readonly geneticRoots: GenomeId[] = [];
+
+  // Просторове хешування
+  private readonly grid: SpatialHashGrid = new SpatialHashGrid();
+
+  // Фабрика організмів
+  private readonly organismFactory: OrganismFactory = new OrganismFactory();
+
+  // Лічильники
+  private foodIdCounter: number = 0;
+  private obstacleIdCounter: number = 0;
+  private tick: number = 0;
+
+  // Статистика
+  private stats = {
+    totalDeaths: 0,
+    totalBirths: 0,
+    maxAge: 0,
+    maxGeneration: 1,
+    preyDeaths: 0,
+    predatorDeaths: 0,
   };
 
+  // Слухачі подій
+  private listeners: EventListener[] = [];
+
+  // Конфігурація
+  public config: SimulationConfig;
+
   constructor() {
+    this.config = this.createDefaultConfig();
     this.init();
   }
 
-  public reset() {
-    this.organisms.clear();
-    this.food.clear();
-    this.obstacles.clear();
-    this.grid.clear();
-    this.nextId = 0;
-    this.stats_totalDeaths = 0;
-    this.stats_maxAge = 0;
-    this.init();
+  // ============================================================================
+  // ІНІЦІАЛІЗАЦІЯ
+  // ============================================================================
+
+  private createDefaultConfig(): SimulationConfig {
+    return {
+      foodSpawnRate: FOOD_SPAWN_RATE,
+      maxFood: MAX_FOOD,
+      mutationFactor: GENETICS.mutationFactor,
+      reproductionThreshold: REPRODUCTION_ENERGY_THRESHOLD,
+      drag: PHYSICS.drag,
+      separationWeight: PHYSICS.separationWeight,
+      alignmentWeight: PHYSICS.alignmentWeight,
+      cohesionWeight: PHYSICS.cohesionWeight,
+      seekWeight: PHYSICS.seekWeight,
+      avoidWeight: PHYSICS.avoidWeight,
+      ...INITIAL_VIS_CONFIG,
+    };
   }
 
-  private init() {
-    const obstacleCount = 15;
-    for (let i = 0; i < obstacleCount; i++) {
-      const radius = 10 + Math.random() * 30;
-      const pos = {
-        x: Math.random() * WORLD_SIZE,
-        y: Math.random() * WORLD_SIZE,
-        z: Math.random() * WORLD_SIZE
-      };
-      const color = Math.random() * 0xffffff;
-      const opacity = 0.2 + Math.random() * 0.6;
-      const obstacle = new Obstacle(this.generateId(), pos, radius, color, opacity);
+  private init(): void {
+    this.createZones();
+    this.createObstacles();
+    this.createInitialPopulation();
+  }
+
+  /** Створити екологічні зони */
+  private createZones(): void {
+    // Оазис у центрі
+    this.zones.set('oasis_center', {
+      id: 'oasis_center',
+      type: ZoneType.OASIS,
+      center: { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2, z: WORLD_SIZE / 2 },
+      radius: WORLD_SIZE * 0.15,
+      foodMultiplier: ZONE_DEFAULTS.OASIS.foodMultiplier,
+      dangerMultiplier: ZONE_DEFAULTS.OASIS.dangerMultiplier,
+    });
+
+    // Пустельні кути
+    const corners = [
+      { x: 0, y: 0, z: 0 },
+      { x: WORLD_SIZE, y: WORLD_SIZE, z: WORLD_SIZE },
+    ];
+    corners.forEach((pos, i) => {
+      this.zones.set(`desert_${i}`, {
+        id: `desert_${i}`,
+        type: ZoneType.DESERT,
+        center: pos,
+        radius: WORLD_SIZE * 0.2,
+        foodMultiplier: ZONE_DEFAULTS.DESERT.foodMultiplier,
+        dangerMultiplier: ZONE_DEFAULTS.DESERT.dangerMultiplier,
+      });
+    });
+
+    // Мисливські угіддя
+    this.zones.set('hunting_ground', {
+      id: 'hunting_ground',
+      type: ZoneType.HUNTING_GROUND,
+      center: { x: WORLD_SIZE * 0.75, y: WORLD_SIZE / 2, z: WORLD_SIZE * 0.25 },
+      radius: WORLD_SIZE * 0.12,
+      foodMultiplier: ZONE_DEFAULTS.HUNTING_GROUND.foodMultiplier,
+      dangerMultiplier: ZONE_DEFAULTS.HUNTING_GROUND.dangerMultiplier,
+    });
+
+    // Притулок
+    this.zones.set('sanctuary', {
+      id: 'sanctuary',
+      type: ZoneType.SANCTUARY,
+      center: { x: WORLD_SIZE * 0.25, y: WORLD_SIZE / 2, z: WORLD_SIZE * 0.75 },
+      radius: WORLD_SIZE * 0.1,
+      foodMultiplier: ZONE_DEFAULTS.SANCTUARY.foodMultiplier,
+      dangerMultiplier: ZONE_DEFAULTS.SANCTUARY.dangerMultiplier,
+    });
+  }
+
+  /** Створити початкові перешкоди */
+  private createObstacles(): void {
+    const count = 12;
+    for (let i = 0; i < count; i++) {
+      const radius = 12 + Math.random() * 25;
+      const obstacle = Obstacle.create(
+        ++this.obstacleIdCounter,
+        Math.random() * WORLD_SIZE,
+        Math.random() * WORLD_SIZE,
+        Math.random() * WORLD_SIZE,
+        radius
+      );
       this.obstacles.set(obstacle.id, obstacle);
     }
+  }
 
+  /** Створити початкову популяцію */
+  private createInitialPopulation(): void {
     for (let i = 0; i < INITIAL_PREY; i++) {
       this.spawnOrganism(EntityType.PREY);
     }
@@ -84,317 +206,717 @@ export class SimulationEngine {
     }
   }
 
-  private generateId(): string {
-    return (this.nextId++).toString();
+  // ============================================================================
+  // ПУБЛІЧНІ МЕТОДИ
+  // ============================================================================
+
+  /** Скинути симуляцію */
+  public reset(): void {
+    this.organisms.clear();
+    this.food.clear();
+    this.obstacles.clear();
+    this.zones.clear();
+    this.geneticTree.clear();
+    this.geneticRoots.length = 0;
+    this.grid.clear();
+
+    this.foodIdCounter = 0;
+    this.obstacleIdCounter = 0;
+    this.tick = 0;
+    this.stats = {
+      totalDeaths: 0,
+      totalBirths: 0,
+      maxAge: 0,
+      maxGeneration: 1,
+      preyDeaths: 0,
+      predatorDeaths: 0,
+    };
+
+    this.organismFactory.reset();
+    this.init();
   }
 
-  addEventListener(callback: (event: SimulationEvent) => void) {
+  /** Підписатися на події */
+  public addEventListener(callback: EventListener): () => void {
     this.listeners.push(callback);
     return () => {
       this.listeners = this.listeners.filter(l => l !== callback);
     };
   }
 
-  private emit(event: SimulationEvent) {
-    for (let i = 0; i < this.listeners.length; i++) {
-      this.listeners[i](event);
-    }
-  }
-
-  private createGenome(type: EntityType, base?: Genome): Genome {
-    const mf = this.config.mutationFactor;
-    const mutation = () => (1 - mf/2) + Math.random() * mf;
-    
-    if (type === EntityType.PREY) {
-      return {
-        id: this.generateId(),
-        type: EntityType.PREY,
-        color: 0x44ff44,
-        maxSpeed: Math.max(0.8, (base?.maxSpeed || 2.0) * mutation()),
-        senseRadius: Math.max(30, (base?.senseRadius || 80) * mutation()),
-        metabolism: Math.max(0.1, (base?.metabolism || 1.0) * mutation()),
-        size: Math.max(2, (base?.size || 4) * mutation())
-      };
-    } else {
-      return {
-        id: this.generateId(),
-        type: EntityType.PREDATOR,
-        color: 0xff4444,
-        maxSpeed: Math.max(1.0, (base?.maxSpeed || 2.4) * mutation()),
-        senseRadius: Math.max(50, (base?.senseRadius || 150) * mutation()),
-        metabolism: Math.max(0.1, (base?.metabolism || 1.1) * mutation()),
-        size: Math.max(3, (base?.size || 6) * mutation())
-      };
-    }
-  }
-
-  private spawnOrganism(type: EntityType, pos?: Vector3, genome?: Genome) {
-    if (this.organisms.size >= MAX_TOTAL_ORGANISMS) return;
-    
-    const position = pos || { 
-      x: Math.random() * WORLD_SIZE, 
-      y: Math.random() * WORLD_SIZE, 
-      z: Math.random() * WORLD_SIZE 
-    };
-    const gen = genome || this.createGenome(type);
-    const organism = new Organism(this.generateId(), position, gen);
-    this.organisms.set(organism.id, organism);
-    this.emit({ type: 'EntitySpawned', entity: organism });
-  }
-
-  private spawnFood() {
-    if (this.food.size < this.config.maxFood) {
-      if (Math.random() < this.config.foodSpawnRate) {
-        const food = new Food(this.generateId(), { 
-          x: Math.random() * WORLD_SIZE, 
-          y: Math.random() * WORLD_SIZE,
-          z: Math.random() * WORLD_SIZE
-        });
-        this.food.set(food.id, food);
-        this.emit({ type: 'EntitySpawned', entity: food });
-      }
-    }
-  }
-
-  update() {
+  /** Головний цикл оновлення */
+  public update(): void {
+    this.tick++;
     this.spawnFood();
-    this.grid.clear();
-    this.organisms.forEach(o => this.grid.insert({ id: o.id, position: o.position, type: o.type }));
-    this.food.forEach(f => this.grid.insert({ id: f.id, position: f.position, type: f.type }));
-    this.obstacles.forEach(ob => this.grid.insert({ id: ob.id, position: ob.position, type: ob.type }));
+    this.rebuildGrid();
 
     const deadIds: string[] = [];
-    const newborns: { type: EntityType, pos: Vector3, gen: Genome }[] = [];
+    const newborns: NewbornData[] = [];
 
+    // Оновлення всіх організмів
     this.organisms.forEach(org => {
+      if (org.isDead) return;
+
       this.applyBehaviors(org);
       this.integrate(org);
       this.handleMetabolism(org);
-      this.handleCollisions(org);
+      this.handleCollisions(org, deadIds);
+      this.checkReproduction(org, newborns);
 
-      if (org.age > this.stats_maxAge) this.stats_maxAge = org.age;
-
-      if (org.energy <= 0 || isNaN(org.energy)) org.die();
-      if (org.isDead) {
-        deadIds.push(org.id);
-      } else if (org.energy > this.config.reproductionThreshold) {
-        org.energy *= 0.5;
-        newborns.push({
-          type: org.type,
-          pos: { ...org.position },
-          gen: this.createGenome(org.type, org.genome)
-        });
+      // Оновлення статистики
+      if (org.age > this.stats.maxAge) {
+        this.stats.maxAge = org.age;
+      }
+      if (org.genome.generation > this.stats.maxGeneration) {
+        this.stats.maxGeneration = org.genome.generation;
       }
     });
 
-    for (const newborn of newborns) {
-      this.spawnOrganism(newborn.type, newborn.pos, newborn.gen);
-    }
+    // Обробка народжень
+    this.processNewborns(newborns);
 
-    for (const id of deadIds) {
-      const org = this.organisms.get(id);
-      if (org) {
-        this.stats_totalDeaths++;
-        this.emit({ type: 'EntityDied', id, entityType: org.type });
-        this.organisms.delete(id);
-      }
-    }
+    // Обробка смертей
+    this.processDeaths(deadIds);
 
-    this.emit({ type: 'TickUpdated', stats: this.calculateStats() });
+    // Відправка оновлення стану
+    this.emit({
+      type: 'TickUpdated',
+      tick: this.tick,
+      stats: this.calculateStats(),
+      deltaTime: 1 / 60,
+    });
   }
 
-  private applyBehaviors(org: Organism) {
-    const neighbors = this.grid.getNearby(org.position, org.genome.senseRadius);
-    let steerSeparation = { x: 0, y: 0, z: 0 };
-    let steerHunger = { x: 0, y: 0, z: 0 };
-    let steerFear = { x: 0, y: 0, z: 0 };
-    let steerObstacle = { x: 0, y: 0, z: 0 };
+  // ============================================================================
+  // СПАВН СУТНОСТЕЙ
+  // ============================================================================
 
-    let countSep = 0;
-    let closestFoodDist = Infinity;
-    let closestPreyDist = Infinity;
-    let targetFood: Vector3 | null = null;
-    let targetPrey: Vector3 | null = null;
+  /** Спавн організму */
+  private spawnOrganism(type: EntityType, pos?: Vector3, parent?: Organism): Organism | null {
+    if (this.organisms.size >= MAX_TOTAL_ORGANISMS) return null;
+
+    let organism: Organism;
+    const position = pos || this.getRandomPosition();
+
+    if (parent) {
+      organism = this.organismFactory.createOffspring(parent);
+      organism.position.x = position.x;
+      organism.position.y = position.y;
+      organism.position.z = position.z;
+    } else if (type === EntityType.PREY) {
+      organism = this.organismFactory.createPrey(position.x, position.y, position.z);
+    } else {
+      organism = this.organismFactory.createPredator(position.x, position.y, position.z);
+    }
+
+    this.organisms.set(organism.id, organism);
+
+    // Додати до генетичного дерева
+    this.addToGeneticTree(organism, parent);
+
+    // Відправити подію
+    this.emit({
+      type: 'EntitySpawned',
+      entityType: organism.type,
+      id: organism.id as OrganismId,
+      position: { ...organism.position },
+      parentId: parent?.id as OrganismId | undefined,
+    } as EntitySpawnedEvent);
+
+    return organism;
+  }
+
+  /** Спавн їжі */
+  private spawnFood(): void {
+    if (this.food.size >= this.config.maxFood) return;
+
+    // Базовий шанс спавну
+    let spawnChance = this.config.foodSpawnRate;
+
+    // Збільшити шанс у оазисах
+    if (Math.random() < spawnChance) {
+      const position = this.getFoodSpawnPosition();
+      const food = Food.create(
+        ++this.foodIdCounter,
+        position.x,
+        position.y,
+        position.z
+      );
+      this.food.set(food.id, food);
+
+      this.emit({
+        type: 'EntitySpawned',
+        entityType: EntityType.FOOD,
+        id: food.id as unknown as FoodId,
+        position: { ...position },
+      } as EntitySpawnedEvent);
+    }
+  }
+
+  /** Отримати позицію для спавну їжі з урахуванням зон */
+  private getFoodSpawnPosition(): MutableVector3 {
+    // 30% шанс спавну в оазисі
+    if (Math.random() < 0.3) {
+      const oasis = this.zones.get('oasis_center');
+      if (oasis) {
+        const angle = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = Math.random() * oasis.radius;
+        return {
+          x: oasis.center.x + r * Math.sin(phi) * Math.cos(angle),
+          y: oasis.center.y + r * Math.sin(phi) * Math.sin(angle),
+          z: oasis.center.z + r * Math.cos(phi),
+        };
+      }
+    }
+    return this.getRandomPosition();
+  }
+
+  /** Випадкова позиція у світі */
+  private getRandomPosition(): MutableVector3 {
+    return {
+      x: Math.random() * WORLD_SIZE,
+      y: Math.random() * WORLD_SIZE,
+      z: Math.random() * WORLD_SIZE,
+    };
+  }
+
+  // ============================================================================
+  // ПОВЕДІНКА (BOIDS + STEERING)
+  // ============================================================================
+
+  /** Застосувати поведінкові сили */
+  private applyBehaviors(org: Organism): void {
+    const neighbors = this.grid.getNearby(org.position, org.genome.senseRadius);
+
+    // Накопичувачі сил
+    let sepX = 0, sepY = 0, sepZ = 0, sepCount = 0;
+    let seekX = 0, seekY = 0, seekZ = 0;
+    let fleeX = 0, fleeY = 0, fleeZ = 0;
+    let obsX = 0, obsY = 0, obsZ = 0;
+    let alignX = 0, alignY = 0, alignZ = 0, alignCount = 0;
+
+    let closestTargetDist = Infinity;
+    let targetPos: Vector3 | null = null;
+
+    // Визначення поточного стану
+    let newState = OrganismState.IDLE;
 
     for (let i = 0; i < neighbors.length; i++) {
       const n = neighbors[i];
       if (n.id === org.id) continue;
-      
-      const distSq = MathUtils.toroidalDistanceSq(org.position, n.position);
-      const dist = Math.sqrt(distSq);
-      if (dist === 0) continue;
 
+      const dx = n.position.x - org.position.x;
+      const dy = n.position.y - org.position.y;
+      const dz = n.position.z - org.position.z;
+      const distSq = dx * dx + dy * dy + dz * dz;
+      const dist = Math.sqrt(distSq);
+
+      if (dist < 0.001) continue;
+
+      // Уникання перешкод
       if (n.type === EntityType.OBSTACLE) {
         const obs = this.obstacles.get(n.id);
-        if (obs && dist < obs.radius + org.radius + 20) {
-          const diff = MathUtils.toroidalVector(n.position, org.position);
-          const normalized = MathUtils.normalize(diff);
-          steerObstacle.x += normalized.x / dist;
-          steerObstacle.y += normalized.y / dist;
-          steerObstacle.z += normalized.z / dist;
+        if (obs && dist < obs.radius + org.radius + 25) {
+          const force = 1 / (dist * dist);
+          obsX -= dx / dist * force;
+          obsY -= dy / dist * force;
+          obsZ -= dz / dist * force;
         }
         continue;
       }
 
-      if (dist < org.radius + 15) {
-        const diff = MathUtils.toroidalVector(n.position, org.position);
-        const normalized = MathUtils.normalize(diff);
-        const safeDist = Math.max(dist, 2.0);
-        steerSeparation.x += normalized.x / safeDist;
-        steerSeparation.y += normalized.y / safeDist;
-        steerSeparation.z += normalized.z / safeDist;
-        countSep++;
+      // Сепарація (уникання зіткнень)
+      const separationRadius = org.radius + 18;
+      if (dist < separationRadius) {
+        const force = (separationRadius - dist) / separationRadius;
+        sepX -= dx / dist * force;
+        sepY -= dy / dist * force;
+        sepZ -= dz / dist * force;
+        sepCount++;
       }
 
-      if (org.type === EntityType.PREY) {
-        if (n.type === EntityType.FOOD && dist < closestFoodDist) {
-          closestFoodDist = dist;
-          targetFood = n.position;
+      // Поведінка травоїдних
+      if (org.isPrey) {
+        if (n.type === EntityType.FOOD && dist < closestTargetDist) {
+          closestTargetDist = dist;
+          targetPos = n.position;
+          newState = OrganismState.SEEKING;
         } else if (n.type === EntityType.PREDATOR) {
-          const diff = MathUtils.toroidalVector(n.position, org.position);
-          const normalized = MathUtils.normalize(diff);
-          steerFear.x += normalized.x / (dist * dist);
-          steerFear.y += normalized.y / (dist * dist);
-          steerFear.z += normalized.z / (dist * dist);
+          // Втеча від хижака
+          const fleeForce = org.genome.senseRadius / (dist * dist);
+          fleeX -= dx / dist * fleeForce;
+          fleeY -= dy / dist * fleeForce;
+          fleeZ -= dz / dist * fleeForce;
+          newState = OrganismState.FLEEING;
+        } else if (n.type === EntityType.PREY) {
+          // Стадна поведінка
+          const other = this.organisms.get(n.id);
+          if (other && dist < org.genome.senseRadius * 0.5) {
+            alignX += other.velocity.x;
+            alignY += other.velocity.y;
+            alignZ += other.velocity.z;
+            alignCount++;
+          }
         }
-      } else {
-        if (n.type === EntityType.PREY && dist < closestPreyDist) {
-          closestPreyDist = dist;
-          targetPrey = n.position;
+      }
+
+      // Поведінка хижаків
+      if (org.isPredator) {
+        if (n.type === EntityType.PREY && dist < closestTargetDist) {
+          closestTargetDist = dist;
+          targetPos = n.position;
+          newState = OrganismState.HUNTING;
         }
       }
     }
 
-    if (countSep > 0) steerSeparation = MathUtils.normalize(steerSeparation);
-    if (targetFood) steerHunger = MathUtils.normalize(MathUtils.toroidalVector(org.position, targetFood));
-    if (targetPrey) steerHunger = MathUtils.normalize(MathUtils.toroidalVector(org.position, targetPrey));
-    if (steerFear.x !== 0 || steerFear.y !== 0 || steerFear.z !== 0) steerFear = MathUtils.normalize(steerFear);
-    if (steerObstacle.x !== 0 || steerObstacle.y !== 0 || steerObstacle.z !== 0) steerObstacle = MathUtils.normalize(steerObstacle);
+    // Застосування зон
+    const zoneModifier = this.getZoneModifier(org.position, org.type);
 
-    org.acceleration.x += steerSeparation.x * this.config.separationWeight;
-    org.acceleration.y += steerSeparation.y * this.config.separationWeight;
-    org.acceleration.z += steerSeparation.z * this.config.separationWeight;
-    
-    org.acceleration.x += steerHunger.x * this.config.seekWeight;
-    org.acceleration.y += steerHunger.y * this.config.seekWeight;
-    org.acceleration.z += steerHunger.z * this.config.seekWeight;
-    
-    org.acceleration.x += steerFear.x * this.config.avoidWeight;
-    org.acceleration.y += steerFear.y * this.config.avoidWeight;
-    org.acceleration.z += steerFear.z * this.config.avoidWeight;
+    // Нормалізація та застосування сил
+    if (sepCount > 0) {
+      const mag = Math.sqrt(sepX * sepX + sepY * sepY + sepZ * sepZ);
+      if (mag > 0) {
+        org.acceleration.x += (sepX / mag) * this.config.separationWeight;
+        org.acceleration.y += (sepY / mag) * this.config.separationWeight;
+        org.acceleration.z += (sepZ / mag) * this.config.separationWeight;
+      }
+    }
 
-    org.acceleration.x += steerObstacle.x * 10;
-    org.acceleration.y += steerObstacle.y * 10;
-    org.acceleration.z += steerObstacle.z * 10;
+    if (targetPos) {
+      seekX = targetPos.x - org.position.x;
+      seekY = targetPos.y - org.position.y;
+      seekZ = targetPos.z - org.position.z;
+      const mag = Math.sqrt(seekX * seekX + seekY * seekY + seekZ * seekZ);
+      if (mag > 0) {
+        const weight = this.config.seekWeight * zoneModifier.seekMultiplier;
+        org.acceleration.x += (seekX / mag) * weight;
+        org.acceleration.y += (seekY / mag) * weight;
+        org.acceleration.z += (seekZ / mag) * weight;
+      }
+    }
+
+    // Втеча
+    const fleeMag = Math.sqrt(fleeX * fleeX + fleeY * fleeY + fleeZ * fleeZ);
+    if (fleeMag > 0) {
+      org.acceleration.x += (fleeX / fleeMag) * this.config.avoidWeight;
+      org.acceleration.y += (fleeY / fleeMag) * this.config.avoidWeight;
+      org.acceleration.z += (fleeZ / fleeMag) * this.config.avoidWeight;
+    }
+
+    // Перешкоди
+    const obsMag = Math.sqrt(obsX * obsX + obsY * obsY + obsZ * obsZ);
+    if (obsMag > 0) {
+      org.acceleration.x += (obsX / obsMag) * 12;
+      org.acceleration.y += (obsY / obsMag) * 12;
+      org.acceleration.z += (obsZ / obsMag) * 12;
+    }
+
+    // Вирівнювання (стадо)
+    if (alignCount > 0 && org.isPrey) {
+      alignX /= alignCount;
+      alignY /= alignCount;
+      alignZ /= alignCount;
+      const mag = Math.sqrt(alignX * alignX + alignY * alignY + alignZ * alignZ);
+      if (mag > 0) {
+        const genome = org.genome as { flockingStrength: number };
+        const flockWeight = this.config.alignmentWeight * genome.flockingStrength;
+        org.acceleration.x += (alignX / mag - org.velocity.x) * flockWeight;
+        org.acceleration.y += (alignY / mag - org.velocity.y) * flockWeight;
+        org.acceleration.z += (alignZ / mag - org.velocity.z) * flockWeight;
+      }
+    }
+
+    // Оновити стан
+    org.updateState(newState);
   }
 
-  private integrate(org: Organism) {
+  /** Отримати модифікатори зони */
+  private getZoneModifier(pos: Vector3, type: EntityType): { seekMultiplier: number; dangerMultiplier: number } {
+    let seekMultiplier = 1;
+    let dangerMultiplier = 1;
+
+    this.zones.forEach(zone => {
+      const dx = pos.x - zone.center.x;
+      const dy = pos.y - zone.center.y;
+      const dz = pos.z - zone.center.z;
+      const distSq = dx * dx + dy * dy + dz * dz;
+
+      if (distSq < zone.radius * zone.radius) {
+        seekMultiplier *= zone.foodMultiplier;
+        dangerMultiplier *= zone.dangerMultiplier;
+      }
+    });
+
+    // Хижаки отримують бонус у мисливських угіддях
+    if (type === EntityType.PREDATOR) {
+      seekMultiplier *= dangerMultiplier;
+    }
+
+    return { seekMultiplier, dangerMultiplier };
+  }
+
+  // ============================================================================
+  // ФІЗИКА
+  // ============================================================================
+
+  /** Інтегрування руху */
+  private integrate(org: Organism): void {
+    // Обмеження прискорення
+    const accMag = Math.sqrt(
+      org.acceleration.x * org.acceleration.x +
+      org.acceleration.y * org.acceleration.y +
+      org.acceleration.z * org.acceleration.z
+    );
+    if (accMag > PHYSICS.maxSteeringForce) {
+      const scale = PHYSICS.maxSteeringForce / accMag;
+      org.acceleration.x *= scale;
+      org.acceleration.y *= scale;
+      org.acceleration.z *= scale;
+    }
+
+    // Оновлення швидкості
     org.velocity.x += org.acceleration.x;
     org.velocity.y += org.acceleration.y;
     org.velocity.z += org.acceleration.z;
-    
-    org.velocity = MathUtils.limit(org.velocity, org.genome.maxSpeed);
-    
+
+    // Обмеження швидкості
+    const speed = Math.sqrt(
+      org.velocity.x * org.velocity.x +
+      org.velocity.y * org.velocity.y +
+      org.velocity.z * org.velocity.z
+    );
+    if (speed > org.genome.maxSpeed) {
+      const scale = org.genome.maxSpeed / speed;
+      org.velocity.x *= scale;
+      org.velocity.y *= scale;
+      org.velocity.z *= scale;
+    }
+
+    // Оновлення позиції з тороїдальним простором
     org.position.x = MathUtils.wrap(org.position.x + org.velocity.x);
     org.position.y = MathUtils.wrap(org.position.y + org.velocity.y);
     org.position.z = MathUtils.wrap(org.position.z + org.velocity.z);
-    
+
+    // Скидання прискорення
     org.acceleration.x = 0;
     org.acceleration.y = 0;
     org.acceleration.z = 0;
-    
-    org.velocity.x *= this.config.physicsDrag;
-    org.velocity.y *= this.config.physicsDrag;
-    org.velocity.z *= this.config.physicsDrag;
+
+    // Застосування тертя
+    org.velocity.x *= this.config.drag;
+    org.velocity.y *= this.config.drag;
+    org.velocity.z *= this.config.drag;
   }
 
-  private handleMetabolism(org: Organism) {
-    const vSq = org.velocity.x * org.velocity.x + org.velocity.y * org.velocity.y + org.velocity.z * org.velocity.z;
+  // ============================================================================
+  // МЕТАБОЛІЗМ
+  // ============================================================================
+
+  /** Обробка метаболізму */
+  private handleMetabolism(org: Organism): void {
+    const vSq = org.velocity.x * org.velocity.x +
+                org.velocity.y * org.velocity.y +
+                org.velocity.z * org.velocity.z;
+
     const loss = (
-      METABOLIC_CONSTANTS.exist * (org.radius * 0.5) +
+      METABOLIC_CONSTANTS.exist * org.radius * 0.5 +
       METABOLIC_CONSTANTS.move * vSq +
-      METABOLIC_CONSTANTS.sense * org.genome.senseRadius * 0.1
+      METABOLIC_CONSTANTS.sense * org.genome.senseRadius * 0.01 +
+      METABOLIC_CONSTANTS.size * org.genome.size
     ) * org.genome.metabolism;
-    
-    org.energy -= loss;
+
+    org.consumeEnergy(loss);
     org.age++;
+    org.lastActiveAt = this.tick;
   }
 
-  private handleCollisions(org: Organism) {
-    const neighbors = this.grid.getNearby(org.position, org.radius + 15);
+  // ============================================================================
+  // ЗІТКНЕННЯ
+  // ============================================================================
+
+  /** Обробка зіткнень */
+  private handleCollisions(org: Organism, deadIds: string[]): void {
+    if (org.isDead) return;
+
+    const neighbors = this.grid.getNearby(org.position, org.radius + 20);
+
     for (let i = 0; i < neighbors.length; i++) {
       const n = neighbors[i];
       if (n.id === org.id) continue;
-      
-      const distSq = MathUtils.toroidalDistanceSq(org.position, n.position);
 
+      const dx = n.position.x - org.position.x;
+      const dy = n.position.y - org.position.y;
+      const dz = n.position.z - org.position.z;
+      const distSq = dx * dx + dy * dy + dz * dz;
+
+      // Зіткнення з перешкодами
       if (n.type === EntityType.OBSTACLE) {
         const obs = this.obstacles.get(n.id);
         if (obs) {
           const minDist = org.radius + obs.radius;
           if (distSq < minDist * minDist) {
-            const collisionVec = MathUtils.toroidalVector(n.position, org.position);
-            const norm = MathUtils.normalize(collisionVec);
-            const dot = org.velocity.x * norm.x + org.velocity.y * norm.y + org.velocity.z * norm.z;
-            org.velocity.x -= 2 * dot * norm.x;
-            org.velocity.y -= 2 * dot * norm.y;
-            org.velocity.z -= 2 * dot * norm.z;
-            
             const dist = Math.sqrt(distSq);
-            const overlap = minDist - dist;
-            org.position.x += norm.x * overlap;
-            org.position.y += norm.y * overlap;
-            org.position.z += norm.z * overlap;
+            if (dist > 0) {
+              // Відбиття
+              const nx = dx / dist;
+              const ny = dy / dist;
+              const nz = dz / dist;
+              const dot = org.velocity.x * nx + org.velocity.y * ny + org.velocity.z * nz;
+              org.velocity.x -= 2 * dot * nx;
+              org.velocity.y -= 2 * dot * ny;
+              org.velocity.z -= 2 * dot * nz;
+
+              // Виштовхування
+              const overlap = minDist - dist;
+              org.position.x -= nx * overlap * 1.1;
+              org.position.y -= ny * overlap * 1.1;
+              org.position.z -= nz * overlap * 1.1;
+            }
           }
         }
         continue;
       }
 
-      const minDist = org.radius + (n.type === EntityType.FOOD ? 5 : 6);
-      
-      if (distSq < minDist * minDist) {
-        if (n.type === EntityType.FOOD) {
-          if (org.type === EntityType.PREY) {
-            org.energy += 45; 
-            this.emit({ type: 'EntityDied', id: n.id, entityType: EntityType.FOOD });
+      // Зіткнення з їжею (тільки травоїдні)
+      if (n.type === EntityType.FOOD && org.isPrey) {
+        const food = this.food.get(n.id);
+        if (food && !food.consumed) {
+          const minDist = org.radius + food.radius;
+          if (distSq < minDist * minDist) {
+            org.addEnergy(food.energyValue);
+            food.consumed = true;
             this.food.delete(n.id);
+
+            this.emit({
+              type: 'EntityDied',
+              entityType: EntityType.FOOD,
+              id: n.id as unknown as FoodId,
+              position: { ...food.position },
+              causeOfDeath: 'predation',
+            } as EntityDiedEvent);
           }
-        } else {
-          const other = this.organisms.get(n.id);
-          if (other) {
-             if (org.type === EntityType.PREDATOR && other.type === EntityType.PREY) {
-               org.energy += Math.max(20, other.energy * 0.7);
-               other.die();
-             }
+        }
+        continue;
+      }
+
+      // Зіткнення хижака з травоїдним
+      if (n.type === EntityType.PREY && org.isPredator) {
+        const prey = this.organisms.get(n.id);
+        if (prey && !prey.isDead) {
+          const minDist = org.radius + prey.radius;
+          if (distSq < minDist * minDist) {
+            // Успішне полювання
+            const energyGain = Math.max(25, prey.energy * 0.6);
+            org.addEnergy(energyGain);
+            org.huntSuccessCount++;
+
+            prey.die('predation');
+            deadIds.push(prey.id);
           }
         }
       }
     }
   }
 
+  // ============================================================================
+  // РОЗМНОЖЕННЯ
+  // ============================================================================
+
+  /** Перевірка можливості розмноження */
+  private checkReproduction(org: Organism, newborns: NewbornData[]): void {
+    if (org.isDead) return;
+    if (org.energy < this.config.reproductionThreshold) return;
+    if (org.age < MIN_REPRODUCTION_AGE) return;
+
+    // Витратити енергію на розмноження
+    org.energy *= 0.45;
+    org.updateState(OrganismState.REPRODUCING);
+
+    newborns.push({ parent: org });
+  }
+
+  /** Обробка народжень */
+  private processNewborns(newborns: NewbornData[]): void {
+    for (const data of newborns) {
+      const child = this.spawnOrganism(data.parent.type, undefined, data.parent);
+      if (child) {
+        this.stats.totalBirths++;
+
+        this.emit({
+          type: 'EntityReproduced',
+          parentId: data.parent.id as OrganismId,
+          childId: child.id as OrganismId,
+          position: { ...child.position },
+          generation: child.genome.generation,
+        } as EntityReproducedEvent);
+      }
+    }
+  }
+
+  /** Обробка смертей */
+  private processDeaths(deadIds: string[]): void {
+    for (const id of deadIds) {
+      const org = this.organisms.get(id);
+      if (org) {
+        this.stats.totalDeaths++;
+        if (org.isPrey) this.stats.preyDeaths++;
+        else this.stats.predatorDeaths++;
+
+        // Оновити генетичне дерево
+        const node = this.geneticTree.get(org.genome.id);
+        if (node) {
+          (node as any).died = this.tick;
+        }
+
+        this.emit({
+          type: 'EntityDied',
+          entityType: org.type,
+          id: org.id as OrganismId,
+          position: { ...org.position },
+          causeOfDeath: org.causeOfDeath || 'starvation',
+        } as EntityDiedEvent);
+
+        this.organisms.delete(id);
+      }
+    }
+  }
+
+  // ============================================================================
+  // ГЕНЕТИЧНЕ ДЕРЕВО
+  // ============================================================================
+
+  /** Додати організм до генетичного дерева */
+  private addToGeneticTree(org: Organism, parent?: Organism): void {
+    const node: GeneticTreeNode = {
+      id: org.genome.id,
+      parentId: parent?.genome.id || null,
+      children: [],
+      generation: org.genome.generation,
+      born: this.tick,
+      died: null,
+      type: org.type,
+      traits: {
+        speed: org.genome.maxSpeed,
+        sense: org.genome.senseRadius,
+        size: org.genome.size,
+      },
+    };
+
+    this.geneticTree.set(org.genome.id, node);
+
+    if (parent) {
+      const parentNode = this.geneticTree.get(parent.genome.id);
+      if (parentNode) {
+        (parentNode.children as GenomeId[]).push(org.genome.id);
+      }
+    } else {
+      this.geneticRoots.push(org.genome.id);
+    }
+  }
+
+  // ============================================================================
+  // ДОПОМІЖНІ МЕТОДИ
+  // ============================================================================
+
+  /** Перебудувати просторову сітку */
+  private rebuildGrid(): void {
+    this.grid.clear();
+
+    this.organisms.forEach(o => {
+      if (!o.isDead) {
+        this.grid.insert({
+          id: o.id,
+          position: o.position,
+          type: o.type,
+          radius: o.radius,
+        });
+      }
+    });
+
+    this.food.forEach(f => {
+      if (!f.consumed) {
+        this.grid.insert({
+          id: f.id,
+          position: f.position,
+          type: f.type,
+          radius: f.radius,
+        });
+      }
+    });
+
+    this.obstacles.forEach(ob => {
+      this.grid.insert({
+        id: ob.id,
+        position: ob.position,
+        type: ob.type,
+        radius: ob.radius,
+      });
+    });
+  }
+
+  /** Відправити подію всім слухачам */
+  private emit(event: SimulationEvent): void {
+    for (let i = 0; i < this.listeners.length; i++) {
+      this.listeners[i](event);
+    }
+  }
+
+  /** Розрахувати статистику */
   private calculateStats(): SimulationStats {
     let prey = 0;
     let pred = 0;
-    let energySum = 0;
-    let count = 0;
-    
+    let preyEnergySum = 0;
+    let predEnergySum = 0;
+
     this.organisms.forEach(o => {
-      if (o.type === EntityType.PREY) prey++;
-      else pred++;
-      if (!isNaN(o.energy)) {
-        energySum += o.energy;
-        count++;
+      if (o.isDead) return;
+      if (o.isPrey) {
+        prey++;
+        preyEnergySum += o.energy;
+      } else {
+        pred++;
+        predEnergySum += o.energy;
       }
     });
+
+    const totalEnergy = preyEnergySum + predEnergySum;
+    const totalCount = prey + pred;
+
+    // Розрахунок ризику вимирання
+    const minViablePopulation = 5;
+    const preyRisk = prey < minViablePopulation ? 1 - prey / minViablePopulation : 0;
+    const predRisk = pred < minViablePopulation ? 1 - pred / minViablePopulation : 0;
+    const extinctionRisk = Math.max(preyRisk, predRisk);
 
     return {
       preyCount: prey,
       predatorCount: pred,
       foodCount: this.food.size,
-      avgEnergy: count > 0 ? energySum / count : 0,
-      generation: 0,
-      maxAge: this.stats_maxAge,
-      totalDeaths: this.stats_totalDeaths
+      avgEnergy: totalCount > 0 ? totalEnergy / totalCount : 0,
+      avgPreyEnergy: prey > 0 ? preyEnergySum / prey : 0,
+      avgPredatorEnergy: pred > 0 ? predEnergySum / pred : 0,
+      generation: this.stats.maxGeneration,
+      maxGeneration: this.stats.maxGeneration,
+      maxAge: this.stats.maxAge,
+      totalDeaths: this.stats.totalDeaths,
+      totalBirths: this.stats.totalBirths,
+      extinctionRisk,
+    };
+  }
+
+  /** Отримати поточний тік */
+  public getTick(): number {
+    return this.tick;
+  }
+
+  /** Отримати генетичне дерево для візуалізації */
+  public getGeneticTree() {
+    return {
+      nodes: this.geneticTree,
+      roots: this.geneticRoots,
+      maxGeneration: this.stats.maxGeneration,
     };
   }
 }
