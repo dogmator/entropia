@@ -7,7 +7,7 @@
  * - TrailSystem (сліди організмів)
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { CosmicBackground } from '../effects/CosmicBackground';
 import { ParticleSystem, TrailSystem } from '../effects/ParticleSystem';
@@ -19,7 +19,7 @@ export interface ParticleEffects {
 }
 
 export function useParticleEffects(scene: THREE.Scene | null) {
-  const effectsRef = useRef<ParticleEffects | null>(null);
+  const [effectsData, setEffectsData] = useState<ParticleEffects | null>(null);
 
   useEffect(() => {
     if (!scene) return;
@@ -29,11 +29,11 @@ export function useParticleEffects(scene: THREE.Scene | null) {
     const particleSystem = new ParticleSystem(scene);
     const trailSystem = new TrailSystem(scene);
 
-    effectsRef.current = {
+    setEffectsData({
       cosmicBackground,
       particleSystem,
       trailSystem,
-    };
+    });
 
     // Cleanup
     return () => {
@@ -43,5 +43,5 @@ export function useParticleEffects(scene: THREE.Scene | null) {
     };
   }, [scene]);
 
-  return effectsRef.current;
+  return effectsData;
 }
