@@ -122,8 +122,8 @@ const App: React.FC = () => {
           />
 
           <div className="absolute bottom-6 left-6 pointer-events-none z-10">
-            <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/5 text-[10px] sm:text-[9px] uppercase tracking-[0.3em] text-gray-400">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+            <div className="flex items-center gap-3 bg-black/40 backdrop-blur-md px-4 py-2 rounded-full border border-white/5 text-[10px] sm:text-[9px] uppercase tracking-[0.3em] text-gray-400 transition-all">
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)] animate-pulse" />
               Наведіть на об'єкт для деталей
             </div>
           </div>
