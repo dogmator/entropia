@@ -9,7 +9,7 @@
  */
 
 import { Organism, OrganismFactory } from '../Entity';
-import { SimulationConfig, GenomeId, GeneticTreeNode, EntityType } from '../../types';
+import { SimulationConfig, GenomeId, GeneticTreeNode, EntityType, OrganismId } from '../../types';
 import { MIN_REPRODUCTION_AGE } from '../../constants';
 import { EventBus } from '../../core/EventBus';
 
@@ -108,8 +108,8 @@ export class ReproductionSystem {
       // Відправити подію
       this.eventBus.emit({
         type: 'EntityReproduced',
-        parentId: data.parent.id as any,
-        childId: child.id as any,
+        parentId: data.parent.id as OrganismId,
+        childId: child.id as OrganismId,
         position: { ...child.position },
         generation: child.genome.generation,
       });
