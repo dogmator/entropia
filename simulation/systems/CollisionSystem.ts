@@ -9,7 +9,7 @@
  */
 
 import { Organism, Food, Obstacle } from '../Entity';
-import { EntityType, Vector3, GridEntity } from '../../types';
+import { EntityType, EntityId, Vector3, GridEntity } from '../../types';
 import { SpatialHashGrid } from '../SpatialHashGrid';
 import { EventBus } from '../../core/EventBus';
 
@@ -161,7 +161,7 @@ export class CollisionSystem {
       this.eventBus.emit({
         type: 'EntityDied',
         entityType: EntityType.FOOD,
-        id: neighborEntity.id as any,
+        id: neighborEntity.id as EntityId,
         position: { ...foodItem.position },
         causeOfDeath: 'predation',
       });

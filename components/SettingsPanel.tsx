@@ -14,7 +14,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
     const newConfig = { ...config, [key]: val };
     setConfig(newConfig);
     // Безпечне оновлення конфігурації engine
-    (engine.config as any)[key] = val;
+    Object.assign(engine.config, { [key]: val });
   };
 
   const Slider = ({ label, value, min, max, step, param, colorClass = "accent-emerald-500" }: {
