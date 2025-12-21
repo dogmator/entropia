@@ -1,5 +1,5 @@
 /**
- * EVOSIM 3D — Система Колізій
+ * Entropia 3D — Система Колізій
  *
  * Відповідальність: Обробка зіткнень між сутностями
  * - Зіткнення організмів з їжею
@@ -25,7 +25,7 @@ export class CollisionSystem {
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
     private readonly eventBus: EventBus
-  ) {}
+  ) { }
 
   /**
    * Обробити всі колізії

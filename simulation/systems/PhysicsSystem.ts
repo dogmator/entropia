@@ -1,5 +1,5 @@
 /**
- * EVOSIM 3D — Фізична Система
+ * Entropia 3D — Фізична Система
  *
  * Відповідальність: Інтегрування руху організмів
  * - Оновлення швидкості на основі прискорення
@@ -21,7 +21,7 @@ const MAX_STEERING_FORCE = PHYSICS.maxSteeringForce;
 export class PhysicsSystem {
   constructor(
     private readonly config: SimulationConfig
-  ) {}
+  ) { }
 
   /**
    * Оновити фізику для всіх організмів

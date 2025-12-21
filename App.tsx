@@ -36,7 +36,7 @@ const App: React.FC = () => {
 
   // Завантаження налаштувань з localStorage
   useEffect(() => {
-    const savedSpeed = localStorage.getItem('evosim-speed');
+    const savedSpeed = localStorage.getItem('entropia-speed');
     if (savedSpeed) {
       setSpeed(parseFloat(savedSpeed));
     }
@@ -47,7 +47,7 @@ const App: React.FC = () => {
 
   // Збереження швидкості в localStorage
   useEffect(() => {
-    localStorage.setItem('evosim-speed', speed.toString());
+    localStorage.setItem('entropia-speed', speed.toString());
   }, [speed]);
 
   useEffect(() => {
@@ -70,16 +70,16 @@ const App: React.FC = () => {
     });
 
     const handleKey = (e: KeyboardEvent) => {
-        if (e.key === ' ' || e.key === 'Space') {
-          setIsPaused(prev => !prev);
+      if (e.key === ' ' || e.key === 'Space') {
+        setIsPaused(prev => !prev);
+      }
+      if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen();
+        } else if (document.exitFullscreen) {
+          document.exitFullscreen();
         }
-        if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
+      }
     };
     window.addEventListener('keydown', handleKey);
     return () => {

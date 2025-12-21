@@ -1,6 +1,6 @@
 {
-  "name": "EvoSim 3D - Еволюційна пісочниця",
-  "short_name": "EvoSim 3D",
+  "name": "Entropia 3D - Еволюційна пісочниця",
+  "short_name": "Entropia 3D",
   "description": "Інтерактивна 3D симуляція біологічної еволюції з хижаками та травоїдними",
   "start_url": "/",
   "display": "standalone",
@@ -21,7 +21,11 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["education", "simulation", "science"],
+  "categories": [
+    "education",
+    "simulation",
+    "science"
+  ],
   "screenshots": [],
   "lang": "uk"
 }
