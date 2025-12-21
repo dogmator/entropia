@@ -10,7 +10,7 @@
  * - useAnimationLoop - головний цикл рендерингу
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { SimulationEngine } from '../simulation/Engine';
 import { EntityType, OrganismState } from '../types';
 import { Organism, Food, Obstacle } from '../simulation/Entity';
@@ -36,13 +36,20 @@ interface ViewportProps {
 // ============================================================================
 
 const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+
+  // Callback ref для гарантованого отримання DOM елемента
+  const containerCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      setContainer(node);
+    }
+  }, []);
 
   // ========================================================================
   // HOOKS
   // ========================================================================
 
-  const sceneData = useThreeScene(containerRef);
+  const sceneData = useThreeScene(container);
   const sceneObjects = useSceneObjects(sceneData?.scene || null, engine);
   const particleEffects = useParticleEffects(sceneData?.scene || null);
   const {
@@ -132,7 +139,7 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
   // ============================================================================
 
   return (
-    <div ref={containerRef} className="w-full h-full relative overflow-hidden">
+    <div ref={containerCallbackRef} className="w-full h-full relative overflow-hidden">
       {tooltipVisible && (
         <div
           className={`fixed pointer-events-none bg-black/90 backdrop-blur-2xl border border-white/10 p-5 rounded-2xl text-[11px] z-50 shadow-2xl ring-1 ring-white/10 min-w-[200px] transition-opacity duration-[180ms] ${
