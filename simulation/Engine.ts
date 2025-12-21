@@ -17,14 +17,10 @@ import {
   SimulationEvent,
   SimulationStats,
   SimulationConfig,
-  Vector3,
-  MutableVector3,
   EcologicalZone,
   ZoneType,
   GeneticTreeNode,
   GenomeId,
-  EntitySpawnedEvent,
-  createFoodId,
 } from '../types';
 import {
   WORLD_SIZE,
@@ -39,7 +35,7 @@ import {
   PHYSICS,
   REPRODUCTION_ENERGY_THRESHOLD,
 } from '../constants';
-import { Organism, Food, Obstacle, OrganismFactory } from './Entity';
+import { Organism, Food, Obstacle } from './Entity';
 import { SpatialHashGrid } from './SpatialHashGrid';
 import { EventBus } from '../core/EventBus';
 import { PhysicsSystem } from './systems/PhysicsSystem';
@@ -47,6 +43,7 @@ import { MetabolismSystem } from './systems/MetabolismSystem';
 import { CollisionSystem } from './systems/CollisionSystem';
 import { BehaviorSystem } from './systems/BehaviorSystem';
 import { ReproductionSystem } from './systems/ReproductionSystem';
+import { SpawnService } from './services/SpawnService';
 
 // ============================================================================
 // РЕФАКТОРЕНИЙ ДВИЖОК
@@ -72,8 +69,8 @@ export class SimulationEngine {
   private readonly behaviorSystem: BehaviorSystem;
   private readonly reproductionSystem: ReproductionSystem;
 
-  // Фабрика організмів
-  private readonly organismFactory: OrganismFactory = new OrganismFactory();
+  // Сервіси
+  private readonly spawnService: SpawnService;
 
   // Лічильники
   private foodIdCounter: number = 0;
@@ -101,16 +98,31 @@ export class SimulationEngine {
     this.metabolismSystem = new MetabolismSystem();
     this.collisionSystem = new CollisionSystem(this.spatialGrid, this.eventBus);
     this.behaviorSystem = new BehaviorSystem(this.spatialGrid, this.config, this.zones);
+
+    // Ініціалізувати зони перед створенням сервісів
+    this.createZones();
+    this.createObstacles();
+
+    // Створити сервіси
+    this.spawnService = new SpawnService(
+      this.eventBus,
+      this.spatialGrid,
+      this.zones,
+      this.obstacles
+    );
+
+    // Створити систему репродукції з фабрикою зі SpawnService
     this.reproductionSystem = new ReproductionSystem(
       this.config,
-      this.organismFactory,
+      this.spawnService.getFactory(),
       this.eventBus,
       this.geneticTree,
       this.geneticRoots,
       this.tick
     );
 
-    this.init();
+    // Створити початкову популяцію
+    this.createInitialPopulation();
   }
 
   // ============================================================================
@@ -133,11 +145,6 @@ export class SimulationEngine {
     };
   }
 
-  private init(): void {
-    this.createZones();
-    this.createObstacles();
-    this.createInitialPopulation();
-  }
 
   /** Створити екологічні зони */
   private createZones(): void {
@@ -203,10 +210,20 @@ export class SimulationEngine {
   /** Створити початкову популяцію */
   private createInitialPopulation(): void {
     for (let i = 0; i < INITIAL_PREY; i++) {
-      this.spawnOrganism(EntityType.PREY);
+      const organism = this.spawnService.spawnOrganism(EntityType.PREY);
+      if (organism) {
+        this.organisms.set(organism.id, organism);
+        // Додати до генетичного дерева
+        this.reproductionSystem['addToGeneticTree'](organism, undefined);
+      }
     }
     for (let i = 0; i < INITIAL_PREDATOR; i++) {
-      this.spawnOrganism(EntityType.PREDATOR);
+      const organism = this.spawnService.spawnOrganism(EntityType.PREDATOR);
+      if (organism) {
+        this.organisms.set(organism.id, organism);
+        // Додати до генетичного дерева
+        this.reproductionSystem['addToGeneticTree'](organism, undefined);
+      }
     }
   }
 
@@ -234,9 +251,11 @@ export class SimulationEngine {
       maxGeneration: 1,
     };
 
-    this.organismFactory.reset();
+    this.spawnService.resetFactory();
     this.eventBus.clear();
-    this.init();
+    this.createZones();
+    this.createObstacles();
+    this.createInitialPopulation();
   }
 
   /** Підписатися на події */
@@ -288,89 +307,17 @@ export class SimulationEngine {
   // СПАВН СУТНОСТЕЙ
   // ============================================================================
 
-  /** Спавн організму */
-  private spawnOrganism(type: EntityType, pos?: Vector3, parent?: Organism): Organism | null {
-    if (this.organisms.size >= MAX_TOTAL_ORGANISMS) return null;
-
-    let organism: Organism;
-    const position = pos || this.getRandomPosition();
-
-    if (parent) {
-      organism = this.organismFactory.createOffspring(parent);
-      organism.position.x = position.x;
-      organism.position.y = position.y;
-      organism.position.z = position.z;
-    } else if (type === EntityType.PREY) {
-      organism = this.organismFactory.createPrey(position.x, position.y, position.z);
-    } else {
-      organism = this.organismFactory.createPredator(position.x, position.y, position.z);
-    }
-
-    this.organisms.set(organism.id, organism);
-
-    // Додати до генетичного дерева через систему
-    this.reproductionSystem['addToGeneticTree'](organism, parent);
-
-    // Відправити подію
-    this.eventBus.emit({
-      type: 'EntitySpawned',
-      entityType: organism.type,
-      id: organism.id as OrganismId,
-      position: { ...organism.position },
-      parentId: parent?.id as OrganismId | undefined,
-    } as EntitySpawnedEvent);
-
-    return organism;
-  }
 
   /** Спавн їжі */
   private spawnFood(): void {
     if (this.food.size >= this.config.maxFood) return;
 
     if (Math.random() < this.config.foodSpawnRate) {
-      const position = this.getFoodSpawnPosition();
-      const food = Food.create(
-        ++this.foodIdCounter,
-        position.x,
-        position.y,
-        position.z
-      );
-      this.food.set(food.id, food);
-
-      this.eventBus.emit({
-        type: 'EntitySpawned',
-        entityType: EntityType.FOOD,
-        id: food.id as unknown as FoodId,
-        position: { ...position },
-      } as EntitySpawnedEvent);
-    }
-  }
-
-  /** Отримати позицію для спавну їжі з урахуванням зон */
-  private getFoodSpawnPosition(): MutableVector3 {
-    if (Math.random() < 0.3) {
-      const oasis = this.zones.get('oasis_center');
-      if (oasis) {
-        const angle = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const r = Math.random() * oasis.radius;
-        return {
-          x: oasis.center.x + r * Math.sin(phi) * Math.cos(angle),
-          y: oasis.center.y + r * Math.sin(phi) * Math.sin(angle),
-          z: oasis.center.z + r * Math.cos(phi),
-        };
+      const food = this.spawnService.spawnFood(++this.foodIdCounter);
+      if (food) {
+        this.food.set(food.id, food);
       }
     }
-    return this.getRandomPosition();
-  }
-
-  /** Випадкова позиція у світі */
-  private getRandomPosition(): MutableVector3 {
-    return {
-      x: Math.random() * WORLD_SIZE,
-      y: Math.random() * WORLD_SIZE,
-      z: Math.random() * WORLD_SIZE,
-    };
   }
 
   // ============================================================================
