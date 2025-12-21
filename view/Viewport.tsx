@@ -81,17 +81,17 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
     if (!sceneData || !sceneObjects) return;
 
     const { camera, renderer } = sceneData;
-    const { preyMesh, predMesh, idMaps } = sceneObjects;
+    const { preyMesh, predMesh, foodMesh, idMaps } = sceneObjects;
 
     const handleClick = () => {
-      onClick(camera, preyMesh, predMesh, idMaps, engine);
+      onClick(camera, preyMesh, predMesh, foodMesh, idMaps, engine);
     };
 
-    window.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('mousemove', onMouseMove);
     renderer.domElement.addEventListener('click', handleClick);
 
     return () => {
-      window.removeEventListener('mousemove', onMouseMove);
+      renderer.domElement.removeEventListener('mousemove', onMouseMove);
       renderer.domElement.removeEventListener('click', handleClick);
     };
   }, [sceneData, sceneObjects, onMouseMove, onClick, engine]);
@@ -138,30 +138,31 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
   // РЕНДЕР UI
   // ============================================================================
 
+  if (hoveredEntity && (import.meta as any).env?.DEV) {
+    console.log('[Viewport] Hovered:', (hoveredEntity as any).id, 'isFood:', isFood(hoveredEntity));
+  }
+
   return (
     <div ref={containerCallbackRef} className="w-full h-full relative overflow-hidden">
       {tooltipVisible && (
         <div
-          className={`fixed pointer-events-none bg-black/90 backdrop-blur-2xl border border-white/10 p-5 rounded-2xl text-[11px] z-50 shadow-2xl ring-1 ring-white/10 min-w-[200px] transition-opacity duration-[180ms] ${
-            hoveredEntity ? 'opacity-100' : 'opacity-0'
-          }`}
+          className={`fixed pointer-events-none bg-black/90 backdrop-blur-2xl border border-white/10 p-5 rounded-2xl text-[11px] z-50 shadow-2xl ring-1 ring-white/10 min-w-[200px] transition-opacity duration-[180ms] ${hoveredEntity ? 'opacity-100' : 'opacity-0'
+            }`}
           style={{ left: tooltipPos.x + 20, top: tooltipPos.y + 20 }}
         >
           {isOrganism(hoveredEntity) ? (
             <div className="space-y-3">
               <div
-                className={`font-black uppercase tracking-[0.2em] flex items-center gap-3 ${
-                  hoveredEntity.type === EntityType.PREY
-                    ? 'text-emerald-400'
-                    : 'text-red-400'
-                }`}
+                className={`font-black uppercase tracking-[0.2em] flex items-center gap-3 ${hoveredEntity.type === EntityType.PREY
+                  ? 'text-emerald-400'
+                  : 'text-red-400'
+                  }`}
               >
                 <div
-                  className={`w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentColor] animate-pulse ${
-                    hoveredEntity.type === EntityType.PREY
-                      ? 'bg-emerald-400'
-                      : 'bg-red-400'
-                  }`}
+                  className={`w-2.5 h-2.5 rounded-full shadow-[0_0_10px_currentColor] animate-pulse ${hoveredEntity.type === EntityType.PREY
+                    ? 'bg-emerald-400'
+                    : 'bg-red-400'
+                    }`}
                 />
                 {hoveredEntity.type === EntityType.PREY
                   ? 'Травоїдний'
@@ -229,11 +230,10 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
                   Шлейф
                 </span>
                 <span
-                  className={`${
-                    hoveredEntity.trailEnabled
-                      ? 'text-emerald-400'
-                      : 'text-gray-600'
-                  } text-right font-bold`}
+                  className={`${hoveredEntity.trailEnabled
+                    ? 'text-emerald-400'
+                    : 'text-gray-600'
+                    } text-right font-bold`}
                 >
                   {hoveredEntity.trailEnabled ? 'УВІМК' : 'ВИМК'}
                 </span>

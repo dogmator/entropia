@@ -1,17 +1,17 @@
 
 /**
- * EVOSIM 3D — Object Pool Pattern
+ * EVOSIM 3D — Патерн Object Pool (Пул Об'єктів)
  *
- * Академически корректная реализация пула объектов для:
- * - Нулевого garbage collection во время симуляции
- * - Предсказуемого времени выделения памяти O(1)
- * - Эффективного переиспользования частиц, организмов и векторов
+ * Академічно коректна реалізація пулу об'єктів для:
+ * - Нульового збирання сміття (garbage collection) під час симуляції
+ * - Передбачуваного часу виділення пам'яті O(1)
+ * - Ефективного перевикористання частинок, організмів та векторів
  */
 
 /**
- * Generic Object Pool с типизацией
+ * Generic Object Pool з типізацією
  *
- * @template T Тип объекта в пуле
+ * @template T Тип об'єкта в пулі
  *
  * @example
  * const particlePool = new ObjectPool(
@@ -20,7 +20,7 @@
  *   1000
  * );
  * const particle = particlePool.acquire();
- * // ... use particle
+ * // ... використання частинки
  * particlePool.release(particle);
  */
 export class ObjectPool<T> {
@@ -34,10 +34,10 @@ export class ObjectPool<T> {
   private _peakUsage: number = 0;
 
   /**
-   * @param factory Функция создания нового объекта
-   * @param reset Функция сброса объекта в начальное состояние
-   * @param initialSize Начальный размер пула
-   * @param maxSize Максимальный размер пула (по умолчанию 10000)
+   * @param factory Функція створення нового об'єкта
+   * @param reset Функція скидання об'єкта в початковий стан
+   * @param initialSize Початковий розмір пулу
+   * @param maxSize Максимальний розмір пулу (за замовчуванням 10000)
    */
   constructor(
     factory: () => T,
@@ -49,7 +49,7 @@ export class ObjectPool<T> {
     this.reset = reset;
     this.maxSize = maxSize;
 
-    // Pre-populate pool
+    // Початкове наповнення пулу
     for (let i = 0; i < initialSize; i++) {
       this.pool.push(this.factory());
       this._totalCreated++;
@@ -57,8 +57,8 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Получить объект из пула
-   * Если пул пуст — создаётся новый объект
+   * Отримати об'єкт із пулу
+   * Якщо пул порожній — створюється новий об'єкт
    */
   acquire(): T {
     this._activeCount++;
@@ -75,8 +75,8 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Вернуть объект в пул
-   * Объект сбрасывается и становится доступным для повторного использования
+   * Повернути об'єкт у пул
+   * Об'єкт скидається і стає доступним для повторного використання
    */
   release(obj: T): void {
     this._activeCount--;
@@ -85,11 +85,11 @@ export class ObjectPool<T> {
       this.reset(obj);
       this.pool.push(obj);
     }
-    // Если пул переполнен, объект просто отбрасывается
+    // Якщо пул переповнений, об'єкт просто відкидається
   }
 
   /**
-   * Вернуть массив объектов в пул
+   * Повернути масив об'єктів у пул
    */
   releaseAll(objects: T[]): void {
     for (let i = 0; i < objects.length; i++) {
@@ -98,7 +98,7 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Предварительно создать объекты до указанного количества
+   * Попередньо створити об'єкти до вказаної кількості
    */
   prewarm(count: number): void {
     const toCreate = Math.min(count - this.pool.length, this.maxSize - this.pool.length);
@@ -109,34 +109,34 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Очистить пул (для полной перезагрузки)
+   * Очистити пул (для повного перезавантаження)
    */
   clear(): void {
     this.pool.length = 0;
     this._activeCount = 0;
   }
 
-  /** Количество объектов, доступных в пуле */
+  /** Кількість об'єктів, доступних у пулі */
   get available(): number {
     return this.pool.length;
   }
 
-  /** Количество объектов, используемых в данный момент */
+  /** Кількість об'єктів, що використовуються в даний момент */
   get active(): number {
     return this._activeCount;
   }
 
-  /** Пиковое использование за всё время */
+  /** Пікове використання за весь час */
   get peakUsage(): number {
     return this._peakUsage;
   }
 
-  /** Всего создано объектов */
+  /** Всього створено об'єктів */
   get totalCreated(): number {
     return this._totalCreated;
   }
 
-  /** Статистика пула для отладки */
+  /** Статистика пулу для відлагодження */
   getStats(): PoolStats {
     return {
       available: this.pool.length,
@@ -163,8 +163,8 @@ export interface PoolStats {
 import { MutableVector3, vec3Zero } from '../types';
 
 /**
- * Пул для 3D векторов
- * Критически важен для физических вычислений
+ * Пул для 3D векторів
+ * Критично важливий для фізичних обчислень
  */
 export class Vector3Pool {
   private static instance: ObjectPool<MutableVector3> | null = null;
@@ -191,7 +191,7 @@ export class Vector3Pool {
 }
 
 /**
- * Интерфейс для объектов частиц
+ * Інтерфейс для об'єктів частинок
  */
 export interface PooledParticle {
   x: number;
@@ -208,7 +208,7 @@ export interface PooledParticle {
 }
 
 /**
- * Пул для частиц визуальных эффектов
+ * Пул для частинок візуальних ефектів
  */
 export class ParticlePool {
   private static instance: ObjectPool<PooledParticle> | null = null;
@@ -245,8 +245,8 @@ export class ParticlePool {
 }
 
 /**
- * Ring Buffer для истории популяции
- * Фиксированный размер, O(1) добавление
+ * Ring Buffer для історії популяції
+ * Фіксований розмір, O(1) додавання
  */
 export class RingBuffer<T> {
   private readonly buffer: (T | undefined)[];
@@ -296,7 +296,7 @@ export class RingBuffer<T> {
     this._size = 0;
   }
 
-  /** Получить последние N элементов */
+  /** Отримати останні N елементів */
   getLast(n: number): T[] {
     const count = Math.min(n, this._size);
     const result: T[] = [];
