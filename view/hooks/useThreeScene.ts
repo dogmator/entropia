@@ -21,11 +21,11 @@ export interface ThreeScene {
   controls: OrbitControls;
 }
 
-export function useThreeScene(containerRef: React.RefObject<HTMLDivElement>) {
+export function useThreeScene(container: HTMLDivElement | null) {
   const [sceneData, setSceneData] = useState<ThreeScene | null>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!container) return;
 
     // Scene
     const scene = new THREE.Scene();
@@ -50,7 +50,7 @@ export function useThreeScene(containerRef: React.RefObject<HTMLDivElement>) {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
-    containerRef.current.appendChild(renderer.domElement);
+    container.appendChild(renderer.domElement);
 
     // Controls
     const controls = new OrbitControls(camera, renderer.domElement);
@@ -86,11 +86,11 @@ export function useThreeScene(containerRef: React.RefObject<HTMLDivElement>) {
     return () => {
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
-      if (containerRef.current?.contains(renderer.domElement)) {
-        containerRef.current.removeChild(renderer.domElement);
+      if (container?.contains(renderer.domElement)) {
+        container.removeChild(renderer.domElement);
       }
     };
-  }, [containerRef]);
+  }, [container]);
 
   return sceneData;
 }
