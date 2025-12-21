@@ -44,7 +44,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
       {/* Header */}
       <div
         onClick={() => setCollapsed(!collapsed)}
-        className="px-4 sm:px-5 py-4 flex justify-between items-center cursor-pointer hover:bg-white/5 transition-all group border-b border-white/5 touch-manipulation"
+        className="px-4 sm:px-5 py-4 flex justify-between items-center cursor-pointer hover:bg-white/10 transition-all duration-300 group border-b border-white/5 hover:border-emerald-500/20 touch-manipulation"
       >
         <div className="flex items-center gap-3">
           <div className={`p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 transition-all duration-300 ${collapsed ? '-rotate-90 scale-90 opacity-50' : 'rotate-0'}`}>
