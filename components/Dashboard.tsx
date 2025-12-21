@@ -1,19 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
 } from 'recharts';
-import { SimulationStats } from '../types';
+import { SimulationStats, PopulationDataPoint } from '../types';
 
 interface DashboardProps {
   stats: SimulationStats;
-  history: any[];
+  history: PopulationDataPoint[];
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
@@ -36,8 +36,8 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
       {stats.extinctionRisk > 0.3 && (
         <div className={`bg-red-950/30 border border-red-500/30 rounded-xl p-3 ${stats.extinctionRisk > 0.7 ? 'animate-pulse' : ''}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[8px] text-red-400 uppercase tracking-widest font-black">Ризик вимирання</span>
-            <span className={`text-lg font-mono font-black ${extinctionColor}`}>
+            <span className="text-[9px] sm:text-[8px] text-red-400 uppercase tracking-widest font-black">Ризик вимирання</span>
+            <span className={`text-xl sm:text-lg font-mono font-black ${extinctionColor}`}>
               {Math.round(stats.extinctionRisk * 100)}%
             </span>
           </div>
@@ -51,13 +51,13 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
       )}
 
       {/* Статистичні картки - основні */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {/* Травоїдні з енергією */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[7px] text-gray-500 uppercase tracking-widest font-black">Травоїдні</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Травоїдні</span>
           </div>
-          <span className="text-lg font-mono font-black text-green-400">{stats.preyCount}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-green-400">{stats.preyCount}</span>
           <div className="flex items-center gap-1 mt-1">
             <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
               <div
@@ -65,16 +65,16 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
                 style={{ width: `${Math.min(100, stats.avgPreyEnergy)}%` }}
               />
             </div>
-            <span className="text-[8px] text-green-400/60 font-mono">{Math.round(stats.avgPreyEnergy)}</span>
+            <span className="text-[9px] sm:text-[8px] text-green-400/60 font-mono">{Math.round(stats.avgPreyEnergy)}</span>
           </div>
         </div>
 
         {/* Хижаки з енергією */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[7px] text-gray-500 uppercase tracking-widest font-black">Хижаки</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Хижаки</span>
           </div>
-          <span className="text-lg font-mono font-black text-red-400">{stats.predatorCount}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-red-400">{stats.predatorCount}</span>
           <div className="flex items-center gap-1 mt-1">
             <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
               <div
@@ -82,46 +82,46 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
                 style={{ width: `${Math.min(100, stats.avgPredatorEnergy)}%` }}
               />
             </div>
-            <span className="text-[8px] text-red-400/60 font-mono">{Math.round(stats.avgPredatorEnergy)}</span>
+            <span className="text-[9px] sm:text-[8px] text-red-400/60 font-mono">{Math.round(stats.avgPredatorEnergy)}</span>
           </div>
         </div>
 
         {/* Кристали */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[7px] text-gray-500 uppercase tracking-widest font-black">Кристали</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Кристали</span>
           </div>
-          <span className="text-lg font-mono font-black text-yellow-400">{stats.foodCount}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-yellow-400">{stats.foodCount}</span>
         </div>
 
         {/* Покоління */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 transition-colors">
           <div className="flex justify-between items-center mb-1">
-            <span className="text-[7px] text-gray-500 uppercase tracking-widest font-black">Макс. Покоління</span>
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black">Макс. Покоління</span>
           </div>
-          <span className="text-lg font-mono font-black text-purple-400">{stats.maxGeneration}</span>
+          <span className="text-xl sm:text-lg font-mono font-black text-purple-400">{stats.maxGeneration}</span>
         </div>
       </div>
 
       {/* Статистика народжень/смертей */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <div className="bg-emerald-950/20 rounded-lg p-2 border border-emerald-500/10 text-center">
-          <span className="text-[7px] text-emerald-400/60 uppercase tracking-widest block mb-1">Народжень</span>
-          <span className="text-sm font-mono font-bold text-emerald-400">{stats.totalBirths}</span>
+          <span className="text-[8px] sm:text-[7px] text-emerald-400/60 uppercase tracking-widest block mb-1">Народжень</span>
+          <span className="text-base sm:text-sm font-mono font-bold text-emerald-400">{stats.totalBirths}</span>
         </div>
         <div className="bg-gray-950/30 rounded-lg p-2 border border-gray-500/10 text-center">
-          <span className="text-[7px] text-gray-400/60 uppercase tracking-widest block mb-1">Смертей</span>
-          <span className="text-sm font-mono font-bold text-gray-400">{stats.totalDeaths}</span>
+          <span className="text-[8px] sm:text-[7px] text-gray-400/60 uppercase tracking-widest block mb-1">Смертей</span>
+          <span className="text-base sm:text-sm font-mono font-bold text-gray-400">{stats.totalDeaths}</span>
         </div>
-        <div className="bg-purple-950/20 rounded-lg p-2 border border-purple-500/10 text-center">
-          <span className="text-[7px] text-purple-400/60 uppercase tracking-widest block mb-1">Рекорд Віку</span>
-          <span className="text-sm font-mono font-bold text-purple-400">{stats.maxAge}</span>
+        <div className="bg-purple-950/20 rounded-lg p-2 border border-purple-500/10 text-center col-span-2 sm:col-span-1">
+          <span className="text-[8px] sm:text-[7px] text-purple-400/60 uppercase tracking-widest block mb-1">Рекорд Віку</span>
+          <span className="text-base sm:text-sm font-mono font-bold text-purple-400">{stats.maxAge}</span>
         </div>
       </div>
 
       {/* Графік популяції */}
-      <div className="h-36 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
-        <div className="absolute top-2 left-4 text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] z-10">Динаміка популяції</div>
+      <div className="h-32 sm:h-36 lg:h-40 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
+        <div className="absolute top-2 left-4 text-[8px] sm:text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] z-10">Динаміка популяції</div>
         {isMounted && (
           <ResponsiveContainer width="100%" height="100%" debounce={50}>
             <LineChart data={history} margin={{ top: 10, right: 0, left: -30, bottom: 0 }}>
