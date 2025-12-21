@@ -1,5 +1,5 @@
 /**
- * EVOSIM 3D — SpawnService
+ * Entropia 3D — SpawnService
  *
  * Централізований сервіс для spawn-логіки з:
  * - Інтелектуальним розміщенням організмів

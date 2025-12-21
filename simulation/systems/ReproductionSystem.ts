@@ -1,5 +1,5 @@
 /**
- * EVOSIM 3D — Система Розмноження
+ * Entropia 3D — Система Розмноження
  *
  * Відповідальність: Обробка репродукції організмів
  * - Перевірка готовності до розмноження
@@ -34,7 +34,7 @@ export class ReproductionSystem {
     private readonly geneticTree: Map<GenomeId, GeneticTreeNode>,
     private readonly geneticRoots: GenomeId[],
     private currentTick: number = 0
-  ) {}
+  ) { }
 
   /**
    * Встановити поточний тік

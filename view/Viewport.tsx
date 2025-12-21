@@ -1,5 +1,5 @@
 /**
- * EVOSIM 3D — Головний 3D Viewport (Рефакторена версія)
+ * Entropia 3D — Головний 3D Viewport (Рефакторена версія)
  *
  * Використовує custom hooks для чистої архітектури:
  * - useThreeScene - сцена, камера, renderer
