@@ -4,6 +4,8 @@ import { SimulationEngine } from './simulation/Engine';
 import ErrorBoundary from './components/ErrorBoundary';
 import { SimulationStats, PopulationDataPoint } from './types';
 import { UI_CONFIG } from './constants';
+import ViewportSkeleton from './components/skeletons/ViewportSkeleton';
+import SidebarSkeleton from './components/skeletons/SidebarSkeleton';
 
 // Lazy loading для важких компонентів
 const Viewport = lazy(() => import('./view/Viewport'));
@@ -110,19 +112,14 @@ const App: React.FC = () => {
 
       <div className="relative w-screen h-screen overflow-hidden bg-[#050505] select-none font-sans text-white">
         <div className={`transition-opacity duration-700 ${isLoading ? 'opacity-0' : 'opacity-100'}`}>
-          <Suspense fallback={
-            <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#050505]">
-              <div className="flex flex-col items-center gap-6">
-                <div className="relative">
-                  <div className="w-16 h-16 border-4 border-emerald-500/20 rounded-full"></div>
-                  <div className="w-16 h-16 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin absolute top-0 left-0"></div>
-                </div>
-                <div className="text-emerald-400 font-black uppercase tracking-[0.3em] text-sm animate-pulse">
-                  Завантаження модулів...
-                </div>
-              </div>
-            </div>
-          }>
+          <Suspense
+            fallback={
+              <>
+                <ViewportSkeleton />
+                <SidebarSkeleton />
+              </>
+            }
+          >
             <Viewport engine={engine} isPaused={isPaused} speed={speed} />
 
             <Sidebar
