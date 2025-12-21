@@ -117,6 +117,11 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
       foodMat.opacity = engine.config.foodOpacity;
       boxMat.opacity = engine.config.gridOpacity;
 
+      // Оновити видимість перешкод
+      obstacleMeshes.forEach(m => {
+        m.visible = engine.config.showObstacles;
+      });
+
       // Очистити idMaps
       idMaps.prey.clear();
       idMaps.pred.clear();
@@ -201,6 +206,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
           dummy.scale.set(scale * 0.5, scale * 0.5, scale * 0.5);
           dummy.rotation.set(time.current, time.current * 0.5, 0);
           dummy.updateMatrix();
+          idMaps.food.set(foodIdx, f.id);
           foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
         }
       });

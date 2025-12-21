@@ -1,26 +1,26 @@
 
 /**
- * EVOSIM 3D — Core Type Definitions
+ * EVOSIM 3D — Основні визначення типів
  *
- * Академически строгая типизация с использованием:
- * - Branded Types для type-safe идентификаторов
- * - Readonly модификаторов для иммутабельности
- * - Discriminated Unions для безопасного pattern matching
- * - Const assertions для литеральных типов
+ * Академічно сувора типізація з використанням:
+ * - Branded Types для безпечних ідентифікаторів
+ * - Readonly модифікаторів для імутабельності
+ * - Discriminated Unions для безпечного pattern matching
+ * - Const assertions для літеральних типів
  */
 
 // ============================================================================
-// BRANDED TYPES — Type-safe идентификаторы
+// BRANDED TYPES — Типобезпечні ідентифікатори
 // ============================================================================
 
 declare const __brand: unique symbol;
 
 /**
- * Branded type pattern — предотвращает смешивание различных ID
+ * Патерн Branded type — запобігає змішуванню різних ID
  * @example
  * const orgId: OrganismId = "123" as OrganismId;
  * const foodId: FoodId = "123" as FoodId;
- * // orgId === foodId — compile error!
+ * // orgId === foodId — помилка компіляції!
  */
 type Brand<T, TBrand extends string> = T & { readonly [__brand]: TBrand };
 
@@ -30,7 +30,7 @@ export type ObstacleId = Brand<string, 'ObstacleId'>;
 export type GenomeId = Brand<string, 'GenomeId'>;
 export type EntityId = OrganismId | FoodId | ObstacleId;
 
-/** Безопасное создание типизированных ID */
+/** Безпечне створення типізованих ID */
 export const createOrganismId = (id: string): OrganismId => id as OrganismId;
 export const createFoodId = (id: string): FoodId => id as FoodId;
 export const createObstacleId = (id: string): ObstacleId => id as ObstacleId;
@@ -49,7 +49,7 @@ export const EntityType = {
 
 export type EntityType = typeof EntityType[keyof typeof EntityType];
 
-/** Подтипы хижаків для специализации */
+/** Підтипи хижаків для спеціалізації */
 export const PredatorSubtype = {
   HUNTER: 'HUNTER',       // Швидкий, слабкий
   AMBUSHER: 'AMBUSHER',   // Повільний, сильний
@@ -59,12 +59,12 @@ export const PredatorSubtype = {
 export type PredatorSubtype = typeof PredatorSubtype[keyof typeof PredatorSubtype];
 
 // ============================================================================
-// VECTOR MATHEMATICS
+// ВЕКТОРНА МАТЕМАТИКА
 // ============================================================================
 
 /**
- * Immutable 3D Vector
- * Все операции возвращают новый вектор
+ * Імутабельний 3D Вектор
+ * Усі операції повертають новий вектор
  */
 export interface Vector3 {
   readonly x: number;
@@ -72,64 +72,64 @@ export interface Vector3 {
   readonly z: number;
 }
 
-/** Mutable версия для внутренних вычислений Engine */
+/** Mutable версія для внутрішніх обчислень двигуна (Engine) */
 export interface MutableVector3 {
   x: number;
   y: number;
   z: number;
 }
 
-/** Создание нового вектора */
+/** Створення нового вектора */
 export const vec3 = (x: number, y: number, z: number): Vector3 => ({ x, y, z });
 export const vec3Zero = (): MutableVector3 => ({ x: 0, y: 0, z: 0 });
 export const vec3Clone = (v: Vector3): MutableVector3 => ({ x: v.x, y: v.y, z: v.z });
 
 // ============================================================================
-// GENOME — Генетическая информация
+// GENOME — Генетична інформація
 // ============================================================================
 
 /**
- * Базовый геном с общими характеристиками
+ * Базовий геном зі спільними характеристиками
  */
 interface BaseGenome {
   readonly id: GenomeId;
-  readonly parentId: GenomeId | null;  // Для генеалогического древа
-  readonly generation: number;          // Поколение от первопредка
+  readonly parentId: GenomeId | null;  // Для генеалогічного дерева
+  readonly generation: number;          // Покоління від пращура
   readonly color: number;
   readonly maxSpeed: number;
   readonly senseRadius: number;
   readonly metabolism: number;
   readonly size: number;
 
-  // Визуальные мутации
-  readonly asymmetry: number;     // 0-1, влияет на форму
-  readonly spikiness: number;     // 0-1, количество "шипов"
-  readonly glowIntensity: number; // 0-1, интенсивность свечения
+  // Візуальні мутації
+  readonly asymmetry: number;     // 0-1, впливає на форму
+  readonly spikiness: number;     // 0-1, кількість "шипів"
+  readonly glowIntensity: number; // 0-1, інтенсивність свічення
 }
 
 /**
- * Discriminated Union для типобезопасного генома
+ * Discriminated Union для типобезпечного геному
  */
 export interface PreyGenome extends BaseGenome {
   readonly type: typeof EntityType.PREY;
-  readonly flockingStrength: number;  // Склонність до стада
+  readonly flockingStrength: number;  // Схильність до стадності
 }
 
 export interface PredatorGenome extends BaseGenome {
   readonly type: typeof EntityType.PREDATOR;
   readonly subtype: PredatorSubtype;
   readonly attackPower: number;
-  readonly packAffinity: number;      // Склонність до зграї
+  readonly packAffinity: number;      // Схильність до зграйності
 }
 
 export type Genome = PreyGenome | PredatorGenome;
 
-/** Type guard для безопасной проверки типа */
+/** Type guard для безпечної перевірки типу */
 export const isPreyGenome = (g: Genome): g is PreyGenome => g.type === EntityType.PREY;
 export const isPredatorGenome = (g: Genome): g is PredatorGenome => g.type === EntityType.PREDATOR;
 
 // ============================================================================
-// ENTITY STATES
+// СТАНИ СУТНОСТЕЙ (ENTITY STATES)
 // ============================================================================
 
 export const OrganismState = {
@@ -144,7 +144,7 @@ export const OrganismState = {
 export type OrganismState = typeof OrganismState[keyof typeof OrganismState];
 
 // ============================================================================
-// STATISTICS
+// СТАТИСТИКА
 // ============================================================================
 
 export interface SimulationStats {
@@ -179,7 +179,7 @@ export interface PopulationDataPoint {
 }
 
 // ============================================================================
-// CONFIGURATION
+// КОНФІГУРАЦІЯ
 // ============================================================================
 
 export interface VisConfig {
@@ -205,6 +205,8 @@ export interface PhysicsConfig {
 export interface SimulationConfig extends VisConfig, PhysicsConfig {
   readonly foodSpawnRate: number;
   readonly maxFood: number;
+  readonly maxOrganisms: number;
+  readonly showObstacles: boolean;
   readonly mutationFactor: number;
   readonly reproductionThreshold: number;
 }
@@ -259,7 +261,7 @@ export type SimulationEvent =
   | CollisionEvent;
 
 // ============================================================================
-// SPATIAL GRID
+// ПРОСТОРОВА СІТКА (SPATIAL GRID)
 // ============================================================================
 
 export interface GridEntity {
@@ -274,7 +276,7 @@ export interface GridEntity {
 // ============================================================================
 
 /**
- * Структура даних для InstancedMesh рендерингу
+ * Структура даних для рендерингу InstancedMesh
  * Оптимізована для передачі в GPU
  */
 export interface OrganismRenderData {
@@ -316,12 +318,12 @@ export interface RenderFrame {
 }
 
 // ============================================================================
-// ECOLOGICAL ZONES
+// ЕКОЛОГІЧНІ ЗОНИ
 // ============================================================================
 
 export const ZoneType = {
   OASIS: 'OASIS',           // Висока концентрація їжі
-  DESERT: 'DESERT',         // Низька концентрація
+  DESERT: 'DESERT',         // Низька концентрація їжі
   HUNTING_GROUND: 'HUNTING_GROUND',  // Бонус для хижаків
   SANCTUARY: 'SANCTUARY',   // Захист від хижаків
 } as const;
@@ -338,7 +340,7 @@ export interface EcologicalZone {
 }
 
 // ============================================================================
-// GENETIC TREE
+// ГЕНЕТИЧНЕ ДЕРЕВО (GENETIC TREE)
 // ============================================================================
 
 export interface GeneticTreeNode {
@@ -346,7 +348,7 @@ export interface GeneticTreeNode {
   readonly parentId: GenomeId | null;
   readonly children: readonly GenomeId[];
   readonly generation: number;
-  readonly born: number;      // tick
+  readonly born: number;      // тік (tick)
   readonly died: number | null;
   readonly type: EntityType;
   readonly traits: {

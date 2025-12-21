@@ -17,7 +17,7 @@ export const WORLD_SIZE = 600;
 export const CELL_SIZE = 80;
 
 /** Максимальна кількість організмів для підтримки 60 FPS */
-export const MAX_TOTAL_ORGANISMS = 800;
+export const MAX_TOTAL_ORGANISMS = 200;
 
 // ============================================================================
 // ПОЧАТКОВІ ПОПУЛЯЦІЇ (Lotka-Volterra equilibrium)

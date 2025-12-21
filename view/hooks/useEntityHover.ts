@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { SimulationEngine } from '../../simulation/Engine';
 import { Organism, Food, Obstacle } from '../../simulation/Entity';
 import { EntityType } from '../../types';
+import Logger from '../../core/utils/Logger';
 
 export interface EntityHoverHook {
   hoveredEntity: Organism | Food | Obstacle | null;
@@ -22,9 +23,11 @@ export interface EntityHoverHook {
     camera: THREE.PerspectiveCamera,
     preyMesh: THREE.InstancedMesh,
     predMesh: THREE.InstancedMesh,
+    foodMesh: THREE.InstancedMesh,
     idMaps: {
       prey: Map<number, string>;
       pred: Map<number, string>;
+      food: Map<number, string>;
     },
     engine: SimulationEngine
   ) => void;
@@ -78,8 +81,15 @@ export function useEntityHover(): EntityHoverHook {
 
   // Handler для mouse move
   const onMouseMove = useCallback((event: MouseEvent) => {
-    mouse.current.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const target = event.currentTarget as HTMLElement;
+    if (!target) return;
+
+    const rect = target.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    mouse.current.x = (x / rect.width) * 2 - 1;
+    mouse.current.y = -(y / rect.height) * 2 + 1;
     setTooltipPos({ x: event.clientX, y: event.clientY });
   }, []);
 
@@ -89,9 +99,11 @@ export function useEntityHover(): EntityHoverHook {
       camera: THREE.PerspectiveCamera,
       preyMesh: THREE.InstancedMesh,
       predMesh: THREE.InstancedMesh,
+      foodMesh: THREE.InstancedMesh,
       idMaps: {
         prey: Map<number, string>;
         pred: Map<number, string>;
+        food: Map<number, string>;
       },
       engine: SimulationEngine
     ) => {
@@ -99,6 +111,7 @@ export function useEntityHover(): EntityHoverHook {
       const intersects = raycaster.current.intersectObjects([
         preyMesh,
         predMesh,
+        foodMesh,
       ]);
 
       if (intersects.length > 0) {
@@ -109,6 +122,8 @@ export function useEntityHover(): EntityHoverHook {
           id = idMaps.prey.get(hit.instanceId!);
         } else if (hit.object === predMesh) {
           id = idMaps.pred.get(hit.instanceId!);
+        } else if (hit.object === foodMesh) {
+          id = idMaps.food.get(hit.instanceId!);
         }
 
         if (id) {
@@ -155,6 +170,11 @@ export function useEntityHover(): EntityHoverHook {
           id = idMaps.pred.get(hit.instanceId!);
         } else if (hit.object === foodMesh) {
           id = idMaps.food.get(hit.instanceId!);
+          if (id) {
+            Logger.debug(`Hit Food Mesh. Instance: ${hit.instanceId}, ID: ${id}`);
+          } else {
+            Logger.warn('ID not found for food instance:', hit.instanceId);
+          }
         } else if (hit.object.userData.type === EntityType.OBSTACLE) {
           id = hit.object.userData.id;
         }
@@ -164,6 +184,11 @@ export function useEntityHover(): EntityHoverHook {
             engine.organisms.get(id) ||
             engine.food.get(id) ||
             engine.obstacles.get(id);
+
+          if (entity && entity.type === EntityType.FOOD) {
+            Logger.debug('Resolved food entity:', entity.id);
+          }
+
           setHoveredEntity(entity || null);
         } else {
           setHoveredEntity(null);

@@ -133,6 +133,8 @@ export class SimulationEngine {
     return {
       foodSpawnRate: FOOD_SPAWN_RATE,
       maxFood: MAX_FOOD,
+      maxOrganisms: MAX_TOTAL_ORGANISMS,
+      showObstacles: true,
       mutationFactor: GENETICS.mutationFactor,
       reproductionThreshold: REPRODUCTION_ENERGY_THRESHOLD,
       drag: PHYSICS.drag,
@@ -292,7 +294,7 @@ export class SimulationEngine {
     this.updateStats();
 
     // Створити нащадків
-    this.reproductionSystem.createOffspring(newborns, this.organisms, MAX_TOTAL_ORGANISMS, this.stats);
+    this.reproductionSystem.createOffspring(newborns, this.organisms, this.config.maxOrganisms, this.stats);
 
     // Обробити смерті
     this.processDeaths(deadIds);
@@ -388,14 +390,16 @@ export class SimulationEngine {
       }
     });
 
-    this.obstacles.forEach(ob => {
-      this.spatialGrid.insert({
-        id: ob.id,
-        position: ob.position,
-        type: ob.type,
-        radius: ob.radius,
+    if (this.config.showObstacles) {
+      this.obstacles.forEach(ob => {
+        this.spatialGrid.insert({
+          id: ob.id,
+          position: ob.position,
+          type: ob.type,
+          radius: ob.radius,
+        });
       });
-    });
+    }
   }
 
   /** Розрахувати статистику */
