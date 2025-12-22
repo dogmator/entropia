@@ -46,11 +46,13 @@ export class ReproductionSystem {
   /**
    * Перевірити можливість розмноження і зібрати кандидатів
    */
-  checkReproduction(organisms: Map<string, Organism>): NewbornData[] {
+  checkReproduction(organisms: Map<string, Organism>, maxPopulation: number): NewbornData[] {
     const newborns: NewbornData[] = [];
+    const currentPopulation = organisms.size;
 
     organisms.forEach(organism => {
-      if (this.canReproduce(organism)) {
+      // Перевірка з урахуванням поточної популяції + вже зібрані новонароджені
+      if (this.canReproduce(organism, currentPopulation + newborns.length, maxPopulation)) {
         this.initiateReproduction(organism, newborns);
       }
     });
@@ -61,10 +63,11 @@ export class ReproductionSystem {
   /**
    * Перевірити чи може організм розмножуватись
    */
-  private canReproduce(organism: Organism): boolean {
+  private canReproduce(organism: Organism, currentPopulation: number, maxPopulation: number): boolean {
     if (organism.isDead) return false;
     if (organism.energy < this.config.reproductionThreshold) return false;
     if (organism.age < MIN_AGE) return false;
+    if (currentPopulation >= maxPopulation) return false; // Перевірка ліміту популяції
 
     return true;
   }
@@ -213,14 +216,15 @@ export class ReproductionSystem {
   /**
    * Розрахувати середню фертильність популяції
    */
-  calculateFertilityRate(organisms: Map<string, Organism>): number {
+  calculateFertilityRate(organisms: Map<string, Organism>, maxPopulation: number): number {
     let readyToReproduce = 0;
     let total = 0;
+    const currentPopulation = organisms.size;
 
     organisms.forEach(organism => {
       if (!organism.isDead) {
         total++;
-        if (this.canReproduce(organism)) {
+        if (this.canReproduce(organism, currentPopulation, maxPopulation)) {
           readyToReproduce++;
         }
       }
