@@ -10,15 +10,13 @@ interface SidebarProps {
   engine: SimulationEngine;
   stats: SimulationStats;
   history: PopulationDataPoint[];
-  isPaused: boolean;
-  onTogglePause: () => void;
   onReset: () => void;
   speed: number;
   onSpeedChange: (val: number) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
-  engine, stats, history, isPaused, onTogglePause, onReset, speed, onSpeedChange
+  engine, stats, history, onReset, speed, onSpeedChange
 }) => {
   // Автозгортання на мобільних пристроях
   const [isOpen, setIsOpen] = useState(() => {
@@ -118,8 +116,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             <Dashboard stats={stats} history={history} />
 
             <SimulationControls
-              isPaused={isPaused}
-              onTogglePause={onTogglePause}
               onReset={onReset}
               speed={speed}
               onSpeedChange={onSpeedChange}
@@ -131,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="mt-8 pt-6 border-t border-white/5 text-[10px] sm:text-[9px] text-gray-600 uppercase tracking-widest leading-loose">
             Керування камерою: миша + коліщатко<br />
             Повний екран: [F]<br />
-            Пауза: [Space]<br />
+            Швидкість: [0] [1] [2] [5] або [Space]<br />
             Клік по організму: увімкнути шлейф
           </div>
         </div>
