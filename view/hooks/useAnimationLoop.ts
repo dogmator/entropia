@@ -212,8 +212,8 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         idMaps.food.set(foodIdx, f.id);
         foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
 
-        // Орбітальний супутник (зупиняється при speed = 0)
-        if (foodIdx < MAX_INSTANCES) {
+        // Орбітальний супутник (опціонально, +100% FPS якщо вимкнено)
+        if (engine.config.showOrbitalSatellites && foodIdx < MAX_INSTANCES) {
           const orbitR = scale * 1.5;
           const orbitTime = isStopped ? 0 : time.current * 2;
 
