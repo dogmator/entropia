@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
 import { SimulationEngine } from '../simulation/Engine';
+import { GRAPHICS_PRESETS } from '../constants';
+import { GraphicsQuality } from '../types';
 
 interface SettingsPanelProps {
   engine: SimulationEngine;
@@ -11,10 +13,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
   const [collapsed, setCollapsed] = useState(false);
 
   const update = <K extends keyof typeof config>(key: K, val: number) => {
-    const newConfig = { ...config, [key]: val };
+    const newConfig = { ...config, [key]: val, graphicsQuality: 'CUSTOM' as const };
     setConfig(newConfig);
     // Безпечне оновлення конфігурації engine
-    Object.assign(engine.config, { [key]: val });
+    Object.assign(engine.config, { [key]: val, graphicsQuality: 'CUSTOM' });
+  };
+
+  const toggle = <K extends keyof typeof config>(key: K) => {
+    const currentVal = config[key];
+    if (typeof currentVal === 'boolean') {
+      const newVal = !currentVal;
+      const newConfig = { ...config, [key]: newVal, graphicsQuality: 'CUSTOM' as const };
+      setConfig(newConfig);
+      Object.assign(engine.config, { [key]: newVal, graphicsQuality: 'CUSTOM' });
+    }
+  };
+
+  const applyPreset = (quality: GraphicsQuality) => {
+    if (quality === 'CUSTOM') return;
+
+    const preset = GRAPHICS_PRESETS[quality];
+    const newConfig = {
+      ...config,
+      ...preset,
+      graphicsQuality: quality,
+    };
+    setConfig(newConfig);
+    Object.assign(engine.config, newConfig);
   };
 
   const Slider = ({ label, value, min, max, step, param, colorClass = "accent-emerald-500" }: {
@@ -133,22 +158,89 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
               <div className="h-px flex-1 bg-cyan-500/20" />
             </h3>
 
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex flex-col">
-                <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Орбітальні Супутники</span>
-                <span className="text-[8px] sm:text-[7px] text-gray-600">Вимкнути для +100% FPS</span>
+            {/* Quality Preset Selector */}
+            <div className="mb-6">
+              <div className="text-[10px] sm:text-[9px] text-gray-400 uppercase tracking-widest mb-2 font-bold">Налаштування Якості</div>
+              <div className="grid grid-cols-4 gap-2 mb-1">
+                {(['LOW', 'MEDIUM', 'HIGH', 'ULTRA'] as const).map((quality) => (
+                  <button
+                    key={quality}
+                    onClick={() => applyPreset(quality)}
+                    className={`h-9 rounded-lg text-[9px] font-bold transition-all duration-200 touch-manipulation ${
+                      config.graphicsQuality === quality
+                        ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                        : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
+                    }`}
+                  >
+                    {quality === 'LOW' && '⚡ LOW'}
+                    {quality === 'MEDIUM' && '🔧 MED'}
+                    {quality === 'HIGH' && '✨ HIGH'}
+                    {quality === 'ULTRA' && '💎 ULTRA'}
+                  </button>
+                ))}
               </div>
-              <button
-                onClick={() => {
-                  const newVal = !config.showOrbitalSatellites;
-                  const newConfig = { ...config, showOrbitalSatellites: newVal };
-                  setConfig(newConfig);
-                  Object.assign(engine.config, { showOrbitalSatellites: newVal });
-                }}
-                className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showOrbitalSatellites ? 'bg-cyan-500' : 'bg-white/10'}`}
-              >
-                <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showOrbitalSatellites ? 'translate-x-6' : 'translate-x-0'}`} />
-              </button>
+              {config.graphicsQuality === 'CUSTOM' && (
+                <div className="text-[8px] text-purple-400 text-center mt-1 uppercase tracking-wider">Custom налаштування</div>
+              )}
+            </div>
+
+            {/* Individual Toggles */}
+            <div className="space-y-3">
+              {/* Trails Toggle */}
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Шлейфи</span>
+                  <span className="text-[8px] sm:text-[7px] text-gray-600">Сліди за організмами</span>
+                </div>
+                <button
+                  onClick={() => toggle('showTrails')}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showTrails ? 'bg-cyan-500' : 'bg-white/10'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showTrails ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Particles Toggle */}
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Частинки</span>
+                  <span className="text-[8px] sm:text-[7px] text-gray-600">Фонові ефекти</span>
+                </div>
+                <button
+                  onClick={() => toggle('showParticles')}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showParticles ? 'bg-cyan-500' : 'bg-white/10'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showParticles ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Orbital Satellites Toggle */}
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Орбітальні Супутники</span>
+                  <span className="text-[8px] sm:text-[7px] text-gray-600">+100% FPS при вимкненні</span>
+                </div>
+                <button
+                  onClick={() => toggle('showOrbitalSatellites')}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showOrbitalSatellites ? 'bg-cyan-500' : 'bg-white/10'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showOrbitalSatellites ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {/* Energy Glow Toggle */}
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Світіння Енергії</span>
+                  <span className="text-[8px] sm:text-[7px] text-gray-600">Glow ефекти</span>
+                </div>
+                <button
+                  onClick={() => toggle('showEnergyGlow')}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showEnergyGlow ? 'bg-cyan-500' : 'bg-white/10'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showEnergyGlow ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
             </div>
           </section>
 

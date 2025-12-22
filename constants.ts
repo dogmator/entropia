@@ -249,7 +249,66 @@ export const INITIAL_VIS_CONFIG = {
   bloomIntensity: 0.8,
   trailLength: 80,
   showEnergyGlow: true,
-  showOrbitalSatellites: true, // Орбітальні супутники біля кристалів їжі
+  showTrails: true,              // Шлейфи за організмами
+  showParticles: true,           // Частинки (фон, ефекти)
+  showOrbitalSatellites: true,   // Орбітальні супутники біля кристалів їжі
+  graphicsQuality: 'HIGH' as const, // Початковий рівень якості
+} as const;
+
+/** Graphics Quality Presets */
+export const GRAPHICS_PRESETS = {
+  LOW: {
+    organismOpacity: 0.85,
+    foodOpacity: 0.80,
+    organismScale: 0.8,
+    foodScale: 1.0,
+    gridOpacity: 0.03,
+    bloomIntensity: 0.3,
+    trailLength: 20,
+    showEnergyGlow: false,
+    showTrails: false,
+    showParticles: false,
+    showOrbitalSatellites: false,
+  },
+  MEDIUM: {
+    organismOpacity: 0.88,
+    foodOpacity: 0.82,
+    organismScale: 0.9,
+    foodScale: 1.1,
+    gridOpacity: 0.05,
+    bloomIntensity: 0.5,
+    trailLength: 40,
+    showEnergyGlow: true,
+    showTrails: true,
+    showParticles: false,
+    showOrbitalSatellites: false,
+  },
+  HIGH: {
+    organismOpacity: 0.92,
+    foodOpacity: 0.85,
+    organismScale: 1.0,
+    foodScale: 1.2,
+    gridOpacity: 0.08,
+    bloomIntensity: 0.8,
+    trailLength: 80,
+    showEnergyGlow: true,
+    showTrails: true,
+    showParticles: true,
+    showOrbitalSatellites: true,
+  },
+  ULTRA: {
+    organismOpacity: 0.95,
+    foodOpacity: 0.90,
+    organismScale: 1.2,
+    foodScale: 1.4,
+    gridOpacity: 0.12,
+    bloomIntensity: 1.0,
+    trailLength: 120,
+    showEnergyGlow: true,
+    showTrails: true,
+    showParticles: true,
+    showOrbitalSatellites: true,
+  },
 } as const;
 
 // ============================================================================
