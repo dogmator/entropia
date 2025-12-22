@@ -49,7 +49,7 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   // ========================================================================
 
   const sceneData = useThreeScene(container);
-  const sceneObjects = useSceneObjects(sceneData?.scene || null, engine, engine.config.bodyQuality);
+  const sceneObjects = useSceneObjects(sceneData?.scene || null, engine);
   const particleEffects = useParticleEffects(sceneData?.scene || null);
   const {
     hoveredEntity,
