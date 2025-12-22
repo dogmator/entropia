@@ -33,6 +33,11 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const historyRef = useRef<PopulationDataPoint[]>([]);
 
+  // Performance tracking
+  const fpsCounter = useRef({ frames: 0, lastTime: performance.now(), fps: 60 });
+  const tpsCounter = useRef({ ticks: 0, lastTime: performance.now(), tps: 60 });
+  const frameTimestampRef = useRef(performance.now());
+
   // Завантаження налаштувань з localStorage
   useEffect(() => {
     const savedSpeed = localStorage.getItem('entropia-speed');
@@ -55,7 +60,43 @@ const App: React.FC = () => {
     let tickCounter = 0;
     const unsubscribe = engine.addEventListener((event) => {
       if (event.type === 'TickUpdated') {
-        setStats(event.stats);
+        // Update FPS/TPS counters
+        const now = performance.now();
+        fpsCounter.current.frames++;
+        tpsCounter.current.ticks++;
+
+        const elapsedFps = now - fpsCounter.current.lastTime;
+        const elapsedTps = now - tpsCounter.current.lastTime;
+
+        if (elapsedFps >= 1000) {
+          fpsCounter.current.fps = Math.round((fpsCounter.current.frames * 1000) / elapsedFps);
+          fpsCounter.current.frames = 0;
+          fpsCounter.current.lastTime = now;
+        }
+
+        if (elapsedTps >= 1000) {
+          tpsCounter.current.tps = Math.round((tpsCounter.current.ticks * 1000) / elapsedTps);
+          tpsCounter.current.ticks = 0;
+          tpsCounter.current.lastTime = now;
+        }
+
+        const frameTime = now - frameTimestampRef.current;
+        frameTimestampRef.current = now;
+
+        // Add performance metrics to stats
+        const statsWithPerformance: SimulationStats = {
+          ...event.stats,
+          performance: {
+            fps: fpsCounter.current.fps,
+            tps: tpsCounter.current.tps,
+            frameTime: Number(frameTime.toFixed(2)),
+            simulationTime: Number((event.deltaTime * 1000).toFixed(2)),
+            entityCount: event.stats.preyCount + event.stats.predatorCount + event.stats.foodCount,
+            drawCalls: 5, // prey + pred + food + obstacles + grid
+          }
+        };
+
+        setStats(statsWithPerformance);
 
         tickCounter++;
         if (tickCounter % Math.max(1, Math.floor(UI_CONFIG.updateFrequency / (speed > 1 ? speed : 1))) === 0) {
