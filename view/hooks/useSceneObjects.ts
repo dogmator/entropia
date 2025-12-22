@@ -47,7 +47,8 @@ export interface SceneObjects {
 
 export function useSceneObjects(
   scene: THREE.Scene | null,
-  engine: SimulationEngine
+  engine: SimulationEngine,
+  bodyQuality: number = 32
 ) {
   const [objectsData, setObjectsData] = useState<SceneObjects | null>(null);
 
@@ -79,7 +80,8 @@ export function useSceneObjects(
     engine.zones.forEach((zone) => {
       const zoneColor =
         ZONE_DEFAULTS[zone.type as keyof typeof ZONE_DEFAULTS]?.color || 0xffffff;
-      const geo = new THREE.SphereGeometry(zone.radius, 32, 32);
+      // Використовуємо bodyQuality для якості геометрії зон
+      const geo = new THREE.SphereGeometry(zone.radius, bodyQuality, bodyQuality);
       const mat = new THREE.MeshBasicMaterial({
         color: zoneColor,
         transparent: true,
@@ -97,7 +99,9 @@ export function useSceneObjects(
     // INSTANCED MESHES ДЛЯ ОРГАНІЗМІВ
     // ========================================================================
 
-    const orgGeo = new THREE.ConeGeometry(0.8, 2.5, 8);
+    // Використовуємо bodyQuality для якості геометрії організмів (мін 8, макс bodyQuality)
+    const orgSegments = Math.max(8, Math.min(bodyQuality, 32));
+    const orgGeo = new THREE.ConeGeometry(0.8, 2.5, orgSegments);
     orgGeo.rotateX(Math.PI / 2);
 
     const preyMat = new THREE.MeshPhongMaterial({
@@ -221,7 +225,7 @@ export function useSceneObjects(
         (m.material as THREE.Material).dispose();
       });
     };
-  }, [scene, engine]);
+  }, [scene, engine, bodyQuality]);
 
   return objectsData;
 }
