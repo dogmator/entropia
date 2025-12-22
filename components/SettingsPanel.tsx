@@ -184,25 +184,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
               )}
             </div>
 
-            {/* Body Approximation Slider */}
-            <div className="mb-6">
-              <Slider
-                label="Деталізація Геометрії"
-                param="bodyQuality"
-                value={config.bodyQuality}
-                min={8}
-                max={64}
-                step={4}
-                colorClass="accent-cyan-500"
-              />
-              <div className="text-[8px] text-gray-600 mt-1">
-                {config.bodyQuality <= 12 && '⚡ Низька (найшвидше)'}
-                {config.bodyQuality > 12 && config.bodyQuality <= 24 && '🔧 Середня'}
-                {config.bodyQuality > 24 && config.bodyQuality <= 48 && '✨ Висока'}
-                {config.bodyQuality > 48 && '💎 Ультра (найкраще)'}
-              </div>
-            </div>
-
             {/* Individual Toggles */}
             <div className="space-y-3">
               {/* Trails Toggle */}
@@ -230,20 +211,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
                   className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showParticles ? 'bg-cyan-500' : 'bg-white/10'}`}
                 >
                   <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showParticles ? 'translate-x-6' : 'translate-x-0'}`} />
-                </button>
-              </div>
-
-              {/* Orbital Satellites Toggle */}
-              <div className="flex justify-between items-center">
-                <div className="flex flex-col">
-                  <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Орбітальні Супутники</span>
-                  <span className="text-[8px] sm:text-[7px] text-gray-600">+100% FPS при вимкненні</span>
-                </div>
-                <button
-                  onClick={() => toggle('showOrbitalSatellites')}
-                  className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showOrbitalSatellites ? 'bg-cyan-500' : 'bg-white/10'}`}
-                >
-                  <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showOrbitalSatellites ? 'translate-x-6' : 'translate-x-0'}`} />
                 </button>
               </div>
 
