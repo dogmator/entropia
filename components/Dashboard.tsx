@@ -30,8 +30,43 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
       ? 'text-yellow-400'
       : 'text-green-400';
 
+  // Колір FPS індикатора
+  const fpsColor = (fps: number) => {
+    if (fps >= 55) return 'text-emerald-400';
+    if (fps >= 30) return 'text-yellow-400';
+    return 'text-red-400';
+  };
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Performance Monitor */}
+      {stats.performance && (
+        <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all duration-300 group">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-blue-400 transition-colors">
+              ⚡ Продуктивність
+            </span>
+            <span className={`text-lg sm:text-base font-mono font-black ${fpsColor(stats.performance.fps)} group-hover:drop-shadow-[0_0_8px_currentColor] transition-all`}>
+              {stats.performance.fps} FPS
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-[9px] sm:text-[8px]">
+            <div className="bg-black/30 rounded-lg p-1.5 text-center">
+              <div className="text-gray-500 uppercase tracking-tight mb-0.5">TPS</div>
+              <div className="text-blue-400 font-mono font-bold">{stats.performance.tps}</div>
+            </div>
+            <div className="bg-black/30 rounded-lg p-1.5 text-center">
+              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Frame</div>
+              <div className="text-cyan-400 font-mono font-bold">{stats.performance.frameTime.toFixed(1)}ms</div>
+            </div>
+            <div className="bg-black/30 rounded-lg p-1.5 text-center">
+              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Entities</div>
+              <div className="text-purple-400 font-mono font-bold">{stats.performance.entityCount}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Індикатор ризику вимирання */}
       {stats.extinctionRisk > 0.3 && (
         <div className={`bg-red-950/30 border border-red-500/30 rounded-xl p-3 ${stats.extinctionRisk > 0.7 ? 'animate-pulse' : ''}`}>

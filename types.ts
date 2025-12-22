@@ -147,6 +147,18 @@ export type OrganismState = typeof OrganismState[keyof typeof OrganismState];
 // СТАТИСТИКА
 // ============================================================================
 
+/**
+ * Метрики продуктивності симуляції
+ */
+export interface PerformanceMetrics {
+  readonly fps: number;              // Frames Per Second
+  readonly tps: number;              // Ticks Per Second (швидкість симуляції)
+  readonly frameTime: number;        // Час рендерингу кадру (ms)
+  readonly simulationTime: number;   // Час обчислення симуляції (ms)
+  readonly entityCount: number;      // Загальна кількість сутностей
+  readonly drawCalls: number;        // Кількість draw calls
+}
+
 export interface SimulationStats {
   readonly preyCount: number;
   readonly predatorCount: number;
@@ -160,6 +172,7 @@ export interface SimulationStats {
   readonly totalDeaths: number;
   readonly totalBirths: number;
   readonly extinctionRisk: number;    // 0-1, ризик вимирання
+  readonly performance?: PerformanceMetrics; // Опціональні метрики продуктивності
 }
 
 export interface PopulationSnapshot {
@@ -207,6 +220,7 @@ export interface SimulationConfig extends VisConfig, PhysicsConfig {
   readonly maxFood: number;
   readonly maxOrganisms: number;
   readonly showObstacles: boolean;
+  readonly showOrbitalSatellites: boolean; // Показувати орбітальні супутники біля їжі
   readonly mutationFactor: number;
   readonly reproductionThreshold: number;
 }
