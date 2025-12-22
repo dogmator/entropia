@@ -201,7 +201,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
 
         const scale = f.radius * 2.5 * engine.config.foodScale;
 
-        // Основний кристал
+        // Кристал
         dummy.position.set(f.position.x, f.position.y, f.position.z);
         dummy.scale.set(scale, scale, scale);
 
@@ -211,23 +211,6 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         dummy.updateMatrix();
         idMaps.food.set(foodIdx, f.id);
         foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
-
-        // Орбітальний супутник (опціонально, +100% FPS якщо вимкнено)
-        if (engine.config.showOrbitalSatellites && foodIdx < MAX_INSTANCES) {
-          const orbitR = scale * 1.5;
-          const orbitTime = isStopped ? 0 : time.current * 2;
-
-          dummy.position.set(
-            f.position.x + Math.sin(orbitTime) * orbitR,
-            f.position.y + Math.cos(orbitTime) * orbitR * 0.5,
-            f.position.z + Math.cos(orbitTime) * orbitR
-          );
-          dummy.scale.set(scale * 0.5, scale * 0.5, scale * 0.5);
-          dummy.rotation.set(rotationTime, rotationTime * 0.5, 0);
-          dummy.updateMatrix();
-          idMaps.food.set(foodIdx, f.id);
-          foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
-        }
       });
 
       foodMesh.count = foodIdx;

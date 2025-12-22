@@ -47,8 +47,7 @@ export interface SceneObjects {
 
 export function useSceneObjects(
   scene: THREE.Scene | null,
-  engine: SimulationEngine,
-  bodyQuality: number = 32
+  engine: SimulationEngine
 ) {
   const [objectsData, setObjectsData] = useState<SceneObjects | null>(null);
 
@@ -80,8 +79,8 @@ export function useSceneObjects(
     engine.zones.forEach((zone) => {
       const zoneColor =
         ZONE_DEFAULTS[zone.type as keyof typeof ZONE_DEFAULTS]?.color || 0xffffff;
-      // Використовуємо bodyQuality для якості геометрії зон
-      const geo = new THREE.SphereGeometry(zone.radius, bodyQuality, bodyQuality);
+      // Фіксована якість зон (низька для продуктивності)
+      const geo = new THREE.SphereGeometry(zone.radius, 16, 16);
       const mat = new THREE.MeshBasicMaterial({
         color: zoneColor,
         transparent: true,
@@ -99,9 +98,8 @@ export function useSceneObjects(
     // INSTANCED MESHES ДЛЯ ОРГАНІЗМІВ
     // ========================================================================
 
-    // Використовуємо bodyQuality для якості геометрії організмів (мін 8, макс bodyQuality)
-    const orgSegments = Math.max(8, Math.min(bodyQuality, 32));
-    const orgGeo = new THREE.ConeGeometry(0.8, 2.5, orgSegments);
+    // Фіксована середня якість для організмів (баланс продуктивність/якість)
+    const orgGeo = new THREE.ConeGeometry(0.8, 2.5, 12);
     orgGeo.rotateX(Math.PI / 2);
 
     const preyMat = new THREE.MeshPhongMaterial({
@@ -225,7 +223,7 @@ export function useSceneObjects(
         (m.material as THREE.Material).dispose();
       });
     };
-  }, [scene, engine, bodyQuality]);
+  }, [scene, engine]); // Видалено bodyQuality - recreate тільки при зміні scene/engine
 
   return objectsData;
 }
