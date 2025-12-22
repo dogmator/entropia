@@ -184,6 +184,25 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
               )}
             </div>
 
+            {/* Body Approximation Slider */}
+            <div className="mb-6">
+              <Slider
+                label="Деталізація Геометрії"
+                param="bodyQuality"
+                value={config.bodyQuality}
+                min={8}
+                max={64}
+                step={4}
+                colorClass="accent-cyan-500"
+              />
+              <div className="text-[8px] text-gray-600 mt-1">
+                {config.bodyQuality <= 12 && '⚡ Низька (найшвидше)'}
+                {config.bodyQuality > 12 && config.bodyQuality <= 24 && '🔧 Середня'}
+                {config.bodyQuality > 24 && config.bodyQuality <= 48 && '✨ Висока'}
+                {config.bodyQuality > 48 && '💎 Ультра (найкраще)'}
+              </div>
+            </div>
+
             {/* Individual Toggles */}
             <div className="space-y-3">
               {/* Trails Toggle */}
