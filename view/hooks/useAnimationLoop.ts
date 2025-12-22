@@ -116,8 +116,8 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         }
       }
 
-      // Оновлення ефектів (тільки якщо не зупинено)
-      if (!isStopped) {
+      // Оновлення ефектів (тільки якщо не зупинено і showParticles = true)
+      if (!isStopped && engine.config.showParticles) {
         cosmicBackground.update(deltaTime);
         particleSystem.update(deltaTime);
       }
@@ -179,8 +179,8 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
           predMesh.setMatrixAt(predIdx++, dummy.matrix);
         }
 
-        // Оновити сліди
-        if (o.trailEnabled) {
+        // Оновити сліди (тільки якщо showTrails = true)
+        if (engine.config.showTrails && o.trailEnabled) {
           const color = o.isPrey ? COLORS.prey.base : COLORS.predator.base;
           trailSystem.updateTrail(o.id, o.position, color, true);
         } else {
