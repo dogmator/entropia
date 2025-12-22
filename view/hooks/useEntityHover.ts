@@ -162,37 +162,30 @@ export function useEntityHover(): EntityHoverHook {
 
       if (intersects.length > 0) {
         const hit = intersects[0];
-        let id: string | undefined;
+        let entity: Organism | Food | Obstacle | null = null;
 
-        if (hit.object === preyMesh) {
-          id = idMaps.prey.get(hit.instanceId!);
-        } else if (hit.object === predMesh) {
-          id = idMaps.pred.get(hit.instanceId!);
-        } else if (hit.object === foodMesh) {
-          id = idMaps.food.get(hit.instanceId!);
+        if (hit.object === preyMesh && hit.instanceId !== undefined) {
+          const id = idMaps.prey.get(hit.instanceId);
+          if (id) entity = engine.organisms.get(id) || null;
+        } else if (hit.object === predMesh && hit.instanceId !== undefined) {
+          const id = idMaps.pred.get(hit.instanceId);
+          if (id) entity = engine.organisms.get(id) || null;
+        } else if (hit.object === foodMesh && hit.instanceId !== undefined) {
+          const id = idMaps.food.get(hit.instanceId);
           if (id) {
-            Logger.debug(`Hit Food Mesh. Instance: ${hit.instanceId}, ID: ${id}`);
+            entity = engine.food.get(id) || null;
+            if (!entity) {
+              Logger.warn('Food entity not found for ID:', id);
+            }
           } else {
-            Logger.warn('ID not found for food instance:', hit.instanceId);
+            Logger.warn('ID not found in idMaps.food for instance:', hit.instanceId);
           }
         } else if (hit.object.userData.type === EntityType.OBSTACLE) {
-          id = hit.object.userData.id;
+          const id = hit.object.userData.id;
+          entity = engine.obstacles.get(id) || null;
         }
 
-        if (id) {
-          const entity =
-            engine.organisms.get(id) ||
-            engine.food.get(id) ||
-            engine.obstacles.get(id);
-
-          if (entity && entity.type === EntityType.FOOD) {
-            Logger.debug('Resolved food entity:', entity.id);
-          }
-
-          setHoveredEntity(entity || null);
-        } else {
-          setHoveredEntity(null);
-        }
+        setHoveredEntity(entity);
       } else {
         setHoveredEntity(null);
       }
