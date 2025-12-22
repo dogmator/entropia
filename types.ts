@@ -58,6 +58,17 @@ export const PredatorSubtype = {
 
 export type PredatorSubtype = typeof PredatorSubtype[keyof typeof PredatorSubtype];
 
+/** Graphics Quality Levels */
+export const GraphicsQuality = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+  ULTRA: 'ULTRA',
+  CUSTOM: 'CUSTOM', // User-defined settings
+} as const;
+
+export type GraphicsQuality = typeof GraphicsQuality[keyof typeof GraphicsQuality];
+
 // ============================================================================
 // ВЕКТОРНА МАТЕМАТИКА
 // ============================================================================
@@ -204,6 +215,10 @@ export interface VisConfig {
   readonly bloomIntensity: number;
   readonly trailLength: number;
   readonly showEnergyGlow: boolean;
+  readonly showTrails: boolean;         // Показувати шлейфи за організмами
+  readonly showParticles: boolean;      // Показувати частинки (фон, ефекти)
+  readonly showOrbitalSatellites: boolean; // Орбітальні супутники біля їжі
+  readonly graphicsQuality: GraphicsQuality; // Поточний рівень якості
 }
 
 export interface PhysicsConfig {
@@ -220,7 +235,6 @@ export interface SimulationConfig extends VisConfig, PhysicsConfig {
   readonly maxFood: number;
   readonly maxOrganisms: number;
   readonly showObstacles: boolean;
-  readonly showOrbitalSatellites: boolean; // Показувати орбітальні супутники біля їжі
   readonly mutationFactor: number;
   readonly reproductionThreshold: number;
 }
