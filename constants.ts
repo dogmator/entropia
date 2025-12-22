@@ -249,6 +249,7 @@ export const INITIAL_VIS_CONFIG = {
   bloomIntensity: 0.8,
   trailLength: 80,
   showEnergyGlow: true,
+  showOrbitalSatellites: true, // Орбітальні супутники біля кристалів їжі
 } as const;
 
 // ============================================================================
