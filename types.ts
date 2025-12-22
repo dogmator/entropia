@@ -219,6 +219,7 @@ export interface VisConfig {
   readonly showParticles: boolean;      // Показувати частинки (фон, ефекти)
   readonly showOrbitalSatellites: boolean; // Орбітальні супутники біля їжі
   readonly graphicsQuality: GraphicsQuality; // Поточний рівень якості
+  readonly bodyQuality: number;         // Якість геометрії тіл (8-64 segments)
 }
 
 export interface PhysicsConfig {
