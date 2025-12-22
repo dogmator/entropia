@@ -253,6 +253,7 @@ export const INITIAL_VIS_CONFIG = {
   showParticles: true,           // Частинки (фон, ефекти)
   showOrbitalSatellites: true,   // Орбітальні супутники біля кристалів їжі
   graphicsQuality: 'HIGH' as const, // Початковий рівень якості
+  bodyQuality: 32,               // Сегменти геометрії (8-64)
 } as const;
 
 /** Graphics Quality Presets */
@@ -269,6 +270,7 @@ export const GRAPHICS_PRESETS = {
     showTrails: false,
     showParticles: false,
     showOrbitalSatellites: false,
+    bodyQuality: 8,  // Мінімальна деталізація (+300% FPS)
   },
   MEDIUM: {
     organismOpacity: 0.88,
@@ -282,6 +284,7 @@ export const GRAPHICS_PRESETS = {
     showTrails: true,
     showParticles: false,
     showOrbitalSatellites: false,
+    bodyQuality: 16, // Низька деталізація
   },
   HIGH: {
     organismOpacity: 0.92,
@@ -295,6 +298,7 @@ export const GRAPHICS_PRESETS = {
     showTrails: true,
     showParticles: true,
     showOrbitalSatellites: true,
+    bodyQuality: 32, // Середня деталізація (баланс)
   },
   ULTRA: {
     organismOpacity: 0.95,
@@ -308,6 +312,7 @@ export const GRAPHICS_PRESETS = {
     showTrails: true,
     showParticles: true,
     showOrbitalSatellites: true,
+    bodyQuality: 64, // Максимальна деталізація
   },
 } as const;
 
