@@ -13,7 +13,6 @@ const Sidebar = lazy(() => import('./components/Sidebar'));
 
 const App: React.FC = () => {
   const engine = useMemo(() => new SimulationEngine(), []);
-  const [isPaused, setIsPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
   // Початковий стан статистики з усіма обов'язковими полями SimulationStats
   const [stats, setStats] = useState<SimulationStats>({
@@ -38,7 +37,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const savedSpeed = localStorage.getItem('entropia-speed');
     if (savedSpeed) {
-      setSpeed(parseFloat(savedSpeed));
+      const parsedSpeed = parseFloat(savedSpeed);
+      // Підтримка діапазону 0-5
+      setSpeed(Math.max(0, Math.min(5, parsedSpeed)));
     }
     // Симулюємо час завантаження для анімації
     const timer = setTimeout(() => setIsLoading(false), 500);
@@ -70,9 +71,20 @@ const App: React.FC = () => {
     });
 
     const handleKey = (e: KeyboardEvent) => {
+      // Hotkeys для швидкого перемикання швидкості
       if (e.key === ' ' || e.key === 'Space') {
-        setIsPaused(prev => !prev);
+        // Пробіл: переключення 0x <-> 1x
+        setSpeed(prev => prev === 0 ? 1 : 0);
+      } else if (e.key === '0') {
+        setSpeed(0);
+      } else if (e.key === '1') {
+        setSpeed(1);
+      } else if (e.key === '2') {
+        setSpeed(2);
+      } else if (e.key === '5') {
+        setSpeed(5);
       }
+
       if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
         if (!document.fullscreenElement) {
           document.documentElement.requestFullscreen();
@@ -85,7 +97,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('keydown', handleKey);
     };
-  }, [engine, speed]);
+  }, []);
 
   const handleReset = () => {
     engine.reset();
@@ -120,14 +132,12 @@ const App: React.FC = () => {
               </>
             }
           >
-            <Viewport engine={engine} isPaused={isPaused} speed={speed} />
+            <Viewport engine={engine} speed={speed} />
 
             <Sidebar
               engine={engine}
               stats={stats}
               history={history}
-              isPaused={isPaused}
-              onTogglePause={() => setIsPaused(!isPaused)}
               onReset={handleReset}
               speed={speed}
               onSpeedChange={setSpeed}

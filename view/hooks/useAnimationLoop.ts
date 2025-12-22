@@ -19,7 +19,6 @@ import { SceneObjects } from './useSceneObjects';
 import { ParticleEffects } from './useParticleEffects';
 
 interface AnimationLoopOptions {
-  isPaused: boolean;
   speed: number;
   sceneData: ThreeScene | null;
   sceneObjects: SceneObjects | null;
@@ -42,7 +41,6 @@ interface AnimationLoopOptions {
 
 export function useAnimationLoop(options: AnimationLoopOptions) {
   const {
-    isPaused,
     speed,
     sceneData,
     sceneObjects,
@@ -55,17 +53,13 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
   const speedAccumulator = useRef(0);
   const lastTime = useRef(0);
   const time = useRef(0);
+  const frameCount = useRef(0);
 
   const speedRef = useRef(speed);
-  const isPausedRef = useRef(isPaused);
 
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
-
-  useEffect(() => {
-    isPausedRef.current = isPaused;
-  }, [isPaused]);
 
   useEffect(() => {
     if (!sceneData || !sceneObjects || !particleEffects) return;
@@ -89,16 +83,32 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
     const MAX_INSTANCES = RENDER.maxInstances;
 
     const animate = (currentTime: number) => {
+      frameCount.current++;
+
       const deltaTime = Math.min(
         (currentTime - lastTime.current) / 1000,
         0.1
       );
       lastTime.current = currentTime;
-      time.current += deltaTime;
+
+      // Smart Rendering: при speed = 0 рендеримо на 1 FPS (тільки для camera controls)
+      const currentSpeed = speedRef.current;
+      const isStopped = currentSpeed === 0;
+
+      if (isStopped && frameCount.current % 60 !== 0) {
+        // При паузі пропускаємо більшість кадрів
+        requestRef.current = requestAnimationFrame(animate);
+        return;
+      }
+
+      // Оновлення часу тільки якщо не зупинено
+      if (!isStopped) {
+        time.current += deltaTime;
+      }
 
       // Оновлення симуляції
-      if (!isPausedRef.current) {
-        speedAccumulator.current += speedRef.current;
+      if (!isStopped) {
+        speedAccumulator.current += currentSpeed;
         const ticksToRun = Math.floor(speedAccumulator.current);
         speedAccumulator.current -= ticksToRun;
         for (let s = 0; s < ticksToRun; s++) {
@@ -106,12 +116,16 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         }
       }
 
-      // Оновлення ефектів
-      cosmicBackground.update(deltaTime);
-      particleSystem.update(deltaTime);
+      // Оновлення ефектів (тільки якщо не зупинено)
+      if (!isStopped) {
+        cosmicBackground.update(deltaTime);
+        particleSystem.update(deltaTime);
+      }
 
-      // Оновлення матеріалів
-      foodMat.emissiveIntensity = 0.4 + Math.sin(time.current * 3) * 0.25;
+      // Оновлення матеріалів (анімація їжі зупиняється при speed = 0)
+      foodMat.emissiveIntensity = isStopped
+        ? 0.4
+        : 0.4 + Math.sin(time.current * 3) * 0.25;
       preyMat.opacity = engine.config.organismOpacity;
       predMat.opacity = engine.config.organismOpacity;
       foodMat.opacity = engine.config.foodOpacity;
@@ -190,21 +204,26 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         // Основний кристал
         dummy.position.set(f.position.x, f.position.y, f.position.z);
         dummy.scale.set(scale, scale, scale);
-        dummy.rotation.set(time.current * 0.5, time.current * 0.3, 0);
+
+        // Обертання зупиняється при speed = 0
+        const rotationTime = isStopped ? 0 : time.current;
+        dummy.rotation.set(rotationTime * 0.5, rotationTime * 0.3, 0);
         dummy.updateMatrix();
         idMaps.food.set(foodIdx, f.id);
         foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
 
-        // Орбітальний супутник
+        // Орбітальний супутник (зупиняється при speed = 0)
         if (foodIdx < MAX_INSTANCES) {
           const orbitR = scale * 1.5;
+          const orbitTime = isStopped ? 0 : time.current * 2;
+
           dummy.position.set(
-            f.position.x + Math.sin(time.current * 2) * orbitR,
-            f.position.y + Math.cos(time.current * 2) * orbitR * 0.5,
-            f.position.z + Math.cos(time.current * 2) * orbitR
+            f.position.x + Math.sin(orbitTime) * orbitR,
+            f.position.y + Math.cos(orbitTime) * orbitR * 0.5,
+            f.position.z + Math.cos(orbitTime) * orbitR
           );
           dummy.scale.set(scale * 0.5, scale * 0.5, scale * 0.5);
-          dummy.rotation.set(time.current, time.current * 0.5, 0);
+          dummy.rotation.set(rotationTime, rotationTime * 0.5, 0);
           dummy.updateMatrix();
           idMaps.food.set(foodIdx, f.id);
           foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
