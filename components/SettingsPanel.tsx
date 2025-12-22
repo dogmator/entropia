@@ -125,6 +125,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
             <Slider label="Сітка світу" param="gridOpacity" value={config.gridOpacity} min={0.0} max={0.5} step={0.01} colorClass="accent-amber-500" />
           </section>
 
+          {/* Group 4: Graphics / Performance */}
+          <section>
+            <h3 className="text-[10px] sm:text-[9px] text-cyan-400 font-black uppercase tracking-[0.4em] mb-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-cyan-500/20" />
+              ⚡ Графіка
+              <div className="h-px flex-1 bg-cyan-500/20" />
+            </h3>
+
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex flex-col">
+                <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Орбітальні Супутники</span>
+                <span className="text-[8px] sm:text-[7px] text-gray-600">Вимкнути для +100% FPS</span>
+              </div>
+              <button
+                onClick={() => {
+                  const newVal = !config.showOrbitalSatellites;
+                  const newConfig = { ...config, showOrbitalSatellites: newVal };
+                  setConfig(newConfig);
+                  Object.assign(engine.config, { showOrbitalSatellites: newVal });
+                }}
+                className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showOrbitalSatellites ? 'bg-cyan-500' : 'bg-white/10'}`}
+              >
+                <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showOrbitalSatellites ? 'translate-x-6' : 'translate-x-0'}`} />
+              </button>
+            </div>
+          </section>
+
         </div>
 
         {/* Panel Footer */}
