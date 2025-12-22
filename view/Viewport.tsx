@@ -27,7 +27,6 @@ import { useAnimationLoop } from './hooks/useAnimationLoop';
 
 interface ViewportProps {
   engine: SimulationEngine;
-  isPaused: boolean;
   speed: number;
 }
 
@@ -35,7 +34,7 @@ interface ViewportProps {
 // ГОЛОВНИЙ КОМПОНЕНТ
 // ============================================================================
 
-const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
+const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   // Callback ref для гарантованого отримання DOM елемента
@@ -64,7 +63,6 @@ const Viewport: React.FC<ViewportProps> = ({ engine, isPaused, speed }) => {
   useSimulationEvents(engine, particleEffects?.particleSystem || null);
 
   useAnimationLoop({
-    isPaused,
     speed,
     sceneData,
     sceneObjects,
