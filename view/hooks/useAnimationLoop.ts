@@ -179,8 +179,8 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
           predMesh.setMatrixAt(predIdx++, dummy.matrix);
         }
 
-        // Оновити сліди (тільки якщо showTrails = true)
-        if (engine.config.showTrails && o.trailEnabled) {
+        // Оновити сліди (індивідуальний контроль через trailEnabled)
+        if (o.trailEnabled) {
           const color = o.isPrey ? COLORS.prey.base : COLORS.predator.base;
           trailSystem.updateTrail(o.id, o.position, color, true);
         } else {

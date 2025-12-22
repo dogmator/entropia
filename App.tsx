@@ -141,9 +141,18 @@ const App: React.FC = () => {
   }, []);
 
   const handleReset = () => {
+    // Очистити localStorage
+    localStorage.clear();
+
+    // Скинути engine до дефолтних налаштувань
     engine.reset();
+
+    // Очистити історію
     historyRef.current = [];
     setHistory([]);
+
+    // Скинути швидкість до дефолту
+    setSpeed(1);
   };
 
   return (

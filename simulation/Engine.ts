@@ -288,7 +288,7 @@ export class SimulationEngine {
     const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles);
 
     // Перевірити розмноження
-    const newborns = this.reproductionSystem.checkReproduction(this.organisms);
+    const newborns = this.reproductionSystem.checkReproduction(this.organisms, this.config.maxOrganisms);
 
     // Оновити статистику
     this.updateStats();
