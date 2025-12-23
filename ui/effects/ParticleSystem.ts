@@ -443,6 +443,23 @@ export class TrailSystem {
       this.trails.set(organismId, trail);
     }
 
+    // Check for wrapping/teleportation (distance threshold)
+    if (trail.positions.length > 0) {
+      const lastPos = trail.positions[trail.positions.length - 1];
+      const distSq =
+        (position.x - lastPos.x) ** 2 +
+        (position.y - lastPos.y) ** 2 +
+        (position.z - lastPos.z) ** 2;
+
+      // Threshold: if moved more than 50 units in one frame, it's a wrap.
+      // Max normal speed is ~5, so 50 is a safe margin.
+      // Min world size is 400 (scale 0.5), so wrap is at least 400.
+      if (distSq > 2500) {
+        trail.positions.length = 0;
+        trail.alphas.length = 0;
+      }
+    }
+
     // Реєстрація нового положення в ланцюгу трасування
     trail.positions.push(new THREE.Vector3(position.x, position.y, position.z));
     trail.alphas.push(1.0);
@@ -523,6 +540,7 @@ export class TrailSystem {
     });
 
     const line = new THREE.Line(geometry, material);
+    line.frustumCulled = false; // Disable culling as we don't update bounding sphere
     this.scene.add(line);
 
     return {

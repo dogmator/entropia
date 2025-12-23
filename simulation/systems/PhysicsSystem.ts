@@ -9,9 +9,9 @@
  */
 
 import { Organism } from '../Entity';
-import { PHYSICS, WORLD_SIZE } from '../../constants';
+import { PHYSICS } from '../../constants';
 import { MathUtils } from '../MathUtils';
-import { SimulationConfig } from '../../types';
+import { SimulationConfig, WorldConfig } from '../../types';
 
 /**
  * Константи параметрів фізичної моделі.
@@ -23,7 +23,8 @@ const MAX_STEERING_FORCE = PHYSICS.maxSteeringForce;
  */
 export class PhysicsSystem {
   constructor(
-    private readonly config: SimulationConfig
+    private readonly config: SimulationConfig,
+    private readonly worldConfig: WorldConfig
   ) { }
 
   /**
@@ -64,18 +65,7 @@ export class PhysicsSystem {
    * Обмеження магнітуди вектора прискорення (визначення межі фізичної сили).
    */
   private limitAcceleration(org: Organism): void {
-    const accMagSq =
-      org.acceleration.x * org.acceleration.x +
-      org.acceleration.y * org.acceleration.y +
-      org.acceleration.z * org.acceleration.z;
-
-    if (accMagSq > MAX_STEERING_FORCE * MAX_STEERING_FORCE) {
-      const accMag = Math.sqrt(accMagSq);
-      const scale = MAX_STEERING_FORCE / accMag;
-      org.acceleration.x *= scale;
-      org.acceleration.y *= scale;
-      org.acceleration.z *= scale;
-    }
+    this.limitVector(org.acceleration, MAX_STEERING_FORCE);
   }
 
   /**
@@ -91,19 +81,19 @@ export class PhysicsSystem {
    * Регулювання швидкості згідно з індивідуальними характеристиками організму.
    */
   private limitVelocity(org: Organism): void {
-    const speedSq =
-      org.velocity.x * org.velocity.x +
-      org.velocity.y * org.velocity.y +
-      org.velocity.z * org.velocity.z;
+    this.limitVector(org.velocity, org.genome.maxSpeed);
+  }
 
-    const maxSpeedSq = org.genome.maxSpeed * org.genome.maxSpeed;
-
-    if (speedSq > maxSpeedSq) {
-      const speed = Math.sqrt(speedSq);
-      const scale = org.genome.maxSpeed / speed;
-      org.velocity.x *= scale;
-      org.velocity.y *= scale;
-      org.velocity.z *= scale;
+  /**
+   * Універсальний помічник для обмеження магнітуди вектора.
+   */
+  private limitVector(v: import('../../types').MutableVector3, max: number): void {
+    const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
+    if (magSq > max * max && magSq > 0) {
+      const scale = max / Math.sqrt(magSq);
+      v.x *= scale;
+      v.y *= scale;
+      v.z *= scale;
     }
   }
 
@@ -111,9 +101,10 @@ export class PhysicsSystem {
    * Оновлення просторових координат з верифікацією тороїдальних меж.
    */
   private updatePosition(org: Organism): void {
-    org.position.x = MathUtils.wrap(org.position.x + org.velocity.x);
-    org.position.y = MathUtils.wrap(org.position.y + org.velocity.y);
-    org.position.z = MathUtils.wrap(org.position.z + org.velocity.z);
+    const ws = this.worldConfig.WORLD_SIZE;
+    org.position.x = MathUtils.wrap(org.position.x + org.velocity.x, ws);
+    org.position.y = MathUtils.wrap(org.position.y + org.velocity.y, ws);
+    org.position.z = MathUtils.wrap(org.position.z + org.velocity.z, ws);
   }
 
   /**

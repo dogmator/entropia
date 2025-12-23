@@ -12,7 +12,7 @@
 import { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { SimulationEngine } from '../../simulation/Engine';
-import { WORLD_SIZE, COLORS, RENDER, ZONE_DEFAULTS } from '../../constants';
+import { COLORS, RENDER, ZONE_DEFAULTS, WORLD_SIZE } from '../../constants';
 import { EntityType } from '../../types';
 
 export interface SceneObjects {
@@ -54,12 +54,13 @@ export function useSceneObjects(
     if (!scene) return;
 
     const MAX_INSTANCES = RENDER.maxInstances;
+    const ws = engine.worldConfig?.WORLD_SIZE ?? WORLD_SIZE;
 
     // ========================================================================
     // КОНСТРУЮВАННЯ ГРАНИЧНОЇ РАМКИ ВІРТУАЛЬНОГО ПРОСТОРУ
     // ========================================================================
 
-    const boxGeo = new THREE.BoxGeometry(WORLD_SIZE, WORLD_SIZE, WORLD_SIZE);
+    const boxGeo = new THREE.BoxGeometry(ws, ws, ws);
     const boxEdges = new THREE.EdgesGeometry(boxGeo);
     const boxMat = new THREE.LineBasicMaterial({
       color: COLORS.ui.accent,
@@ -67,7 +68,7 @@ export function useSceneObjects(
       opacity: 0.08,
     });
     const boxLines = new THREE.LineSegments(boxEdges, boxMat);
-    boxLines.position.set(WORLD_SIZE / 2, WORLD_SIZE / 2, WORLD_SIZE / 2);
+    boxLines.position.set(ws / 2, ws / 2, ws / 2);
     scene.add(boxLines);
 
     // ========================================================================
@@ -119,7 +120,7 @@ export function useSceneObjects(
     // Примусове визначення граничної сфери для коректного опрацювання рейкастером
     preyMesh.geometry.computeBoundingSphere();
     if (preyMesh.geometry.boundingSphere) {
-      preyMesh.geometry.boundingSphere.radius = WORLD_SIZE * 2;
+      preyMesh.geometry.boundingSphere.radius = ws * 2;
     }
 
     scene.add(preyMesh);
@@ -139,7 +140,7 @@ export function useSceneObjects(
     // Аналогічна конфігурація граничного об'єму для хижих суб'єктів
     predMesh.geometry.computeBoundingSphere();
     if (predMesh.geometry.boundingSphere) {
-      predMesh.geometry.boundingSphere.radius = WORLD_SIZE * 2;
+      predMesh.geometry.boundingSphere.radius = ws * 2;
     }
 
     scene.add(predMesh);
@@ -172,7 +173,7 @@ export function useSceneObjects(
     // а потім застосовує instanceMatrix для позиціонування кожного інстанса
     foodGeo.computeBoundingSphere();
     if (foodGeo.boundingSphere) {
-      foodGeo.boundingSphere.radius = WORLD_SIZE * 2;
+      foodGeo.boundingSphere.radius = ws * 2;
     }
 
     scene.add(foodMesh);

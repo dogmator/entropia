@@ -9,7 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { SimulationStats, PopulationDataPoint } from '../types';
+import { SimulationStats, PopulationDataPoint } from '../../types';
 
 /**
  * Програмний інтерфейс для властивостей компонента Dashboard.

@@ -10,7 +10,7 @@
  */
 
 import { Organism } from '../Entity';
-import { METABOLIC_CONSTANTS } from '../../constants';
+import { METABOLIC_CONSTANTS, METABOLIC_THRESHOLDS } from '../../constants';
 
 /**
  * Коефіцієнти метаболічної активності згідно з глобальними константами.
@@ -141,14 +141,14 @@ export class MetabolismSystem {
    * Визначення дефіциту енергії (стан hunger).
    */
   isHungry(org: Organism): boolean {
-    return org.normalizedEnergy < 0.5;
+    return org.normalizedEnergy < METABOLIC_THRESHOLDS.hunger;
   }
 
   /**
    * Визначення критичного рівня виснаження ( starvation ).
    */
   isCritical(org: Organism): boolean {
-    return org.normalizedEnergy < 0.2;
+    return org.normalizedEnergy < METABOLIC_THRESHOLDS.critical;
   }
 
   /**
@@ -165,6 +165,6 @@ export class MetabolismSystem {
    * Ідентифікація досягнення стадії пізнього онтогенезу (старості).
    */
   isOld(org: Organism, maxAge: number): boolean {
-    return org.age > maxAge * 0.8;
+    return org.age > maxAge * METABOLIC_THRESHOLDS.oldAgeRatio;
   }
 }
