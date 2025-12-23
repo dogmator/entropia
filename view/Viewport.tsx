@@ -1,13 +1,13 @@
 /**
- * Entropia 3D — Головний 3D Viewport (Рефакторена версія)
+ * Entropia 3D — Центральний компонент візуалізації тривимірного простору (рефакторизована версія).
  *
- * Використовує custom hooks для чистої архітектури:
- * - useThreeScene - сцена, камера, renderer
- * - useSceneObjects - всі mesh об'єкти
- * - useParticleEffects - система частинок
- * - useEntityHover - hover та tooltip
- * - useSimulationEvents - події симуляції
- * - useAnimationLoop - головний цикл рендерингу
+ * Архітектура компонента базується на використанні спеціалізованих хуків для розмежування відповідальності:
+ * - useThreeScene - ініціалізація графічного контексту, камери та рендерера.
+ * - useSceneObjects - управління життєвим циклом геометричних об'єктів (mesh).
+ * - useParticleEffects - опрацювання систем часток та візуальних ефектів.
+ * - useEntityHover - детермінація стану наведення курсора та управління анотаціями (tooltip).
+ * - useSimulationEvents - агрегація та обробка подій симуляційного двигуна.
+ * - useAnimationLoop - координація головного циклу відтворення та оновлення кадрів.
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
@@ -20,9 +20,10 @@ import { useParticleEffects } from './hooks/useParticleEffects';
 import { useEntityHover } from './hooks/useEntityHover';
 import { useSimulationEvents } from './hooks/useSimulationEvents';
 import { useAnimationLoop } from './hooks/useAnimationLoop';
+import { Logger } from '../core/utils/Logger';
 
 // ============================================================================
-// ТИПИ
+// ВИЗНАЧЕННЯ ТИПІВ ДАНИХ ТА ІНТЕРФЕЙСІВ
 // ============================================================================
 
 interface ViewportProps {
@@ -31,13 +32,15 @@ interface ViewportProps {
 }
 
 // ============================================================================
-// ГОЛОВНИЙ КОМПОНЕНТ
+// ОСНОВНА ПРЕДСТАВНИЦЬКА ЛОГІКА (КОМПОНЕНТ)
 // ============================================================================
 
-const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
+export const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
-  // Callback ref для гарантованого отримання DOM елемента
+  /**
+   * Функція зворотного виклику для детермінованого отримання посилання на DOM-елемент контейнера.
+   */
   const containerCallbackRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       setContainer(node);
@@ -45,7 +48,7 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   }, []);
 
   // ========================================================================
-  // HOOKS
+  // ІНІЦІАЛІЗАЦІЯ СПЕЦІАЛІЗОВАНИХ ХУКІВ СТАНУ ТА ЕФЕКТІВ
   // ========================================================================
 
   const sceneData = useThreeScene(container);
@@ -72,7 +75,7 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   });
 
   // ========================================================================
-  // EVENT LISTENERS
+  // КОНФІГУРАЦІЯ ТА РЕЄСТРАЦІЯ ОБРОБНИКІВ ПОДІЙ
   // ========================================================================
 
   useEffect(() => {
@@ -95,7 +98,7 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   }, [sceneData, sceneObjects, onMouseMove, onClick, engine]);
 
   // ============================================================================
-  // TOOLTIP UTILS
+  // ДОПОМІЖНІ МЕТОДИ ІНТРОСПЕКЦІЇ ТИПІВ СУТНОСТЕЙ
   // ============================================================================
 
   const isOrganism = (e: unknown): e is Organism =>
@@ -108,18 +111,24 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   const isFood = (e: unknown): e is Food =>
     e !== null && typeof e === 'object' && 'type' in e && e.type === EntityType.FOOD;
 
+  /**
+   * Повертає текстову дескрипцію поточного стану життєдіяльності організму.
+   */
   const getStateLabel = (state: OrganismState): string => {
     const labels: Record<OrganismState, string> = {
       IDLE: 'Спокій',
-      SEEKING: 'Пошук',
-      FLEEING: 'Втеча',
+      SEEKING: 'Пошук ресурсів',
+      FLEEING: 'Ухилення',
       HUNTING: 'Полювання',
-      REPRODUCING: 'Розмноження',
-      DYING: 'Вмирає',
+      REPRODUCING: 'Репродукція',
+      DYING: 'Летальність',
     };
     return labels[state] || state;
   };
 
+  /**
+   * Визначає колірну схему для візуальної індикації стану організму.
+   */
   const getStateColor = (state: OrganismState): string => {
     const colors: Record<OrganismState, string> = {
       IDLE: 'text-gray-400',
@@ -133,11 +142,16 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   };
 
   // ============================================================================
-  // РЕНДЕР UI
+  // ВІЗУАЛІЗАЦІЯ ПРЕДСТАВНИЦЬКОГО ШАРУ (USER INTERFACE)
   // ============================================================================
 
-  if (hoveredEntity && (import.meta as any).env?.DEV) {
-    console.log('[Viewport] Hovered:', (hoveredEntity as any).id, 'isFood:', isFood(hoveredEntity));
+  if (hoveredEntity) {
+    Logger.debug('Об\'єкт в фокусі наведення (Hover):', {
+      id: (hoveredEntity as any).id,
+      type: (hoveredEntity as any).type,
+      isFood: isFood(hoveredEntity),
+      isOrganism: isOrganism(hoveredEntity)
+    });
   }
 
   return (
@@ -164,12 +178,12 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
                 />
                 {hoveredEntity.type === EntityType.PREY
                   ? 'Травоїдний'
-                  : 'Хижак'}
+                  : 'Хижий'}
               </div>
 
               <div className="space-y-1">
                 <div className="flex justify-between text-[9px]">
-                  <span className="text-gray-500">Енергія</span>
+                  <span className="text-gray-500 uppercase">Енергетичний запас</span>
                   <span className="text-blue-400 font-bold">
                     {Math.round(hoveredEntity.energy ?? 0)}
                   </span>
@@ -186,7 +200,7 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
 
               <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 opacity-90 border-t border-white/5 pt-3">
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Стан
+                  Поточний стан
                 </span>
                 <span
                   className={`text-right font-bold ${getStateColor(
@@ -197,35 +211,35 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
                 </span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Покоління
+                  Генерація
                 </span>
                 <span className="text-purple-400 text-right font-bold">
                   #{hoveredEntity.genome?.generation ?? 0}
                 </span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Швидкість
+                  Макс. швидкість
                 </span>
                 <span className="text-white text-right">
                   {(hoveredEntity.genome?.maxSpeed ?? 0).toFixed(2)}
                 </span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Зір
+                  Радіус сприйняття
                 </span>
                 <span className="text-white text-right">
                   {Math.round(hoveredEntity.genome?.senseRadius ?? 0)}
                 </span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Вік
+                  Хронологічний вік
                 </span>
                 <span className="text-white text-right">
                   {hoveredEntity.age ?? 0}
                 </span>
 
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Шлейф
+                  Візуальний шлейф
                 </span>
                 <span
                   className={`${hoveredEntity.trailEnabled
@@ -233,23 +247,23 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
                     : 'text-gray-600'
                     } text-right font-bold`}
                 >
-                  {hoveredEntity.trailEnabled ? 'УВІМК' : 'ВИМК'}
+                  {hoveredEntity.trailEnabled ? 'АКТИВНО' : 'ДЕАКТИВОВАНО'}
                 </span>
               </div>
 
               <div className="text-[9px] text-gray-500 italic text-center mt-2 border-t border-white/5 pt-2">
-                Клікніть для перемикання шлейфу
+                Взаємодія для зміни стану шлейфу
               </div>
             </div>
           ) : isObstacle(hoveredEntity) ? (
             <div className="space-y-3">
               <div className="font-black uppercase tracking-[0.2em] flex items-center gap-3 text-purple-400">
                 <div className="w-2.5 h-2.5 bg-purple-400 rounded-sm shadow-[0_0_10px_#a855f7]" />
-                Аномалія
+                Просторова аномалія
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 opacity-90 border-t border-white/5 pt-3">
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Радіус
+                  Радіус впливу
                 </span>
                 <span className="text-white text-right">
                   {Math.round(hoveredEntity.radius)}
@@ -260,11 +274,11 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
             <div className="space-y-3">
               <div className="font-black uppercase tracking-[0.2em] flex items-center gap-3 text-yellow-400">
                 <div className="w-2.5 h-2.5 bg-yellow-400 rotate-45 animate-spin shadow-[0_0_15px_#facc15]" />
-                Енергокристал
+                Енергетичний кристал
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 opacity-90 border-t border-white/5 pt-3">
                 <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
-                  Поживність
+                  Енергетична цінність
                 </span>
                 <span className="text-yellow-400 font-bold text-right">
                   +{hoveredEntity.energyValue}
@@ -277,5 +291,3 @@ const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
     </div>
   );
 };
-
-export default Viewport;

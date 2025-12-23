@@ -1,18 +1,18 @@
 
 /**
- * Entropia 3D — Космічний Фон
+ * Entropia 3D — Компонент візуалізації космічного фону.
  *
- * Створює атмосферний космічний фон з:
- * - Зоряним полем (тисячі зірок)
- * - Туманностями (процедурні градієнти)
- * - Анімованим мерехтінням
- * - Глибиною та паралаксом
+ * Забезпечує створення атмосферного візуального контексту, що включає:
+ * - Масив зірок (багатокомпонентне зоряне поле)
+ * - Процедурні туманності (динамічні градієнти на основі фрактального шуму)
+ * - Анімовані ефекти мерехтіння
+ * - Ефекти просторової глибини та паралакса
  */
 
 import * as THREE from 'three';
 
 // ============================================================================
-// ШЕЙДЕРИ ДЛЯ ЗІРОК
+// ОПИС ШЕЙДЕРНИХ ПРОГРАМ ДЛЯ ВІЗУАЛІЗАЦІЇ ЗІРОК
 // ============================================================================
 
 const starVertexShader = /* glsl */ `
@@ -26,7 +26,7 @@ const starVertexShader = /* glsl */ `
   varying float vBrightness;
 
   void main() {
-    // Мерехтіння
+    // Математична модель мерехтіння на основі гармонічних коливань
     float twinkle = sin(uTime * twinkleSpeed + twinkleOffset) * 0.3 + 0.7;
     vBrightness = brightness * twinkle;
 
@@ -40,20 +40,20 @@ const starFragmentShader = /* glsl */ `
   varying float vBrightness;
 
   void main() {
-    // Кругла форма з м'якими краями
+    // Формування кругової геометрії з градієнтним розмиттям країв
     vec2 center = gl_PointCoord - vec2(0.5);
     float dist = length(center);
 
     if (dist > 0.5) discard;
 
-    // Центральне яскраве ядро
+    // Визначення центрального ядра високої інтенсивності
     float core = 1.0 - smoothstep(0.0, 0.2, dist);
-    // М'яке гало
+    // Розрахунок периферійного гало
     float halo = 1.0 - smoothstep(0.2, 0.5, dist);
 
     float alpha = (core * 0.8 + halo * 0.2) * vBrightness;
 
-    // Білий з легким відтінком
+    // Колірна схема: спектральний білий з хроматичною аберацією в блакитний
     vec3 color = vec3(0.95, 0.97, 1.0);
 
     gl_FragColor = vec4(color, alpha);
@@ -61,7 +61,7 @@ const starFragmentShader = /* glsl */ `
 `;
 
 // ============================================================================
-// ШЕЙДЕРИ ДЛЯ ТУМАННОСТІ
+// ОПИС ШЕЙДЕРНИХ ПРОГРАМ ДЛЯ ВІЗУАЛІЗАЦІЇ ТУМАННОСТЕЙ
 // ============================================================================
 
 const nebulaVertexShader = /* glsl */ `
@@ -84,7 +84,7 @@ const nebulaFragmentShader = /* glsl */ `
   varying vec2 vUv;
   varying vec3 vPosition;
 
-  // Simplex noise function
+  // Реалізація функції шуму Simplex (Simplex Noise)
   vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
   vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -150,6 +150,7 @@ const nebulaFragmentShader = /* glsl */ `
     return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
   }
 
+  // Розрахунок фрактального броунівського руху (fBm)
   float fbm(vec3 p) {
     float value = 0.0;
     float amplitude = 0.5;
@@ -168,20 +169,20 @@ const nebulaFragmentShader = /* glsl */ `
     vec3 pos = vPosition * 0.002;
     pos.z += uTime * 0.02;
 
-    // Багатошаровий шум
+    // Генерація багатошарового фрактального шуму
     float n1 = fbm(pos);
     float n2 = fbm(pos * 2.0 + vec3(100.0));
     float n3 = fbm(pos * 0.5 + vec3(200.0));
 
-    // Комбінування шумів
+    // Синтез результуючого значення шуму
     float noise = (n1 + n2 * 0.5 + n3 * 0.25) / 1.75;
-    noise = noise * 0.5 + 0.5; // Нормалізація до [0, 1]
+    noise = noise * 0.5 + 0.5; // Нормалізація в діапазон [0, 1]
 
-    // Змішування кольорів
+    // Колірна інтерполяція (мікшування спектральних компонент)
     vec3 color = mix(uColor1, uColor2, noise);
     color = mix(color, uColor3, n2 * 0.5 + 0.5);
 
-    // Затухання до країв
+    // Розрахунок градієнтного затухання до периферичних областей
     float edge = 1.0 - length(vUv - 0.5) * 2.0;
     edge = smoothstep(0.0, 0.5, edge);
 
@@ -192,11 +193,11 @@ const nebulaFragmentShader = /* glsl */ `
 `;
 
 // ============================================================================
-// ГОЛОВНИЙ КЛАС
+// ОСНОВНА ПРЕДСТАВНИЦЬКА ЛОГІКА КЛАСУ
 // ============================================================================
 
 /**
- * Космічний фон з зірками та туманностями
+ * Клас управління космічним фоном (зірки та туманності).
  */
 export class CosmicBackground {
   private readonly scene: THREE.Scene;
@@ -205,7 +206,7 @@ export class CosmicBackground {
   private nebulaMesh: THREE.Mesh | null = null;
   private time: number = 0;
 
-  // Матеріали для оновлення uniform-ів
+  // Посилання на дескриптори матеріалів для динамічного оновлення параметрів
   private starMaterial: THREE.ShaderMaterial | null = null;
   private nebulaMaterial: THREE.ShaderMaterial | null = null;
 
@@ -216,26 +217,26 @@ export class CosmicBackground {
   }
 
   // ============================================================================
-  // СТВОРЕННЯ ЕЛЕМЕНТІВ
+  // МЕТОДИ ІНІЦІАЛІЗАЦІЇ КОМПОНЕНТІВ
   // ============================================================================
 
   /**
-   * Створити зоряне поле
+   * Створення та конфігурація зоряного поля.
    */
   private createStarField(): void {
     const starCount = 3000;
 
-    // Буфери
+    // Ініціалізація типізованих буферів даних
     const positions = new Float32Array(starCount * 3);
     const sizes = new Float32Array(starCount);
     const brightnesses = new Float32Array(starCount);
     const twinkleSpeeds = new Float32Array(starCount);
     const twinkleOffsets = new Float32Array(starCount);
 
-    // Генерація зірок у сфері
+    // Процедурна генерація просторового розміщення зірок у сферичному домені
     const radius = 2000;
     for (let i = 0; i < starCount; i++) {
-      // Рівномірний розподіл на сфері
+      // Побудова рівномірного розподілу на сфері з використанням полярних координат
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const r = radius * (0.8 + Math.random() * 0.4);
@@ -244,18 +245,18 @@ export class CosmicBackground {
       positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       positions[i * 3 + 2] = r * Math.cos(phi);
 
-      // Розмір: більшість маленькі, декілька великих
+      // Визначення масштабу: експоненціальний розподіл (домінування малих об'єктів)
       sizes[i] = Math.pow(Math.random(), 3) * 3 + 0.5;
 
-      // Яскравість
+      // Встановлення базової фотометричної яскравості
       brightnesses[i] = 0.5 + Math.random() * 0.5;
 
-      // Мерехтіння
+      // Параметризація характеристик мерехтіння
       twinkleSpeeds[i] = 1 + Math.random() * 3;
       twinkleOffsets[i] = Math.random() * Math.PI * 2;
     }
 
-    // Геометрія
+    // Формування буферної геометрії
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
@@ -263,7 +264,7 @@ export class CosmicBackground {
     geometry.setAttribute('twinkleSpeed', new THREE.BufferAttribute(twinkleSpeeds, 1));
     geometry.setAttribute('twinkleOffset', new THREE.BufferAttribute(twinkleOffsets, 1));
 
-    // Матеріал
+    // Конфігурація шейдерного матеріалу
     this.starMaterial = new THREE.ShaderMaterial({
       uniforms: {
         uTime: { value: 0 },
@@ -280,16 +281,16 @@ export class CosmicBackground {
   }
 
   /**
-   * Створити туманність
+   * Створення та налаштування візуалізації туманності.
    */
   private createNebula(): void {
-    // Велика сфера для туманності
+    // Ініціалізація сферичного домену великого радіуса для проекції туманності
     const geometry = new THREE.SphereGeometry(1800, 64, 64);
 
-    // Кольори туманності (космічні відтінки)
-    const color1 = new THREE.Color(0x1a0a2e); // Глибокий фіолетовий
-    const color2 = new THREE.Color(0x16213e); // Темно-синій
-    const color3 = new THREE.Color(0x0f3460); // Синій
+    // Визначення спектральної палітри туманності
+    const color1 = new THREE.Color(0x1a0a2e); // Спектральний фіолетовий
+    const color2 = new THREE.Color(0x16213e); // Глибокий індиго
+    const color3 = new THREE.Color(0x0f3460); // Насичений небесно-синій
 
     this.nebulaMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -310,15 +311,16 @@ export class CosmicBackground {
   }
 
   // ============================================================================
-  // ОНОВЛЕННЯ
+  // МЕТОДИ ОНОВЛЕННЯ СТАНУ
   // ============================================================================
 
   /**
-   * Оновити анімацію
+   * Оновлення внутрішніх параметрів анімації.
    */
   update(deltaTime: number): void {
     this.time += deltaTime;
 
+    // Синхронізація часових параметрів у шейдерних програмах
     if (this.starMaterial) {
       this.starMaterial.uniforms.uTime.value = this.time;
     }
@@ -327,7 +329,7 @@ export class CosmicBackground {
       this.nebulaMaterial.uniforms.uTime.value = this.time;
     }
 
-    // Повільне обертання туманності
+    // Модуляція кутового зміщення туманності (повільна ротація)
     if (this.nebulaMesh) {
       this.nebulaMesh.rotation.y += deltaTime * 0.01;
       this.nebulaMesh.rotation.x += deltaTime * 0.005;
@@ -335,11 +337,11 @@ export class CosmicBackground {
   }
 
   // ============================================================================
-  // ОЧИЩЕННЯ
+  // МЕТОДИ ДЕСТРУКЦІЇ ТА ОЧИЩЕННЯ РЕСУРСІВ
   // ============================================================================
 
   /**
-   * Знищити фон
+   * Термінальне вивільнення ресурсів об'єкта.
    */
   dispose(): void {
     if (this.starField) {

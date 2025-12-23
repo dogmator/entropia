@@ -1,38 +1,39 @@
 /**
- * Типобезпечна Шина Подій (Event Bus)
+ * Entropia 3D — Типобезпечна шина керування подіями (Event Bus).
  *
- * Реалізує Observer Pattern для відправки подій між компонентами системи.
- * Забезпечує повну типобезпеку через TypeScript generics.
+ * Реалізує патерн проєктування «Observer» (Спостерігач) для забезпечення слабкої зв'язності (loose coupling)
+ * між функціональними компонентами системи. Забезпечує статичну типізацію подій за допомогою
+ * генериків (Generics) TypeScript.
  */
 
 import { SimulationEvent } from '../types';
 
 /**
- * Callback функція для обробки події
+ * Визначення типу функції зворотного виклику (Callback) для опрацювання подій.
  */
 type EventCallback<T extends SimulationEvent = SimulationEvent> = (event: T) => void;
 
 /**
- * Функція відписки від події
+ * Тип функції для деактивації підписки.
  */
 type Unsubscribe = () => void;
 
 /**
- * EventBus - централізована система подій
+ * Клас EventBus — централізований інтерфейс обміну повідомленнями.
  *
- * Використання:
+ * Архітектурне використання:
  * ```typescript
  * const eventBus = new EventBus();
  *
- * // Підписка на події
+ * // Реєстрація обробника події
  * const unsubscribe = eventBus.on('TickUpdated', (event) => {
- *   console.log('Tick:', event.tick);
+ *   console.log('Поточний тік:', event.tick);
  * });
  *
- * // Відправка події
+ * // Емісія (відправка) події
  * eventBus.emit({ type: 'TickUpdated', tick: 123, stats, deltaTime: 0.016 });
  *
- * // Відписка
+ * // Елімінація підписки (очищення ресурсів)
  * unsubscribe();
  * ```
  */
@@ -42,11 +43,11 @@ export class EventBus {
   private readonly maxHistorySize: number = 100;
 
   /**
-   * Підписатися на події конкретного типу
+   * Реєстрація слухача для детермінованого типу події.
    *
-   * @param eventType - Тип події (наприклад, 'TickUpdated')
-   * @param callback - Функція обробки події
-   * @returns Функція для відписки
+   * @param eventType — Семантичний тип події (наприклад, 'TickUpdated').
+   * @param callback — Делегат, що виконується при активації події.
+   * @returns Коллбек-функція для термінації підписки.
    */
   on<T extends SimulationEvent>(
     eventType: T['type'],
@@ -59,7 +60,7 @@ export class EventBus {
     const callbacks = this.listeners.get(eventType)!;
     callbacks.add(callback as EventCallback);
 
-    // Повернути функцію відписки
+    // Повернення механізму відписки
     return () => {
       callbacks.delete(callback as EventCallback);
       if (callbacks.size === 0) {
@@ -69,20 +70,20 @@ export class EventBus {
   }
 
   /**
-   * Підписатися на всі події
+   * Реєстрація універсального слухача для всього стеку подій.
    *
-   * @param callback - Функція обробки будь-якої події
-   * @returns Функція для відписки
+   * @param callback — Функція обробки будь-яких системних сповіщень.
+   * @returns Функція для анулювання глобальної підписки.
    */
   onAll(callback: EventCallback): Unsubscribe {
     const unsubscribers: Unsubscribe[] = [];
 
-    // Підписатися на всі існуючі типи подій
+    // Ітеративна підписка на всі виявлені типи подій
     this.listeners.forEach((_, eventType) => {
       unsubscribers.push(this.on(eventType as SimulationEvent['type'], callback));
     });
 
-    // Зберегти callback для майбутніх типів
+    // Реєстрація обробника для майбутніх (динамічних) типів подій
     const globalCallbacks = this.listeners.get('*') || new Set();
     globalCallbacks.add(callback);
     this.listeners.set('*', globalCallbacks);
@@ -97,44 +98,44 @@ export class EventBus {
   }
 
   /**
-   * Відправити подію всім підписникам
+   * Емісія події: розсилка повідомлення всім зареєстрованим реципієнтам.
    *
-   * @param event - Подія для відправки
+   * @param event — Об'єкт події, що містить корисне навантаження.
    */
   emit<T extends SimulationEvent>(event: T): void {
-    // Додати до історії подій
+    // Фіксація події в журналі історії (буферизація)
     this.eventHistory.push(event);
     if (this.eventHistory.length > this.maxHistorySize) {
       this.eventHistory.shift();
     }
 
-    // Відправити конкретним слухачам
+    // Дистрибуція події цільовим обробникам
     const callbacks = this.listeners.get(event.type);
     if (callbacks) {
       callbacks.forEach(callback => {
         try {
           callback(event);
         } catch (error) {
-          console.error(`Помилка обробки події ${event.type}:`, error);
+          console.error(`Критична помилка при опрацюванні події ${event.type}:`, error);
         }
       });
     }
 
-    // Відправити глобальним слухачам
+    // Сповіщення глобальних спостерігачів
     const globalCallbacks = this.listeners.get('*');
     if (globalCallbacks) {
       globalCallbacks.forEach(callback => {
         try {
           callback(event);
         } catch (error) {
-          console.error(`Помилка глобального обробника події ${event.type}:`, error);
+          console.error(`Критична помилка у глобальному обробнику події ${event.type}:`, error);
         }
       });
     }
   }
 
   /**
-   * Очистити всі підписки
+   * Повна термінація всіх підписок та очищення буфера історії.
    */
   clear(): void {
     this.listeners.clear();
@@ -142,21 +143,21 @@ export class EventBus {
   }
 
   /**
-   * Отримати кількість підписників на конкретний тип події
+   * Отримання поточної кількості активних слухачів для заданого типу події.
    */
   getListenerCount(eventType: SimulationEvent['type']): number {
     return this.listeners.get(eventType)?.size || 0;
   }
 
   /**
-   * Отримати історію подій
+   * Доступ до стеку останніх системних подій (режим читання).
    */
   getHistory(): ReadonlyArray<SimulationEvent> {
     return [...this.eventHistory];
   }
 
   /**
-   * Отримати останню подію певного типу
+   * Ретроспективний пошук останнього інциденту вказаного типу.
    */
   getLastEvent<T extends SimulationEvent>(eventType: T['type']): T | null {
     for (let i = this.eventHistory.length - 1; i >= 0; i--) {
@@ -168,7 +169,7 @@ export class EventBus {
   }
 
   /**
-   * Перевірити чи є підписники на подію
+   * Предикатна верифікація наявності активних спостерігачів для типу події.
    */
   hasListeners(eventType: SimulationEvent['type']): boolean {
     return this.getListenerCount(eventType) > 0;

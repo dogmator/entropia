@@ -1,11 +1,11 @@
 /**
- * Entropia 3D — Система Колізій
+ * Entropia 3D — Система детекції та обробки колізій (Collision System).
  *
- * Відповідальність: Обробка зіткнень між сутностями
- * - Зіткнення організмів з їжею
- * - Зіткнення хижаків з жертвами
- * - Зіткнення з перешкодами (відбиття)
- * - Виявлення мертвих організмів
+ * Відповідає за ідентифікацію просторових перетинів об'єктів та реалізацію фізичної відповіді:
+ * - Взаємодія організмів з джерелами енергії (харчування).
+ * - Трофічні взаємодії (хижацтво).
+ * - Пружні зіткнення зі статичними перешкодами (відбиття векторів швидкості).
+ * - Моніторинг та реєстрація фактів загибелі сутностей внаслідок фізичних чинників.
  */
 
 import { Organism, Food, Obstacle } from '../Entity';
@@ -14,13 +14,16 @@ import { SpatialHashGrid } from '../SpatialHashGrid';
 import { EventBus } from '../../core/EventBus';
 
 /**
- * Константи колізій
+ * Константи фізичних параметрів колізій.
  */
-const OBSTACLE_BOUNCE_DAMPING = 0.8; // Зменшення швидкості при відбитті
-const OBSTACLE_PUSH_MULTIPLIER = 1.1; // Наскільки сильно виштовхувати з перешкоди
-const PREDATOR_ENERGY_EFFICIENCY = 0.6; // Скільки енергії отримує хижак з жертви
-const MIN_ENERGY_GAIN = 25; // Мінімальна енергія від полювання
+const OBSTACLE_BOUNCE_DAMPING = 0.8; // Коефіцієнт дисипації енергії при відбитті.
+const OBSTACLE_PUSH_MULTIPLIER = 1.1; // Модифікатор сили просторової корекції (виштовхування).
+const PREDATOR_ENERGY_EFFICIENCY = 0.6; // ККД засвоєння енергії хижаком при поглинанні жертви.
+const MIN_ENERGY_GAIN = 25; // Гарантований мінімум енергетичного притоку при полювання.
 
+/**
+ * Клас, що реалізує фізику просторових взаємодій.
+ */
 export class CollisionSystem {
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
@@ -28,7 +31,7 @@ export class CollisionSystem {
   ) { }
 
   /**
-   * Обробити всі колізії
+   * Запуск циклу ідентифікації та вирішення колізій для всієї системи.
    */
   update(
     organisms: Map<string, Organism>,
@@ -53,7 +56,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити колізії для одного організму
+   * Персональна обробка оточення для конкретного організму.
    */
   private handleOrganismCollisions(
     organism: Organism,
@@ -66,10 +69,10 @@ export class CollisionSystem {
     const neighbors = this.spatialGrid.getNearby(organism.position, searchRadius);
 
     for (const neighbor of neighbors) {
-      // Пропустити себе
+      // Виключення самоперетину
       if (neighbor.id === organism.id) continue;
 
-      // Обробити різні типи зіткнень
+      // Диференціація логіки залежно від типу об'єкта перетину
       switch (neighbor.type) {
         case EntityType.OBSTACLE:
           this.handleObstacleCollision(organism, neighbor as GridEntity, obstacles);
@@ -91,7 +94,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити зіткнення з перешкодою
+   * Вирішення колізії зі статичною просторовою аномалією (перешкодою).
    */
   private handleObstacleCollision(
     organism: Organism,
@@ -111,20 +114,20 @@ export class CollisionSystem {
 
     if (distSq < minDistSq) {
       const dist = Math.sqrt(distSq);
-      if (dist < 0.001) return; // Уникнути ділення на нуль
+      if (dist < 0.001) return; // Запобігання сингулярності (ділення на нуль)
 
-      // Нормаль зіткнення
+      // Розрахунок нормувального вектора зіткнення
       const nx = dx / dist;
       const ny = dy / dist;
       const nz = dz / dist;
 
-      // Відбиття швидкості
+      // Пружне відбиття вектора швидкості відносно нормалі
       const dot = organism.velocity.x * nx + organism.velocity.y * ny + organism.velocity.z * nz;
       organism.velocity.x = (organism.velocity.x - 2 * dot * nx) * OBSTACLE_BOUNCE_DAMPING;
       organism.velocity.y = (organism.velocity.y - 2 * dot * ny) * OBSTACLE_BOUNCE_DAMPING;
       organism.velocity.z = (organism.velocity.z - 2 * dot * nz) * OBSTACLE_BOUNCE_DAMPING;
 
-      // Виштовхування з перешкоди
+      // Геометрична корекція позиції для усунення перекриття об'єктів
       const overlap = minDist - dist;
       organism.position.x -= nx * overlap * OBSTACLE_PUSH_MULTIPLIER;
       organism.position.y -= ny * overlap * OBSTACLE_PUSH_MULTIPLIER;
@@ -133,7 +136,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити зіткнення з їжею
+   * Обробка взаємодії травоїдного організму з енергетичним субстратом.
    */
   private handleFoodCollision(
     organism: Organism,
@@ -152,12 +155,12 @@ export class CollisionSystem {
     const minDistSq = minDist * minDist;
 
     if (distSq < minDistSq) {
-      // З'їсти їжу
+      // Абсорбція енергії субстрату організмом
       organism.addEnergy(foodItem.energyValue);
       foodItem.consumed = true;
       food.delete(neighborEntity.id);
 
-      // Відправити подію
+      // Генерація системної події про елімінацію ресурсу
       this.eventBus.emit({
         type: 'EntityDied',
         entityType: EntityType.FOOD,
@@ -169,7 +172,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити зіткнення хижака з жертвою
+   * Обробка акту хижацтва між консументами різних рівнів.
    */
   private handlePredationCollision(
     predator: Organism,
@@ -189,7 +192,7 @@ export class CollisionSystem {
     const minDistSq = minDist * minDist;
 
     if (distSq < minDistSq) {
-      // Успішне полювання
+      // Розрахунок енергетичного прибутку на основі стану жертви
       const energyGain = Math.max(
         MIN_ENERGY_GAIN,
         prey.energy * PREDATOR_ENERGY_EFFICIENCY
@@ -198,14 +201,14 @@ export class CollisionSystem {
       predator.addEnergy(energyGain);
       predator.huntSuccessCount++;
 
-      // Вбити жертву
+      // Термінація життєвого циклу жертви
       prey.die('predation');
       deadIds.push(prey.id);
     }
   }
 
   /**
-   * Перевірити чи є зіткнення між двома сферами
+   * Допоміжний метод для геометричної перевірки перетину двох сфер.
    */
   private checkSphereCollision(
     pos1: Vector3,
@@ -222,7 +225,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Розрахувати вектор відбиття
+   * Математичний розрахунок вектора ідеального дзеркального відбиття.
    */
   private calculateReflection(
     velocity: Vector3,

@@ -1,10 +1,10 @@
 /**
- * Hook для ефектів частинок
- *
- * Створює та управляє:
- * - CosmicBackground (космічний фон)
- * - ParticleSystem (система частинок для ефектів)
- * - TrailSystem (сліди організмів)
+ * Спеціалізований програмний інтерфейс (хук) для управління системами мікрочастотних візуальних ефектів.
+ * 
+ * Забезпечує ініціалізацію та життєвий цикл наступних динамічних структур:
+ * - CosmicBackground - фонова репрезентація космічного простору
+ * - ParticleSystem - генеративна система часток для візуалізації подій
+ * - TrailSystem - система трасування індивідуальних траєкторій біологічних суб'єктів (слідів)
  */
 
 import { useEffect, useState } from 'react';
@@ -24,7 +24,7 @@ export function useParticleEffects(scene: THREE.Scene | null) {
   useEffect(() => {
     if (!scene) return;
 
-    // Створити системи ефектів
+    // Ініціалізація компонентів систем візуальних ефектів
     const cosmicBackground = new CosmicBackground(scene);
     const particleSystem = new ParticleSystem(scene);
     const trailSystem = new TrailSystem(scene);
@@ -35,7 +35,9 @@ export function useParticleEffects(scene: THREE.Scene | null) {
       trailSystem,
     });
 
-    // Cleanup
+    /**
+     * Термінальна функція деструкції об'єктів для вивільнення ресурсів графічного процесора.
+     */
     return () => {
       cosmicBackground.dispose();
       particleSystem.dispose();
