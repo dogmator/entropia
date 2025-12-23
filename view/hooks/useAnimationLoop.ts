@@ -1,12 +1,12 @@
 /**
- * Hook для головного анімаційного циклу
- *
- * Управляє:
- * - requestAnimationFrame циклом
- * - Оновленням симуляції
- * - Оновленням ефектів
- * - Оновленням instanced meshes
- * - Рендерингом сцени
+ * Спеціалізований програмний інтерфейс (хук) для управління головним анімаційним циклом системи.
+ * 
+ * Забезпечує координацію наступних процесів:
+ * - Цикл планування кадрів (requestAnimationFrame)
+ * - Хронологічне оновлення стану симуляційного двигуна
+ * - Модуляція візуальних ефектів та систем часток
+ * - Актуалізація об'єктів групової візуалізації (Instanced Meshes)
+ * - Термінальний рендеринг графічної сцени
  */
 
 import { useEffect, useRef } from 'react';
@@ -82,31 +82,28 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
 
     const MAX_INSTANCES = RENDER.maxInstances;
 
+    /**
+     * Головна ітераційна функція відтворення кадру.
+     */
     const animate = (currentTime: number) => {
       frameCount.current++;
 
+      // Обчислення дельти часу з обмеженням для уникнення стрибків при втраті фокусу
       const deltaTime = Math.min(
         (currentTime - lastTime.current) / 1000,
         0.1
       );
       lastTime.current = currentTime;
 
-      // Smart Rendering: при speed = 0 рендеримо на 1 FPS (тільки для camera controls)
       const currentSpeed = speedRef.current;
       const isStopped = currentSpeed === 0;
 
-      if (isStopped && frameCount.current % 60 !== 0) {
-        // При паузі пропускаємо більшість кадрів
-        requestRef.current = requestAnimationFrame(animate);
-        return;
-      }
-
-      // Оновлення часу тільки якщо не зупинено
+      // Актуалізація внутрішнього таймера системи (за умови активної симуляції)
       if (!isStopped) {
         time.current += deltaTime;
       }
 
-      // Оновлення симуляції
+      // Оновлення обчислювального стану симуляційного двигуна
       if (!isStopped) {
         speedAccumulator.current += currentSpeed;
         const ticksToRun = Math.floor(speedAccumulator.current);
@@ -116,13 +113,13 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         }
       }
 
-      // Оновлення ефектів (тільки якщо не зупинено і showParticles = true)
+      // Модуляція систем часток та фонових ефектів
       if (!isStopped && engine.config.showParticles) {
         cosmicBackground.update(deltaTime);
         particleSystem.update(deltaTime);
       }
 
-      // Оновлення матеріалів (анімація їжі зупиняється при speed = 0)
+      // Динамічне коригування параметрів матеріалів
       foodMat.emissiveIntensity = isStopped
         ? 0.4
         : 0.4 + Math.sin(time.current * 3) * 0.25;
@@ -131,12 +128,12 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
       foodMat.opacity = engine.config.foodOpacity;
       boxMat.opacity = engine.config.gridOpacity;
 
-      // Оновити видимість перешкод
+      // Оптимізація видимості пасивних перешкод
       obstacleMeshes.forEach(m => {
         m.visible = engine.config.showObstacles;
       });
 
-      // Очистити idMaps
+      // Скидання мап відповідності ідентифікаторів
       idMaps.prey.clear();
       idMaps.pred.clear();
       idMaps.food.clear();
@@ -144,7 +141,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
       let preyIdx = 0;
       let predIdx = 0;
 
-      // Оновити організми
+      // Ітераційне оновлення геометричного стану активних організмів
       engine.organisms.forEach((o) => {
         if (o.isDead) return;
 
@@ -152,7 +149,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         const scale = o.radius * engine.config.organismScale;
         dummy.scale.set(scale, scale, scale);
 
-        // Орієнтація по напрямку руху
+        // Математичне визначення орієнтації суб'єкта на основі вектора швидкості
         const spd = Math.sqrt(
           o.velocity.x ** 2 + o.velocity.y ** 2 + o.velocity.z ** 2
         );
@@ -167,7 +164,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
 
         dummy.updateMatrix();
 
-        // Додати до відповідного instanced mesh
+        // Агрегація даних у відповідні масиви інстансів
         if (o.type === EntityType.PREY && preyIdx < MAX_INSTANCES) {
           idMaps.prey.set(preyIdx, o.id);
           preyMesh.setMatrixAt(preyIdx++, dummy.matrix);
@@ -179,7 +176,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
           predMesh.setMatrixAt(predIdx++, dummy.matrix);
         }
 
-        // Оновити сліди (індивідуальний контроль через trailEnabled)
+        // Керування станом систем трасування траєкторій (слідів)
         if (o.trailEnabled) {
           const color = o.isPrey ? COLORS.prey.base : COLORS.predator.base;
           trailSystem.updateTrail(o.id, o.position, color, true);
@@ -188,24 +185,29 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         }
       });
 
+      // Синхронізація матриць інстансів організмів із графічним конвеєром
       preyMesh.count = preyIdx;
       preyMesh.instanceMatrix.needsUpdate = true;
+      preyMesh.updateMatrixWorld(); // Необхідно для коректного функціонування проекційного детектування
+      preyMesh.computeBoundingSphere();
+
       predMesh.count = predIdx;
       predMesh.instanceMatrix.needsUpdate = true;
+      predMesh.updateMatrixWorld();
+      predMesh.computeBoundingSphere();
 
       let foodIdx = 0;
 
-      // Оновити їжу
+      // Оновлення просторового розміщення ресурсів (їжі)
       engine.food.forEach((f) => {
         if (f.consumed || foodIdx >= MAX_INSTANCES) return;
 
-        const scale = f.radius * 2.5 * engine.config.foodScale;
+        const geometryRadius = 2; // Відповідає THREE.SphereGeometry(2, 8, 8) у useSceneObjects
+        const scale = (f.radius / geometryRadius) * 2.5 * engine.config.foodScale;
 
-        // Кристал
         dummy.position.set(f.position.x, f.position.y, f.position.z);
         dummy.scale.set(scale, scale, scale);
 
-        // Обертання зупиняється при speed = 0
         const rotationTime = isStopped ? 0 : time.current;
         dummy.rotation.set(rotationTime * 0.5, rotationTime * 0.3, 0);
         dummy.updateMatrix();
@@ -213,10 +215,13 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         foodMesh.setMatrixAt(foodIdx++, dummy.matrix);
       });
 
+      // Актуалізація стану об'єктів їжі
       foodMesh.count = foodIdx;
       foodMesh.instanceMatrix.needsUpdate = true;
+      foodMesh.updateMatrixWorld(); // Критичний крок для забезпечення точності рейкастингу
+      foodMesh.computeBoundingSphere(); // ОБОВ'ЯЗКОВО: оновлення граничної сфери після зміни матриць інстансів
 
-      // Оновити hovered entity
+      // Оновлення стану інтерактивного наведення
       updateHoveredEntity(
         camera,
         preyMesh,
@@ -227,7 +232,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         engine
       );
 
-      // Рендер
+      // Виклик термінальних методів рендерингу
       controls.update();
       renderer.render(scene, camera);
       requestRef.current = requestAnimationFrame(animate);

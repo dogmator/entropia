@@ -1,33 +1,32 @@
-
 /**
- * Entropia 3D — Покращені Шейдери Організмів
+ * Entropia 3D: Спеціалізовані шейдерні програми для візуалізації організмів.
  *
- * GLSL шейдери з покращеним візуальним якістю:
- * - Rim Lighting - просунуте контурне освітлення з налаштовуваною інтенсивністю
- * - Energy Glow - HDR свічення на основі енергії з bloom-подібним ефектом
- * - Specular Highlights - відблиски для глибини та об'єму
- * - Improved Lighting Model - PBR-подібне освітлення
- * - State-based Effects - візуальні ефекти залежно від стану
- * - Dynamic Pulsation - адаптивна пульсація
+ * Колекція GLSL-шейдерів із інтегрованими ефектами високої точності:
+ * - Rim Lighting: Удосконалене контурне освітлення з адаптацією інтенсивності.
+ * - Energy Glow: HDR-емісія на базі енергетичних станів із ефектом розсіювання (Bloom).
+ * - Specular Highlights: Дзеркальні відблиски для репрезентації об'єму та текстури.
+ * - Improved Lighting Model: Апроксимація фізично коректного освітлення (PBR-inspired).
+ * - State-based Effects: Візуальна модуляція згідно з когнітивним станом агента.
+ * - Dynamic Pulsation: Адаптивна пульсація геометрії для імітації біологічних процесів.
  */
 
 /**
- * Покращений вершинний шейдер для організмів
+ * Удосконалений вершинний шейдер для органічних сутностей.
  *
- * Передає дані для фрагментного шейдера:
- * - vNormal: нормаль для освітлення (world space)
- * - vWorldPosition: позиція у світі для advanced lighting
- * - vViewPosition: позиція для view-dependent effects
- * - vEnergy, vGlowIntensity, vState, vInstanceColor: атрибути інстансу
+ * Здійснює підготовку та передачу геометричних та атрибутивних даних до фрагментної стадії:
+ * - vNormal: Вектор нормалі у світових координатах (World Space).
+ * - vWorldPosition: Абсолютні координати фрагмента у світовому просторі.
+ * - vViewPosition: Позиція у просторі спостерігача для ефектів орієнтації.
+ * - vEnergy, vGlowIntensity, vState, vInstanceColor: Динамічні атрибути інстансу.
  */
 export const organismVertexShader = /* glsl */ `
-  // Атрибути інстансу
+  // Атрибути інстансу (Per-instance attributes)
   attribute float instanceEnergy;
   attribute float instanceGlowIntensity;
   attribute float instanceState;
   attribute vec3 instanceColor;
 
-  // Передача до фрагментного шейдера
+  // Інтерполяційні змінні (Varyings)
   varying vec3 vNormal;
   varying vec3 vWorldPosition;
   varying vec3 vViewPosition;
@@ -37,18 +36,18 @@ export const organismVertexShader = /* glsl */ `
   varying vec3 vInstanceColor;
 
   void main() {
-    // Трансформація нормалі у світовий простір для кращого освітлення
+    // Трансформація вектора нормалі у світовий простір для коректного розрахунку ілюмінації
     vNormal = normalize(normalMatrix * normal);
 
-    // Позиція у світовому просторі
+    // Обчислення позиції у світовому просторі з урахуванням матриці інстансу
     vec4 worldPosition = modelMatrix * instanceMatrix * vec4(position, 1.0);
     vWorldPosition = worldPosition.xyz;
 
-    // Позиція у просторі виду для view-dependent ефектів
+    // Розрахунок позиції у системі координат камери
     vec4 mvPosition = viewMatrix * worldPosition;
     vViewPosition = -mvPosition.xyz;
 
-    // Передача атрибутів інстансу
+    // Передача персистентних атрибутів інстансу
     vEnergy = instanceEnergy;
     vGlowIntensity = instanceGlowIntensity;
     vState = instanceState;
@@ -59,14 +58,14 @@ export const organismVertexShader = /* glsl */ `
 `;
 
 /**
- * Покращений фрагментний шейдер для організмів
+ * Удосконалений фрагментний шейдер для органічних сутностей.
  *
- * Покращення:
- * - Advanced Rim Lighting - багатошаровий rim з налаштовуваною інтенсивністю
- * - HDR Energy Glow - bloom-подібне свічення для високоенергетичних організмів
- * - Specular Highlights - відблиски для реалістичності
- * - PBR-inspired Lighting - покращена модель освітлення
- * - State-aware Effects - динамічні ефекти залежно від стану
+ * Реалізує комплексний конвеєр візуалізації (Rendering Pipeline):
+ * - Advanced Rim Lighting: Багатошарова контурна підсвітка.
+ * - HDR Energy Glow: Емісійне свічення енергетично стабільних структур.
+ * - Specular Highlights: Розрахунок дзеркальних компонентів ілюмінації.
+ * - PBR-inspired Lighting: Комбінована модель освітлення (Key + Fill).
+ * - State-aware Effects: Динамічні зміни палітри та інтенсивності залежно від стану біоагента.
  */
 export const organismFragmentShader = /* glsl */ `
   uniform float uTime;
@@ -82,16 +81,16 @@ export const organismFragmentShader = /* glsl */ `
   varying float vState;
   varying vec3 vInstanceColor;
 
-  // Константи станів
+  // Детерміновані константи когнітивних станів
   const float STATE_IDLE = 0.0;
   const float STATE_SEEKING = 1.0;
   const float STATE_FLEEING = 2.0;
   const float STATE_HUNTING = 3.0;
   const float STATE_REPRODUCING = 4.0;
 
-  // Константи освітлення
-  const vec3 LIGHT_DIR = normalize(vec3(1.0, 1.2, 0.8));
-  const vec3 FILL_LIGHT_DIR = normalize(vec3(-0.5, 0.3, -0.5));
+  // Специфікації освітлювальної моделі
+  const vec3 LIGHT_DIR = normalize(vec3(1.0, 1.2, 0.8)); // Основне джерело (Key light)
+  const vec3 FILL_LIGHT_DIR = normalize(vec3(-0.5, 0.3, -0.5)); // Заповнююче світло (Fill light)
   const float AMBIENT = 0.25;
   const float RIM_POWER = 2.5;
   const float RIM_INTENSITY = 1.2;
@@ -99,59 +98,52 @@ export const organismFragmentShader = /* glsl */ `
   const float SPECULAR_STRENGTH = 0.5;
 
   /**
-   * Плавний градієнт енергії з HDR значеннями для glow
+   * Обчислення кольорового градієнта на основі термодинамічного стану (енергії).
    */
   vec3 energyGradient(float energy, vec3 baseColor) {
-    // Критична енергія: інтенсивний червоний
+    // Критичний стан: інтенсивна червона емісія
     vec3 criticalColor = vec3(1.5, 0.1, 0.05);
-    // Низька енергія: помаранчевий
+    // Дефіцит енергії: теракотово-помаранчевий спектр
     vec3 lowColor = vec3(1.2, 0.4, 0.1);
-    // Середня енергія: жовтий
+    // Оптимальний рівень: бурштиново-жовтий спектр
     vec3 midColor = vec3(1.0, 0.95, 0.3);
-    // Висока енергія: базовий колір з легким boost
+    // Високий рівень: посилений базовий колір
     vec3 highColor = baseColor * 1.1;
-    // Максимальна енергія: яскравий bloom
+    // Надлишковий рівень (HDR): максимальна емісія
     vec3 maxColor = baseColor * 1.4;
 
     if (energy < 0.15) {
-      // Критична зона
       return mix(criticalColor, lowColor, energy / 0.15);
     } else if (energy < 0.4) {
-      // Низька енергія
       return mix(lowColor, midColor, (energy - 0.15) / 0.25);
     } else if (energy < 0.7) {
-      // Середня енергія
       return mix(midColor, highColor, (energy - 0.4) / 0.3);
     } else {
-      // Висока енергія з HDR glow
       return mix(highColor, maxColor, (energy - 0.7) / 0.3);
     }
   }
 
   /**
-   * Advanced Rim Lighting з багатошаровим ефектом
+   * Розрахунок вдосконаленого контурного освітлення (Rim Lighting).
    */
   float calculateRimLighting(vec3 normal, vec3 viewDir, float energy) {
     float NdotV = max(dot(normal, viewDir), 0.0);
 
-    // Основний rim
+    // Агрегація декількох шарів rim-ефекту для м'якості переходів
     float rim1 = pow(1.0 - NdotV, RIM_POWER);
-    // Вторинний м'якший rim для глибини
     float rim2 = pow(1.0 - NdotV, RIM_POWER * 0.6);
-    // Третій дуже м'який rim для ambient occlusion
     float rim3 = pow(1.0 - NdotV, 1.5);
 
-    // Комбінуємо шари з різними вагами
     float rim = rim1 * 0.6 + rim2 * 0.3 + rim3 * 0.1;
 
-    // Посилюємо rim для високоенергетичних організмів
+    // Модуляція інтенсивності залежно від внутрішньої енергії
     rim *= mix(0.7, 1.3, energy);
 
     return rim * RIM_INTENSITY * vGlowIntensity;
   }
 
   /**
-   * Specular highlights (Blinn-Phong)
+   * Розрахунок дзеркальних відблисків за моделлю Блінна-Фонга.
    */
   float calculateSpecular(vec3 normal, vec3 viewDir, vec3 lightDir) {
     vec3 halfDir = normalize(lightDir + viewDir);
@@ -160,24 +152,24 @@ export const organismFragmentShader = /* glsl */ `
   }
 
   /**
-   * Improved lighting model з key + fill lights
+   * Комплексна модель освітлення з використанням двох джерел та Ambient Occlusion.
    */
   vec3 calculateLighting(vec3 normal, vec3 viewDir, vec3 baseColor) {
-    // Key light (основне освітлення)
+    // Дифузна складова основного джерела
     float diffuseKey = max(dot(normal, LIGHT_DIR), 0.0);
-    diffuseKey = pow(diffuseKey, 0.8); // Soft falloff
+    diffuseKey = pow(diffuseKey, 0.8);
 
-    // Fill light (заповнююче освітлення)
+    // Дифузна складова заповнюючого джерела
     float diffuseFill = max(dot(normal, FILL_LIGHT_DIR), 0.0) * 0.4;
 
-    // Ambient occlusion approximation
+    // Апроксимація затінення (Ambient Occlusion)
     float ao = 0.5 + 0.5 * normal.y;
 
-    // Комбінуємо
+    // Сумування компонентів ілюмінації
     float totalDiffuse = diffuseKey * 0.8 + diffuseFill + AMBIENT;
     totalDiffuse *= ao;
 
-    // Specular
+    // Додавання дзеркальної складової
     float specular = calculateSpecular(normal, viewDir, LIGHT_DIR);
 
     vec3 color = baseColor * totalDiffuse;
@@ -187,7 +179,7 @@ export const organismFragmentShader = /* glsl */ `
   }
 
   /**
-   * State-based pulsation з адаптивними параметрами
+   * Генерація пульсаційних ефектів згідно з поточним когнітивним станом.
    */
   float calculatePulsation(float state, float time, float energy) {
     float pulse = 0.0;
@@ -195,42 +187,42 @@ export const organismFragmentShader = /* glsl */ `
     float amplitude = 0.0;
 
     if (state == STATE_FLEEING) {
-      // Панічна швидка пульсація
+      // Прискорена пульсація в стані стресу/уникнення
       frequency = 18.0;
-      amplitude = 0.4 + (1.0 - energy) * 0.3; // Сильніша при низькій енергії
+      amplitude = 0.4 + (1.0 - energy) * 0.3;
       pulse = sin(time * frequency) * amplitude;
     } else if (state == STATE_HUNTING) {
-      // Агресивна нерегулярна пульсація
+      // Аритмічна пульсація в стані полювання
       frequency = 12.0;
       float irregularity = sin(time * 2.3) * 0.3;
       amplitude = 0.3 + irregularity;
       pulse = sin(time * frequency + irregularity) * amplitude;
     } else if (state == STATE_REPRODUCING) {
-      // М'яка ритмічна пульсація
+      // Гармонійна пульсація в стані реплікації
       frequency = 4.0;
       amplitude = 0.5;
       pulse = sin(time * frequency) * amplitude + sin(time * frequency * 0.5) * 0.2;
     } else if (state == STATE_SEEKING) {
-      // Легка пульсація пошуку
+      // Низькочастотна пульсація в стані пошуку ресурсів
       frequency = 2.5;
       amplitude = 0.15;
       pulse = sin(time * frequency) * amplitude;
     }
 
-    return max(pulse, 0.0); // Тільки позитивна пульсація
+    return max(pulse, 0.0);
   }
 
   /**
-   * Energy glow з HDR bloom-подібним ефектом
+   * Розрахунок енергетичного сяйва з HDR-характеристиками.
    */
   vec3 calculateEnergyGlow(vec3 baseColor, float energy, float rim, float pulse) {
-    // HDR glow для високоенергетичних організмів
+    // Визначення сили сяйва на основі енергетичного порогу
     float glowStrength = smoothstep(0.6, 1.0, energy);
 
-    // Bloom-подібний ефект
+    // Формування спектру емісії
     vec3 glowColor = mix(baseColor, vec3(1.0, 1.0, 0.95), 0.4);
 
-    // Комбінуємо rim і energy для glow
+    // Комбінований коефіцієнт інтенсивності
     float glowFactor = rim * (1.0 + glowStrength * 2.0);
     glowFactor += pulse * energy * 0.5;
 
@@ -238,39 +230,39 @@ export const organismFragmentShader = /* glsl */ `
   }
 
   void main() {
-    // Нормалізовані вектори
+    // Векторна нормалізація
     vec3 normal = normalize(vNormal);
     vec3 viewDir = normalize(vViewPosition);
 
-    // Базовий колір з енергетичним градієнтом
+    // Формування базового хроматичного стану
     vec3 baseColor = energyGradient(vEnergy, vInstanceColor);
 
-    // Розрахунок освітлення
+    // Генерація освітленої поверхні
     vec3 litColor = calculateLighting(normal, viewDir, baseColor);
 
-    // Advanced rim lighting
+    // Розрахунок контурної підсвітки
     float rim = calculateRimLighting(normal, viewDir, vEnergy);
 
-    // State-based pulsation
+    // Модуляція пульсації згідно з внутрішнім станом
     float pulse = calculatePulsation(vState, uTime, vEnergy);
 
-    // Energy glow з HDR
+    // Розрахунок енергетичного свічення
     vec3 energyGlow = calculateEnergyGlow(baseColor, vEnergy, rim, pulse);
 
-    // Фінальний колір
+    // Фінальна композиція кольорових каналів
     vec3 finalColor = litColor + energyGlow;
 
-    // Додаємо пульсацію до загального освітлення
+    // Інтеграція пульсаційного компонента в загальну ілюмінацію
     finalColor += baseColor * pulse * 0.25;
 
-    // Затемнення для низькоенергетичних організмів
+    // Естетичне затемнення при низьких рівнях життєвої енергії
     float energyDim = smoothstep(0.0, 0.25, vEnergy);
     finalColor *= mix(0.35, 1.0, energyDim);
 
-    // HDR tone mapping (simple Reinhard)
+    // Тональна компресія (Reinhard Tone Mapping)
     finalColor = finalColor / (finalColor + vec3(1.0));
 
-    // Gamma correction
+    // Гамма-корекція результату
     finalColor = pow(finalColor, vec3(1.0 / 2.2));
 
     gl_FragColor = vec4(finalColor, uOpacity);
@@ -278,7 +270,8 @@ export const organismFragmentShader = /* glsl */ `
 `;
 
 /**
- * Вершинний шейдер для їжі (енергокристалів)
+ * Вершинний шейдер для ресурсів енергії (Food Crystals).
+ * Забезпечує геометрію та анімацію пульсації кристалічних структур.
  */
 export const foodVertexShader = /* glsl */ `
   uniform float uTime;
@@ -290,7 +283,7 @@ export const foodVertexShader = /* glsl */ `
   void main() {
     vNormal = normalize(normalMatrix * normal);
 
-    // Анімація пульсації розміру
+    // Гармонійна деформація геометрії (пульсація масштабу)
     float pulse = sin(uTime * 3.0 + position.x * 10.0) * 0.1 + 1.0;
     vec3 animatedPosition = position * pulse;
 
@@ -303,7 +296,8 @@ export const foodVertexShader = /* glsl */ `
 `;
 
 /**
- * Фрагментний шейдер для їжі
+ * Фрагментний шейдер для ресурсів енергії.
+ * Реалізує візуальні ефекти кристалічної прозорості та емісії.
  */
 export const foodFragmentShader = /* glsl */ `
   uniform float uTime;
@@ -319,13 +313,13 @@ export const foodFragmentShader = /* glsl */ `
     vec3 normal = normalize(vNormal);
     vec3 viewDir = normalize(vViewPosition);
 
-    // Fresnel для кристалічного ефекту
+    // Розрахунок ефекту Френеля для симуляції кристалічної поверхні
     float fresnel = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
 
-    // Емісивне свічення
+    // Динамічна емісійна активність
     float emissive = 0.5 + sin(uTime * 4.0) * 0.3;
 
-    // Простий Phong
+    // Дифузне освітлення за моделлю Ламберта
     vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
     float diffuse = max(dot(normal, lightDir), 0.0);
 
@@ -338,7 +332,7 @@ export const foodFragmentShader = /* glsl */ `
 `;
 
 /**
- * Вершинний шейдер для частинок ефектів
+ * Вершинний шейдер для систем частинок (Particle Effects).
  */
 export const particleVertexShader = /* glsl */ `
   attribute float size;
@@ -353,20 +347,21 @@ export const particleVertexShader = /* glsl */ `
     vColor = color;
 
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    // Розрахунок аттенюації розміру частинки залежно від відстані до камери
     gl_PointSize = size * (300.0 / -mvPosition.z);
     gl_Position = projectionMatrix * mvPosition;
   }
 `;
 
 /**
- * Фрагментний шейдер для частинок
+ * Фрагментний шейдер для систем частинок.
  */
 export const particleFragmentShader = /* glsl */ `
   varying float vOpacity;
   varying vec3 vColor;
 
   void main() {
-    // Кругла форма частинки
+    // Генерація кругової діафрагми частинки
     vec2 center = gl_PointCoord - vec2(0.5);
     float dist = length(center);
 
@@ -374,11 +369,11 @@ export const particleFragmentShader = /* glsl */ `
       discard;
     }
 
-    // М'які краї
+    // М'яка межа (Anti-aliasing)
     float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
     alpha *= vOpacity;
 
-    // Свічення в центрі
+    // Концентрація яскравості в центрі (Core glow)
     float glow = 1.0 - dist * 2.0;
     vec3 color = vColor + vec3(glow * 0.3);
 
@@ -387,7 +382,7 @@ export const particleFragmentShader = /* glsl */ `
 `;
 
 /**
- * Вершинний шейдер для стрічкових слідів
+ * Вершинний шейдер для трейлерів руху (Ribbon Trails).
  */
 export const trailVertexShader = /* glsl */ `
   attribute float alpha;
@@ -405,7 +400,7 @@ export const trailVertexShader = /* glsl */ `
 `;
 
 /**
- * Фрагментний шейдер для стрічкових слідів
+ * Фрагментний шейдер для трейлерів руху.
  */
 export const trailFragmentShader = /* glsl */ `
   varying float vAlpha;
@@ -417,7 +412,7 @@ export const trailFragmentShader = /* glsl */ `
 `;
 
 /**
- * Вершинний шейдер для екологічних зон
+ * Вершинний шейдер для середовищних зон (Environmental Zones).
  */
 export const zoneVertexShader = /* glsl */ `
   varying vec3 vWorldPosition;
@@ -433,7 +428,8 @@ export const zoneVertexShader = /* glsl */ `
 `;
 
 /**
- * Фрагментний шейдер для екологічних зон
+ * Фрагментний шейдер для середовищних зон.
+ * Реалізує візуалізацію кордонів зон із хвильовими ефектами.
  */
 export const zoneFragmentShader = /* glsl */ `
   uniform float uTime;
@@ -446,17 +442,17 @@ export const zoneFragmentShader = /* glsl */ `
   varying vec3 vNormal;
 
   void main() {
-    // Відстань від центру зони
+    // Розрахунок радіальної відстані від епіцентру зони
     float dist = distance(vWorldPosition, uCenter);
     float normalizedDist = dist / uRadius;
 
-    // Затухання до країв
+    // Експоненціальне згасання інтенсивності до периферії
     float edgeFade = 1.0 - smoothstep(0.7, 1.0, normalizedDist);
 
-    // Анімована хвиля
+    // Хвильова ілюмінація кордонів
     float wave = sin(normalizedDist * 10.0 - uTime * 2.0) * 0.5 + 0.5;
 
-    // Fresnel для країв
+    // Ефект Френеля для посилення видимості по дотичній
     vec3 viewDir = normalize(cameraPosition - vWorldPosition);
     float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.0);
 

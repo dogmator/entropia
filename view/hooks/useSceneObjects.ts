@@ -1,13 +1,12 @@
 /**
- * Hook для створення всіх 3D об'єктів сцени
- *
- * Створює:
- * - InstancedMesh для організмів (prey, predator)
- * - InstancedMesh для їжі
- * - Перешкоди
- * - Екологічні зони
- * - Світову рамку
- * - Допоміжні об'єкти
+ * Спеціалізований програмний інтерфейс (хук) для ініціалізації та управління життєвим циклом геометричних об'єктів сцени.
+ * 
+ * Забезпечує створення та конфігурацію наступних компонентів:
+ * - Об'єкти групової візуалізації (InstancedMesh) для біологічних суб'єктів (prey, predator)
+ * - Об'єкти групової візуалізації для енергетичних ресурсів (їжа)
+ * - Статичні геометричні перешкоди
+ * - Візуальні дескриптори екологічних зон
+ * - Структурні межі віртуального середовища
  */
 
 import { useEffect, useState } from 'react';
@@ -17,7 +16,7 @@ import { WORLD_SIZE, COLORS, RENDER, ZONE_DEFAULTS } from '../../constants';
 import { EntityType } from '../../types';
 
 export interface SceneObjects {
-  // Meshes
+  // Геометричні меш-об'єкти
   preyMesh: THREE.InstancedMesh;
   predMesh: THREE.InstancedMesh;
   foodMesh: THREE.InstancedMesh;
@@ -25,7 +24,7 @@ export interface SceneObjects {
   zoneMeshes: THREE.Mesh[];
   boxLines: THREE.LineSegments;
 
-  // Helpers
+  // Допоміжні структури даних
   dummy: THREE.Object3D;
   forward: THREE.Vector3;
   idMaps: {
@@ -34,9 +33,9 @@ export interface SceneObjects {
     food: Map<number, string>;
   };
 
-  // Geometries and materials (для cleanup)
+  // Геометрії та матеріали (ініціалізовані для подальшої деструкції)
   orgGeo: THREE.ConeGeometry;
-  foodGeo: THREE.OctahedronGeometry;
+  foodGeo: THREE.BufferGeometry;
   preyMat: THREE.MeshPhongMaterial;
   predMat: THREE.MeshPhongMaterial;
   foodMat: THREE.MeshPhongMaterial;
@@ -57,7 +56,7 @@ export function useSceneObjects(
     const MAX_INSTANCES = RENDER.maxInstances;
 
     // ========================================================================
-    // СВІТОВА РАМКА
+    // КОНСТРУЮВАННЯ ГРАНИЧНОЇ РАМКИ ВІРТУАЛЬНОГО ПРОСТОРУ
     // ========================================================================
 
     const boxGeo = new THREE.BoxGeometry(WORLD_SIZE, WORLD_SIZE, WORLD_SIZE);
@@ -72,14 +71,15 @@ export function useSceneObjects(
     scene.add(boxLines);
 
     // ========================================================================
-    // ЕКОЛОГІЧНІ ЗОНИ
+    // ВІЗУАЛІЗАЦІЯ ЕКОЛОГІЧНИХ ЗОН
     // ========================================================================
 
     const zoneMeshes: THREE.Mesh[] = [];
     engine.zones.forEach((zone) => {
       const zoneColor =
         ZONE_DEFAULTS[zone.type as keyof typeof ZONE_DEFAULTS]?.color || 0xffffff;
-      // Фіксована якість зон (низька для продуктивності)
+
+      // Ініціалізація сферичної геометрії для зон (низька деталізація для оптимізації)
       const geo = new THREE.SphereGeometry(zone.radius, 16, 16);
       const mat = new THREE.MeshBasicMaterial({
         color: zoneColor,
@@ -95,10 +95,10 @@ export function useSceneObjects(
     });
 
     // ========================================================================
-    // INSTANCED MESHES ДЛЯ ОРГАНІЗМІВ
+    // СТВОРЕННЯ ГРУПОВИХ МЕШ-ОБ'ЄКТІВ ДЛЯ БІОЛОГІЧНИХ ОРГАНІЗМІВ
     // ========================================================================
 
-    // Фіксована середня якість для організмів (баланс продуктивність/якість)
+    // Встановлення оптимальної деталізації для геометрії організмів
     const orgGeo = new THREE.ConeGeometry(0.8, 2.5, 12);
     orgGeo.rotateX(Math.PI / 2);
 
@@ -112,6 +112,16 @@ export function useSceneObjects(
     });
     const preyMesh = new THREE.InstancedMesh(orgGeo, preyMat, MAX_INSTANCES);
     preyMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+    // Деактивація механізму відсікання за межами видимості для забезпечення точності проекційного аналізу
+    preyMesh.frustumCulled = false;
+
+    // Примусове визначення граничної сфери для коректного опрацювання рейкастером
+    preyMesh.geometry.computeBoundingSphere();
+    if (preyMesh.geometry.boundingSphere) {
+      preyMesh.geometry.boundingSphere.radius = WORLD_SIZE * 2;
+    }
+
     scene.add(preyMesh);
 
     const predMat = new THREE.MeshPhongMaterial({
@@ -124,13 +134,22 @@ export function useSceneObjects(
     });
     const predMesh = new THREE.InstancedMesh(orgGeo, predMat, MAX_INSTANCES);
     predMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    predMesh.frustumCulled = false;
+
+    // Аналогічна конфігурація граничного об'єму для хижих суб'єктів
+    predMesh.geometry.computeBoundingSphere();
+    if (predMesh.geometry.boundingSphere) {
+      predMesh.geometry.boundingSphere.radius = WORLD_SIZE * 2;
+    }
+
     scene.add(predMesh);
 
     // ========================================================================
-    // INSTANCED MESH ДЛЯ ЇЖІ
+    // СТВОРЕННЯ ГРУПОВОГО МЕШ-ОБ'ЄКТА ДЛЯ ЕНЕРГЕТИЧНИХ РЕСУРСІВ
     // ========================================================================
 
-    const foodGeo = new THREE.OctahedronGeometry(1, 0);
+    // Використання сферичної геометрії для забезпечення стабільності математичного детектування
+    const foodGeo = new THREE.SphereGeometry(2, 8, 8);
     const foodMat = new THREE.MeshPhongMaterial({
       color: COLORS.food.base,
       emissive: COLORS.food.emissive,
@@ -145,10 +164,21 @@ export function useSceneObjects(
       MAX_INSTANCES * 2
     );
     foodMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    foodMesh.frustumCulled = false;
+    foodMesh.userData = { type: EntityType.FOOD };
+
+    // Критичне збільшення граничної сфери для запобігання ігноруванню ресурсів алгоритмом рейкастингу
+    // ВАЖЛИВО: Центр НЕ змінюємо — Three.js для InstancedMesh очікує геометрію в оригіні (0,0,0),
+    // а потім застосовує instanceMatrix для позиціонування кожного інстанса
+    foodGeo.computeBoundingSphere();
+    if (foodGeo.boundingSphere) {
+      foodGeo.boundingSphere.radius = WORLD_SIZE * 2;
+    }
+
     scene.add(foodMesh);
 
     // ========================================================================
-    // ПЕРЕШКОДИ
+    // ІНІЦІАЛІЗАЦІЯ СТАТИЧНИХ ГЕОМЕТРИЧНИХ ПЕРЕШКОД
     // ========================================================================
 
     const obstacleMeshes: THREE.Mesh[] = [];
@@ -170,7 +200,7 @@ export function useSceneObjects(
     });
 
     // ========================================================================
-    // ДОПОМІЖНІ ОБ'ЄКТИ
+    // ФОРМУВАННЯ ДОПОМІЖНИХ ТА СЛУЖБОВИХ ОБ'ЄКТІВ
     // ========================================================================
 
     const dummy = new THREE.Object3D();
@@ -202,7 +232,9 @@ export function useSceneObjects(
       boxMat,
     });
 
-    // Cleanup
+    /**
+     * Термінальна функція очищення ресурсів для запобігання витокам пам'яті.
+     */
     return () => {
       orgGeo.dispose();
       foodGeo.dispose();
@@ -223,7 +255,7 @@ export function useSceneObjects(
         (m.material as THREE.Material).dispose();
       });
     };
-  }, [scene, engine]); // Видалено bodyQuality - recreate тільки при зміні scene/engine
+  }, [scene, engine]);
 
   return objectsData;
 }

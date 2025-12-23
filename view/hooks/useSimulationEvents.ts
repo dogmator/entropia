@@ -1,9 +1,9 @@
 /**
- * Hook для підписки на події симуляції
- *
- * Підписується на:
- * - EntityDied - створення ефекту смерті
- * - EntityReproduced - створення ефекту народження
+ * Спеціалізований програмний інтерфейс (хук) для агрегації та обробки подій симуляційного двигуна.
+ * 
+ * Реалізує підписку на наступні класи подій:
+ * - EntityDied - детермінація моменту завершення життєвого циклу суб'єкта та генерація візуального ефекту деструкції.
+ * - EntityReproduced - реєстрація акту репродукції та ініціалізація візуальних ефектів виникнення нових агентів.
  */
 
 import { useEffect, useRef } from 'react';
@@ -23,6 +23,7 @@ export function useSimulationEvents(
     if (!particleSystem) return;
 
     const unsubscribe = engine.addEventListener((event) => {
+      // Обробка подій летальності біологічних суб'єктів
       if (event.type === 'EntityDied') {
         if (
           event.entityType === EntityType.PREY ||
@@ -43,14 +44,16 @@ export function useSimulationEvents(
               event.entityType === EntityType.PREDATOR
             );
 
-            // Обмеження розміру Set (запобігання витоку пам'яті)
+            // Регулювання розміру реєстру оброблених подій для запобігання деградації пам'яті
             if (processedDeaths.current.size > 100) {
               const firstId = processedDeaths.current.values().next().value;
               if (firstId) processedDeaths.current.delete(firstId);
             }
           }
         }
-      } else if (event.type === 'EntityReproduced') {
+      }
+      // Обробка подій репродуктивного акту
+      else if (event.type === 'EntityReproduced') {
         const childIdStr = event.childId as string;
         if (!processedBirths.current.has(childIdStr)) {
           processedBirths.current.add(childIdStr);
@@ -60,7 +63,7 @@ export function useSimulationEvents(
 
           particleSystem.addBirthEffect(event.position, color);
 
-          // Обмеження розміру Set (запобігання витоку пам'яті)
+          // Обмеження обсягу реєстру для оптимізації використання оперативної пам'яті
           if (processedBirths.current.size > 100) {
             const firstId = processedBirths.current.values().next().value;
             if (firstId) processedBirths.current.delete(firstId);
@@ -69,6 +72,9 @@ export function useSimulationEvents(
       }
     });
 
+    /**
+     * Скасування підписки при розмонтуванні компонента для запобігання побічним ефектам.
+     */
     return () => {
       unsubscribe();
     };

@@ -1,13 +1,13 @@
 /**
- * Entropia 3D — Рефакторений Симуляційний Движок
+ * Entropia 3D — Модернізоване ядро симуляційного двигуна.
  *
- * Оркестратор систем з чистою архітектурою:
- * - EventBus для подій
- * - BehaviorSystem для AI
- * - PhysicsSystem для руху
- * - MetabolismSystem для енергії
- * - CollisionSystem для зіткнень
- * - ReproductionSystem для генетики
+ * Виступає як центральний оркестратор спеціалізованих систем, реалізований на засадах чистой архітектури:
+ * - EventBus - шина подій для забезпечення низької зв'язності компонентів.
+ * - BehaviorSystem - підсистема моделювання логіки поведінки та прийняття рішень (AI).
+ * - PhysicsSystem - обчислювальний модуль кінематики та динаміки руху.
+ * - MetabolismSystem - система термодинамічного моделювання енергетичного балансу.
+ * - CollisionSystem - алгоритми детектування та обробки просторових інтерференцій.
+ * - ReproductionSystem - механізми генетичного наслідування та популяційної динаміки.
  */
 
 import {
@@ -46,21 +46,21 @@ import { ReproductionSystem } from './systems/ReproductionSystem';
 import { SpawnService } from './services/SpawnService';
 
 // ============================================================================
-// РЕФАКТОРЕНИЙ ДВИЖОК
+// ПРЕДСТАВНИЦТВО ОСНОВНОГО КЛАСУ ДВИГУНА
 // ============================================================================
 
 export class SimulationEngine {
-  // Колекції сутностей
+  // Дескриптори колекцій віртуальних сутностей
   public readonly organisms: Map<string, Organism> = new Map();
   public readonly food: Map<string, Food> = new Map();
   public readonly obstacles: Map<string, Obstacle> = new Map();
   public readonly zones: Map<string, EcologicalZone> = new Map();
 
-  // Генетичне дерево
+  // Структури збереження філогенетичних зв'язків
   public readonly geneticTree: Map<GenomeId, GeneticTreeNode> = new Map();
   public readonly geneticRoots: GenomeId[] = [];
 
-  // Системи (замість монолітного коду)
+  // Ініціалізація функціональних підсистем
   private readonly eventBus: EventBus;
   private readonly spatialGrid: SpatialHashGrid;
   private readonly physicsSystem: PhysicsSystem;
@@ -69,15 +69,15 @@ export class SimulationEngine {
   private readonly behaviorSystem: BehaviorSystem;
   private readonly reproductionSystem: ReproductionSystem;
 
-  // Сервіси
+  // Модулі сервісної підтримки
   private readonly spawnService: SpawnService;
 
-  // Лічильники
+  // Системні лічильники та часова дискретизація
   private foodIdCounter: number = 0;
   private obstacleIdCounter: number = 0;
   private tick: number = 0;
 
-  // Статистика
+  // Метрики статистичного аналізу
   private stats = {
     totalDeaths: 0,
     totalBirths: 0,
@@ -85,13 +85,13 @@ export class SimulationEngine {
     maxGeneration: 1,
   };
 
-  // Конфігурація
+  // Реєстр конфігураційних параметрів
   public config: SimulationConfig;
 
   constructor() {
     this.config = this.createDefaultConfig();
 
-    // Ініціалізація систем
+    // Комплексна ініціалізація системних компонентів
     this.eventBus = new EventBus();
     this.spatialGrid = new SpatialHashGrid();
     this.physicsSystem = new PhysicsSystem(this.config);
@@ -99,11 +99,11 @@ export class SimulationEngine {
     this.collisionSystem = new CollisionSystem(this.spatialGrid, this.eventBus);
     this.behaviorSystem = new BehaviorSystem(this.spatialGrid, this.config, this.zones);
 
-    // Ініціалізувати зони перед створенням сервісів
+    // Попереднє формування середовищних параметрів
     this.createZones();
     this.createObstacles();
 
-    // Створити сервіси
+    // Агрегація сервісних модулів
     this.spawnService = new SpawnService(
       this.eventBus,
       this.spatialGrid,
@@ -111,7 +111,7 @@ export class SimulationEngine {
       this.obstacles
     );
 
-    // Створити систему репродукції з фабрикою зі SpawnService
+    // Налаштування системи репродукції з інтеграцією фабрики об'єктів
     this.reproductionSystem = new ReproductionSystem(
       this.config,
       this.spawnService.getFactory(),
@@ -121,14 +121,17 @@ export class SimulationEngine {
       this.tick
     );
 
-    // Створити початкову популяцію
+    // Генерація початкових популяційних масивів
     this.createInitialPopulation();
   }
 
   // ============================================================================
-  // ІНІЦІАЛІЗАЦІЯ
+  // МЕТОДИ ІНІЦІАЛІЗАЦІЇ ТА ФОРМУВАННЯ СЕРЕДОВИЩА
   // ============================================================================
 
+  /**
+   * Генерація базового набору конфігураційних значень.
+   */
   private createDefaultConfig(): SimulationConfig {
     return {
       foodSpawnRate: FOOD_SPAWN_RATE,
@@ -147,8 +150,9 @@ export class SimulationEngine {
     };
   }
 
-
-  /** Створити екологічні зони */
+  /**
+   * Просторова розмітка та ініціалізація екологічних зон.
+   */
   private createZones(): void {
     this.zones.set('oasis_center', {
       id: 'oasis_center',
@@ -193,7 +197,9 @@ export class SimulationEngine {
     });
   }
 
-  /** Створити початкові перешкоди */
+  /**
+   * Створення статичних геометричних перешкод у просторі.
+   */
   private createObstacles(): void {
     const count = 12;
     for (let i = 0; i < count; i++) {
@@ -209,13 +215,14 @@ export class SimulationEngine {
     }
   }
 
-  /** Створити початкову популяцію */
+  /**
+   * Формування вихідних популяцій травоїдних та хижаків.
+   */
   private createInitialPopulation(): void {
     for (let i = 0; i < INITIAL_PREY; i++) {
       const organism = this.spawnService.spawnOrganism(EntityType.PREY);
       if (organism) {
         this.organisms.set(organism.id, organism);
-        // Додати до генетичного дерева
         this.reproductionSystem['addToGeneticTree'](organism, undefined);
       }
     }
@@ -223,17 +230,18 @@ export class SimulationEngine {
       const organism = this.spawnService.spawnOrganism(EntityType.PREDATOR);
       if (organism) {
         this.organisms.set(organism.id, organism);
-        // Додати до генетичного дерева
         this.reproductionSystem['addToGeneticTree'](organism, undefined);
       }
     }
   }
 
   // ============================================================================
-  // ПУБЛІЧНІ МЕТОДИ
+  // МЕТОДИ УПРАВЛІННЯ ЖИТТЄВИМ ЦИКЛОМ ТА ПОДІЯМИ
   // ============================================================================
 
-  /** Скинути симуляцію */
+  /**
+   * Повна реініціалізація стану симуляції.
+   */
   public reset(): void {
     this.organisms.clear();
     this.food.clear();
@@ -260,46 +268,48 @@ export class SimulationEngine {
     this.createInitialPopulation();
   }
 
-  /** Підписатися на події */
+  /**
+   * Реєстрація слухача подій симуляції.
+   */
   public addEventListener(callback: (event: SimulationEvent) => void): () => void {
-    // EventBus.on приймає конкретний тип події, але addEventListener дозволяє слухати всі події
-    // Тому використовуємо type assertion до EventCallback
     type EventCallback = (event: SimulationEvent) => void;
     return this.eventBus.on('TickUpdated', callback as EventCallback);
   }
 
-  /** Головний цикл оновлення - РЕФАКТОРЕНА ВЕРСІЯ */
+  /**
+   * Головний ітераційний цикл оновлення стану симуляції.
+   */
   public update(): void {
     this.tick++;
     this.reproductionSystem.setTick(this.tick);
 
-    // Спавн їжі
+    // Процедурна генерація енергетичних субстратів (їжі)
     this.spawnFood();
 
-    // Перебудувати просторову сітку
+    // Корекція просторової дискретизації
     this.rebuildGrid();
 
-    // Застосувати системи до всіх організмів
+    // Циклічне застосування функціональних систем до реєстру організмів
     this.behaviorSystem.update(this.organisms);
     this.physicsSystem.update(this.organisms);
     this.metabolismSystem.update(this.organisms, this.tick);
 
-    // Обробити колізії
+    // Ідентифікація та аналіз механічних взаємодій (колізій)
     const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles);
 
-    // Перевірити розмноження
+    // Верифікація можливості репродуктивних актів
     const newborns = this.reproductionSystem.checkReproduction(this.organisms, this.config.maxOrganisms);
 
-    // Оновити статистику
+    // Актуалізація статистичних метрик
     this.updateStats();
 
-    // Створити нащадків
+    // Формування нових популяційних одиниць
     this.reproductionSystem.createOffspring(newborns, this.organisms, this.config.maxOrganisms, this.stats);
 
-    // Обробити смерті
+    // Елімінація об'єктів з термінальним статусом (смерть)
     this.processDeaths(deadIds);
 
-    // Відправка оновлення стану
+    // Диспетчеризація оновленого стану через шину подій
     this.eventBus.emit({
       type: 'TickUpdated',
       tick: this.tick,
@@ -309,11 +319,12 @@ export class SimulationEngine {
   }
 
   // ============================================================================
-  // СПАВН СУТНОСТЕЙ
+  // МЕТОДИ ГЕНЕРАЦІЇ ТА УТИЛІЗАЦІЇ ОБ'ЄКТІВ
   // ============================================================================
 
-
-  /** Спавн їжі */
+  /**
+   * Регулювання чисельності енергетичних ресурсів у середовищі.
+   */
   private spawnFood(): void {
     if (this.food.size >= this.config.maxFood) return;
 
@@ -326,10 +337,12 @@ export class SimulationEngine {
   }
 
   // ============================================================================
-  // ДОПОМІЖНІ МЕТОДИ
+  // ДОПОМІЖНІ ОБЧИСЛЮВАЛЬНІ МЕТОДИ
   // ============================================================================
 
-  /** Оновити статистику */
+  /**
+   * Актуалізація інтегральних статистичних показників популяції.
+   */
   private updateStats(): void {
     this.organisms.forEach(org => {
       if (org.age > this.stats.maxAge) {
@@ -341,14 +354,16 @@ export class SimulationEngine {
     });
   }
 
-  /** Обробити смерті */
+  /**
+   * Адміністрування процесу видалення суб'єктів та фіксація причин елімінації.
+   */
   private processDeaths(deadIds: string[]): void {
     for (const id of deadIds) {
       const org = this.organisms.get(id);
       if (org) {
         this.stats.totalDeaths++;
 
-        // Оновити генетичне дерево
+        // Модифікація філогенетичної структури при видаленні агента
         this.reproductionSystem.updateGeneticTreeOnDeath(org);
 
         this.eventBus.emit({
@@ -364,7 +379,9 @@ export class SimulationEngine {
     }
   }
 
-  /** Перебудувати просторову сітку */
+  /**
+   * Перебудова структури просторового хешування для оптимізації пошукових запитів.
+   */
   private rebuildGrid(): void {
     this.spatialGrid.clear();
 
@@ -402,7 +419,9 @@ export class SimulationEngine {
     }
   }
 
-  /** Розрахувати статистику */
+  /**
+   * Комплексний розрахунок та агрегація поточної статистики симуляції.
+   */
   private calculateStats(): SimulationStats {
     let prey = 0;
     let pred = 0;
@@ -444,12 +463,16 @@ export class SimulationEngine {
     };
   }
 
-  /** Отримати поточний тік */
+  /**
+   * Отримання поточного значення ітераційного лічильника.
+   */
   public getTick(): number {
     return this.tick;
   }
 
-  /** Отримати генетичне дерево для візуалізації */
+  /**
+   * Отримання інформаційної структури генетичного дерева для потреб візуалізації.
+   */
   public getGeneticTree() {
     return this.reproductionSystem.getGeneticTreeInfo();
   }

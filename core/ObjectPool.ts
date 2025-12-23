@@ -1,17 +1,16 @@
-
 /**
- * Entropia 3D — Патерн Object Pool (Пул Об'єктів)
+ * Entropia 3D — Реалізація патерна проєктування «Object Pool» (Пул об'єктів).
  *
- * Академічно коректна реалізація пулу об'єктів для:
- * - Нульового збирання сміття (garbage collection) під час симуляції
- * - Передбачуваного часу виділення пам'яті O(1)
- * - Ефективного перевикористання частинок, організмів та векторів
+ * Імплементація механізму кешування об'єктів для:
+ * - Мінімізації навантаження на складальник сміття (Garbage Collection avoidance).
+ * - Забезпечення детермінованого часу виділення пам'яті O(1).
+ * - Високопродуктивного перевикористання часток, агентів та математичних векторів.
  */
 
 /**
- * Generic Object Pool з типізацією
+ * Універсальний типізований Пул Об'єктів (Generic Object Pool).
  *
- * @template T Тип об'єкта в пулі
+ * @template T Типовий параметр об'єкта, що зберігається в пулі.
  *
  * @example
  * const particlePool = new ObjectPool(
@@ -20,7 +19,7 @@
  *   1000
  * );
  * const particle = particlePool.acquire();
- * // ... використання частинки
+ * // ... експлуатація об'єкта
  * particlePool.release(particle);
  */
 export class ObjectPool<T> {
@@ -34,10 +33,10 @@ export class ObjectPool<T> {
   private _peakUsage: number = 0;
 
   /**
-   * @param factory Функція створення нового об'єкта
-   * @param reset Функція скидання об'єкта в початковий стан
-   * @param initialSize Початковий розмір пулу
-   * @param maxSize Максимальний розмір пулу (за замовчуванням 10000)
+   * @param factory Делегат для інстанціації нового об'єкта.
+   * @param reset Функція для відновлення первинного стану об'єкта.
+   * @param initialSize Обсяг превентивного виділення пам'яті (преварінг).
+   * @param maxSize Верхня межа місткості пулу (дефолт: 10000).
    */
   constructor(
     factory: () => T,
@@ -49,7 +48,7 @@ export class ObjectPool<T> {
     this.reset = reset;
     this.maxSize = maxSize;
 
-    // Початкове наповнення пулу
+    // Початкове превентивне наповнення пулу об'єктами
     for (let i = 0; i < initialSize; i++) {
       this.pool.push(this.factory());
       this._totalCreated++;
@@ -57,8 +56,8 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Отримати об'єкт із пулу
-   * Якщо пул порожній — створюється новий об'єкт
+   * Отримання об'єкта з пулу.
+   * У разі дефіциту вільних одиниць виконується динамічна інстанціація.
    */
   acquire(): T {
     this._activeCount++;
@@ -75,8 +74,8 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Повернути об'єкт у пул
-   * Об'єкт скидається і стає доступним для повторного використання
+   * Повернення об'єкта до пулу.
+   * Активується процедура очищення (reset) для подальшого перевикористання.
    */
   release(obj: T): void {
     this._activeCount--;
@@ -85,11 +84,11 @@ export class ObjectPool<T> {
       this.reset(obj);
       this.pool.push(obj);
     }
-    // Якщо пул переповнений, об'єкт просто відкидається
+    // При перевищенні ліміту maxSize об'єкт підлягає стандартній елімінації (GC)
   }
 
   /**
-   * Повернути масив об'єктів у пул
+   * Масове повернення масиву об'єктів до пулу.
    */
   releaseAll(objects: T[]): void {
     for (let i = 0; i < objects.length; i++) {
@@ -98,7 +97,7 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Попередньо створити об'єкти до вказаної кількості
+   * Передчасне наповнення пулу до заданої кількісної межі.
    */
   prewarm(count: number): void {
     const toCreate = Math.min(count - this.pool.length, this.maxSize - this.pool.length);
@@ -109,34 +108,34 @@ export class ObjectPool<T> {
   }
 
   /**
-   * Очистити пул (для повного перезавантаження)
+   * Повна деструкція вмісту пулу (актуально при ребуті симуляції).
    */
   clear(): void {
     this.pool.length = 0;
     this._activeCount = 0;
   }
 
-  /** Кількість об'єктів, доступних у пулі */
+  /** Кількість вільних об'єктів, доступних у стеку. */
   get available(): number {
     return this.pool.length;
   }
 
-  /** Кількість об'єктів, що використовуються в даний момент */
+  /** Кількість об'єктів, що перебувають в активній експлуатації. */
   get active(): number {
     return this._activeCount;
   }
 
-  /** Пікове використання за весь час */
+  /** Максимальний зафіксований рівень одночасного використання. */
   get peakUsage(): number {
     return this._peakUsage;
   }
 
-  /** Всього створено об'єктів */
+  /** Кумулятивна кількість створених за весь час об'єктів. */
   get totalCreated(): number {
     return this._totalCreated;
   }
 
-  /** Статистика пулу для відлагодження */
+  /** Формування діагностичного звіту про стан пулу. */
   getStats(): PoolStats {
     return {
       available: this.pool.length,
@@ -157,14 +156,14 @@ export interface PoolStats {
 }
 
 // ============================================================================
-// SPECIALIZED POOLS
+// СПЕЦІАЛІЗОВАНІ РЕАЛІЗАЦІЇ ПУЛІВ
 // ============================================================================
 
 import { MutableVector3, vec3Zero } from '../types';
 
 /**
- * Пул для 3D векторів
- * Критично важливий для фізичних обчислень
+ * Пул для об'єктів тривимірних векторів.
+ * Відіграє критичну роль у мінімізації алокацій при фізичних розрахунках.
  */
 export class Vector3Pool {
   private static instance: ObjectPool<MutableVector3> | null = null;
@@ -191,7 +190,7 @@ export class Vector3Pool {
 }
 
 /**
- * Інтерфейс для об'єктів частинок
+ * Програмний інтерфейс для структур даних частинок.
  */
 export interface PooledParticle {
   x: number;
@@ -208,7 +207,7 @@ export interface PooledParticle {
 }
 
 /**
- * Пул для частинок візуальних ефектів
+ * Пул для елементів візуальних ефектів (систем часток).
  */
 export class ParticlePool {
   private static instance: ObjectPool<PooledParticle> | null = null;
@@ -245,8 +244,8 @@ export class ParticlePool {
 }
 
 /**
- * Ring Buffer для історії популяції
- * Фіксований розмір, O(1) додавання
+ * Кільцевий буфер (Ring Buffer) для зберігання хронологічних даних популяції.
+ * Забезпечує сталу складність O(1) для операцій запису.
  */
 export class RingBuffer<T> {
   private readonly buffer: (T | undefined)[];
@@ -257,6 +256,7 @@ export class RingBuffer<T> {
     this.buffer = new Array(capacity);
   }
 
+  /** Додавання нового елемента з потенційним заміщенням найстарішого. */
   push(item: T): void {
     this.buffer[this.head] = item;
     this.head = (this.head + 1) % this.capacity;
@@ -265,6 +265,7 @@ export class RingBuffer<T> {
     }
   }
 
+  /** Доступ до елемента за логічним індексом. */
   get(index: number): T | undefined {
     if (index < 0 || index >= this._size) return undefined;
     const actualIndex = (this.head - this._size + index + this.capacity) % this.capacity;
@@ -279,6 +280,7 @@ export class RingBuffer<T> {
     return this._size === this.capacity;
   }
 
+  /** Перетворення буфера у лінійний масив даних. */
   toArray(): T[] {
     const result: T[] = [];
     for (let i = 0; i < this._size; i++) {
@@ -290,13 +292,14 @@ export class RingBuffer<T> {
     return result;
   }
 
+  /** Повне анулювання вмісту буфера. */
   clear(): void {
     this.buffer.fill(undefined);
     this.head = 0;
     this._size = 0;
   }
 
-  /** Отримати останні N елементів */
+  /** Екстракція останніх N записів зі сховища. */
   getLast(n: number): T[] {
     const count = Math.min(n, this._size);
     const result: T[] = [];
