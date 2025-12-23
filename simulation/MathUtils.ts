@@ -24,30 +24,32 @@ export class MathUtils {
   /**
    * Приведення координати до циклічного діапазону [0, WORLD_SIZE).
    */
-  static wrap(value: number): number {
-    return ((value % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE;
+  static wrap(value: number, worldSize: number = WORLD_SIZE): number {
+    return ((value % worldSize) + worldSize) % worldSize;
   }
 
   /**
    * Мутація вектора для відповідності тороїдальним межам простору.
    */
-  static wrapVector(v: MutableVector3): void {
-    v.x = MathUtils.wrap(v.x);
-    v.y = MathUtils.wrap(v.y);
-    v.z = MathUtils.wrap(v.z);
+  static wrapVector(v: MutableVector3, worldSize: number = WORLD_SIZE): void {
+    v.x = MathUtils.wrap(v.x, worldSize);
+    v.y = MathUtils.wrap(v.y, worldSize);
+    v.z = MathUtils.wrap(v.z, worldSize);
   }
 
   /**
    * Обчислення квадрата найкоротшої тороїдальної відстані між точками.
    */
-  static toroidalDistanceSq(a: Vector3, b: Vector3): number {
+  static toroidalDistanceSq(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
     let dx = Math.abs(a.x - b.x);
     let dy = Math.abs(a.y - b.y);
     let dz = Math.abs(a.z - b.z);
 
-    if (dx > MathUtils.HALF_WORLD) dx = WORLD_SIZE - dx;
-    if (dy > MathUtils.HALF_WORLD) dy = WORLD_SIZE - dy;
-    if (dz > MathUtils.HALF_WORLD) dz = WORLD_SIZE - dz;
+    const halfWorld = worldSize / 2;
+
+    if (dx > halfWorld) dx = worldSize - dx;
+    if (dy > halfWorld) dy = worldSize - dy;
+    if (dz > halfWorld) dz = worldSize - dz;
 
     return dx * dx + dy * dy + dz * dz;
   }
@@ -55,26 +57,28 @@ export class MathUtils {
   /**
    * Обчислення найкоротшої тороїдальної відстані (модуль вектора).
    */
-  static toroidalDistance(a: Vector3, b: Vector3): number {
-    return Math.sqrt(MathUtils.toroidalDistanceSq(a, b));
+  static toroidalDistance(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
+    return Math.sqrt(MathUtils.toroidalDistanceSq(a, b, worldSize));
   }
 
   /**
    * Розрахунок найкоротшого різницевого вектора з урахуванням тороїдальної топології.
    */
-  static toroidalVector(from: Vector3, to: Vector3): MutableVector3 {
+  static toroidalVector(from: Vector3, to: Vector3, worldSize: number = WORLD_SIZE): MutableVector3 {
     let dx = to.x - from.x;
     let dy = to.y - from.y;
     let dz = to.z - from.z;
 
-    if (dx > MathUtils.HALF_WORLD) dx -= WORLD_SIZE;
-    else if (dx < -MathUtils.HALF_WORLD) dx += WORLD_SIZE;
+    const halfWorld = worldSize / 2;
 
-    if (dy > MathUtils.HALF_WORLD) dy -= WORLD_SIZE;
-    else if (dy < -MathUtils.HALF_WORLD) dy += WORLD_SIZE;
+    if (dx > halfWorld) dx -= worldSize;
+    else if (dx < -halfWorld) dx += worldSize;
 
-    if (dz > MathUtils.HALF_WORLD) dz -= WORLD_SIZE;
-    else if (dz < -MathUtils.HALF_WORLD) dz += WORLD_SIZE;
+    if (dy > halfWorld) dy -= worldSize;
+    else if (dy < -halfWorld) dy += worldSize;
+
+    if (dz > halfWorld) dz -= worldSize;
+    else if (dz < -halfWorld) dz += worldSize;
 
     return { x: dx, y: dy, z: dz };
   }

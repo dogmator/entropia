@@ -10,13 +10,12 @@
 
 import { Organism, OrganismFactory } from '../Entity';
 import { SimulationConfig, GenomeId, GeneticTreeNode, EntityType, OrganismId } from '../../types';
-import { MIN_REPRODUCTION_AGE } from '../../constants';
+import { MIN_REPRODUCTION_AGE, REPRODUCTION } from '../../constants';
 import { EventBus } from '../../core/EventBus';
 
 /**
  * Константи параметрів репродуктивного циклу.
  */
-const ENERGY_COST_MULTIPLIER = 0.45; // Частка енергії, що зберігається батьківською особиною після поділу.
 const MIN_AGE = MIN_REPRODUCTION_AGE; // Поріг репродуктивної зрілості (мінімальний вік).
 
 /**
@@ -80,7 +79,7 @@ export class ReproductionSystem {
    */
   private initiateReproduction(organism: Organism, newborns: NewbornData[]): void {
     // Екзотермічна витрата енергії на створення нащадка
-    organism.energy *= ENERGY_COST_MULTIPLIER;
+    organism.energy *= REPRODUCTION.energyCostMultiplier;
 
     // Переведення агента у транзитний стан репродуктивної активності
     organism.updateState('REPRODUCING');

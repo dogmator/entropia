@@ -17,6 +17,7 @@
 
 import { Vector3, EntityType, GridEntity } from '../types';
 import { WORLD_SIZE, CELL_SIZE } from '../constants';
+import { MathUtils } from './MathUtils';
 
 /**
  * Внутрішня структура даних для інкапсуляції атрибутів сутності в межах сітки.
@@ -38,15 +39,40 @@ export class SpatialHashGrid {
   /** Лінійний розмір ребра кубічної комірки. */
   private readonly cellSize: number;
 
-  /** Розмірність сітки (кількість комірок вздовж однієї осі). */
+  /** Розмітність сітки (кількість комірок вздовж однієї осі). */
   private readonly dimensions: number;
+
+  /** Розмір світу. */
+  private readonly worldSize: number;
 
   /** Пул масивів для повторного використання (мінімізація навантаження на Garbage Collector). */
   private readonly cellPool: InternalGridEntity[][] = [];
 
-  constructor(cellSize: number = CELL_SIZE) {
+  constructor(worldSize: number = WORLD_SIZE, cellSize: number = CELL_SIZE) {
+    this.worldSize = worldSize;
     this.cellSize = cellSize;
-    this.dimensions = Math.ceil(WORLD_SIZE / this.cellSize);
+    this.dimensions = Math.ceil(this.worldSize / this.cellSize);
+  }
+
+  /**
+   * Генерація унікального хеш-ключа для просторових координат.
+   * Враховує тороїдальну топологію світу.
+   */
+  /**
+   * Розрахунок координат комірки для заданої точки простору.
+   */
+  private getCellCoords(x: number, y: number, z: number): { gx: number, gy: number, gz: number } {
+    const gx = Math.floor(((x % this.worldSize) + this.worldSize) % this.worldSize / this.cellSize);
+    const gy = Math.floor(((y % this.worldSize) + this.worldSize) % this.worldSize / this.cellSize);
+    const gz = Math.floor(((z % this.worldSize) + this.worldSize) % this.worldSize / this.cellSize);
+    return { gx, gy, gz };
+  }
+
+  /**
+   * Генерація хеш-ключа з тривимірних індексів комірки.
+   */
+  private getKeyFromCoords(gx: number, gy: number, gz: number): number {
+    return gx + gy * this.dimensions + gz * this.dimensions * this.dimensions;
   }
 
   /**
@@ -54,13 +80,8 @@ export class SpatialHashGrid {
    * Враховує тороїдальну топологію світу.
    */
   private getKey(x: number, y: number, z: number): number {
-    // Циклічне приведення координат для тороїдальної відповідності
-    const gx = Math.floor(((x % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const gy = Math.floor(((y % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const gz = Math.floor(((z % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-
-    // Розрахунок лінійного індексу в тривимірному масиві комірок
-    return gx + gy * this.dimensions + gz * this.dimensions * this.dimensions;
+    const { gx, gy, gz } = this.getCellCoords(x, y, z);
+    return this.getKeyFromCoords(gx, gy, gz);
   }
 
   /**
@@ -109,9 +130,7 @@ export class SpatialHashGrid {
     const cellRadius = Math.ceil(radius / this.cellSize);
 
     // Координати центральної комірки
-    const centerX = Math.floor(((position.x % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const centerY = Math.floor(((position.y % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const centerZ = Math.floor(((position.z % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
+    const { gx: centerX, gy: centerY, gz: centerZ } = this.getCellCoords(position.x, position.y, position.z);
 
     // Перебір суміжних комірок у заданому радіусі
     for (let dx = -cellRadius; dx <= cellRadius; dx++) {
@@ -122,7 +141,7 @@ export class SpatialHashGrid {
           const gy = (centerY + dy + this.dimensions) % this.dimensions;
           const gz = (centerZ + dz + this.dimensions) % this.dimensions;
 
-          const key = gx + gy * this.dimensions + gz * this.dimensions * this.dimensions;
+          const key = this.getKeyFromCoords(gx, gy, gz);
           const cell = this.cells.get(key);
 
           if (cell) {
@@ -146,27 +165,12 @@ export class SpatialHashGrid {
     const candidates = this.getNearby(position, radius);
     const results: InternalGridEntity[] = [];
     const radiusSq = radius * radius;
-    const halfWorld = WORLD_SIZE / 2;
+    const halfWorld = this.worldSize / 2;
 
     for (let i = 0; i < candidates.length; i++) {
       const entity = candidates[i];
 
-      // Розрахунок компонентів тороїдального вектора зміщення
-      let dx = entity.position.x - position.x;
-      let dy = entity.position.y - position.y;
-      let dz = entity.position.z - position.z;
-
-      // Нормалізація зміщення для пошуку найкоротшого шляху у тороїдальному просторі
-      if (dx > halfWorld) dx -= WORLD_SIZE;
-      else if (dx < -halfWorld) dx += WORLD_SIZE;
-
-      if (dy > halfWorld) dy -= WORLD_SIZE;
-      else if (dy < -halfWorld) dy += WORLD_SIZE;
-
-      if (dz > halfWorld) dz -= WORLD_SIZE;
-      else if (dz < -halfWorld) dz += WORLD_SIZE;
-
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const distSq = MathUtils.toroidalDistanceSq(entity.position, position, this.worldSize);
 
       if (distSq <= radiusSq) {
         results.push(entity);
@@ -188,7 +192,7 @@ export class SpatialHashGrid {
     const candidates = this.getNearby(position, radius);
     let nearest: InternalGridEntity | null = null;
     let nearestDistSq = Infinity;
-    const halfWorld = WORLD_SIZE / 2;
+    const halfWorld = this.worldSize / 2;
 
     for (let i = 0; i < candidates.length; i++) {
       const entity = candidates[i];
@@ -196,21 +200,7 @@ export class SpatialHashGrid {
       if (entity.type !== type) continue;
       if (excludeId && entity.id === excludeId) continue;
 
-      // Розрахунок тороїдальної метрики
-      let dx = entity.position.x - position.x;
-      let dy = entity.position.y - position.y;
-      let dz = entity.position.z - position.z;
-
-      if (dx > halfWorld) dx -= WORLD_SIZE;
-      else if (dx < -halfWorld) dx += WORLD_SIZE;
-
-      if (dy > halfWorld) dy -= WORLD_SIZE;
-      else if (dy < -halfWorld) dy += WORLD_SIZE;
-
-      if (dz > halfWorld) dz -= WORLD_SIZE;
-      else if (dz < -halfWorld) dz += WORLD_SIZE;
-
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const distSq = MathUtils.toroidalDistanceSq(entity.position, position, this.worldSize);
 
       if (distSq < nearestDistSq) {
         nearestDistSq = distSq;

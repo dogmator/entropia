@@ -21,7 +21,7 @@ export interface ThreeScene {
   controls: OrbitControls;
 }
 
-export function useThreeScene(container: HTMLDivElement | null) {
+export function useThreeScene(container: HTMLDivElement | null, worldSize: number = WORLD_SIZE) {
   const [sceneData, setSceneData] = useState<ThreeScene | null>(null);
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export function useThreeScene(container: HTMLDivElement | null) {
       0.1,
       5000
     );
-    camera.position.set(WORLD_SIZE * 1.2, WORLD_SIZE * 1.0, WORLD_SIZE * 1.2);
+    camera.position.set(worldSize * 1.2, worldSize * 1.0, worldSize * 1.2);
 
     // Параметризація рендерера WebGL для забезпечення високої продуктивності
     const renderer = new THREE.WebGLRenderer({
@@ -54,22 +54,22 @@ export function useThreeScene(container: HTMLDivElement | null) {
 
     // Налаштування механізмів інтерактивного управління камерою
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.target.set(WORLD_SIZE / 2, WORLD_SIZE / 2, WORLD_SIZE / 2);
+    controls.target.set(worldSize / 2, worldSize / 2, worldSize / 2);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.minDistance = 100;
-    controls.maxDistance = WORLD_SIZE * 3;
+    controls.maxDistance = worldSize * 3;
 
     // Формування комплексу джерел освітлення
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambientLight);
 
     const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    mainLight.position.set(WORLD_SIZE, WORLD_SIZE * 1.5, WORLD_SIZE);
+    mainLight.position.set(worldSize, worldSize * 1.5, worldSize);
     scene.add(mainLight);
 
     const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
-    fillLight.position.set(-WORLD_SIZE, WORLD_SIZE * 0.5, -WORLD_SIZE);
+    fillLight.position.set(-worldSize, worldSize * 0.5, -worldSize);
     scene.add(fillLight);
 
     setSceneData({ scene, camera, renderer, controls });
@@ -94,7 +94,7 @@ export function useThreeScene(container: HTMLDivElement | null) {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [container]);
+  }, [container, worldSize]); // dependency update
 
   return sceneData;
 }

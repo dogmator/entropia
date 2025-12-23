@@ -3,8 +3,11 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, '.', '');
+  const env = loadEnv(mode, process.cwd(), '');
   return {
+    root: 'ui',
+    publicDir: '../public',
+    envDir: '..',
     base: '/entropia/',
     server: {
       port: 3000,
@@ -21,6 +24,8 @@ export default defineConfig(({ mode }) => {
       }
     },
     build: {
+      outDir: '../dist',
+      emptyOutDir: true,
       target: 'es2015',
       minify: 'terser',
       terserOptions: {

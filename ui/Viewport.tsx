@@ -26,16 +26,14 @@ import { Logger } from '../core/utils/Logger';
 // ВИЗНАЧЕННЯ ТИПІВ ДАНИХ ТА ІНТЕРФЕЙСІВ
 // ============================================================================
 
-interface ViewportProps {
-  engine: SimulationEngine;
-  speed: number;
-}
+import { useSimulation } from './context/SimulationContext';
 
 // ============================================================================
 // ОСНОВНА ПРЕДСТАВНИЦЬКА ЛОГІКА (КОМПОНЕНТ)
 // ============================================================================
 
-export const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
+export const Viewport: React.FC = () => {
+  const { engine, speed } = useSimulation();
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
 
   /**
@@ -51,7 +49,8 @@ export const Viewport: React.FC<ViewportProps> = ({ engine, speed }) => {
   // ІНІЦІАЛІЗАЦІЯ СПЕЦІАЛІЗОВАНИХ ХУКІВ СТАНУ ТА ЕФЕКТІВ
   // ========================================================================
 
-  const sceneData = useThreeScene(container);
+  const worldSize = engine.worldConfig?.WORLD_SIZE; // Will fallback to default in hook if undefined
+  const sceneData = useThreeScene(container, worldSize);
   const sceneObjects = useSceneObjects(sceneData?.scene || null, engine);
   const particleEffects = useParticleEffects(sceneData?.scene || null);
   const {
