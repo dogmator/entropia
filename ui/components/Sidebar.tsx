@@ -3,29 +3,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dashboard } from './Dashboard';
 import { SettingsPanel } from './SettingsPanel';
 import { SimulationControls } from './SimulationControls';
-import { SimulationEngine } from '../simulation/Engine';
-import { SimulationStats, PopulationDataPoint } from '../types';
+import { SimulationEngine } from '../../simulation/Engine';
+import { SimulationStats, PopulationDataPoint } from '../../types';
 
-/**
- * Програмний інтерфейс для властивостей компонента Sidebar.
- */
-interface SidebarProps {
-  engine: SimulationEngine;
-  stats: SimulationStats;
-  history: PopulationDataPoint[];
-  onReset: () => void;
-  speed: number;
-  onSpeedChange: (val: number) => void;
-}
+import { useSimulation } from '../context/SimulationContext';
 
 /**
  * Компонент Sidebar — основна вертикальна панель інтерфейсу користувача.
  * Забезпечує інтеграцію контролерів, статистичних панелей та налаштувань,
  * адаптуючись до різних типів дисплеїв та пристроїв введення.
  */
-export const Sidebar: React.FC<SidebarProps> = ({
-  engine, stats, history, onReset, speed, onSpeedChange
-}) => {
+export const Sidebar: React.FC = () => {
+  const {
+    engine, stats, history, onReset, speed, setSpeed, worldScale, setWorldScale
+  } = useSimulation();
   /**
    * Стан видимості панелі. Автоматично визначається згідно з пороговими значеннями ширини вікна.
    */
@@ -130,10 +121,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <SimulationControls
               onReset={onReset}
               speed={speed}
-              onSpeedChange={onSpeedChange}
+              onSpeedChange={setSpeed}
             />
 
-            <SettingsPanel engine={engine} />
+            <SettingsPanel
+              engine={engine}
+              worldScale={worldScale}
+              onWorldScaleChange={setWorldScale}
+            />
           </div>
 
           {/* Інформаційна довідка про маніпуляції та гарячі клавіші */}

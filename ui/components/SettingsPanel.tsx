@@ -1,21 +1,23 @@
 
 import React, { useState } from 'react';
-import { SimulationEngine } from '../simulation/Engine';
-import { GRAPHICS_PRESETS } from '../constants';
-import { GraphicsQuality } from '../types';
+import { SimulationEngine } from '../../simulation/Engine';
+import { GRAPHICS_PRESETS } from '../../constants';
+import { GraphicsQuality } from '../../types';
 
 /**
  * Програмний інтерфейс для властивостей компонента SettingsPanel.
  */
 interface SettingsPanelProps {
   engine: SimulationEngine;
+  worldScale: number;
+  onWorldScaleChange: (val: number) => void;
 }
 
 /**
  * Компонент SettingsPanel — інтерфейс конфігурації параметрів симуляції та графічної підсистеми.
  * Забезпечує динамічне оновлення стану Engine через кастомізовані контролери (слайдери, перемикачі).
  */
-export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
+export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale, onWorldScaleChange }) => {
   const [config, setConfig] = useState(engine.config);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -112,6 +114,32 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
       <div className={`transition-all duration-500 ease-in-out ${collapsed ? 'max-h-0 opacity-0' : 'max-h-[1600px] opacity-100'}`}>
         <div className="p-4 sm:p-5 space-y-9 overflow-y-auto custom-scrollbar max-h-[60vh]">
 
+          {/* Секція 0: Глобальні параметри */}
+          <section>
+            <h3 className="text-[10px] sm:text-[9px] text-purple-400 font-black uppercase tracking-[0.4em] mb-4 flex items-center gap-3">
+              <div className="h-px flex-1 bg-purple-500/20" />
+              Космологія
+              <div className="h-px flex-1 bg-purple-500/20" />
+            </h3>
+            <div className="group flex flex-col gap-1.5 mb-4 last:mb-0">
+              <div className="flex justify-between items-center text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
+                <span className="font-bold">Масштаб Світу</span>
+                <span className="font-mono font-black text-white bg-white/5 px-2 py-0.5 rounded text-[10px] sm:text-[9px] min-w-[36px] text-center">
+                  {worldScale.toFixed(1)}x
+                </span>
+              </div>
+              <input
+                type="range"
+                min={0.5}
+                max={5.0}
+                step={0.1}
+                value={worldScale}
+                onChange={(e) => onWorldScaleChange(parseFloat(e.target.value))}
+                className="w-full h-2 sm:h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:bg-white/20 transition-all touch-manipulation"
+              />
+            </div>
+          </section>
+
           {/* Секція 1: Фізика та системні параметри біосфери */}
           <section>
             <h3 className="text-[10px] sm:text-[9px] text-emerald-400 font-black uppercase tracking-[0.4em] mb-4 flex items-center gap-3">
@@ -186,8 +214,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine }) => {
                     key={quality}
                     onClick={() => applyPreset(quality)}
                     className={`h-9 rounded-lg text-[9px] font-bold transition-all duration-200 touch-manipulation ${config.graphicsQuality === quality
-                        ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
-                        : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
+                      ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                      : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
                       }`}
                   >
                     {quality === 'LOW' && '⚡ LOW'}

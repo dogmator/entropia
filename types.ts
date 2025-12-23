@@ -197,12 +197,141 @@ export interface PopulationSnapshot {
   readonly avgEnergy: number;
 }
 
+
 /** Структура порцій даних для динамічної візуалізації графіків. */
 export interface PopulationDataPoint {
   readonly time: number;
   readonly prey: number;
   readonly pred: number;
   readonly food?: number;
+}
+
+export type JsonPrimitive = string | number | boolean | null;
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+export interface JsonObject { [key: string]: JsonValue; }
+export type JsonArray = JsonValue[];
+
+export interface SerializedVector3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface SerializedGenomeBase {
+  id: string;
+  parentId: string | null;
+  generation: number;
+  color: number;
+  maxSpeed: number;
+  senseRadius: number;
+  metabolism: number;
+  size: number;
+  asymmetry: number;
+  spikiness: number;
+  glowIntensity: number;
+}
+
+export interface SerializedPreyGenome extends SerializedGenomeBase {
+  type: typeof EntityType.PREY;
+  flockingStrength: number;
+}
+
+export interface SerializedPredatorGenome extends SerializedGenomeBase {
+  type: typeof EntityType.PREDATOR;
+  subtype: PredatorSubtype;
+  attackPower: number;
+  packAffinity: number;
+}
+
+export type SerializedGenome = SerializedPreyGenome | SerializedPredatorGenome;
+
+export interface SerializedOrganism {
+  id: string;
+  type: typeof EntityType.PREY | typeof EntityType.PREDATOR;
+  position: SerializedVector3;
+  velocity: SerializedVector3;
+  acceleration: SerializedVector3;
+  radius: number;
+  energy: number;
+  age: number;
+  state: OrganismState;
+  isDead: boolean;
+  causeOfDeath: 'starvation' | 'predation' | 'old_age' | null;
+  trailEnabled: boolean;
+  parentOrganismId: string | null;
+  huntSuccessCount: number;
+  lastActiveAt: number;
+  genome: SerializedGenome;
+}
+
+export interface SerializedFood {
+  id: string;
+  position: SerializedVector3;
+  radius: number;
+  energyValue: number;
+  spawnTime: number;
+  consumed: boolean;
+}
+
+export interface SerializedObstacle {
+  id: string;
+  position: SerializedVector3;
+  radius: number;
+  color: number;
+  opacity: number;
+  isWireframe: boolean;
+}
+
+export interface SerializedEcologicalZone {
+  id: string;
+  type: ZoneType;
+  center: SerializedVector3;
+  radius: number;
+  foodMultiplier: number;
+  dangerMultiplier: number;
+}
+
+export interface SerializedGeneticTreeNode {
+  id: string;
+  parentId: string | null;
+  children: string[];
+  generation: number;
+  born: number;
+  died: number | null;
+  type: EntityType;
+  traits: {
+    speed: number;
+    sense: number;
+    size: number;
+  };
+}
+
+export interface SerializedSimulationStateV1 {
+  version: 1;
+  seed: number;
+  rngState: number;
+  tick: number;
+  counters: {
+    foodIdCounter: number;
+    obstacleIdCounter: number;
+    organismIdCounter: number;
+    genomeIdCounter: number;
+  };
+  stats: {
+    totalDeaths: number;
+    totalBirths: number;
+    maxAge: number;
+    maxGeneration: number;
+  };
+  config: SimulationConfig;
+  zones: SerializedEcologicalZone[];
+  obstacles: SerializedObstacle[];
+  food: SerializedFood[];
+  organisms: SerializedOrganism[];
+  geneticTree: {
+    roots: string[];
+    nodes: SerializedGeneticTreeNode[];
+  };
 }
 
 // ============================================================================
@@ -302,8 +431,40 @@ export interface GridEntity {
 }
 
 // ============================================================================
-// RENDER DATA — ОБ'ЄКТИ ПЕРЕДАЧІ ДАНИХ ВІЗУАЛІЗАЦІЇ
+// WEB WORKER & OPTIMIZATION TYPES (Low-level Data Transfer)
 // ============================================================================
+
+export interface RenderBuffers {
+  /**
+   * Flat Float32Array containing data for all PREY organisms.
+   * Stride: 13 floats per entity
+   * [0-2] position (x, y, z)
+   * [3-5] velocity (x, y, z)
+   * [6] radius
+   * [7] rotation (derived from velocity, placeholder if needed)
+   * [8] id (cast to float, potential precision loss if IDs are huge, but fine for local counters)
+   * [9-12] reserved / alignment
+   */
+  prey: Float32Array;
+  preyCount: number;
+
+  /**
+   * Flat Float32Array containing data for all PREDATOR organisms.
+   * Stride: 13 floats per entity
+   */
+  predators: Float32Array;
+  predatorCount: number;
+
+  /**
+   * Flat Float32Array containing data for all FOOD items.
+   * Stride: 4 floats per entity
+   * [0-2] position (x, y, z)
+   * [3] radius/scale (derived from radius)
+   */
+  food: Float32Array;
+  foodCount: number;
+}
+
 
 /**
  * Оптимізована структура даних для конфігурації InstancedMesh (GPU).
@@ -393,3 +554,23 @@ export interface GeneticTree {
   readonly roots: readonly GenomeId[];
   readonly maxGeneration: number;
 }
+
+/**
+ * Конфігурація фізичних параметрів світу, що підтримує масштабування.
+ */
+export interface WorldConfig {
+  /** Лінійна розмірність кубічного домену. */
+  readonly WORLD_SIZE: number;
+  /** Гранично допустима сумарна чисельність агентів. */
+  readonly MAX_TOTAL_ORGANISMS: number;
+  /** Початкова кількість травоїдних. */
+  readonly INITIAL_PREY: number;
+  /** Початкова кількість хижаків. */
+  readonly INITIAL_PREDATOR: number;
+  /** Максимальна кількість їжі. */
+  readonly MAX_FOOD: number;
+  /** Швидкість респавну їжі. */
+  readonly FOOD_SPAWN_RATE: number;
+}
+
+

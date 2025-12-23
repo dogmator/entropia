@@ -17,12 +17,14 @@ import {
   EcologicalZone,
   ZoneType,
   EntitySpawnedEvent,
-} from '../../types';
-import { WORLD_SIZE } from '../../constants';
+  WorldConfig, // Added
+} from '@/types.ts';
+import { WORLD_SIZE } from '@/constants.ts'; // We might still need this as default if optional, or remove if fully injected.
 import { Organism, Food, Obstacle, OrganismFactory } from '../Entity';
-import { EventBus } from '../../core/EventBus';
+import { EventBus } from '@/core/EventBus.ts';
 import { SpatialHashGrid } from '../SpatialHashGrid';
 import { MathUtils } from '../MathUtils';
+import { Random } from '@/core/utils/Random';
 
 // ============================================================================
 // ПЕРЕЛІКИ ТА ОБ'ЄКТИ КОНФІГУРАЦІЇ
@@ -90,21 +92,33 @@ const DEFAULT_SPAWN_CONFIG: SpawnConfig = {
  */
 export class SpawnService {
   private readonly config: SpawnConfig;
-  private readonly organismFactory: OrganismFactory = new OrganismFactory();
+  private readonly organismFactory: OrganismFactory;
+
+  private rand(): number {
+    return this.rng ? this.rng.next() : Math.random();
+  }
 
   constructor(
     private readonly eventBus: EventBus,
     private readonly spatialGrid: SpatialHashGrid,
     private readonly zones: Map<string, EcologicalZone>,
     private readonly obstacles: Map<string, Obstacle>,
-    config?: Partial<SpawnConfig>
+    private readonly rng?: Random,
+    config?: Partial<SpawnConfig>,
+    private readonly worldConfig?: WorldConfig // Added optional for now to avoid breaking tests if any
   ) {
     this.config = { ...DEFAULT_SPAWN_CONFIG, ...config };
+    this.organismFactory = new OrganismFactory(this.rng ?? Random.fromMath());
   }
 
   // ============================================================================
   // УПРАВЛІННЯ ОРГАНІЗМАМИ
   // ============================================================================
+
+  // Helper getter for WorldSize
+  private get worldSize(): number {
+    return this.worldConfig?.WORLD_SIZE ?? WORLD_SIZE;
+  }
 
   /**
    * Виконує створення та реєстрацію нового біологічного агента.
@@ -165,21 +179,21 @@ export class SpawnService {
     if (type === EntityType.PREY) {
       // Пріоритетне розселення травоїдних у заповідних зонах та біля джерел ресурсів
       const sanctuary = this.zones.get('sanctuary');
-      if (sanctuary && Math.random() < 0.4) {
+      if (sanctuary && this.rand() < 0.4) {
         return this.getPositionInZone(sanctuary);
       }
       const oasis = this.zones.get('oasis_center');
-      if (oasis && Math.random() < 0.4) {
+      if (oasis && this.rand() < 0.4) {
         return this.getPositionInZone(oasis);
       }
     } else {
       // Пріоритетне розселення хижаків у зонах активного полювання
       const huntingGround = this.zones.get('hunting_ground');
-      if (huntingGround && Math.random() < 0.4) {
+      if (huntingGround && this.rand() < 0.4) {
         return this.getPositionInZone(huntingGround);
       }
       const desert = this.zones.get('desert_0');
-      if (desert && Math.random() < 0.3) {
+      if (desert && this.rand() < 0.3) {
         return this.getPositionInZone(desert);
       }
     }
@@ -236,7 +250,7 @@ export class SpawnService {
    * Формування ресурсів з підвищеною щільністю в р-ні оазисів.
    */
   private getOasisPreferredPosition(): MutableVector3 | null {
-    if (Math.random() < 0.3) {
+    if (this.rand() < 0.3) {
       const oasis = this.zones.get('oasis_center');
       if (oasis) {
         const pos = this.getPositionInZone(oasis);
@@ -253,27 +267,28 @@ export class SpawnService {
    */
   private getClusteredPosition(): MutableVector3 | null {
     // Пошук існуючих енергетичних центрів через просторову сітку
+    const ws = this.worldSize;
     const nearbyEntities = this.spatialGrid.getNearby(
       {
-        x: Math.random() * WORLD_SIZE,
-        y: Math.random() * WORLD_SIZE,
-        z: Math.random() * WORLD_SIZE,
+        x: this.rand() * ws,
+        y: this.rand() * ws,
+        z: this.rand() * ws,
       },
       50
     );
 
     const foodEntities = Array.from(nearbyEntities).filter(e => e.type === EntityType.FOOD);
     if (foodEntities.length > 0) {
-      const target = foodEntities[Math.floor(Math.random() * foodEntities.length)];
+      const target = foodEntities[Math.floor(this.rand() * foodEntities.length)];
       // Розрахунок позиції у безпосередній близькості до знайденого об'єкта
-      const angle = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 5 + Math.random() * 15;
+      const angle = this.rand() * Math.PI * 2;
+      const phi = Math.acos(2 * this.rand() - 1);
+      const r = 5 + this.rand() * 15;
 
       const pos: MutableVector3 = {
-        x: MathUtils.wrap(target.position.x + r * Math.sin(phi) * Math.cos(angle)),
-        y: MathUtils.wrap(target.position.y + r * Math.sin(phi) * Math.sin(angle)),
-        z: MathUtils.wrap(target.position.z + r * Math.cos(phi)),
+        x: MathUtils.wrap(target.position.x + r * Math.sin(phi) * Math.cos(angle), ws),
+        y: MathUtils.wrap(target.position.y + r * Math.sin(phi) * Math.sin(angle), ws),
+        z: MathUtils.wrap(target.position.z + r * Math.cos(phi), ws),
       };
 
       if (this.isValidPosition(pos, 5)) {
@@ -293,10 +308,11 @@ export class SpawnService {
    */
   private getRandomValidPosition(minDistance: number): MutableVector3 | null {
     for (let attempt = 0; attempt < this.config.maxSpawnAttempts; attempt++) {
+      const ws = this.worldSize;
       const pos: MutableVector3 = {
-        x: Math.random() * WORLD_SIZE,
-        y: Math.random() * WORLD_SIZE,
-        z: Math.random() * WORLD_SIZE,
+        x: this.rand() * ws,
+        y: this.rand() * ws,
+        z: this.rand() * ws,
       };
 
       if (this.isValidPosition(pos, minDistance)) {
@@ -311,17 +327,18 @@ export class SpawnService {
    * Формування координат на основі регулярної дискретної сітки.
    */
   private getUniformPosition(): MutableVector3 | null {
+    const ws = this.worldSize;
     const gridSize = 10;
-    const cellSize = WORLD_SIZE / gridSize;
+    const cellSize = ws / gridSize;
 
-    const cellX = Math.floor(Math.random() * gridSize);
-    const cellY = Math.floor(Math.random() * gridSize);
-    const cellZ = Math.floor(Math.random() * gridSize);
+    const cellX = Math.floor(this.rand() * gridSize);
+    const cellY = Math.floor(this.rand() * gridSize);
+    const cellZ = Math.floor(this.rand() * gridSize);
 
     const pos: MutableVector3 = {
-      x: cellX * cellSize + Math.random() * cellSize,
-      y: cellY * cellSize + Math.random() * cellSize,
-      z: cellZ * cellSize + Math.random() * cellSize,
+      x: cellX * cellSize + this.rand() * cellSize,
+      y: cellY * cellSize + this.rand() * cellSize,
+      z: cellZ * cellSize + this.rand() * cellSize,
     };
 
     if (this.isValidPosition(pos, 5)) {
@@ -336,9 +353,9 @@ export class SpawnService {
    */
   private getPositionInZone(zone: EcologicalZone): MutableVector3 | null {
     for (let attempt = 0; attempt < 20; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = Math.random() * zone.radius;
+      const angle = this.rand() * Math.PI * 2;
+      const phi = Math.acos(2 * this.rand() - 1);
+      const r = this.rand() * zone.radius;
 
       const pos: MutableVector3 = {
         x: zone.center.x + r * Math.sin(phi) * Math.cos(angle),
@@ -346,9 +363,9 @@ export class SpawnService {
         z: zone.center.z + r * Math.cos(phi),
       };
 
-      pos.x = MathUtils.wrap(pos.x);
-      pos.y = MathUtils.wrap(pos.y);
-      pos.z = MathUtils.wrap(pos.z);
+      pos.x = MathUtils.wrap(pos.x, this.worldSize);
+      pos.y = MathUtils.wrap(pos.y, this.worldSize);
+      pos.z = MathUtils.wrap(pos.z, this.worldSize);
 
       if (this.isValidPosition(pos, this.config.minOrganismDistance)) {
         return pos;
@@ -363,10 +380,7 @@ export class SpawnService {
    */
   private isValidPosition(pos: Vector3, minDistance: number): boolean {
     for (const obstacle of this.obstacles.values()) {
-      const dx = pos.x - obstacle.position.x;
-      const dy = pos.y - obstacle.position.y;
-      const dz = pos.z - obstacle.position.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const distSq = MathUtils.toroidalDistanceSq(pos, obstacle.position, this.worldSize);
       const minDistSq = (obstacle.radius + minDistance) ** 2;
 
       if (distSq < minDistSq) {

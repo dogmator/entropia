@@ -139,6 +139,10 @@ export class EventBus {
    */
   clear(): void {
     this.listeners.clear();
+    this.clearHistory();
+  }
+
+  clearHistory(): void {
     this.eventHistory.length = 0;
   }
 
