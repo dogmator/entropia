@@ -1,11 +1,11 @@
 /**
- * Entropia 3D — Система Поведінки
+ * Entropia 3D — Система моделювання поведінки об'єктів (Behavior System).
  *
- * Відповідальність: AI та поведінка організмів
- * - Boids алгоритм (separation, alignment, cohesion)
- * - Steering behaviors (seek, flee, avoid)
- * - Виявлення цілей та загроз
- * - Модифікатори від екологічних зон
+ * Відповідає за когнітивне моделювання біологічних агентів та розрахунок векторів керування (Steering Behaviors):
+ * - Класичний алгоритм Рейнольдса (Boids): сепарація, вирівнювання, когезія.
+ * - Адаптивні стратегії: переслідування цілі (Seek), втеча від загрози (Flee), ухилення (Avoid).
+ * - Сенсорна обробка оточення для ідентифікації ресурсів та хижаків.
+ * - Модуляція поведінки залежно від параметрів екологічних зон.
  */
 
 import { Organism } from '../Entity';
@@ -13,19 +13,22 @@ import { EntityType, Vector3, EcologicalZone, SimulationConfig, OrganismState } 
 import { SpatialHashGrid } from '../SpatialHashGrid';
 
 /**
- * Константи поведінки
+ * Константи параметрів поведінкової динаміки.
  */
 const SEPARATION_RADIUS = 18;
 const OBSTACLE_AVOIDANCE_DISTANCE = 25;
 
 /**
- * Модифікатори від зони
+ * Дескриптор модифікаторів поведінки в межах біома.
  */
 interface ZoneModifiers {
   seekMultiplier: number;
   dangerMultiplier: number;
 }
 
+/**
+ * Клас, що реалізує інтелектуальний рівень симуляції.
+ */
 export class BehaviorSystem {
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
@@ -34,7 +37,7 @@ export class BehaviorSystem {
   ) { }
 
   /**
-   * Оновити поведінку всіх організмів
+   * Оновлення поведінкових векторів для всієї популяції.
    */
   update(organisms: Map<string, Organism>): void {
     organisms.forEach(organism => {
@@ -45,12 +48,12 @@ export class BehaviorSystem {
   }
 
   /**
-   * Застосувати поведінкові сили до організму
+   * Розрахунок та застосування сумарних сил впливу на конкретний організм.
    */
   private applyBehaviors(org: Organism): void {
     const neighbors = this.spatialGrid.getNearby(org.position, org.genome.senseRadius);
 
-    // Накопичувачі сил
+    // Акумулятори векторних сил
     const forces = {
       separation: { x: 0, y: 0, z: 0, count: 0 },
       seek: { x: 0, y: 0, z: 0 },
@@ -63,7 +66,7 @@ export class BehaviorSystem {
     let targetPos: Vector3 | null = null;
     let newState: OrganismState = 'IDLE';
 
-    // Обробити всіх сусідів
+    // Аналіз об'єктів у радіусі сенсорного сприйняття
     for (const n of neighbors) {
       if (n.id === org.id) continue;
 
@@ -75,7 +78,7 @@ export class BehaviorSystem {
 
       if (dist < 0.001) continue;
 
-      // Уникання перешкод
+      // Опрацювання просторових аномалій (перешкод)
       if (n.type === EntityType.OBSTACLE) {
         if (dist < n.radius + org.radius + OBSTACLE_AVOIDANCE_DISTANCE) {
           const force = 1 / (dist * dist);
@@ -86,7 +89,7 @@ export class BehaviorSystem {
         continue;
       }
 
-      // Сепарація
+      // Розрахунок сили сепарації (запобігання скупченню)
       if (dist < SEPARATION_RADIUS) {
         const force = (SEPARATION_RADIUS - dist) / SEPARATION_RADIUS;
         forces.separation.x -= (dx / dist) * force;
@@ -95,7 +98,7 @@ export class BehaviorSystem {
         forces.separation.count++;
       }
 
-      // Поведінка травоїдних
+      // Специфічна логіка для трофічного рівня травоїдних
       if (org.isPrey) {
         if (n.type === EntityType.FOOD && dist < closestTargetDist) {
           closestTargetDist = dist;
@@ -110,7 +113,7 @@ export class BehaviorSystem {
         }
       }
 
-      // Поведінка хижаків
+      // Специфічна логіка для трофічного рівня хижаків
       if (org.isPredator) {
         if (n.type === EntityType.PREY && dist < closestTargetDist) {
           closestTargetDist = dist;
@@ -120,21 +123,21 @@ export class BehaviorSystem {
       }
     }
 
-    // Застосувати зони
+    // Отримання екологічних коефіцієнтів поточної локації
     const zoneModifier = this.getZoneModifier(org.position, org.type);
 
-    // Застосувати сили
+    // Застосування результуючих сил до вектора прискорення
     this.applySeparation(org, forces.separation, forces.separation.count);
     this.applySeek(org, forces.seek, targetPos, zoneModifier);
     this.applyFlee(org, forces.flee);
     this.applyObstacleAvoidance(org, forces.obstacle);
 
-    // Оновити стан
+    // Актуалізація внутрішнього стану агента
     org.updateState(newState);
   }
 
   /**
-   * Застосувати силу сепарації
+   * Застосування сили сепарації (відштовхування сусідів).
    */
   private applySeparation(org: Organism, sep: { x: number; y: number; z: number }, count: number): void {
     if (count === 0) return;
@@ -148,7 +151,7 @@ export class BehaviorSystem {
   }
 
   /**
-   * Застосувати силу пошуку
+   * Застосування сили переслідування цілі (Seek).
    */
   private applySeek(org: Organism, seek: { x: number; y: number; z: number }, target: Vector3 | null, mod: ZoneModifiers): void {
     if (!target) return;
@@ -167,7 +170,7 @@ export class BehaviorSystem {
   }
 
   /**
-   * Застосувати силу втечі
+   * Застосування сили втечі від загрози (Flee).
    */
   private applyFlee(org: Organism, flee: { x: number; y: number; z: number }): void {
     const mag = Math.sqrt(flee.x * flee.x + flee.y * flee.y + flee.z * flee.z);
@@ -179,7 +182,7 @@ export class BehaviorSystem {
   }
 
   /**
-   * Застосувати силу уникання перешкод
+   * Застосування сили ухилення від статичних об'єктів.
    */
   private applyObstacleAvoidance(org: Organism, obs: { x: number; y: number; z: number }): void {
     const mag = Math.sqrt(obs.x * obs.x + obs.y * obs.y + obs.z * obs.z);
@@ -191,7 +194,7 @@ export class BehaviorSystem {
   }
 
   /**
-   * Отримати модифікатори зони
+   * Розрахунок агрегованих модифікаторів біома для поточної локації.
    */
   private getZoneModifier(pos: Vector3, type: EntityType): ZoneModifiers {
     let seekMultiplier = 1;

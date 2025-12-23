@@ -1,46 +1,53 @@
-
 /**
- * Асинхронний логер для розробки.
- * Допомагає не забивати основний потік (hot path) важкими операціями виводу,
- * та автоматично вимикається в production.
+ * Entropia 3D — Утиліта для асинхронного ведення логів.
+ *
+ * Реалізує механізм неблокуючого виводу діагностичних повідомлень
+ * за допомогою мікрозадач (queueMicrotask), що мінімізує вплив на
+ * основний розрахунковий цикл симуляції.
  */
-
-class Logger {
-    private static isDev = (import.meta as any).env?.DEV;
-
+export class Logger {
     /**
-     * Лог для дебагу. Працює тільки в DEV режимі.
-     * Виконується асинхронно через queueMicrotask або setTimeout.
+     * Формування часової мітки у форматі ISO.
      */
-    public static debug(message: string, ...args: any[]): void {
-        if (!this.isDev) return;
-
-        // Використовуємо setTimeout(0) для винесення логу з поточного кадру анімації
-        setTimeout(() => {
-            console.log(`%c[DEBUG]%c ${message}`, 'color: #10b981; font-weight: bold;', 'color: inherit;', ...args);
-        }, 0);
+    private static getTimestamp(): string {
+        return new Date().toISOString();
     }
 
     /**
-     * Попередження. Працює завжди в DEV, в PROD може бути обмежений.
+     * Допоміжний метод для безпечного формування аргументів логування.
      */
-    public static warn(message: string, ...args: any[]): void {
-        if (!this.isDev) return;
-
-        setTimeout(() => {
-            console.warn(`[WARN] ${message}`, ...args);
-        }, 0);
+    private static formatArgs(tag: string, message: unknown, ...args: unknown[]): unknown[] {
+        const timestamp = `[${tag}] [${this.getTimestamp()}]`;
+        if (typeof message === 'string') {
+            return [`${timestamp} ${message}`, ...args];
+        }
+        return [timestamp, message, ...args];
     }
 
     /**
-     * Помилка.
+     * Реєстрація повідомлення рівня відладки (Debug).
      */
-    public static error(message: string, ...args: any[]): void {
-        // Помилки логуємо завжди, але асинхронно
-        setTimeout(() => {
-            console.error(`[ERROR] ${message}`, ...args);
-        }, 0);
+    static debug(message: unknown, ...args: unknown[]): void {
+        queueMicrotask(() => {
+            console.log(...this.formatArgs('DEBUG', message, ...args));
+        });
+    }
+
+    /**
+     * Реєстрація попередження (Warning).
+     */
+    static warn(message: unknown, ...args: unknown[]): void {
+        queueMicrotask(() => {
+            console.warn(...this.formatArgs('ПОПЕРЕДЖЕННЯ', message, ...args));
+        });
+    }
+
+    /**
+     * Реєстрація помилки (Error).
+     */
+    static error(message: unknown, ...args: unknown[]): void {
+        queueMicrotask(() => {
+            console.error(...this.formatArgs('ПОМИЛКА', message, ...args));
+        });
     }
 }
-
-export default Logger;

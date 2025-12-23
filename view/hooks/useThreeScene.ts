@@ -1,12 +1,12 @@
 /**
- * Hook для ініціалізації Three.js сцени
- *
- * Створює та налаштовує:
- * - Scene з background
- * - PerspectiveCamera
- * - WebGLRenderer з tone mapping
- * - OrbitControls
- * - Освітлення
+ * Спеціалізований програмний інтерфейс (хук) для ініціалізації та конфігурації графічного контексту Three.js.
+ * 
+ * Забезпечує створення та налаштування базової 3D-інфраструктури:
+ * - Графічна сцена з параметризованим фоном
+ * - Перспективна камера (PerspectiveCamera) з динамічними параметрами огляду
+ * - Рендерер WebGL із застосуванням методів тонального відображення (tone mapping)
+ * - Контролери орбітального управління (OrbitControls)
+ * - Багатокомпонентна система освітлення
  */
 
 import { useEffect, useState } from 'react';
@@ -27,11 +27,11 @@ export function useThreeScene(container: HTMLDivElement | null) {
   useEffect(() => {
     if (!container) return;
 
-    // Scene
+    // Ініціалізація графічної сцени та встановлення фонового кольору
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x020205);
 
-    // Camera
+    // Конфігурація перспективної камери
     const camera = new THREE.PerspectiveCamera(
       60,
       window.innerWidth / window.innerHeight,
@@ -40,7 +40,7 @@ export function useThreeScene(container: HTMLDivElement | null) {
     );
     camera.position.set(WORLD_SIZE * 1.2, WORLD_SIZE * 1.0, WORLD_SIZE * 1.2);
 
-    // Renderer
+    // Параметризація рендерера WebGL для забезпечення високої продуктивності
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -52,7 +52,7 @@ export function useThreeScene(container: HTMLDivElement | null) {
     renderer.toneMappingExposure = 1.2;
     container.appendChild(renderer.domElement);
 
-    // Controls
+    // Налаштування механізмів інтерактивного управління камерою
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.target.set(WORLD_SIZE / 2, WORLD_SIZE / 2, WORLD_SIZE / 2);
     controls.enableDamping = true;
@@ -60,7 +60,7 @@ export function useThreeScene(container: HTMLDivElement | null) {
     controls.minDistance = 100;
     controls.maxDistance = WORLD_SIZE * 3;
 
-    // Освітлення
+    // Формування комплексу джерел освітлення
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
     scene.add(ambientLight);
 
@@ -74,7 +74,9 @@ export function useThreeScene(container: HTMLDivElement | null) {
 
     setSceneData({ scene, camera, renderer, controls });
 
-    // Resize handler
+    /**
+     * Обробник події зміни розмірів вікна для адаптації параметрів рендерингу.
+     */
     const handleResize = () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -82,7 +84,9 @@ export function useThreeScene(container: HTMLDivElement | null) {
     };
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
+    /**
+     * Термінальна функція для вивільнення системних ресурсів та очищення DOM.
+     */
     return () => {
       window.removeEventListener('resize', handleResize);
       renderer.dispose();

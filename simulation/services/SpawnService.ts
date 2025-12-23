@@ -1,11 +1,11 @@
 /**
- * Entropia 3D — SpawnService
+ * Entropia 3D — Сервіс керування популяційними потоками (SpawnService).
  *
- * Централізований сервіс для spawn-логіки з:
- * - Інтелектуальним розміщенням організмів
- * - Урахуванням екологічних зон
- * - Запобіганням оверлапу з перешкодами
- * - Підтримкою різних стратегій спавну
+ * Централізований компонент, відповідальний за ініціалізацію та реплікацію об'єктів:
+ * - Розрахунок оптимальних просторових координат для нових агентів.
+ * - Врахування екологічної структури середовища (біоми та зони).
+ * - Контроль просторових колізій з існуючими перешкодами.
+ * - Реалізація гнучких стратегій розселення видів.
  */
 
 import {
@@ -25,53 +25,53 @@ import { SpatialHashGrid } from '../SpatialHashGrid';
 import { MathUtils } from '../MathUtils';
 
 // ============================================================================
-// ТИПИ
+// ПЕРЕЛІКИ ТА ОБ'ЄКТИ КОНФІГУРАЦІЇ
 // ============================================================================
 
 /**
- * Стратегія спавну їжі
+ * Стратегії просторового розподілу енергетичних субстратів (їжі).
  */
 export enum FoodSpawnStrategy {
-  /** Випадкове розміщення */
+  /** Стохастичне рівномірне розміщення по всьому об'єму. */
   RANDOM = 'random',
-  /** Переважно в оазисах (30% ймовірність) */
+  /** Пріоритетне розміщення в оазисах (висока ймовірність концентрації). */
   OASIS_PREFERRED = 'oasis_preferred',
-  /** Кластерне розміщення */
+  /** Формування локальних кластерів (агреговане розселення). */
   CLUSTERED = 'clustered',
-  /** Рівномірний розподіл */
+  /** Регулярне (сіткове) розміщення. */
   UNIFORM = 'uniform',
 }
 
 /**
- * Стратегія спавну організмів
+ * Стратегії територіальної експансії біологічних агентів.
  */
 export enum OrganismSpawnStrategy {
-  /** Випадкове розміщення */
+  /** Випадкова ініціалізація позиції. */
   RANDOM = 'random',
-  /** Жертви в безпечних зонах, хижаки навколо */
+  /** Екологічно детерміноване розселення (жертви — у безпечних зонах, хижаки — у мисливських угіддях). */
   ECOLOGICAL = 'ecological',
-  /** Рівномірний розподіл */
+  /** Рівномірне заповнення простору. */
   UNIFORM = 'uniform',
 }
 
 /**
- * Конфігурація SpawnService
+ * Параметри конфігурації сервісу ініціалізації.
  */
 export interface SpawnConfig {
-  /** Стратегія спавну їжі */
+  /** Обрана модель розподілу їжі. */
   foodStrategy: FoodSpawnStrategy;
-  /** Стратегія спавну організмів */
+  /** Обрана модель розселення організмів. */
   organismStrategy: OrganismSpawnStrategy;
-  /** Мінімальна дистанція від перешкод */
+  /** Мінімально допустима дистанція до структурних аномалій. */
   minObstacleDistance: number;
-  /** Мінімальна дистанція між організмами при spawn */
+  /** Поріг просторового розмежування між агентами при ініціалізації. */
   minOrganismDistance: number;
-  /** Максимум спроб знайти валідну позицію */
+  /** Гранична кількість ітерацій пошуку валідної локації. */
   maxSpawnAttempts: number;
 }
 
 /**
- * Дефолтна конфігурація
+ * Значення конфігурації за замовчуванням (базова налаштування середовища).
  */
 const DEFAULT_SPAWN_CONFIG: SpawnConfig = {
   foodStrategy: FoodSpawnStrategy.OASIS_PREFERRED,
@@ -82,9 +82,12 @@ const DEFAULT_SPAWN_CONFIG: SpawnConfig = {
 };
 
 // ============================================================================
-// SPAWN SERVICE
+// РЕАЛІЗАЦІЯ СЕРВІСУ (SPAWN SERVICE)
 // ============================================================================
 
+/**
+ * Клас, що інкапсулює логіку наповнення світу об'єктами.
+ */
 export class SpawnService {
   private readonly config: SpawnConfig;
   private readonly organismFactory: OrganismFactory = new OrganismFactory();
@@ -100,11 +103,11 @@ export class SpawnService {
   }
 
   // ============================================================================
-  // SPAWN ОРГАНІЗМІВ
+  // УПРАВЛІННЯ ОРГАНІЗМАМИ
   // ============================================================================
 
   /**
-   * Створити новий організм
+   * Виконує створення та реєстрацію нового біологічного агента.
    */
   spawnOrganism(
     type: EntityType,
@@ -126,7 +129,7 @@ export class SpawnService {
       organism = this.organismFactory.createPredator(position.x, position.y, position.z);
     }
 
-    // Відправити подію
+    // Трансляція події про успішне створення сутності
     this.eventBus.emit({
       type: 'EntitySpawned',
       entityType: organism.type,
@@ -139,7 +142,7 @@ export class SpawnService {
   }
 
   /**
-   * Отримати позицію для спавну організму
+   * Розрахунок оптимальної локації для спавну згідно з обраною стратегією.
    */
   private getOrganismSpawnPosition(type: EntityType): MutableVector3 | null {
     switch (this.config.organismStrategy) {
@@ -156,11 +159,11 @@ export class SpawnService {
   }
 
   /**
-   * Екологічна позиція (жертви в sanctuary, хижаки навколо)
+   * Визначення позиції на основі екологічних уподобань виду.
    */
   private getEcologicalPosition(type: EntityType): MutableVector3 | null {
     if (type === EntityType.PREY) {
-      // Жертви переважно в sanctuary або біля oasis
+      // Пріоритетне розселення травоїдних у заповідних зонах та біля джерел ресурсів
       const sanctuary = this.zones.get('sanctuary');
       if (sanctuary && Math.random() < 0.4) {
         return this.getPositionInZone(sanctuary);
@@ -170,7 +173,7 @@ export class SpawnService {
         return this.getPositionInZone(oasis);
       }
     } else {
-      // Хижаки переважно в hunting_ground або в пустелі
+      // Пріоритетне розселення хижаків у зонах активного полювання
       const huntingGround = this.zones.get('hunting_ground');
       if (huntingGround && Math.random() < 0.4) {
         return this.getPositionInZone(huntingGround);
@@ -181,16 +184,16 @@ export class SpawnService {
       }
     }
 
-    // Fallback до випадкової валідної позиції
+    // Резервний варіант: випадкова валідна позиція
     return this.getRandomValidPosition(this.config.minOrganismDistance);
   }
 
   // ============================================================================
-  // SPAWN ЇЖІ
+  // УПРАВЛІННЯ РЕСУРСНИМИ ОДИНИЦЯМИ (ЇЖЕЮ)
   // ============================================================================
 
   /**
-   * Створити їжу
+   * Ініціалізація створення об'єкта їжі.
    */
   spawnFood(foodIdCounter: number): Food | null {
     const position = this.getFoodSpawnPosition();
@@ -198,7 +201,7 @@ export class SpawnService {
 
     const food = Food.create(foodIdCounter, position.x, position.y, position.z);
 
-    // Відправити подію
+    // Нотифікація системи про появу нового ресурсу
     this.eventBus.emit({
       type: 'EntitySpawned',
       entityType: EntityType.FOOD,
@@ -210,7 +213,7 @@ export class SpawnService {
   }
 
   /**
-   * Отримати позицію для спавну їжі
+   * Визначення локації для розміщення їжі згідно зі стратегією.
    */
   private getFoodSpawnPosition(): MutableVector3 | null {
     switch (this.config.foodStrategy) {
@@ -230,7 +233,7 @@ export class SpawnService {
   }
 
   /**
-   * Позиція з перевагою оазису (30% ймовірність)
+   * Формування ресурсів з підвищеною щільністю в р-ні оазисів.
    */
   private getOasisPreferredPosition(): MutableVector3 | null {
     if (Math.random() < 0.3) {
@@ -246,10 +249,10 @@ export class SpawnService {
   }
 
   /**
-   * Кластерна позиція (близько до існуючої їжі)
+   * Створення нових ресурсів поблизу вже існуючих (кластерний ефект).
    */
   private getClusteredPosition(): MutableVector3 | null {
-    // Знайти випадкову їжу в просторовій сітці
+    // Пошук існуючих енергетичних центрів через просторову сітку
     const nearbyEntities = this.spatialGrid.getNearby(
       {
         x: Math.random() * WORLD_SIZE,
@@ -262,7 +265,7 @@ export class SpawnService {
     const foodEntities = Array.from(nearbyEntities).filter(e => e.type === EntityType.FOOD);
     if (foodEntities.length > 0) {
       const target = foodEntities[Math.floor(Math.random() * foodEntities.length)];
-      // Spawn поблизу
+      // Розрахунок позиції у безпосередній близькості до знайденого об'єкта
       const angle = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const r = 5 + Math.random() * 15;
@@ -278,16 +281,15 @@ export class SpawnService {
       }
     }
 
-    // Fallback
     return this.getRandomValidPosition(5);
   }
 
   // ============================================================================
-  // ДОПОМІЖНІ МЕТОДИ
+  // ТЕХНІЧНІ ТА ВАЛІДАЦІЙНІ МЕТОДИ
   // ============================================================================
 
   /**
-   * Отримати випадкову валідну позицію
+   * Генерація випадкових координат із багаторазовими перевірками на валідність.
    */
   private getRandomValidPosition(minDistance: number): MutableVector3 | null {
     for (let attempt = 0; attempt < this.config.maxSpawnAttempts; attempt++) {
@@ -302,23 +304,20 @@ export class SpawnService {
       }
     }
 
-    console.warn('SpawnService: Не вдалося знайти валідну позицію після максимуму спроб');
     return null;
   }
 
   /**
-   * Отримати рівномірну позицію (grid-based)
+   * Формування координат на основі регулярної дискретної сітки.
    */
   private getUniformPosition(): MutableVector3 | null {
     const gridSize = 10;
     const cellSize = WORLD_SIZE / gridSize;
 
-    // Випадкова комірка
     const cellX = Math.floor(Math.random() * gridSize);
     const cellY = Math.floor(Math.random() * gridSize);
     const cellZ = Math.floor(Math.random() * gridSize);
 
-    // Випадкова позиція в комірці
     const pos: MutableVector3 = {
       x: cellX * cellSize + Math.random() * cellSize,
       y: cellY * cellSize + Math.random() * cellSize,
@@ -329,12 +328,11 @@ export class SpawnService {
       return pos;
     }
 
-    // Fallback
     return this.getRandomValidPosition(5);
   }
 
   /**
-   * Отримати позицію в зоні
+   * Генерація точки всередині заданого сферичного об'єму (біома).
    */
   private getPositionInZone(zone: EcologicalZone): MutableVector3 | null {
     for (let attempt = 0; attempt < 20; attempt++) {
@@ -348,7 +346,6 @@ export class SpawnService {
         z: zone.center.z + r * Math.cos(phi),
       };
 
-      // Wrap around
       pos.x = MathUtils.wrap(pos.x);
       pos.y = MathUtils.wrap(pos.y);
       pos.z = MathUtils.wrap(pos.z);
@@ -362,10 +359,9 @@ export class SpawnService {
   }
 
   /**
-   * Перевірити чи позиція валідна (не всередині перешкоди)
+   * Валідація точки на предмет колізій із просторовими аномаліями.
    */
   private isValidPosition(pos: Vector3, minDistance: number): boolean {
-    // Перевірка перешкод
     for (const obstacle of this.obstacles.values()) {
       const dx = pos.x - obstacle.position.x;
       const dy = pos.y - obstacle.position.y;
@@ -382,14 +378,14 @@ export class SpawnService {
   }
 
   /**
-   * Скинути лічильники фабрики
+   * Повне скидання внутрішнього стану фабрик організмів.
    */
   resetFactory(): void {
     this.organismFactory.reset();
   }
 
   /**
-   * Отримати фабрику організмів
+   * Доступ до екземпляра фабрики для зовнішніх маніпуляцій.
    */
   getFactory(): OrganismFactory {
     return this.organismFactory;
