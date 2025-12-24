@@ -20,13 +20,494 @@
 
 ## 🧩 Що можна покращити
 
-- 🚀 **Продуктивність**: оптимізація рендерингу (instancing), більш агресивне culling, рознесення важких обчислень у Web Workers.
+- 🚀 **Продуктивність**: оптимізація рендерингу (instancing), більш агресивне culling, рознесення важких обчислень у Web Workers, PWA з Service Workers для кешування.
 - 🧬 **Еволюційні механіки**: складніші правила розмноження/мутацій, нішування, сезонність та зміни середовища.
-- 🧠 **Поведінка / ШІ**: інтеграція підходів з секції аналізу (NEAT/RL), навчання на локальних спостереженнях, “зір” через raycasting.
+- 🧠 **Поведінка / ШІ**: інтеграція підходів з секції аналізу (NEAT/RL), навчання на локальних спостереженнях, "зір" через raycasting.
 - 📊 **Аналітика**: історія популяції, графіки по поколіннях, експорт метрик (JSON/CSV), відтворення сесій.
 - 💾 **Збереження стану**: save/load світу, пресети параметрів симуляції, shareable seeds.
 - 🎛️ **UI/UX**: панель параметрів (швидкість, ентропія, популяції), гарячі клавіші, туторіал.
-- 🧪 **Якість**: базові юніт-тести на ядро симуляції, інтеграційні тести, лінтинг/форматер.
+- 🧪 **Якість**: базові юніт-тести на ядро симуляції, інтеграційні тести, лінтінг/форматер.
+
+---
+
+## ⚡ Оптимізація продуктивності через Workers
+
+### 🧵 Web Workers: Багатопотоковість для важких обчислень
+
+**Web Workers** дозволяють виконувати JavaScript-код у фонових потоках, звільняючи головний потік від важких обчислень та забезпечуючи плавність рендерингу на рівні 60 FPS навіть при складних симуляціях.
+
+#### 📦 Що можна перенести у Web Workers в Entropia 3D:
+
+1. **Розрахунок фізики та колізій**
+   - Spatial hashing (розподіл агентів по комірках сітки)
+   - Перевірка колізій між організмами
+   - Розрахунок сил відштовхування від аномалій
+   - Обчислення траєкторій руху
+
+2. **Генетичні алгоритми**
+   - Розрахунок fitness для кожного організму
+   - Відбір найкращих особин (selection)
+   - Схрещування геномів (crossover)
+   - Мутації генетичного коду
+
+3. **Нейронні мережі та ШІ**
+   - Інференс NEAT/Neataptic моделей
+   - Прийняття рішень для сотень агентів одночасно
+   - Raycasting для симуляції "зору"
+
+4. **Аналітика та статистика**
+   - Збір метрик по популяціях
+   - Обчислення гістограм та трендів
+   - Експорт даних у JSON/CSV
+
+#### 🏗️ Архітектурні підходи:
+
+**Варіант 1: Один Worker для всієї симуляції**
+```typescript
+// src/workers/simulation.worker.ts
+self.onmessage = (e) => {
+  const { agents, crystals, anomalies, deltaTime } = e.data;
+
+  // Виконуємо всю логіку симуляції
+  const updatedAgents = updatePhysics(agents, deltaTime);
+  const collisions = detectCollisions(updatedAgents, crystals, anomalies);
+  const newGeneration = evolvePopulation(updatedAgents);
+
+  // Повертаємо тільки оновлені позиції та стани
+  self.postMessage({
+    agents: newGeneration,
+    stats: calculateStats(newGeneration)
+  });
+};
+```
+
+**Переваги:** Простота архітектури, немає синхронізації між воркерами
+**Недоліки:** Обмеження одним CPU-ядром, можливі затримки при великих популяціях
+
+**Варіант 2: Пул воркерів (Thread Pool)**
+```typescript
+// src/core/WorkerPool.ts
+class SimulationWorkerPool {
+  private workers: Worker[] = [];
+  private taskQueue: Task[] = [];
+
+  constructor(size: number = navigator.hardwareConcurrency || 4) {
+    for (let i = 0; i < size; i++) {
+      this.workers.push(new Worker('/workers/physics.worker.js'));
+    }
+  }
+
+  async processAgentBatch(agents: Agent[]): Promise<Agent[]> {
+    const batchSize = Math.ceil(agents.length / this.workers.length);
+    const promises = this.workers.map((worker, i) => {
+      const batch = agents.slice(i * batchSize, (i + 1) * batchSize);
+      return this.sendTask(worker, batch);
+    });
+
+    const results = await Promise.all(promises);
+    return results.flat();
+  }
+}
+```
+
+**Переваги:** Максимальне використання CPU, масштабованість до тисяч агентів
+**Недоліки:** Складність синхронізації, overhead на комунікацію
+
+**Варіант 3: Спеціалізовані воркери**
+```
+Main Thread          Physics Worker       AI Worker         Analytics Worker
+    │                      │                   │                    │
+    ├──[positions]────────>│                   │                    │
+    │                      ├─[collisions]──────┤                    │
+    │                      │                   ├─[decisions]────────┤
+    │<─────────────────────┴───────────────────┴────[stats]─────────┤
+```
+
+**Переваги:** Чітке розділення відповідальності, оптимізація під конкретні задачі
+**Недоліки:** Більше коду, потребує ретельного проектування потоків даних
+
+#### 📡 Оптимізація комунікації Main ↔ Worker:
+
+**Проблема:** `postMessage()` створює копію даних (structured clone), що повільно для великих масивів.
+
+**Рішення: Transferable Objects**
+```typescript
+// Замість копіювання — передаємо ownership
+const positions = new Float32Array(agents.length * 3);
+// ... заповнюємо позиції
+
+worker.postMessage(
+  { positions, count: agents.length },
+  [positions.buffer] // ⚡ Zero-copy transfer!
+);
+```
+
+**Рішення: SharedArrayBuffer (для синхронного доступу)**
+```typescript
+// Спільна пам'ять між Main та Workers
+const sharedBuffer = new SharedArrayBuffer(agents.length * 4 * 10);
+const sharedArray = new Float32Array(sharedBuffer);
+
+// Main thread: читає позиції
+const x = Atomics.load(sharedArray, agentId * 10 + 0);
+
+// Worker: записує швидкість
+Atomics.store(sharedArray, agentId * 10 + 3, velocityX);
+```
+
+**Увага:** Потребує HTTPS та правильних заголовків:
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+#### 🎯 Практичний план імплементації для Entropia:
+
+1. **Фаза 1 (швидкий win):** Винести genetic algorithm у окремий Worker
+   - Файл: `src/workers/evolution.worker.ts`
+   - Переносимо: selection, crossover, mutation
+   - Очікуваний ефект: +15-20 FPS при розмноженні
+
+2. **Фаза 2 (середня складність):** Spatial hashing та collision detection
+   - Файл: `src/workers/physics.worker.ts`
+   - Переносимо: updateSpatialGrid(), checkCollisions()
+   - Очікуваний ефект: +25-30 FPS при 500+ агентах
+
+3. **Фаза 3 (складна):** NEAT neural networks inference
+   - Файл: `src/workers/brain.worker.ts`
+   - Переносимо: всі виклики network.activate()
+   - Очікуваний ефект: +40-50 FPS при повному ШІ
+
+#### ⚠️ Обмеження та fallback:
+
+```typescript
+// Graceful degradation для старих браузерів
+if (typeof Worker === 'undefined') {
+  console.warn('Web Workers not supported, running in main thread');
+  return runSimulationSync(agents);
+}
+```
+
+---
+
+### 📦 Service Workers: PWA та агресивне кешування
+
+**Service Workers** — це proxy між браузером та мережею, що дозволяє контролювати завантаження ресурсів, створювати offline-досвід та покращувати швидкість повторних запусків.
+
+#### 🎯 Що дає Service Worker для Entropia 3D:
+
+1. **Миттєве завантаження повторних візитів** — всі Three.js бандли, текстури та моделі кешуються локально
+2. **Offline-режим** — симуляція працює навіть без інтернету
+3. **Background Sync** — автоматичне збереження стану симуляції у хмару при з'явленні інтернету
+4. **Оптимізація оновлень** — оновлюються тільки змінені файли, не весь бандл
+
+#### 🏗️ Стратегії кешування:
+
+**Стратегія 1: Cache First (для статичних ресурсів)**
+```javascript
+// public/sw.js
+const CACHE_NAME = 'entropia-v2.5.0';
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/assets/index.js',
+  '/assets/index.css',
+  '/assets/three.module.js'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(STATIC_ASSETS);
+    })
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.includes('/assets/')) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        return cached || fetch(event.request);
+      })
+    );
+  }
+});
+```
+
+**Переваги:** Швидкість (0ms latency), працює offline
+**Недоліки:** Потребує manual invalidation при оновленнях
+
+**Стратегія 2: Stale-While-Revalidate (для даних симуляції)**
+```javascript
+// Повертаємо кеш миттєво, але оновлюємо у фоні
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.includes('/api/simulations')) {
+    event.respondWith(
+      caches.open('dynamic-cache').then((cache) => {
+        return cache.match(event.request).then((cached) => {
+          const fetchPromise = fetch(event.request).then((response) => {
+            cache.put(event.request, response.clone());
+            return response;
+          });
+          return cached || fetchPromise; // Кеш якщо є, інакше чекаємо
+        });
+      })
+    );
+  }
+});
+```
+
+**Переваги:** Баланс між швидкістю та свіжістю даних
+**Використання:** Ідеально для збережених симуляцій, preset'ів
+
+**Стратегія 3: Network First (для критичних оновлень)**
+```javascript
+// Спочатку пробуємо мережу, fallback на кеш
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.includes('/api/live-stats')) {
+    event.respondWith(
+      fetch(event.request)
+        .catch(() => caches.match(event.request))
+    );
+  }
+});
+```
+
+#### 📊 Рекомендований розподіл стратегій для Entropia:
+
+| Ресурс | Стратегія | Причина |
+|--------|-----------|---------|
+| HTML/JS/CSS бандли | Cache First | Статичні, рідко міняються |
+| Three.js моделі/текстури | Cache First | Великі файли, версіонуються |
+| Збережені симуляції | Stale-While-Revalidate | Баланс швідкість/актуальність |
+| API статистики | Network First | Потрібні свіжі дані |
+| WebGL шейдери | Cache First | Статичні, критичні для роботи |
+
+#### 🔄 Background Sync для автозбереження:
+
+```javascript
+// Реєстрація sync в Main Thread
+if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
+  navigator.serviceWorker.ready.then((registration) => {
+    // Користувач натиснув "Зберегти симуляцію"
+    return registration.sync.register('save-simulation');
+  });
+}
+
+// Обробка в Service Worker
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'save-simulation') {
+    event.waitUntil(
+      // Дістаємо збережені дані з IndexedDB
+      getSimulationData().then((data) => {
+        return fetch('/api/save', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+      })
+    );
+  }
+});
+```
+
+**Що це дає:** Навіть якщо користувач втратив інтернет під час гри, стан симуляції збережеться автоматично коли з'явиться зв'язок.
+
+#### 📱 Перетворення на PWA (Progressive Web App):
+
+**1. Manifest (`public/manifest.json`):**
+```json
+{
+  "name": "Entropia 3D",
+  "short_name": "Entropia",
+  "description": "Біологічна еволюційна пісочниця",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+```
+
+**2. Реєстрація Service Worker (`src/main.ts`):**
+```typescript
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => console.log('✅ SW registered:', reg.scope))
+      .catch((err) => console.error('❌ SW registration failed:', err));
+  });
+}
+```
+
+**3. Стратегія оновлень (skipWaiting vs Prompt):**
+
+**Варіант A: Автооновлення (агресивний)**
+```javascript
+// sw.js
+self.addEventListener('install', (event) => {
+  self.skipWaiting(); // ⚡ Активуємо новий SW миттєво
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim()); // Перехоплюємо всі вкладки
+});
+```
+
+**Варіант B: Controlled update (рекомендований)**
+```javascript
+// Main thread
+navigator.serviceWorker.addEventListener('controllerchange', () => {
+  // Показуємо повідомлення користувачу
+  showNotification('Доступна нова версія! Перезавантажити?', () => {
+    window.location.reload();
+  });
+});
+```
+
+#### 🎯 Практичний план імплементації Service Worker:
+
+**Крок 1:** Базове кешування (1-2 години роботи)
+```bash
+# Створити файли
+touch public/sw.js public/manifest.json
+
+# Додати іконки PWA (можна згенерувати на realfavicongenerator.net)
+mkdir public/icons
+```
+
+**Крок 2:** Налаштувати Vite для Service Worker
+```typescript
+// vite.config.ts
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'cdn-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 днів
+              }
+            }
+          }
+        ]
+      }
+    })
+  ]
+});
+```
+
+**Крок 3:** Тестування
+```bash
+# Build для production
+npm run build
+
+# Запустити локально з HTTPS (потрібно для SW)
+npx serve dist -p 3000
+```
+
+#### 📈 Очікувані результати:
+
+| Метрика | Без SW | З SW | Покращення |
+|---------|--------|------|------------|
+| Час завантаження (повторний візит) | 2.5s | 0.3s | **8x швидше** |
+| Розмір завантаження | 1.2 MB | 15 KB | **98% менше** |
+| Time to Interactive | 3.1s | 0.5s | **6x швидше** |
+| Працює offline | ❌ | ✅ | **∞ доступність** |
+
+#### ⚙️ Додаткові оптимізації для 3D-контенту:
+
+**Кешування Three.js моделей:**
+```javascript
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.endsWith('.glb') || event.request.url.endsWith('.gltf')) {
+    event.respondWith(
+      caches.open('models-cache').then((cache) => {
+        return cache.match(event.request).then((cached) => {
+          if (cached) return cached;
+
+          return fetch(event.request).then((response) => {
+            // Кешуємо тільки успішні завантаження
+            if (response.status === 200) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          });
+        });
+      })
+    );
+  }
+});
+```
+
+**Compression-aware caching:**
+```javascript
+// Якщо сервер віддає Brotli/Gzip — кешуємо стиснуту версію
+const cacheResponse = (request, response) => {
+  const encoding = response.headers.get('Content-Encoding');
+  const clonedResponse = response.clone();
+
+  caches.open(encoding ? `cache-${encoding}` : 'cache-default')
+    .then(cache => cache.put(request, clonedResponse));
+};
+```
+
+---
+
+### 🔬 Комбінована стратегія: Web Workers + Service Workers
+
+**Максимальна продуктивність** досягається поєднанням обох підходів:
+
+```
+User → Service Worker (кеш ресурсів) → Main Thread (рендеринг) → Web Workers (обчислення)
+         ↓ offline                        ↓ 60 FPS              ↓ фізика/ШІ
+      IndexedDB (стан)                  Three.js             Spatial Hash
+```
+
+**Приклад:** Service Worker завантажує код Worker'ів з кешу миттєво:
+```javascript
+// sw.js
+self.addEventListener('fetch', (event) => {
+  if (event.request.url.endsWith('.worker.js')) {
+    event.respondWith(
+      caches.match(event.request)
+        .then(cached => cached || fetch(event.request))
+    );
+  }
+});
+```
+
+---
+
+### 📚 Корисні ресурси:
+
+- [Web Workers API (MDN)](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API)
+- [Service Worker Cookbook](https://serviceworke.rs/)
+- [Workbox (Google)](https://developers.google.com/web/tools/workbox)
+- [Vite PWA Plugin](https://vite-pwa-org.netlify.app/)
+- [SharedArrayBuffer for Real-Time Physics](https://web.dev/articles/webassembly-threads)
+
+---
 
 ## 🧬 Суть проєкту
 
