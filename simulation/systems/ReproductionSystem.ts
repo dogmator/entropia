@@ -1,31 +1,33 @@
 /**
- * Entropia 3D — Система Розмноження
+ * Entropia 3D — Система моделювання репродуктивних процесів (Reproduction System).
  *
- * Відповідальність: Обробка репродукції організмів
- * - Перевірка готовності до розмноження
- * - Витрата енергії на репродукцію
- * - Створення нащадків з мутаціями
- * - Ведення генетичного дерева
+ * Відповідає за реплікацію біологічних агентів та підтримку генетичної спадковості:
+ * - Верифікація фізіологічної готовності організмів до розмноження (вік, енергобаланс).
+ * - Розрахунок енергетичних витрат на акт репродукції.
+ * - Створення нових екземплярів із передачею та модифікацією геному (мутагенез).
+ * - Формування та актуалізація філогенетичного дерева популяції.
  */
 
 import { Organism, OrganismFactory } from '../Entity';
 import { SimulationConfig, GenomeId, GeneticTreeNode, EntityType, OrganismId } from '../../types';
-import { MIN_REPRODUCTION_AGE } from '../../constants';
+import { MIN_REPRODUCTION_AGE, REPRODUCTION } from '../../constants';
 import { EventBus } from '../../core/EventBus';
 
 /**
- * Константи розмноження
+ * Константи параметрів репродуктивного циклу.
  */
-const ENERGY_COST_MULTIPLIER = 0.45; // Скільки енергії залишається після розмноження
-const MIN_AGE = MIN_REPRODUCTION_AGE; // Мінімальний вік для розмноження
+const MIN_AGE = MIN_REPRODUCTION_AGE; // Поріг репродуктивної зрілості (мінімальний вік).
 
 /**
- * Дані про новонародженого
+ * Контейнер даних для ініціалізації нового організму.
  */
 export interface NewbornData {
   parent: Organism;
 }
 
+/**
+ * Клас, що реалізує популяційну динаміку та генетичну спадковість.
+ */
 export class ReproductionSystem {
   constructor(
     private readonly config: SimulationConfig,
@@ -37,21 +39,21 @@ export class ReproductionSystem {
   ) { }
 
   /**
-   * Встановити поточний тік
+   * Оновлення внутрішнього часового лічильника системи.
    */
   setTick(tick: number): void {
     this.currentTick = tick;
   }
 
   /**
-   * Перевірити можливість розмноження і зібрати кандидатів
+   * Скринінг популяції на предмет готовності до розмноження.
    */
   checkReproduction(organisms: Map<string, Organism>, maxPopulation: number): NewbornData[] {
     const newborns: NewbornData[] = [];
     const currentPopulation = organisms.size;
 
     organisms.forEach(organism => {
-      // Перевірка з урахуванням поточної популяції + вже зібрані новонароджені
+      // Верифікація умов репродукції з урахуванням ємності середовища (maxPopulation)
       if (this.canReproduce(organism, currentPopulation + newborns.length, maxPopulation)) {
         this.initiateReproduction(organism, newborns);
       }
@@ -61,33 +63,33 @@ export class ReproductionSystem {
   }
 
   /**
-   * Перевірити чи може організм розмножуватись
+   * Комплексна перевірка репродуктивного потенціалу агента.
    */
   private canReproduce(organism: Organism, currentPopulation: number, maxPopulation: number): boolean {
     if (organism.isDead) return false;
     if (organism.energy < this.config.reproductionThreshold) return false;
     if (organism.age < MIN_AGE) return false;
-    if (currentPopulation >= maxPopulation) return false; // Перевірка ліміту популяції
+    if (currentPopulation >= maxPopulation) return false; // Обмеження ємності екосистеми
 
     return true;
   }
 
   /**
-   * Розпочати процес розмноження
+   * Реєстрація акту репродукції та підготовка до виділення енергії.
    */
   private initiateReproduction(organism: Organism, newborns: NewbornData[]): void {
-    // Витратити енергію на розмноження
-    organism.energy *= ENERGY_COST_MULTIPLIER;
+    // Екзотермічна витрата енергії на створення нащадка
+    organism.energy *= REPRODUCTION.energyCostMultiplier;
 
-    // Змінити стан організму
+    // Переведення агента у транзитний стан репродуктивної активності
     organism.updateState('REPRODUCING');
 
-    // Додати до списку новонароджених
+    // Агрегування даних для подальшої генерації об'єкта
     newborns.push({ parent: organism });
   }
 
   /**
-   * Створити нащадків
+   * Фізична генерація нащадків та інтеграція їх у популяційну структуру.
    */
   createOffspring(
     newborns: NewbornData[],
@@ -96,19 +98,19 @@ export class ReproductionSystem {
     stats: { totalBirths: number }
   ): void {
     for (const data of newborns) {
-      // Перевірити ліміт популяції
+      // Контроль переповнення популяції на етапі створення
       if (organisms.size >= maxPopulation) break;
 
       const child = this.organismFactory.createOffspring(data.parent);
       organisms.set(child.id, child);
 
-      // Додати до генетичного дерева
+      // Реєстрація зв'язків у філогенетичній структурі
       this.addToGeneticTree(child, data.parent);
 
-      // Оновити статистику
+      // Актуалізація глобальних статистичних метрик
       stats.totalBirths++;
 
-      // Відправити подію
+      // Генерація системної події про народження сутності
       this.eventBus.emit({
         type: 'EntityReproduced',
         parentId: data.parent.id as OrganismId,
@@ -120,7 +122,7 @@ export class ReproductionSystem {
   }
 
   /**
-   * Додати організм до генетичного дерева
+   * Реєстрація нового вузла у філогенетичному дереві.
    */
   private addToGeneticTree(organism: Organism, parent?: Organism): void {
     const node: GeneticTreeNode = {
@@ -151,18 +153,18 @@ export class ReproductionSystem {
   }
 
   /**
-   * Оновити генетичне дерево після смерті
+   * Фіксація моменту елімінації генотипу (смерті організму) у генетичному дереві.
    */
   updateGeneticTreeOnDeath(organism: Organism): void {
     const node = this.geneticTree.get(organism.genome.id);
     if (node) {
-      // TypeScript workaround для мутації readonly поля
+      // Корекція readonly поля через приведення типів для фіксації термінації
       (node as { died: number | null }).died = this.currentTick;
     }
   }
 
   /**
-   * Отримати інформацію про генетичне дерево
+   * Доступ до повної структури генетичного дерева.
    */
   getGeneticTreeInfo() {
     return {
@@ -173,7 +175,7 @@ export class ReproductionSystem {
   }
 
   /**
-   * Отримати нащадків організму
+   * Рекурсивне отримання всіх нащадків заданого генотипу.
    */
   getDescendants(genomeId: GenomeId): GenomeId[] {
     const node = this.geneticTree.get(genomeId);
@@ -196,7 +198,7 @@ export class ReproductionSystem {
   }
 
   /**
-   * Отримати предків організму
+   * Відстеження філогенетичної лінії предків.
    */
   getAncestors(genomeId: GenomeId): GenomeId[] {
     const ancestors: GenomeId[] = [];
@@ -214,7 +216,7 @@ export class ReproductionSystem {
   }
 
   /**
-   * Розрахувати середню фертильність популяції
+   * Розрахунок інтегрального показника репродуктивної готовності популяції (Fertility Rate).
    */
   calculateFertilityRate(organisms: Map<string, Organism>, maxPopulation: number): number {
     let readyToReproduce = 0;

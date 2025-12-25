@@ -1,30 +1,34 @@
 /**
- * Entropia 3D — Фізична Система
+ * Entropia 3D — Система моделювання фізичної динаміки (Physics System).
  *
- * Відповідальність: Інтегрування руху організмів
- * - Оновлення швидкості на основі прискорення
- * - Обмеження швидкості згідно геному
- * - Оновлення позиції з тороїдальним простором
- * - Застосування сил тертя (drag)
+ * Відповідає за кінематичний аналіз та інтегрування рівнянь руху біологічних агентів:
+ * - Розрахунок вектору швидкості на основі накопиченого прискорення.
+ * - Динамічне обмеження швидкості згідно з генетичним потенціалом організму.
+ * - Оновлення просторових координат з урахуванням тороїдальної топології світу.
+ * - Моделювання сил гідродинамічного опору (Drag forces).
  */
 
 import { Organism } from '../Entity';
-import { PHYSICS, WORLD_SIZE } from '../../constants';
+import { PHYSICS } from '../../constants';
 import { MathUtils } from '../MathUtils';
-import { SimulationConfig } from '../../types';
+import { SimulationConfig, WorldConfig } from '../../types';
 
 /**
- * Константи фізики (винесені для легкого налаштування)
+ * Константи параметрів фізичної моделі.
  */
 const MAX_STEERING_FORCE = PHYSICS.maxSteeringForce;
 
+/**
+ * Клас, що реалізує фізичний рушій симуляції.
+ */
 export class PhysicsSystem {
   constructor(
-    private readonly config: SimulationConfig
+    private readonly config: SimulationConfig,
+    private readonly worldConfig: WorldConfig
   ) { }
 
   /**
-   * Оновити фізику для всіх організмів
+   * Оновлення фізичного стану для всієї популяції.
    */
   update(organisms: Map<string, Organism>): void {
     organisms.forEach(organism => {
@@ -35,48 +39,37 @@ export class PhysicsSystem {
   }
 
   /**
-   * Інтегрувати рух одного організму
+   * Виконання ітерації числового інтегрування для одного об'єкта.
    */
   private integrate(org: Organism): void {
-    // 1. Обмежити прискорення
+    // 1. Обмеження результуючої сили прискорення
     this.limitAcceleration(org);
 
-    // 2. Оновити швидкість
+    // 2. Інкрементальне оновлення вектора швидкості
     this.updateVelocity(org);
 
-    // 3. Обмежити швидкість
+    // 3. Нормалізація швидкості згідно з генетичними лімітами
     this.limitVelocity(org);
 
-    // 4. Оновити позицію (тороїдальний простір)
+    // 4. Трансляція позиції у тороїдальному просторі
     this.updatePosition(org);
 
-    // 5. Застосувати тертя
+    // 5. Моделювання дисипації енергії через опір середовища
     this.applyDrag(org);
 
-    // 6. Скинути прискорення
+    // 6. Скидання акумулятора прискорення для наступного ітераційного циклу
     this.resetAcceleration(org);
   }
 
   /**
-   * Обмежити прискорення до максимального значення
+   * Обмеження магнітуди вектора прискорення (визначення межі фізичної сили).
    */
   private limitAcceleration(org: Organism): void {
-    const accMagSq =
-      org.acceleration.x * org.acceleration.x +
-      org.acceleration.y * org.acceleration.y +
-      org.acceleration.z * org.acceleration.z;
-
-    if (accMagSq > MAX_STEERING_FORCE * MAX_STEERING_FORCE) {
-      const accMag = Math.sqrt(accMagSq);
-      const scale = MAX_STEERING_FORCE / accMag;
-      org.acceleration.x *= scale;
-      org.acceleration.y *= scale;
-      org.acceleration.z *= scale;
-    }
+    this.limitVector(org.acceleration, MAX_STEERING_FORCE);
   }
 
   /**
-   * Оновити швидкість на основі прискорення
+   * Актуалізація вектора швидкості на основі поточної сили (прискорення).
    */
   private updateVelocity(org: Organism): void {
     org.velocity.x += org.acceleration.x;
@@ -85,36 +78,37 @@ export class PhysicsSystem {
   }
 
   /**
-   * Обмежити швидкість до максимальної згідно геному
+   * Регулювання швидкості згідно з індивідуальними характеристиками організму.
    */
   private limitVelocity(org: Organism): void {
-    const speedSq =
-      org.velocity.x * org.velocity.x +
-      org.velocity.y * org.velocity.y +
-      org.velocity.z * org.velocity.z;
+    this.limitVector(org.velocity, org.genome.maxSpeed);
+  }
 
-    const maxSpeedSq = org.genome.maxSpeed * org.genome.maxSpeed;
-
-    if (speedSq > maxSpeedSq) {
-      const speed = Math.sqrt(speedSq);
-      const scale = org.genome.maxSpeed / speed;
-      org.velocity.x *= scale;
-      org.velocity.y *= scale;
-      org.velocity.z *= scale;
+  /**
+   * Універсальний помічник для обмеження магнітуди вектора.
+   */
+  private limitVector(v: import('../../types').MutableVector3, max: number): void {
+    const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
+    if (magSq > max * max && magSq > 0) {
+      const scale = max / Math.sqrt(magSq);
+      v.x *= scale;
+      v.y *= scale;
+      v.z *= scale;
     }
   }
 
   /**
-   * Оновити позицію з тороїдальним простором
+   * Оновлення просторових координат з верифікацією тороїдальних меж.
    */
   private updatePosition(org: Organism): void {
-    org.position.x = MathUtils.wrap(org.position.x + org.velocity.x);
-    org.position.y = MathUtils.wrap(org.position.y + org.velocity.y);
-    org.position.z = MathUtils.wrap(org.position.z + org.velocity.z);
+    const ws = this.worldConfig.WORLD_SIZE;
+    org.position.x = MathUtils.wrap(org.position.x + org.velocity.x, ws);
+    org.position.y = MathUtils.wrap(org.position.y + org.velocity.y, ws);
+    org.position.z = MathUtils.wrap(org.position.z + org.velocity.z, ws);
   }
 
   /**
-   * Застосувати силу тертя (drag)
+   * Застосування константи лінійного тертя середовища.
    */
   private applyDrag(org: Organism): void {
     const drag = this.config.drag;
@@ -124,7 +118,7 @@ export class PhysicsSystem {
   }
 
   /**
-   * Скинути прискорення до нуля
+   * Онулення вектора сил для підготовки до нового циклу обчислень.
    */
   private resetAcceleration(org: Organism): void {
     org.acceleration.x = 0;
@@ -133,8 +127,7 @@ export class PhysicsSystem {
   }
 
   /**
-   * Розрахувати кінетичну енергію організму
-   * (може використовуватись для візуалізації або балансу)
+   * Розрахунок поточної кінетичної енергії агента.
    */
   getKineticEnergy(org: Organism): number {
     const speedSq =
@@ -142,7 +135,7 @@ export class PhysicsSystem {
       org.velocity.y * org.velocity.y +
       org.velocity.z * org.velocity.z;
 
-    // E = 1/2 * m * v^2 (припускаємо масу = розмір)
+    // E = 0.5 * m * v^2 (де m еквівалентно параметру size геному)
     return 0.5 * org.genome.size * speedSq;
   }
 }

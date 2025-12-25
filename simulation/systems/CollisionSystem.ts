@@ -1,26 +1,27 @@
 /**
- * Entropia 3D — Система Колізій
+ * Entropia 3D — Система детекції та обробки колізій (Collision System).
  *
- * Відповідальність: Обробка зіткнень між сутностями
- * - Зіткнення організмів з їжею
- * - Зіткнення хижаків з жертвами
- * - Зіткнення з перешкодами (відбиття)
- * - Виявлення мертвих організмів
+ * Відповідає за ідентифікацію просторових перетинів об'єктів та реалізацію фізичної відповіді:
+ * - Взаємодія організмів з джерелами енергії (харчування).
+ * - Трофічні взаємодії (хижацтво).
+ * - Пружні зіткнення зі статичними перешкодами (відбиття векторів швидкості).
+ * - Моніторинг та реєстрація фактів загибелі сутностей внаслідок фізичних чинників.
  */
 
 import { Organism, Food, Obstacle } from '../Entity';
 import { EntityType, EntityId, Vector3, GridEntity } from '../../types';
 import { SpatialHashGrid } from '../SpatialHashGrid';
+import { MathUtils } from '../MathUtils';
 import { EventBus } from '../../core/EventBus';
 
 /**
- * Константи колізій
+ * Константи фізичних параметрів колізій.
  */
-const OBSTACLE_BOUNCE_DAMPING = 0.8; // Зменшення швидкості при відбитті
-const OBSTACLE_PUSH_MULTIPLIER = 1.1; // Наскільки сильно виштовхувати з перешкоди
-const PREDATOR_ENERGY_EFFICIENCY = 0.6; // Скільки енергії отримує хижак з жертви
-const MIN_ENERGY_GAIN = 25; // Мінімальна енергія від полювання
+import { INTERACTION } from '../../constants';
 
+/**
+ * Клас, що реалізує фізику просторових взаємодій.
+ */
 export class CollisionSystem {
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
@@ -28,7 +29,7 @@ export class CollisionSystem {
   ) { }
 
   /**
-   * Обробити всі колізії
+   * Запуск циклу ідентифікації та вирішення колізій для всієї системи.
    */
   update(
     organisms: Map<string, Organism>,
@@ -53,7 +54,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити колізії для одного організму
+   * Персональна обробка оточення для конкретного організму.
    */
   private handleOrganismCollisions(
     organism: Organism,
@@ -66,10 +67,10 @@ export class CollisionSystem {
     const neighbors = this.spatialGrid.getNearby(organism.position, searchRadius);
 
     for (const neighbor of neighbors) {
-      // Пропустити себе
+      // Виключення самоперетину
       if (neighbor.id === organism.id) continue;
 
-      // Обробити різні типи зіткнень
+      // Диференціація логіки залежно від типу об'єкта перетину
       switch (neighbor.type) {
         case EntityType.OBSTACLE:
           this.handleObstacleCollision(organism, neighbor as GridEntity, obstacles);
@@ -91,7 +92,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити зіткнення з перешкодою
+   * Вирішення колізії зі статичною просторовою аномалією (перешкодою).
    */
   private handleObstacleCollision(
     organism: Organism,
@@ -101,39 +102,34 @@ export class CollisionSystem {
     const obstacle = obstacles.get(neighborEntity.id);
     if (!obstacle) return;
 
-    const dx = neighborEntity.position.x - organism.position.x;
-    const dy = neighborEntity.position.y - organism.position.y;
-    const dz = neighborEntity.position.z - organism.position.z;
-    const distSq = dx * dx + dy * dy + dz * dz;
-
-    const minDist = organism.radius + obstacle.radius;
-    const minDistSq = minDist * minDist;
-
-    if (distSq < minDistSq) {
+    if (this.isColliding(organism, obstacle)) {
+      const distSq = MathUtils.toroidalDistanceSq(organism.position, neighborEntity.position);
+      const minDist = organism.radius + obstacle.radius; // Restore required variable
       const dist = Math.sqrt(distSq);
-      if (dist < 0.001) return; // Уникнути ділення на нуль
+      if (dist < 0.001) return; // Запобігання сингулярності (ділення на нуль)
 
-      // Нормаль зіткнення
-      const nx = dx / dist;
-      const ny = dy / dist;
-      const nz = dz / dist;
+      // Розрахунок нормувального вектора зіткнення
+      const diff = MathUtils.toroidalVector(organism.position, neighborEntity.position);
+      const nx = diff.x / dist;
+      const ny = diff.y / dist;
+      const nz = diff.z / dist;
 
-      // Відбиття швидкості
+      // Пружне відбиття вектора швидкості відносно нормалі
       const dot = organism.velocity.x * nx + organism.velocity.y * ny + organism.velocity.z * nz;
-      organism.velocity.x = (organism.velocity.x - 2 * dot * nx) * OBSTACLE_BOUNCE_DAMPING;
-      organism.velocity.y = (organism.velocity.y - 2 * dot * ny) * OBSTACLE_BOUNCE_DAMPING;
-      organism.velocity.z = (organism.velocity.z - 2 * dot * nz) * OBSTACLE_BOUNCE_DAMPING;
+      organism.velocity.x = (organism.velocity.x - 2 * dot * nx) * INTERACTION.obstacleBounceDamping;
+      organism.velocity.y = (organism.velocity.y - 2 * dot * ny) * INTERACTION.obstacleBounceDamping;
+      organism.velocity.z = (organism.velocity.z - 2 * dot * nz) * INTERACTION.obstacleBounceDamping;
 
-      // Виштовхування з перешкоди
+      // Геометрична корекція позиції для усунення перекриття об'єктів
       const overlap = minDist - dist;
-      organism.position.x -= nx * overlap * OBSTACLE_PUSH_MULTIPLIER;
-      organism.position.y -= ny * overlap * OBSTACLE_PUSH_MULTIPLIER;
-      organism.position.z -= nz * overlap * OBSTACLE_PUSH_MULTIPLIER;
+      organism.position.x -= nx * overlap * INTERACTION.obstaclePushMultiplier;
+      organism.position.y -= ny * overlap * INTERACTION.obstaclePushMultiplier;
+      organism.position.z -= nz * overlap * INTERACTION.obstaclePushMultiplier;
     }
   }
 
   /**
-   * Обробити зіткнення з їжею
+   * Обробка взаємодії травоїдного організму з енергетичним субстратом.
    */
   private handleFoodCollision(
     organism: Organism,
@@ -143,21 +139,13 @@ export class CollisionSystem {
     const foodItem = food.get(neighborEntity.id);
     if (!foodItem || foodItem.consumed) return;
 
-    const dx = neighborEntity.position.x - organism.position.x;
-    const dy = neighborEntity.position.y - organism.position.y;
-    const dz = neighborEntity.position.z - organism.position.z;
-    const distSq = dx * dx + dy * dy + dz * dz;
-
-    const minDist = organism.radius + foodItem.radius;
-    const minDistSq = minDist * minDist;
-
-    if (distSq < minDistSq) {
-      // З'їсти їжу
+    if (this.isColliding(organism, foodItem)) {
+      // Абсорбція енергії субстрату організмом
       organism.addEnergy(foodItem.energyValue);
       foodItem.consumed = true;
       food.delete(neighborEntity.id);
 
-      // Відправити подію
+      // Генерація системної події про елімінацію ресурсу
       this.eventBus.emit({
         type: 'EntityDied',
         entityType: EntityType.FOOD,
@@ -169,7 +157,7 @@ export class CollisionSystem {
   }
 
   /**
-   * Обробити зіткнення хижака з жертвою
+   * Обробка акту хижацтва між консументами різних рівнів.
    */
   private handlePredationCollision(
     predator: Organism,
@@ -180,59 +168,28 @@ export class CollisionSystem {
     const prey = organisms.get(preyEntity.id);
     if (!prey || prey.isDead) return;
 
-    const dx = preyEntity.position.x - predator.position.x;
-    const dy = preyEntity.position.y - predator.position.y;
-    const dz = preyEntity.position.z - predator.position.z;
-    const distSq = dx * dx + dy * dy + dz * dz;
-
-    const minDist = predator.radius + prey.radius;
-    const minDistSq = minDist * minDist;
-
-    if (distSq < minDistSq) {
-      // Успішне полювання
+    if (this.isColliding(predator, prey)) {
+      // Розрахунок енергетичного прибутку на основі стану жертви
       const energyGain = Math.max(
-        MIN_ENERGY_GAIN,
-        prey.energy * PREDATOR_ENERGY_EFFICIENCY
+        INTERACTION.minEnergyGain,
+        prey.energy * INTERACTION.predatorEnergyEfficiency
       );
 
       predator.addEnergy(energyGain);
       predator.huntSuccessCount++;
 
-      // Вбити жертву
+      // Термінація життєвого циклу жертви
       prey.die('predation');
       deadIds.push(prey.id);
     }
   }
 
   /**
-   * Перевірити чи є зіткнення між двома сферами
+   * Уніфікована перевірка на фізичний перетин двох об'єктів.
    */
-  private checkSphereCollision(
-    pos1: Vector3,
-    radius1: number,
-    pos2: Vector3,
-    radius2: number
-  ): boolean {
-    const dx = pos2.x - pos1.x;
-    const dy = pos2.y - pos1.y;
-    const dz = pos2.z - pos1.z;
-    const distSq = dx * dx + dy * dy + dz * dz;
-    const minDist = radius1 + radius2;
+  private isColliding(a: { position: Vector3, radius: number }, b: { position: Vector3, radius: number }): boolean {
+    const distSq = MathUtils.toroidalDistanceSq(a.position, b.position);
+    const minDist = a.radius + b.radius;
     return distSq < minDist * minDist;
-  }
-
-  /**
-   * Розрахувати вектор відбиття
-   */
-  private calculateReflection(
-    velocity: Vector3,
-    normal: Vector3
-  ): Vector3 {
-    const dot = velocity.x * normal.x + velocity.y * normal.y + velocity.z * normal.z;
-    return {
-      x: velocity.x - 2 * dot * normal.x,
-      y: velocity.y - 2 * dot * normal.y,
-      z: velocity.z - 2 * dot * normal.z,
-    };
   }
 }
