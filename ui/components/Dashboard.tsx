@@ -9,28 +9,39 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { SimulationStats, PopulationDataPoint } from '../types';
+import { SimulationStats, PopulationDataPoint } from '../../types';
 
+/**
+ * Програмний інтерфейс для властивостей компонента Dashboard.
+ */
 interface DashboardProps {
   stats: SimulationStats;
   history: PopulationDataPoint[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
+/**
+ * Компонент Dashboard — панель моніторингу та візуалізації метрик симуляції.
+ * Забезпечує рендеринг основних кількісних показників та динаміку популяції.
+ */
+export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Обчислення ризику вимирання для візуалізації
+  /**
+   * Обчислення кольорової репрезентації ризику вимирання для візуальної сигналізації.
+   */
   const extinctionColor = stats.extinctionRisk > 0.7
     ? 'text-red-500'
     : stats.extinctionRisk > 0.4
       ? 'text-yellow-400'
       : 'text-green-400';
 
-  // Колір FPS індикатора
+  /**
+   * Визначення колірної гами для індикатора частоти кадрів (FPS).
+   */
   const fpsColor = (fps: number) => {
     if (fps >= 55) return 'text-emerald-400';
     if (fps >= 30) return 'text-yellow-400';
@@ -39,7 +50,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Performance Monitor */}
+      {/* Моніторинг системної продуктивності (Performance Monitor) */}
       {stats.performance && (
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all duration-300 group">
           <div className="flex justify-between items-center mb-2">
@@ -56,18 +67,18 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
               <div className="text-blue-400 font-mono font-bold">{stats.performance.tps}</div>
             </div>
             <div className="bg-black/30 rounded-lg p-1.5 text-center">
-              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Frame</div>
+              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Рендеринг</div>
               <div className="text-cyan-400 font-mono font-bold">{stats.performance.frameTime.toFixed(1)}ms</div>
             </div>
             <div className="bg-black/30 rounded-lg p-1.5 text-center">
-              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Entities</div>
+              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Об'єкти</div>
               <div className="text-purple-400 font-mono font-bold">{stats.performance.entityCount}</div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Індикатор ризику вимирання */}
+      {/* Верифікатор критичного ризику вимирання */}
       {stats.extinctionRisk > 0.3 && (
         <div className={`bg-red-950/30 border border-red-500/30 rounded-xl p-3 ${stats.extinctionRisk > 0.7 ? 'animate-pulse' : ''}`}>
           <div className="flex items-center justify-between mb-2">
@@ -85,9 +96,9 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
         </div>
       )}
 
-      {/* Статистичні картки - основні */}
+      {/* Ієрархія основних кількісних показників */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Травоїдні з енергією */}
+        {/* Популяція травоїдних суб'єктів з метрикою енергобалансу */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-green-500/30 hover:shadow-[0_0_20px_rgba(74,222,128,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-green-400 transition-colors">Травоїдні</span>
@@ -104,7 +115,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
           </div>
         </div>
 
-        {/* Хижаки з енергією */}
+        {/* Популяція хижаків з метрикою метаболічної активності */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-red-500/30 hover:shadow-[0_0_20px_rgba(248,113,113,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-red-400 transition-colors">Хижаки</span>
@@ -121,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
           </div>
         </div>
 
-        {/* Кристали */}
+        {/* Ресурсна база (Кристали) */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-yellow-500/30 hover:shadow-[0_0_20px_rgba(250,204,21,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-yellow-400 transition-colors">Кристали</span>
@@ -129,7 +140,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
           <span className="text-xl sm:text-lg font-mono font-black text-yellow-400 group-hover:drop-shadow-[0_0_8px_rgba(250,204,21,0.5)] transition-all">{stats.foodCount}</span>
         </div>
 
-        {/* Покоління */}
+        {/* Індекс еволюційної тяглості */}
         <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)] transition-all duration-300 hover:scale-[1.02] group cursor-pointer">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-purple-400 transition-colors">Макс. Покоління</span>
@@ -138,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
         </div>
       </div>
 
-      {/* Статистика народжень/смертей */}
+      {/* Реєстратор життєвого циклу (Народження/Смерть) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <div className="bg-emerald-950/20 rounded-lg p-2 border border-emerald-500/10 text-center hover:bg-emerald-950/40 hover:border-emerald-500/30 hover:scale-105 transition-all duration-300 cursor-pointer group">
           <span className="text-[8px] sm:text-[7px] text-emerald-400/60 uppercase tracking-widest block mb-1 group-hover:text-emerald-400 transition-colors">Народжень</span>
@@ -149,12 +160,12 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
           <span className="text-base sm:text-sm font-mono font-bold text-gray-400 group-hover:text-gray-300 transition-all">{stats.totalDeaths}</span>
         </div>
         <div className="bg-purple-950/20 rounded-lg p-2 border border-purple-500/10 text-center col-span-2 sm:col-span-1 hover:bg-purple-950/40 hover:border-purple-500/30 hover:scale-105 transition-all duration-300 cursor-pointer group">
-          <span className="text-[8px] sm:text-[7px] text-purple-400/60 uppercase tracking-widest block mb-1 group-hover:text-purple-400 transition-colors">Рекорд Віку</span>
+          <span className="text-[8px] sm:text-[7px] text-purple-400/60 uppercase tracking-widest block mb-1 group-hover:text-purple-400 transition-colors">Макс. Вік</span>
           <span className="text-base sm:text-sm font-mono font-bold text-purple-400 group-hover:drop-shadow-[0_0_6px_rgba(168,85,247,0.5)] transition-all">{stats.maxAge}</span>
         </div>
       </div>
 
-      {/* Графік популяції */}
+      {/* Візуалізація хронологічної динаміки популяції */}
       <div className="h-32 sm:h-36 lg:h-40 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
         <div className="absolute top-2 left-4 text-[8px] sm:text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] z-10">Динаміка популяції</div>
         {isMounted && (
@@ -163,7 +174,7 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#111" vertical={false} />
               <XAxis dataKey="time" hide />
               <YAxis hide domain={['auto', 'auto']} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '12px', fontSize: '9px', color: '#fff' }}
                 itemStyle={{ padding: '0px' }}
                 labelStyle={{ display: 'none' }}
@@ -177,5 +188,3 @@ const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
     </div>
   );
 };
-
-export default Dashboard;

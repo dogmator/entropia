@@ -1,25 +1,26 @@
-
 /**
- * Entropia 3D — Просторове Хешування
+ * Entropia 3D — Система просторового хешування (Spatial Hashing).
  *
- * Оптимізована структура даних для O(1) пошуку сусідів у 3D просторі.
+ * Оптимізована структура даних для забезпечення пошуку сусідніх об'єктів
+ * у тривимірному просторі зі складністю, близькою до O(1).
  *
- * Алгоритм:
- * 1. Простір поділяється на комірки розміром CELL_SIZE
- * 2. Кожна сутність потрапляє в комірку за своїми координатами
- * 3. Пошук сусідів перевіряє лише сусідні комірки
+ * Алгоритмічна база:
+ * 1. Сегментація простору на дискретні комірки фіксованого розміру (CELL_SIZE).
+ * 2. Хешування координат сутностей для встановлення їхньої приналежності до комірок.
+ * 3. Локалізація пошуку лише у суміжних комірках відносно цільової точки.
  *
- * Складність:
- * - Вставка: O(1)
- * - Пошук сусідів: O(k), де k — кількість сутностей у сусідніх комірках
- * - Очищення: O(n)
+ * Обчислювальна складність:
+ * - Вставка об'єкта: O(1).
+ * - Пошук околиці: O(k), де k — щільність популяції у локальних комірках.
+ * - Очистка структури: O(n).
  */
 
 import { Vector3, EntityType, GridEntity } from '../types';
 import { WORLD_SIZE, CELL_SIZE } from '../constants';
+import { MathUtils } from './MathUtils';
 
 /**
- * Внутрішній тип для сутностей у сітці
+ * Внутрішня структура даних для інкапсуляції атрибутів сутності в межах сітки.
  */
 interface InternalGridEntity {
   readonly id: string;
@@ -29,47 +30,65 @@ interface InternalGridEntity {
 }
 
 /**
- * Просторова хеш-сітка для ефективного пошуку сусідів
+ * Реалізація просторової хеш-сітки для ефективної просторової агрегації.
  */
 export class SpatialHashGrid {
-  /** Зберігання комірок за хешем */
+  /** Сховище комірок, індексоване за хеш-ключами. */
   private readonly cells: Map<number, InternalGridEntity[]> = new Map();
 
-  /** Розмір комірки */
+  /** Лінійний розмір ребра кубічної комірки. */
   private readonly cellSize: number;
 
-  /** Кількість комірок по кожній осі */
+  /** Розмітність сітки (кількість комірок вздовж однієї осі). */
   private readonly dimensions: number;
 
-  /** Кешовані комірки для повторного використання */
+  /** Розмір світу. */
+  private readonly worldSize: number;
+
+  /** Пул масивів для повторного використання (мінімізація навантаження на Garbage Collector). */
   private readonly cellPool: InternalGridEntity[][] = [];
 
-  constructor(cellSize: number = CELL_SIZE) {
+  constructor(worldSize: number = WORLD_SIZE, cellSize: number = CELL_SIZE) {
+    this.worldSize = worldSize;
     this.cellSize = cellSize;
-    this.dimensions = Math.ceil(WORLD_SIZE / this.cellSize);
+    this.dimensions = Math.ceil(this.worldSize / this.cellSize);
   }
 
   /**
-   * Обчислити хеш-ключ для позиції
-   *
-   * Використовує тороїдальну геометрію для обгортання координат
+   * Генерація унікального хеш-ключа для просторових координат.
+   * Враховує тороїдальну топологію світу.
    */
-  private getKey(x: number, y: number, z: number): number {
-    // Обгортання координат для тороїдального простору
-    const gx = Math.floor(((x % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const gy = Math.floor(((y % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const gz = Math.floor(((z % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
+  /**
+   * Розрахунок координат комірки для заданої точки простору.
+   */
+  private getCellCoords(x: number, y: number, z: number): { gx: number, gy: number, gz: number } {
+    const gx = Math.floor(((x % this.worldSize) + this.worldSize) % this.worldSize / this.cellSize);
+    const gy = Math.floor(((y % this.worldSize) + this.worldSize) % this.worldSize / this.cellSize);
+    const gz = Math.floor(((z % this.worldSize) + this.worldSize) % this.worldSize / this.cellSize);
+    return { gx, gy, gz };
+  }
 
-    // Унікальний числовий ключ для комірки
-    // Використовуємо просту формулу для 3D індексу
+  /**
+   * Генерація хеш-ключа з тривимірних індексів комірки.
+   */
+  private getKeyFromCoords(gx: number, gy: number, gz: number): number {
     return gx + gy * this.dimensions + gz * this.dimensions * this.dimensions;
   }
 
   /**
-   * Очистити сітку для нового кадру
+   * Генерація унікального хеш-ключа для просторових координат.
+   * Враховує тороїдальну топологію світу.
+   */
+  private getKey(x: number, y: number, z: number): number {
+    const { gx, gy, gz } = this.getCellCoords(x, y, z);
+    return this.getKeyFromCoords(gx, gy, gz);
+  }
+
+  /**
+   * Скидання стану сітки для підготовки до нового ітераційного циклу.
    */
   clear(): void {
-    // Зберігаємо масиви для повторного використання
+    // Евакуація масивів до пулу для повторного використання
     this.cells.forEach(cell => {
       cell.length = 0;
       this.cellPool.push(cell);
@@ -78,7 +97,7 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Вставити сутність у сітку
+   * Реєстрація сутності у відповідній просторовій комірці.
    */
   insert(entity: GridEntity): void {
     const key = this.getKey(
@@ -89,7 +108,7 @@ export class SpatialHashGrid {
 
     let cell = this.cells.get(key);
     if (!cell) {
-      // Використати кешований масив або створити новий
+      // Отримання масиву з пулу або ініціалізація нового
       cell = this.cellPool.pop() || [];
       this.cells.set(key, cell);
     }
@@ -98,41 +117,35 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Знайти всіх сусідів у заданому радіусі
+   * Агрегація кандидатів у сусідній околиці заданої точки.
    *
-   * @param position Центр пошуку
-   * @param radius Радіус пошуку
-   * @returns Масив сусідніх сутностей
+   * @param position Центр сфери пошуку.
+   * @param radius Радіус сфери пошуку.
+   * @returns Масив потенційних сусідів (кандидати з охоплених комірок).
    */
   getNearby(position: Vector3, radius: number): readonly InternalGridEntity[] {
     const results: InternalGridEntity[] = [];
 
-    // Кількість комірок для перевірки по кожній осі
+    // Визначення діапазону комірок для інспекції
     const cellRadius = Math.ceil(radius / this.cellSize);
 
-    // Центральна комірка
-    const centerX = Math.floor(((position.x % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const centerY = Math.floor(((position.y % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
-    const centerZ = Math.floor(((position.z % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE / this.cellSize);
+    // Координати центральної комірки
+    const { gx: centerX, gy: centerY, gz: centerZ } = this.getCellCoords(position.x, position.y, position.z);
 
-    // Квадрат радіуса для швидкого порівняння
-    const radiusSq = radius * radius;
-
-    // Перебір сусідніх комірок
+    // Перебір суміжних комірок у заданому радіусі
     for (let dx = -cellRadius; dx <= cellRadius; dx++) {
       for (let dy = -cellRadius; dy <= cellRadius; dy++) {
         for (let dz = -cellRadius; dz <= cellRadius; dz++) {
-          // Тороїдальне обгортання індексів
+          // Тороїдальне обгортання просторових індексів
           const gx = (centerX + dx + this.dimensions) % this.dimensions;
           const gy = (centerY + dy + this.dimensions) % this.dimensions;
           const gz = (centerZ + dz + this.dimensions) % this.dimensions;
 
-          const key = gx + gy * this.dimensions + gz * this.dimensions * this.dimensions;
+          const key = this.getKeyFromCoords(gx, gy, gz);
           const cell = this.cells.get(key);
 
           if (cell) {
-            // Додаємо всі сутності з комірки
-            // Точна перевірка відстані робиться пізніше
+            // Групове додавання сутностей до списку кандидатів
             for (let i = 0; i < cell.length; i++) {
               results.push(cell[i]);
             }
@@ -145,35 +158,19 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Знайти всіх сусідів з точною перевіркою відстані
-   *
-   * Враховує тороїдальну геометрію світу
+   * Пошук сусідів з прецизійною перевіркою відстані.
+   * Враховує тороїдальну метрику простору.
    */
   getNearbyExact(position: Vector3, radius: number): readonly InternalGridEntity[] {
     const candidates = this.getNearby(position, radius);
     const results: InternalGridEntity[] = [];
     const radiusSq = radius * radius;
-    const halfWorld = WORLD_SIZE / 2;
+    const halfWorld = this.worldSize / 2;
 
     for (let i = 0; i < candidates.length; i++) {
       const entity = candidates[i];
 
-      // Тороїдальна відстань
-      let dx = entity.position.x - position.x;
-      let dy = entity.position.y - position.y;
-      let dz = entity.position.z - position.z;
-
-      // Обгортання для найкоротшої відстані
-      if (dx > halfWorld) dx -= WORLD_SIZE;
-      else if (dx < -halfWorld) dx += WORLD_SIZE;
-
-      if (dy > halfWorld) dy -= WORLD_SIZE;
-      else if (dy < -halfWorld) dy += WORLD_SIZE;
-
-      if (dz > halfWorld) dz -= WORLD_SIZE;
-      else if (dz < -halfWorld) dz += WORLD_SIZE;
-
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const distSq = MathUtils.toroidalDistanceSq(entity.position, position, this.worldSize);
 
       if (distSq <= radiusSq) {
         results.push(entity);
@@ -184,7 +181,7 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Знайти найближчу сутність заданого типу
+   * Пошук найближчого об'єкта заданої специфікації (типу).
    */
   findNearest(
     position: Vector3,
@@ -195,7 +192,7 @@ export class SpatialHashGrid {
     const candidates = this.getNearby(position, radius);
     let nearest: InternalGridEntity | null = null;
     let nearestDistSq = Infinity;
-    const halfWorld = WORLD_SIZE / 2;
+    const halfWorld = this.worldSize / 2;
 
     for (let i = 0; i < candidates.length; i++) {
       const entity = candidates[i];
@@ -203,21 +200,7 @@ export class SpatialHashGrid {
       if (entity.type !== type) continue;
       if (excludeId && entity.id === excludeId) continue;
 
-      // Тороїдальна відстань
-      let dx = entity.position.x - position.x;
-      let dy = entity.position.y - position.y;
-      let dz = entity.position.z - position.z;
-
-      if (dx > halfWorld) dx -= WORLD_SIZE;
-      else if (dx < -halfWorld) dx += WORLD_SIZE;
-
-      if (dy > halfWorld) dy -= WORLD_SIZE;
-      else if (dy < -halfWorld) dy += WORLD_SIZE;
-
-      if (dz > halfWorld) dz -= WORLD_SIZE;
-      else if (dz < -halfWorld) dz += WORLD_SIZE;
-
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const distSq = MathUtils.toroidalDistanceSq(entity.position, position, this.worldSize);
 
       if (distSq < nearestDistSq) {
         nearestDistSq = distSq;
@@ -229,7 +212,7 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Підрахувати сутності заданого типу в радіусі
+   * Розрахунок кількості сутностей певного типу в заданому радіусі.
    */
   countNearby(position: Vector3, radius: number, type?: EntityType): number {
     const candidates = this.getNearby(position, radius);
@@ -245,7 +228,7 @@ export class SpatialHashGrid {
   }
 
   /**
-   * Отримати статистику сітки для відлагодження
+   * Отримання діагностичних метрик стану хеш-сітки.
    */
   getStats(): {
     totalCells: number;

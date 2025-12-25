@@ -1,19 +1,19 @@
 /**
- * Entropia 3D — Система Метаболізму
+ * Entropia 3D — Система моделювання метаболічних процесів (Metabolism System).
  *
- * Відповідальність: Обробка витрат енергії організмів
- * - Базовий метаболізм (витрати на існування)
- * - Витрати на рух
- * - Витрати на сенсори (радіус зору)
- * - Витрати залежно від розміру
- * - Старіння організмів
+ * Відповідає за термодинамічний баланс організмів та розрахунок поточних енергетичних витрат:
+ * - Базальний метаболізм (підтримка життєдіяльності в стані спокою).
+ * - Локомоторні витрати (енергія, витрачена на кінетичну активність).
+ * - Ресурсне забезпечення сенсорного апарату (пропорційно радіусу сприйняття).
+ * - Алометричні залежності (вплив фізичного розміру на інтенсивність обміну речовин).
+ * - Хронометрія біологічного старіння.
  */
 
 import { Organism } from '../Entity';
-import { METABOLIC_CONSTANTS } from '../../constants';
+import { METABOLIC_CONSTANTS, METABOLIC_THRESHOLDS } from '../../constants';
 
 /**
- * Константи метаболізму
+ * Коефіцієнти метаболічної активності згідно з глобальними константами.
  */
 const EXIST_COST_MULTIPLIER = METABOLIC_CONSTANTS.exist;
 const MOVE_COST_MULTIPLIER = METABOLIC_CONSTANTS.move;
@@ -21,7 +21,7 @@ const SENSE_COST_MULTIPLIER = METABOLIC_CONSTANTS.sense;
 const SIZE_COST_MULTIPLIER = METABOLIC_CONSTANTS.size;
 
 /**
- * Детальна інформація про витрати енергії
+ * Структура деталізованого звіту про енергетичні витрати.
  */
 export interface MetabolicBreakdown {
   existCost: number;
@@ -31,11 +31,14 @@ export interface MetabolicBreakdown {
   totalCost: number;
 }
 
+/**
+ * Клас, що реалізує термодинамічну модель функціонування агентів.
+ */
 export class MetabolismSystem {
   private currentTick: number = 0;
 
   /**
-   * Оновити метаболізм для всіх організмів
+   * Оновлення метаболічного стану для всієї біологічної популяції.
    */
   update(organisms: Map<string, Organism>, tick: number): void {
     this.currentTick = tick;
@@ -48,23 +51,23 @@ export class MetabolismSystem {
   }
 
   /**
-   * Обробити метаболізм одного організму
+   * Обробка метаболічного циклу окремого організму.
    */
   private processMetabolism(org: Organism): void {
     const energyLoss = this.calculateEnergyLoss(org);
 
-    // Витратити енергію
+    // Дисипація внутрішньої енергії
     org.consumeEnergy(energyLoss);
 
-    // Збільшити вік
+    // Інкрементація біологічного віку (старіння)
     org.age++;
 
-    // Оновити час останньої активності
+    // Реєстрація часової мітки останньої метаболічної активності
     org.lastActiveAt = this.currentTick;
   }
 
   /**
-   * Розрахувати витрати енергії
+   * Розрахунок інтегральних енергетичних витрат.
    */
   private calculateEnergyLoss(org: Organism): number {
     const breakdown = this.getMetabolicBreakdown(org);
@@ -72,22 +75,22 @@ export class MetabolismSystem {
   }
 
   /**
-   * Отримати детальний розклад витрат енергії
+   * Генерація деталізованої декомпозиції метаболічних витрат.
    */
   getMetabolicBreakdown(org: Organism): MetabolicBreakdown {
-    // Витрати на існування (базовий метаболізм)
+    // Базові витрати на підтримку гомеостазу
     const existCost = this.calculateExistCost(org);
 
-    // Витрати на рух (квадрат швидкості)
+    // Кінетичні витрати (корелюють із квадратом лінійної швидкості)
     const moveCost = this.calculateMoveCost(org);
 
-    // Витрати на сенсори
+    // Енергетичне забезпечення когнітивної/сенсорної діяльності
     const senseCost = this.calculateSenseCost(org);
 
-    // Витрати на підтримку розміру
+    // Морфологічні витрати (підтримка фізичного об'єму)
     const sizeCost = this.calculateSizeCost(org);
 
-    // Загальна сума з урахуванням ефективності метаболізму
+    // Агреговані витрати з урахуванням генетично детермінованої ефективності метаболізму
     const totalCost = (existCost + moveCost + senseCost + sizeCost) * org.genome.metabolism;
 
     return {
@@ -100,15 +103,15 @@ export class MetabolismSystem {
   }
 
   /**
-   * Розрахувати базові витрати на існування
+   * Розрахунок базального метаболізму.
    */
   private calculateExistCost(org: Organism): number {
-    // Витрати пропорційні радіусу (більший організм = більше витрат)
+    // Витрати масштабуються згідно з геометричним розміром (радіусом)
     return EXIST_COST_MULTIPLIER * org.radius * 0.5;
   }
 
   /**
-   * Розрахувати витрати на рух
+   * Розрахунок теплових втрат внаслідок руху.
    */
   private calculateMoveCost(org: Organism): number {
     const velocitySquared =
@@ -120,38 +123,36 @@ export class MetabolismSystem {
   }
 
   /**
-   * Розрахувати витрати на сенсори
+   * Розрахунок вартості сенсорного сканування простору.
    */
   private calculateSenseCost(org: Organism): number {
-    // Більший радіус зору = більше витрат на обробку інформації
+    // Збільшення радіуса сприйняття експоненційно підвищує обчислювальні витрати
     return SENSE_COST_MULTIPLIER * org.genome.senseRadius * 0.01;
   }
 
   /**
-   * Розрахувати витрати на підтримку розміру
+   * Розрахунок енергії на підтримку генетично заданого розміру.
    */
   private calculateSizeCost(org: Organism): number {
     return SIZE_COST_MULTIPLIER * org.genome.size;
   }
 
   /**
-   * Перевірити чи організм потребує їжі
-   * (може використовуватись для AI або візуалізації)
+   * Визначення дефіциту енергії (стан hunger).
    */
   isHungry(org: Organism): boolean {
-    return org.normalizedEnergy < 0.5;
+    return org.normalizedEnergy < METABOLIC_THRESHOLDS.hunger;
   }
 
   /**
-   * Перевірити чи організм в критичному стані
+   * Визначення критичного рівня виснаження ( starvation ).
    */
   isCritical(org: Organism): boolean {
-    return org.normalizedEnergy < 0.2;
+    return org.normalizedEnergy < METABOLIC_THRESHOLDS.critical;
   }
 
   /**
-   * Розрахувати очікуваний час виживання без їжі
-   * (в тіках)
+   * Прогноз тривалості життя за відсутності енергетичного підживлення.
    */
   estimateSurvivalTime(org: Organism): number {
     const breakdown = this.getMetabolicBreakdown(org);
@@ -161,10 +162,9 @@ export class MetabolismSystem {
   }
 
   /**
-   * Перевірити чи організм старий
-   * (може використовуватись для ризику смерті від старості)
+   * Ідентифікація досягнення стадії пізнього онтогенезу (старості).
    */
   isOld(org: Organism, maxAge: number): boolean {
-    return org.age > maxAge * 0.8;
+    return org.age > maxAge * METABOLIC_THRESHOLDS.oldAgeRatio;
   }
 }

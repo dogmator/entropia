@@ -1,14 +1,14 @@
 /**
- * Entropia 3D — GPU-Оптимізована Система Частинок
+ * Entropia 3D — GPU-оптимізована система генерації та управління частоками.
  *
- * Покращення продуктивності:
- * - BufferAttribute.updateRange для часткового оновлення (замість повного needsUpdate)
- * - Persistent geometry для TrailSystem (zero GC)
- * - Batch updates для мінімізації GPU calls
- * - Frustum culling optimization
- * - Smart dirty tracking
+ * Реалізовані методи оптимізації продуктивності:
+ * - BufferAttribute.updateRange для інкрементального оновлення даних (мінімізація накладних витрат).
+ * - Константна геометрія для TrailSystem для виключення збірки сміття (Zero GC).
+ * - Пакетна обробка оновлень (Batch updates) для мінімізації черги команд до графічного процесора.
+ * - Оптимізація відсікання за пірамідою видимості (Frustum culling).
+ * - Інтелектуальний механізм відстеження змінених фрагментів буферів (Dirty tracking).
  *
- * Використовує Object Pool для нульового GC
+ * Використовує патерн Object Pool для забезпечення стабільного використання пам'яті.
  */
 
 import * as THREE from 'three';
@@ -21,7 +21,7 @@ import {
 } from '../shaders/OrganismShader';
 
 // ============================================================================
-// ТИПИ
+// ВИЗНАЧЕННЯ ТИПІВ ТА ІНТЕРФЕЙСІВ
 // ============================================================================
 
 export interface ParticleEffect {
@@ -38,32 +38,32 @@ interface ActiveParticle extends PooledParticle {
 }
 
 // ============================================================================
-// GPU-ОПТИМІЗОВАНИЙ PARTICLE SYSTEM
+// КЛАС МОДЕЛЮВАННЯ СИСТЕМИ ЧАСТОК З GPU-ОПТИМІЗАЦІЄЮ
 // ============================================================================
 
 /**
- * Менеджер системи частинок з GPU оптимізаціями
+ * Керуючий центр системи часток з інтегрованими механізмами апаратної акселерації.
  */
 export class ParticleSystem {
   private readonly scene: THREE.Scene;
   private readonly maxParticles: number;
 
-  // Геометрія та матеріал
+  // Об'єкти графічної інфраструктури
   private readonly geometry: THREE.BufferGeometry;
   private readonly material: THREE.ShaderMaterial;
   private readonly points: THREE.Points;
 
-  // Буфери атрибутів
+  // Масиви атрибутів буферів
   private readonly positions: Float32Array;
   private readonly sizes: Float32Array;
   private readonly opacities: Float32Array;
   private readonly colors: Float32Array;
 
-  // Активні частинки
+  // Реєстр активних елементів системи
   private readonly particles: ActiveParticle[] = [];
   private activeCount: number = 0;
 
-  // GPU optimization: Dirty tracking
+  // Механізм Dirty Tracking для мінімізації обміну даними з GPU
   private dirtyMin: number = Infinity;
   private dirtyMax: number = -Infinity;
   private isDirty: boolean = false;
@@ -72,20 +72,20 @@ export class ParticleSystem {
     this.scene = scene;
     this.maxParticles = maxParticles;
 
-    // Ініціалізація буферів
+    // Ініціалізація типізованих масивів для буферів
     this.positions = new Float32Array(maxParticles * 3);
     this.sizes = new Float32Array(maxParticles);
     this.opacities = new Float32Array(maxParticles);
     this.colors = new Float32Array(maxParticles * 3);
 
-    // Створення геометрії
+    // Конструювання об'єкта буферної геометрії
     this.geometry = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(this.positions, 3);
     const sizeAttr = new THREE.BufferAttribute(this.sizes, 1);
     const opacityAttr = new THREE.BufferAttribute(this.opacities, 1);
     const colorAttr = new THREE.BufferAttribute(this.colors, 3);
 
-    // GPU optimization: Dynamic usage hint
+    // Встановлення прапорця динамічного використання для оптимізації драйвером
     posAttr.usage = THREE.DynamicDrawUsage;
     sizeAttr.usage = THREE.DynamicDrawUsage;
     opacityAttr.usage = THREE.DynamicDrawUsage;
@@ -96,7 +96,7 @@ export class ParticleSystem {
     this.geometry.setAttribute('opacity', opacityAttr);
     this.geometry.setAttribute('color', colorAttr);
 
-    // Матеріал з кастомним шейдером
+    // Специфікація шейдерного матеріалу з підтримкою адитивного змішування
     this.material = new THREE.ShaderMaterial({
       vertexShader: particleVertexShader,
       fragmentShader: particleFragmentShader,
@@ -105,12 +105,12 @@ export class ParticleSystem {
       depthWrite: false,
     });
 
-    // Створення Points
+    // Реєстрація вузла Points у графі сцени
     this.points = new THREE.Points(this.geometry, this.material);
-    this.points.frustumCulled = false; // Particles can be anywhere
+    this.points.frustumCulled = false; // Частоки можуть бути розосереджені по всьому об'єму
     this.scene.add(this.points);
 
-    // Ініціалізація пулу частинок
+    // Наповнення репозиторію пулу часток
     for (let i = 0; i < maxParticles; i++) {
       this.particles.push({
         x: 0, y: 0, z: 0,
@@ -123,11 +123,11 @@ export class ParticleSystem {
   }
 
   // ============================================================================
-  // ПУБЛІЧНІ МЕТОДИ
+  // ПУБЛІЧНІ МЕТОДИ ГЕНЕРАЦІЇ ВІЗУАЛЬНИХ ПОДІЙ
   // ============================================================================
 
   /**
-   * Додати ефект смерті
+   * Ініціалізація візуального ефекту термінального стану (смерті) організму.
    */
   addDeathEffect(position: Vector3, color: number, isPredator: boolean = false): void {
     const particleCount = isPredator ? 40 : 25;
@@ -140,19 +140,19 @@ export class ParticleSystem {
         color,
         speed,
         size,
-        0.8 + Math.random() * 0.4, // life 0.8-1.2s
-        true // explosive
+        0.8 + Math.random() * 0.4, // Тривалість життєвого циклу 0.8-1.2с
+        true // Використання вибухової кінематики
       );
     }
   }
 
   /**
-   * Додати ефект народження
+   * Ініціалізація візуального ефекту виникнення (народження) агента.
    */
   addBirthEffect(position: Vector3, color: number): void {
     const particleCount = 30;
 
-    // Кільцева хвиля
+    // Генерація кільцевої ударної хвилі
     for (let i = 0; i < particleCount; i++) {
       const angle = (i / particleCount) * Math.PI * 2;
       const speed = 2;
@@ -174,14 +174,14 @@ export class ParticleSystem {
       p.active = true;
     }
 
-    // Центральний спалах
+    // Додатковий центральний фотонний спалах
     for (let i = 0; i < 10; i++) {
       this.emitParticle(position, 0xffffff, 1, 5, 0.3, true);
     }
   }
 
   /**
-   * Додати ефект поїдання
+   * Реалізація ефекту поглинання енергетичного ресурсу (харчування).
    */
   addEatEffect(position: Vector3): void {
     for (let i = 0; i < 8; i++) {
@@ -197,10 +197,10 @@ export class ParticleSystem {
   }
 
   /**
-   * Додати ефект полювання
+   * Візуалізація вектора атаки хижака.
    */
   addHuntEffect(predatorPos: Vector3, preyPos: Vector3): void {
-    // Лінія атаки
+    // Формування дискретної лінії траєкторії атаки
     const steps = 5;
     for (let i = 0; i < steps; i++) {
       const t = i / steps;
@@ -214,7 +214,7 @@ export class ParticleSystem {
   }
 
   /**
-   * GPU-оптимізоване оновлення системи частинок
+   * Обчислювальний цикл оновлення стану системи часток з GPU-оптимізацією.
    */
   update(deltaTime: number): void {
     let writeIndex = 0;
@@ -226,7 +226,7 @@ export class ParticleSystem {
       const p = this.particles[i];
       if (!p.active) continue;
 
-      // Оновлення життя
+      // Оновлення параметру часу життя
       p.life -= deltaTime;
       if (p.life <= 0) {
         p.active = false;
@@ -235,24 +235,24 @@ export class ParticleSystem {
         continue;
       }
 
-      // Оновлення фізики
+      // Розрахунок нових просторових координат
       p.x += p.vx * deltaTime * 60;
       p.y += p.vy * deltaTime * 60;
       p.z += p.vz * deltaTime * 60;
 
-      // Затухання швидкості
+      // Модуляція динамічного опору середовища
       p.vx *= 0.98;
       p.vy *= 0.98;
       p.vz *= 0.98;
 
-      // Гравітація (легка)
+      // Додавання вектора гравітаційного прискорення (мінімальний вплив)
       p.vy -= 0.02;
 
-      // Затухання прозорості
+      // Регулювання прозорості у функції часу життя
       const lifeRatio = p.life / p.maxLife;
       p.opacity = lifeRatio;
 
-      // Запис у буфери
+      // Серіалізація даних у буфери атрибутів
       const i3 = writeIndex * 3;
       this.positions[i3] = p.x;
       this.positions[i3 + 1] = p.y;
@@ -261,7 +261,7 @@ export class ParticleSystem {
       this.sizes[writeIndex] = p.size * (0.5 + lifeRatio * 0.5);
       this.opacities[writeIndex] = p.opacity;
 
-      // Колір (RGB)
+      // Трансформація колірних значень (RGB)
       const r = ((p.color >> 16) & 255) / 255;
       const g = ((p.color >> 8) & 255) / 255;
       const b = (p.color & 255) / 255;
@@ -273,14 +273,13 @@ export class ParticleSystem {
       writeIndex++;
     }
 
-    // GPU optimization: Часткове оновлення буферів замість повного
+    // GPU-оптимізація: Виконання оновлення тільки вказаного діапазону буферів
     if (this.isDirty && this.dirtyMin <= this.dirtyMax) {
       const posAttr = this.geometry.attributes.position as THREE.BufferAttribute;
       const sizeAttr = this.geometry.attributes.size as THREE.BufferAttribute;
       const opacityAttr = this.geometry.attributes.opacity as THREE.BufferAttribute;
       const colorAttr = this.geometry.attributes.color as THREE.BufferAttribute;
 
-      // Оновлюємо тільки dirty region
       posAttr.addUpdateRange(this.dirtyMin * 3, (this.dirtyMax - this.dirtyMin + 1) * 3);
       sizeAttr.addUpdateRange(this.dirtyMin, this.dirtyMax - this.dirtyMin + 1);
       opacityAttr.addUpdateRange(this.dirtyMin, this.dirtyMax - this.dirtyMin + 1);
@@ -292,12 +291,12 @@ export class ParticleSystem {
       colorAttr.needsUpdate = true;
     }
 
-    // Обмеження кількості відображуваних частинок
+    // Встановлення діапазону відмальовування згідно з кількістю активних часток
     this.geometry.setDrawRange(0, writeIndex);
   }
 
   /**
-   * Очистити всі частинки
+   * Примусова деактивація всіх елементів системи.
    */
   clear(): void {
     for (const p of this.particles) {
@@ -307,7 +306,7 @@ export class ParticleSystem {
   }
 
   /**
-   * Знищити систему
+   * Звільнення ресурсів графічного процесора та завершення роботи системи.
    */
   dispose(): void {
     this.scene.remove(this.points);
@@ -316,11 +315,11 @@ export class ParticleSystem {
   }
 
   // ============================================================================
-  // ПРИВАТНІ МЕТОДИ
+  // ВНУТРІШНІ ДОПОМІЖНІ МЕТОДИ ОПТИМІЗАЦІЇ
   // ============================================================================
 
   /**
-   * Відмітити частинку як змінену (dirty tracking)
+   * Реєстрація індексу зміненого елемента для механізму Dirty Tracking.
    */
   private markDirty(index: number): void {
     this.isDirty = true;
@@ -329,7 +328,7 @@ export class ParticleSystem {
   }
 
   /**
-   * Отримати вільну частинку
+   * Реалізація стратегії вилучення вільної частки з пулу.
    */
   private acquireParticle(): ActiveParticle | null {
     for (const p of this.particles) {
@@ -342,7 +341,7 @@ export class ParticleSystem {
   }
 
   /**
-   * Випустити частинку
+   * Формування та викид нової частоки з заданими кінематичними параметрами.
    */
   private emitParticle(
     position: Vector3,
@@ -360,7 +359,7 @@ export class ParticleSystem {
     p.z = position.z;
 
     if (explosive) {
-      // Сферичний розподіл
+      // Побудова ізотропного сферичного розподілу векторів швидкості
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       const r = speed * (0.5 + Math.random() * 0.5);
@@ -383,7 +382,7 @@ export class ParticleSystem {
   }
 
   /**
-   * Отримати кількість активних частинок
+   * Поточна кількість активних елементів у системі.
    */
   get count(): number {
     return this.activeCount;
@@ -391,11 +390,11 @@ export class ParticleSystem {
 }
 
 // ============================================================================
-// GPU-ОПТИМІЗОВАНА TRAIL SYSTEM (ZERO GC!)
+// GPU-ОПТИМІЗОВАНА СИСТЕМА ТРАСУВАННЯ ТРАЄКТОРІЙ (ZERO GC!)
 // ============================================================================
 
 /**
- * Слід окремого організму з persistent geometry
+ * Опис структури об'єкта сліду суб'єкта з постійною буферною геометрією.
  */
 interface Trail {
   readonly organismId: string;
@@ -411,7 +410,7 @@ interface Trail {
 }
 
 /**
- * GPU-оптимізований менеджер слідів організмів (zero GC)
+ * Менеджер управління графічними слідами (Trails) з високою ефективністю використання пам'яті.
  */
 export class TrailSystem {
   private readonly scene: THREE.Scene;
@@ -424,7 +423,7 @@ export class TrailSystem {
   }
 
   /**
-   * Оновити слід організму (GPU-оптимізовано)
+   * Оновлення геометрії сліду для конкретного організму (Zero-allocation).
    */
   updateTrail(
     organismId: string,
@@ -444,27 +443,44 @@ export class TrailSystem {
       this.trails.set(organismId, trail);
     }
 
-    // Додати нову позицію
+    // Check for wrapping/teleportation (distance threshold)
+    if (trail.positions.length > 0) {
+      const lastPos = trail.positions[trail.positions.length - 1];
+      const distSq =
+        (position.x - lastPos.x) ** 2 +
+        (position.y - lastPos.y) ** 2 +
+        (position.z - lastPos.z) ** 2;
+
+      // Threshold: if moved more than 50 units in one frame, it's a wrap.
+      // Max normal speed is ~5, so 50 is a safe margin.
+      // Min world size is 400 (scale 0.5), so wrap is at least 400.
+      if (distSq > 2500) {
+        trail.positions.length = 0;
+        trail.alphas.length = 0;
+      }
+    }
+
+    // Реєстрація нового положення в ланцюгу трасування
     trail.positions.push(new THREE.Vector3(position.x, position.y, position.z));
     trail.alphas.push(1.0);
 
-    // Обмежити довжину
+    // Усікання ланцюга відповідно до ліміту довжини
     if (trail.positions.length > trail.maxLength) {
       trail.positions.shift();
       trail.alphas.shift();
     }
 
-    // Оновити альфи (затухання)
+    // Коригування градієнта прозорості (ефект поступового зникнення)
     for (let i = 0; i < trail.alphas.length; i++) {
       trail.alphas[i] = (i + 1) / trail.positions.length;
     }
 
-    // GPU optimization: Оновити буфери без створення нової геометрії
+    // Виконання прямого запису в буфери відеопам'яті
     this.updateTrailBuffers(trail);
   }
 
   /**
-   * Видалити слід
+   * Термінальне видалення об'єкта сліду з графічної сцени.
    */
   removeTrail(organismId: string): void {
     const trail = this.trails.get(organismId);
@@ -477,7 +493,7 @@ export class TrailSystem {
   }
 
   /**
-   * Очистити всі сліди
+   * Масове очищення всіх активних слідів.
    */
   clear(): void {
     this.trails.forEach((trail, id) => {
@@ -486,37 +502,36 @@ export class TrailSystem {
   }
 
   /**
-   * Знищити систему
+   * Завершення роботи системи та вивільнення пов'язаних ресурсів.
    */
   dispose(): void {
     this.clear();
   }
 
   // ============================================================================
-  // ПРИВАТНІ МЕТОДИ (GPU-ОПТИМІЗОВАНІ)
+  // ПРИВАТНІ МЕТОДИ ВНУТРІШНЬОЇ МОДЕРНІЗАЦІЇ ГЕОМЕТРІЇ
   // ============================================================================
 
   /**
-   * Створити новий слід з persistent geometry
+   * Ініціалізація нового об'єкта сліду з використанням персистентної геометрії.
    */
   private createTrail(organismId: string, color: number): Trail {
-    // Створити буфери максимального розміру (zero allocations пізніше)
+    // Алокація буферів максимальної ємності на етапі ініціалізації
     const positionBuffer = new Float32Array(this.maxTrailLength * 3);
     const colorBuffer = new Float32Array(this.maxTrailLength * 3);
 
-    // Створити геометрію один раз
     const geometry = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(positionBuffer, 3);
     const colorAttr = new THREE.BufferAttribute(colorBuffer, 3);
 
-    // GPU optimization: Dynamic usage hint
+    // Специфікація динамічного використання для підвищення частоти оновлення
     posAttr.usage = THREE.DynamicDrawUsage;
     colorAttr.usage = THREE.DynamicDrawUsage;
 
     geometry.setAttribute('position', posAttr);
     geometry.setAttribute('color', colorAttr);
 
-    // Матеріал
+    // Налаштування матеріалу об'єкта Line
     const material = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
@@ -525,6 +540,7 @@ export class TrailSystem {
     });
 
     const line = new THREE.Line(geometry, material);
+    line.frustumCulled = false; // Disable culling as we don't update bounding sphere
     this.scene.add(line);
 
     return {
@@ -542,14 +558,14 @@ export class TrailSystem {
   }
 
   /**
-   * Оновити буфери сліду (zero GC - без створення нової геометрії!)
+   * Оновлення вмісту атрибутів буферів (Zero GC - відсутність нових алокацій!).
    */
   private updateTrailBuffers(trail: Trail): void {
     if (trail.positions.length < 2) return;
 
     const count = trail.positions.length;
 
-    // Оновити буфери на місці (без allocations)
+    // Інкрементальне заповнення буферів детермінованими даними
     for (let i = 0; i < count; i++) {
       const pos = trail.positions[i];
       const alpha = trail.alphas[i];
@@ -566,14 +582,14 @@ export class TrailSystem {
     const posAttr = trail.geometry.attributes.position as THREE.BufferAttribute;
     const colorAttr = trail.geometry.attributes.color as THREE.BufferAttribute;
 
-    // GPU optimization: Часткове оновлення тільки використаних вершин
+    // Повідомлення GPU про необхідність оновлення лише задіяного фрагмента пам'яті
     posAttr.addUpdateRange(0, count * 3);
     colorAttr.addUpdateRange(0, count * 3);
 
     posAttr.needsUpdate = true;
     colorAttr.needsUpdate = true;
 
-    // Оновити draw range для відображення тільки активних вершин
+    // Коригування індексу відмальовування вершин
     trail.geometry.setDrawRange(0, count);
   }
 }
