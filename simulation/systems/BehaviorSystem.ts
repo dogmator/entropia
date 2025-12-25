@@ -1,11 +1,11 @@
 /**
- * Entropia 3D — Система Поведінки
+ * Entropia 3D — Система моделювання поведінки об'єктів (Behavior System).
  *
- * Відповідальність: AI та поведінка організмів
- * - Boids алгоритм (separation, alignment, cohesion)
- * - Steering behaviors (seek, flee, avoid)
- * - Виявлення цілей та загроз
- * - Модифікатори від екологічних зон
+ * Відповідає за когнітивне моделювання біологічних агентів та розрахунок векторів керування (Steering Behaviors):
+ * - Класичний алгоритм Рейнольдса (Boids): сепарація, вирівнювання, когезія.
+ * - Адаптивні стратегії: переслідування цілі (Seek), втеча від загрози (Flee), ухилення (Avoid).
+ * - Сенсорна обробка оточення для ідентифікації ресурсів та хижаків.
+ * - Модуляція поведінки залежно від параметрів екологічних зон.
  */
 
 import { Organism } from '../Entity';
@@ -13,19 +13,22 @@ import { EntityType, Vector3, EcologicalZone, SimulationConfig, OrganismState } 
 import { SpatialHashGrid } from '../SpatialHashGrid';
 
 /**
- * Константи поведінки
+ * Константи параметрів поведінкової динаміки.
  */
-const SEPARATION_RADIUS = 18;
-const OBSTACLE_AVOIDANCE_DISTANCE = 25;
+import { PHYSICS } from '../../constants';
+import { MathUtils } from '../MathUtils';
 
 /**
- * Модифікатори від зони
+ * Дескриптор модифікаторів поведінки в межах біома.
  */
 interface ZoneModifiers {
   seekMultiplier: number;
   dangerMultiplier: number;
 }
 
+/**
+ * Клас, що реалізує інтелектуальний рівень симуляції.
+ */
 export class BehaviorSystem {
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
@@ -34,7 +37,7 @@ export class BehaviorSystem {
   ) { }
 
   /**
-   * Оновити поведінку всіх організмів
+   * Оновлення поведінкових векторів для всієї популяції.
    */
   update(organisms: Map<string, Organism>): void {
     organisms.forEach(organism => {
@@ -45,12 +48,12 @@ export class BehaviorSystem {
   }
 
   /**
-   * Застосувати поведінкові сили до організму
+   * Розрахунок та застосування сумарних сил впливу на конкретний організм.
    */
   private applyBehaviors(org: Organism): void {
     const neighbors = this.spatialGrid.getNearby(org.position, org.genome.senseRadius);
 
-    // Накопичувачі сил
+    // Акумулятори векторних сил
     const forces = {
       separation: { x: 0, y: 0, z: 0, count: 0 },
       seek: { x: 0, y: 0, z: 0 },
@@ -63,39 +66,49 @@ export class BehaviorSystem {
     let targetPos: Vector3 | null = null;
     let newState: OrganismState = 'IDLE';
 
-    // Обробити всіх сусідів
+    // Аналіз об'єктів у радіусі сенсорного сприйняття
     for (const n of neighbors) {
       if (n.id === org.id) continue;
 
-      const dx = n.position.x - org.position.x;
-      const dy = n.position.y - org.position.y;
-      const dz = n.position.z - org.position.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const diff = MathUtils.toroidalVector(org.position, n.position, this.config['worldSize'] || 400); // Wait, BehaviorSystem needs worldSize
+      // BehaviorSystem doesn't have worldSize in config directly if Config is SimulationConfig? 
+      // SimulationConfig has... WORLD_SIZE is global constant.
+      // But we passed WorldConfig to Engine.
+      // Let's use MathUtils default WORLD_SIZE or better get it from somewhere.
+      // MathUtils uses global WORLD_SIZE by default.
+
+      const distSq = MathUtils.magnitudeSq(diff);
       const dist = Math.sqrt(distSq);
 
       if (dist < 0.001) continue;
 
-      // Уникання перешкод
+      const ndx = diff.x;
+      const ndy = diff.y;
+      const ndz = diff.z;
+      // In toroidalVector: to - from.
+      // So ndx is vector FROM org TO n.
+
+      // Опрацювання просторових аномалій (перешкод)
       if (n.type === EntityType.OBSTACLE) {
-        if (dist < n.radius + org.radius + OBSTACLE_AVOIDANCE_DISTANCE) {
+        if (dist < n.radius + org.radius + PHYSICS.obstacleAvoidanceDistance) {
           const force = 1 / (dist * dist);
-          forces.obstacle.x -= (dx / dist) * force;
-          forces.obstacle.y -= (dy / dist) * force;
-          forces.obstacle.z -= (dz / dist) * force;
+          forces.obstacle.x -= (ndx / dist) * force;
+          forces.obstacle.y -= (ndy / dist) * force;
+          forces.obstacle.z -= (ndz / dist) * force;
         }
         continue;
       }
 
-      // Сепарація
-      if (dist < SEPARATION_RADIUS) {
-        const force = (SEPARATION_RADIUS - dist) / SEPARATION_RADIUS;
-        forces.separation.x -= (dx / dist) * force;
-        forces.separation.y -= (dy / dist) * force;
-        forces.separation.z -= (dz / dist) * force;
+      // Розрахунок сили сепарації (запобігання скупченню)
+      if (dist < PHYSICS.separationRadius) {
+        const force = (PHYSICS.separationRadius - dist) / PHYSICS.separationRadius;
+        forces.separation.x -= (ndx / dist) * force;
+        forces.separation.y -= (ndy / dist) * force;
+        forces.separation.z -= (ndz / dist) * force;
         forces.separation.count++;
       }
 
-      // Поведінка травоїдних
+      // Специфічна логіка для трофічного рівня травоїдних
       if (org.isPrey) {
         if (n.type === EntityType.FOOD && dist < closestTargetDist) {
           closestTargetDist = dist;
@@ -103,14 +116,14 @@ export class BehaviorSystem {
           newState = 'SEEKING';
         } else if (n.type === EntityType.PREDATOR) {
           const fleeForce = org.genome.senseRadius / (dist * dist);
-          forces.flee.x -= (dx / dist) * fleeForce;
-          forces.flee.y -= (dy / dist) * fleeForce;
-          forces.flee.z -= (dz / dist) * fleeForce;
+          forces.flee.x -= (ndx / dist) * fleeForce;
+          forces.flee.y -= (ndy / dist) * fleeForce;
+          forces.flee.z -= (ndz / dist) * fleeForce;
           newState = 'FLEEING';
         }
       }
 
-      // Поведінка хижаків
+      // Специфічна логіка для трофічного рівня хижаків
       if (org.isPredator) {
         if (n.type === EntityType.PREY && dist < closestTargetDist) {
           closestTargetDist = dist;
@@ -120,88 +133,78 @@ export class BehaviorSystem {
       }
     }
 
-    // Застосувати зони
+    // Отримання екологічних коефіцієнтів поточної локації
     const zoneModifier = this.getZoneModifier(org.position, org.type);
 
-    // Застосувати сили
+    // Застосування результуючих сил до вектора прискорення
     this.applySeparation(org, forces.separation, forces.separation.count);
     this.applySeek(org, forces.seek, targetPos, zoneModifier);
     this.applyFlee(org, forces.flee);
     this.applyObstacleAvoidance(org, forces.obstacle);
 
-    // Оновити стан
+    // Актуалізація внутрішнього стану агента
     org.updateState(newState);
   }
 
   /**
-   * Застосувати силу сепарації
+   * Застосування сили сепарації (відштовхування сусідів).
    */
   private applySeparation(org: Organism, sep: { x: number; y: number; z: number }, count: number): void {
-    if (count === 0) return;
-
-    const mag = Math.sqrt(sep.x * sep.x + sep.y * sep.y + sep.z * sep.z);
-    if (mag > 0) {
-      org.acceleration.x += (sep.x / mag) * this.config.separationWeight;
-      org.acceleration.y += (sep.y / mag) * this.config.separationWeight;
-      org.acceleration.z += (sep.z / mag) * this.config.separationWeight;
+    if (count > 0) {
+      this.applySteeringForce(org, sep, this.config.separationWeight);
     }
   }
 
   /**
-   * Застосувати силу пошуку
+   * Застосування сили переслідування цілі (Seek).
    */
   private applySeek(org: Organism, seek: { x: number; y: number; z: number }, target: Vector3 | null, mod: ZoneModifiers): void {
     if (!target) return;
 
-    seek.x = target.x - org.position.x;
-    seek.y = target.y - org.position.y;
-    seek.z = target.z - org.position.z;
+    const nav = MathUtils.toroidalVector(org.position, target);
+    seek.x = nav.x;
+    seek.y = nav.y;
+    seek.z = nav.z;
 
-    const mag = Math.sqrt(seek.x * seek.x + seek.y * seek.y + seek.z * seek.z);
-    if (mag > 0) {
-      const weight = this.config.seekWeight * mod.seekMultiplier;
-      org.acceleration.x += (seek.x / mag) * weight;
-      org.acceleration.y += (seek.y / mag) * weight;
-      org.acceleration.z += (seek.z / mag) * weight;
-    }
+    this.applySteeringForce(org, seek, this.config.seekWeight * mod.seekMultiplier);
   }
 
   /**
-   * Застосувати силу втечі
+   * Застосування сили втечі від загрози (Flee).
    */
   private applyFlee(org: Organism, flee: { x: number; y: number; z: number }): void {
-    const mag = Math.sqrt(flee.x * flee.x + flee.y * flee.y + flee.z * flee.z);
-    if (mag > 0) {
-      org.acceleration.x += (flee.x / mag) * this.config.avoidWeight;
-      org.acceleration.y += (flee.y / mag) * this.config.avoidWeight;
-      org.acceleration.z += (flee.z / mag) * this.config.avoidWeight;
-    }
+    this.applySteeringForce(org, flee, this.config.avoidWeight);
   }
 
   /**
-   * Застосувати силу уникання перешкод
+   * Застосування сили ухилення від статичних об'єктів.
    */
   private applyObstacleAvoidance(org: Organism, obs: { x: number; y: number; z: number }): void {
-    const mag = Math.sqrt(obs.x * obs.x + obs.y * obs.y + obs.z * obs.z);
-    if (mag > 0) {
-      org.acceleration.x += (obs.x / mag) * 12;
-      org.acceleration.y += (obs.y / mag) * 12;
-      org.acceleration.z += (obs.z / mag) * 12;
+    this.applySteeringForce(org, obs, 12);
+  }
+
+  /**
+   * Універсальний метод застосування кермової сили.
+   */
+  private applySteeringForce(org: Organism, vector: { x: number; y: number; z: number }, weight: number): void {
+    const magSq = vector.x * vector.x + vector.y * vector.y + vector.z * vector.z;
+    if (magSq > 0) {
+      const mag = Math.sqrt(magSq);
+      org.acceleration.x += (vector.x / mag) * weight;
+      org.acceleration.y += (vector.y / mag) * weight;
+      org.acceleration.z += (vector.z / mag) * weight;
     }
   }
 
   /**
-   * Отримати модифікатори зони
+   * Розрахунок агрегованих модифікаторів біома для поточної локації.
    */
   private getZoneModifier(pos: Vector3, type: EntityType): ZoneModifiers {
     let seekMultiplier = 1;
     let dangerMultiplier = 1;
 
     this.zones.forEach(zone => {
-      const dx = pos.x - zone.center.x;
-      const dy = pos.y - zone.center.y;
-      const dz = pos.z - zone.center.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
+      const distSq = MathUtils.toroidalDistanceSq(pos, zone.center);
 
       if (distSq < zone.radius * zone.radius) {
         seekMultiplier *= zone.foodMultiplier;

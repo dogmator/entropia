@@ -1,13 +1,12 @@
-
 /**
- * Entropia 3D — Сутності симуляції
+ * Entropia 3D — Моделі сутностей симуляційного середовища.
  *
- * Академічно коректна ієрархія класів для:
- * - Організмів (травоїдні та хижаки)
- * - Їжі (енергокристали)
- * - Перешкод (аномалії)
+ * Реалізована академічно коректна ієрархія класів для наступних об'єктів:
+ * - Організмів (продуценти/травоїдні та консументи/хижаки).
+ * - Ресурсних одиниць (енергетичні субстрати/їжа).
+ * - Структурних перешкод (просторові аномалії).
  *
- * Використовує Discriminated Unions для типобезпечного патерн-матчингу
+ * Використовує механізм Discriminated Unions для забезпечення суворої типізації при зіставленні за зразком (Pattern Matching).
  */
 
 import {
@@ -40,13 +39,14 @@ import {
   COLORS,
   PREDATOR_SUBTYPES,
 } from '../constants';
+import { Random } from '../core/utils/Random';
 
 // ============================================================================
-// АБСТРАКТНА БАЗОВА СУТНІСТЬ
+// АБСТРАКТНА БАЗОВА СУТНІСТЬ (ENTITY)
 // ============================================================================
 
 /**
- * Базовий клас для всіх сутностей у світі симуляції
+ * Фундаментальний абстрактний клас для всіх об'єктів віртуального світу.
  */
 export abstract class Entity {
   public abstract readonly type: EntityType;
@@ -57,44 +57,45 @@ export abstract class Entity {
     public radius: number
   ) { }
 
-  /** Квадрат відстані до іншої точки (швидше ніж sqrt) */
-  distanceSquaredTo(other: Vector3): number {
-    const dx = this.position.x - other.x;
-    const dy = this.position.y - other.y;
-    const dz = this.position.z - other.z;
-    return dx * dx + dy * dy + dz * dz;
-  }
+
 }
 
 // ============================================================================
-// ЇЖА (ЕНЕРГОКРИСТАЛИ)
+// ЕНЕРГЕТИЧНИЙ СУБСТРАТ (FOOD)
 // ============================================================================
 
 /**
- * Енергокристал — джерело енергії для травоїдних
+ * Енергетичний кристал — первинне джерело нутрієнтів для продуцентів.
  *
  * Характеристики:
- * - Статичний об'єкт
- * - Зникає при споживанні
- * - Візуально анімований (обертання, пульсація)
+ * - Статична просторова локалізація.
+ * - Елімінація об'єкта при поглинанні.
+ * - Наявність візуальних ефектів (ротація, осциляція яскравості).
  */
 export class Food extends Entity {
   public readonly type = EntityType.FOOD;
   public readonly energyValue: number;
 
-  /** Час створення для анімації */
+  /** Часова мітка ініціалізації для синхронізації анімацій. */
   public readonly spawnTime: number;
 
-  /** Чи було спожито */
+  /** Поточний статус споживання об'єкта. */
   public consumed: boolean = false;
 
-  constructor(id: FoodId, position: MutableVector3, energyValue: number = FOOD_ENERGY_VALUE) {
+  constructor(
+    id: FoodId,
+    position: MutableVector3,
+    energyValue: number = FOOD_ENERGY_VALUE,
+    spawnTime: number = Date.now()
+  ) {
     super(id, position, 2);
     this.energyValue = energyValue;
-    this.spawnTime = Date.now();
+    this.spawnTime = spawnTime;
   }
 
-  /** Фабричний метод для створення їжі */
+  /**
+   * Статичний фабричний метод для екземпляризації об'єктів їжі.
+   */
   static create(idCounter: number, x: number, y: number, z: number): Food {
     return new Food(
       createFoodId(`food_${idCounter}`),
@@ -105,23 +106,23 @@ export class Food extends Entity {
 }
 
 // ============================================================================
-// ПЕРЕШКОДА (АНОМАЛІЯ)
+// СТРУКТУРНА ПЕРЕШКОДА (OBSTACLE)
 // ============================================================================
 
 /**
- * Просторова аномалія — перешкода для руху
+ * Просторова аномалія — об'єкт, що обмежує вільне переміщення агентів.
  *
  * Характеристики:
- * - Статичний об'єкт
- * - Відштовхує організми при зіткненні
- * - Різні візуальні стилі
+ * - Статичний характер взаємодії.
+ * - Формування векторів відштовхування при контакті.
+ * - Варіативна візуальна репрезентація.
  */
 export class Obstacle extends Entity {
   public readonly type = EntityType.OBSTACLE;
   public readonly color: number;
   public readonly opacity: number;
 
-  /** Чи є wireframe (каркасний режим) */
+  /** Прапорець активації каркасного режиму відображення (Wireframe). */
   public readonly isWireframe: boolean;
 
   constructor(
@@ -138,106 +139,113 @@ export class Obstacle extends Entity {
     this.isWireframe = isWireframe;
   }
 
-  /** Фабричний метод для створення аномалії */
+  /**
+   * Статичний фабричний метод для генерації об'єктів просторових аномалій.
+   */
   static create(
     idCounter: number,
     x: number,
     y: number,
     z: number,
-    radius: number
+    radius: number,
+    rng?: Random
   ): Obstacle {
+    const rand = rng ? () => rng.next() : Math.random;
     return new Obstacle(
       createObstacleId(`obs_${idCounter}`),
       { x, y, z },
       radius,
-      COLORS.obstacle.base + Math.floor(Math.random() * 0x222222),
-      0.3 + Math.random() * 0.5,
-      Math.random() > 0.7
+      COLORS.obstacle.base + Math.floor(rand() * 0x222222),
+      0.3 + rand() * 0.5,
+      rand() > 0.7
     );
   }
 }
 
 // ============================================================================
-// ОРГАНІЗМ (ТРАВОЇДНИЙ / ХИЖАК)
+// БІОЛОГІЧНИЙ АГЕНТ (ORGANISM)
 // ============================================================================
 
 /**
- * Живий організм з геномом, енергією та поведінкою
+ * Динамічна одиниця симуляції, що володіє геномом, метаболізмом та логікою поведінки.
  *
- * Реалізує:
- * - Фізику руху (velocity, acceleration)
- * - Метаболізм (втрата енергії)
- * - Стан (IDLE, SEEKING, FLEEING, etc.)
- * - Генетичну інформацію
+ * Реалізовані механізми:
+ * - Кінематичне моделювання (вектори швидкості та прискорення).
+ * - Термодинамічний метаболізм (дисипація енергії).
+ * - Скінченний автомат станів (State Machine: Спокій, Пошук, Втеча тощо).
+ * - Збереження та передача генетичного коду.
  */
 export class Organism extends Entity {
   public readonly type: typeof EntityType.PREY | typeof EntityType.PREDATOR;
 
-  // Фізика
+  // Кінематичні характеристики
   public velocity: MutableVector3;
   public acceleration: MutableVector3;
 
-  // Стан життя
+  // Опис вітальних функцій та стану
   public energy: number;
   public age: number = 0;
   public state: OrganismState = OrganismState.IDLE;
   public isDead: boolean = false;
   public causeOfDeath: 'starvation' | 'predation' | 'old_age' | null = null;
 
-  // Візуалізація
+  // Візуальні атрибути
   public trailEnabled: boolean = false;
 
-  // Генетика
+  // Генетичний дескриптор
   public readonly genome: Genome;
 
-  /** ID батьківського організму (для родоводу) */
+  /** Посилання на ідентифікатор прабатька (для філогенетичного аналізу). */
   public readonly parentOrganismId: OrganismId | null;
 
-  /** Лічильник успішних полювань (для хижаків) */
+  /** Реєстр успішних трофічних взаємодій (актуально для хижаків). */
   public huntSuccessCount: number = 0;
 
-  /** Останній тік активності (для оптимізації) */
+  /** Часова відмітка останньої активності для оптимізації оновлень. */
   public lastActiveAt: number = 0;
 
   constructor(
     id: OrganismId,
     position: MutableVector3,
     genome: Genome,
-    parentOrganismId: OrganismId | null = null
+    parentOrganismId: OrganismId | null = null,
+    rng?: Random
   ) {
     super(id, position, genome.size);
     this.genome = genome;
     this.type = genome.type as typeof EntityType.PREY | typeof EntityType.PREDATOR;
     this.parentOrganismId = parentOrganismId;
 
-    // Ініціалізація фізики
+    const rand = rng ? () => rng.next() : Math.random;
+
+    // Ініціалізація векторів фізичної взаємодії
     this.velocity = {
-      x: (Math.random() - 0.5) * 2,
-      y: (Math.random() - 0.5) * 2,
-      z: (Math.random() - 0.5) * 2,
+      x: (rand() - 0.5) * 2,
+      y: (rand() - 0.5) * 2,
+      z: (rand() - 0.5) * 2,
     };
     this.acceleration = vec3Zero();
 
-    // Ініціалізація енергії
+    // Встановлення початкового енергетичного потенціалу
     this.energy = INITIAL_ENERGY;
   }
 
-  /** Чи є травоїдним */
+  /** Перевірка приналежності до трофічного рівня продуцентів/травоїдних. */
   get isPrey(): boolean {
     return this.type === EntityType.PREY;
   }
 
-  /** Чи є хижаком */
+  /** Перевірка приналежності до трофічного рівня консументів/хижаків. */
   get isPredator(): boolean {
     return this.type === EntityType.PREDATOR;
   }
 
-  /** Нормалізована енергія (0-1) */
+  /** Обчислення нормалізованого значення енергетичного запасу [0, 1]. */
   get normalizedEnergy(): number {
     return Math.max(0, Math.min(1, this.energy / MAX_ENERGY));
   }
 
-  /** Швидкість (магнітуда вектора velocity) */
+  /** Обчислення скалярної величини швидкості (модуль вектора). */
   get speed(): number {
     return Math.sqrt(
       this.velocity.x * this.velocity.x +
@@ -246,12 +254,12 @@ export class Organism extends Entity {
     );
   }
 
-  /** Додати енергію */
+  /** Поповнення енергетичного депо організму. */
   addEnergy(amount: number): void {
     this.energy = Math.min(MAX_ENERGY, this.energy + amount);
   }
 
-  /** Витратити енергію */
+  /** Дисипація енергії та перевірка на критичний рівень виснаження. */
   consumeEnergy(amount: number): void {
     this.energy -= amount;
     if (this.energy <= 0) {
@@ -259,7 +267,7 @@ export class Organism extends Entity {
     }
   }
 
-  /** Померти */
+  /** Ініціалізація процесу термінальної елімінації (смерті). */
   die(cause: 'starvation' | 'predation' | 'old_age'): void {
     if (!this.isDead) {
       this.isDead = true;
@@ -268,14 +276,14 @@ export class Organism extends Entity {
     }
   }
 
-  /** Оновити стан організму */
+  /** Валідована зміна внутрішнього стану агента. */
   updateState(newState: OrganismState): void {
     if (!this.isDead && this.state !== newState) {
       this.state = newState;
     }
   }
 
-  /** Клонувати для рендерингу (імутабельний знімок) */
+  /** Формування імутабельного зрізу даних для підсистеми візуалізації. */
   toRenderData() {
     return {
       id: this.id as OrganismId,
@@ -294,85 +302,95 @@ export class Organism extends Entity {
 }
 
 // ============================================================================
-// ФАБРИКА ГЕНОМІВ
+// ГЕНЕРАТОР ГЕНЕТИЧНИХ СТРУКТУР (GENOME FACTORY)
 // ============================================================================
 
 /**
- * Генератор геномів з мутаціями
+ * Центр формування геномів з підтримкою стохастичних мутацій.
  */
 export class GenomeFactory {
   private idCounter: number = 0;
 
-  /** Згенерувати унікальний ID генома */
+  constructor(private readonly rng: Random) { }
+
+  /** Генерація унікального дескриптора геному. */
   private nextId(): GenomeId {
     return createGenomeId(`genome_${++this.idCounter}`);
   }
 
-  /** Обмежити значення в межах min-max */
-  private clamp(value: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, value));
+  getIdCounter(): number {
+    return this.idCounter;
   }
 
-  /** Застосувати мутацію до значення */
-  private mutate(value: number, mutationFactor: number): number {
-    const factor = 1 - mutationFactor / 2 + Math.random() * mutationFactor;
-    return value * factor;
+  setIdCounter(counter: number): void {
+    this.idCounter = Math.max(0, counter);
   }
 
-  /** Створити геном травоїдного */
-  createPreyGenome(parent: PreyGenome | null = null): PreyGenome {
-    const mf = GENETICS.mutationFactor;
-    const base = GENETICS.preyBase;
+  /**
+   * Уніфікований метод мутації генетичної ознаки з валідацією меж.
+   */
+  private mutateTrait(value: number, min: number, max: number, customFactor: number = 1): number {
+    const mf = GENETICS.mutationFactor * customFactor;
+    const factor = 1 - mf / 2 + this.rng.next() * mf;
+    return Math.max(min, Math.min(max, value * factor));
+  }
+
+  /**
+   * Мутація спільних ознак для всіх типів геномів.
+   */
+  private mutateCommonTraits(parent: Genome) {
     const min = GENETICS.min;
     const max = GENETICS.max;
+    return {
+      maxSpeed: this.mutateTrait(parent.maxSpeed, min.maxSpeed, max.maxSpeed),
+      senseRadius: this.mutateTrait(parent.senseRadius, min.senseRadius, max.senseRadius),
+      metabolism: this.mutateTrait(parent.metabolism, min.metabolism, max.metabolism),
+      size: this.mutateTrait(parent.size, min.size, max.size),
+      asymmetry: this.mutateTrait(parent.asymmetry, min.asymmetry, max.asymmetry, 2),
+      spikiness: this.mutateTrait(parent.spikiness, min.spikiness, max.spikiness, 2),
+      glowIntensity: this.mutateTrait(parent.glowIntensity, min.glowIntensity, max.glowIntensity),
+    };
+  }
 
+  /** Формування геному для трофічного рівня травоїдних. */
+  createPreyGenome(parent: PreyGenome | null = null): PreyGenome {
     if (!parent) {
+      const base = GENETICS.preyBase;
       return {
         id: this.nextId(),
         parentId: null,
         generation: 1,
         type: EntityType.PREY,
         color: COLORS.prey.base,
-        maxSpeed: base.maxSpeed + (Math.random() - 0.5) * 0.5,
-        senseRadius: base.senseRadius + (Math.random() - 0.5) * 20,
-        metabolism: base.metabolism + (Math.random() - 0.5) * 0.2,
-        size: base.size + (Math.random() - 0.5) * 1,
-        asymmetry: Math.random() * 0.3,
-        spikiness: Math.random() * 0.2,
-        glowIntensity: 0.3 + Math.random() * 0.3,
-        flockingStrength: base.flockingStrength + (Math.random() - 0.5) * 0.2,
+        maxSpeed: base.maxSpeed + (this.rng.next() - 0.5) * 0.5,
+        senseRadius: base.senseRadius + (this.rng.next() - 0.5) * 20,
+        metabolism: base.metabolism + (this.rng.next() - 0.5) * 0.2,
+        size: base.size + (this.rng.next() - 0.5) * 1,
+        asymmetry: this.rng.next() * 0.3,
+        spikiness: this.rng.next() * 0.2,
+        glowIntensity: 0.3 + this.rng.next() * 0.3,
+        flockingStrength: base.flockingStrength + (this.rng.next() - 0.5) * 0.2,
       };
     }
 
     return {
+      ...this.mutateCommonTraits(parent),
       id: this.nextId(),
       parentId: parent.id,
       generation: parent.generation + 1,
       type: EntityType.PREY,
       color: COLORS.prey.base,
-      maxSpeed: this.clamp(this.mutate(parent.maxSpeed, mf), min.maxSpeed, max.maxSpeed),
-      senseRadius: this.clamp(this.mutate(parent.senseRadius, mf), min.senseRadius, max.senseRadius),
-      metabolism: this.clamp(this.mutate(parent.metabolism, mf), min.metabolism, max.metabolism),
-      size: this.clamp(this.mutate(parent.size, mf), min.size, max.size),
-      asymmetry: this.clamp(this.mutate(parent.asymmetry, mf * 2), min.asymmetry, max.asymmetry),
-      spikiness: this.clamp(this.mutate(parent.spikiness, mf * 2), min.spikiness, max.spikiness),
-      glowIntensity: this.clamp(this.mutate(parent.glowIntensity, mf), min.glowIntensity, max.glowIntensity),
-      flockingStrength: this.clamp(this.mutate(parent.flockingStrength, mf), 0, 1),
+      flockingStrength: this.mutateTrait(parent.flockingStrength, 0, 1),
     };
   }
 
-  /** Створити геном хижака */
+  /** Формування геному для трофічного рівня хижаків. */
   createPredatorGenome(parent: PredatorGenome | null = null): PredatorGenome {
-    const mf = GENETICS.mutationFactor;
-    const base = GENETICS.predatorBase;
-    const min = GENETICS.min;
-    const max = GENETICS.max;
-
-    // Випадковий підтип для нових хижаків
     const subtypes: PredatorSubtype[] = ['HUNTER', 'AMBUSHER', 'PACK'];
-    const randomSubtype = subtypes[Math.floor(Math.random() * subtypes.length)];
+    const randomSubtype = subtypes[Math.floor(this.rng.next() * subtypes.length)];
 
     if (!parent) {
+      const base = GENETICS.predatorBase;
       const subConfig = PREDATOR_SUBTYPES[randomSubtype];
       return {
         id: this.nextId(),
@@ -381,42 +399,36 @@ export class GenomeFactory {
         type: EntityType.PREDATOR,
         subtype: randomSubtype,
         color: subConfig.color,
-        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (Math.random() - 0.5) * 0.5,
-        senseRadius: base.senseRadius * subConfig.senseMultiplier + (Math.random() - 0.5) * 30,
-        metabolism: base.metabolism + (Math.random() - 0.5) * 0.2,
-        size: base.size + (Math.random() - 0.5) * 1.5,
-        asymmetry: Math.random() * 0.4,
-        spikiness: 0.3 + Math.random() * 0.4,
-        glowIntensity: 0.4 + Math.random() * 0.4,
+        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (this.rng.next() - 0.5) * 0.5,
+        senseRadius: base.senseRadius * subConfig.senseMultiplier + (this.rng.next() - 0.5) * 30,
+        metabolism: base.metabolism + (this.rng.next() - 0.5) * 0.2,
+        size: base.size + (this.rng.next() - 0.5) * 1.5,
+        asymmetry: this.rng.next() * 0.4,
+        spikiness: 0.3 + this.rng.next() * 0.4,
+        glowIntensity: 0.4 + this.rng.next() * 0.4,
         attackPower: base.attackPower * subConfig.attackMultiplier,
-        packAffinity: base.packAffinity + (Math.random() - 0.5) * 0.2,
+        packAffinity: base.packAffinity + (this.rng.next() - 0.5) * 0.2,
       };
     }
 
-    // Успадкування підтипу з невеликим шансом мутації
-    const inheritedSubtype = Math.random() < 0.9 ? parent.subtype : randomSubtype;
+    // Спадкування та можлива трансформація підтипу
+    const inheritedSubtype = this.rng.next() < 0.9 ? parent.subtype : randomSubtype;
     const subConfig = PREDATOR_SUBTYPES[inheritedSubtype];
 
     return {
+      ...this.mutateCommonTraits(parent),
       id: this.nextId(),
       parentId: parent.id,
       generation: parent.generation + 1,
       type: EntityType.PREDATOR,
       subtype: inheritedSubtype,
       color: subConfig.color,
-      maxSpeed: this.clamp(this.mutate(parent.maxSpeed, mf), min.maxSpeed, max.maxSpeed),
-      senseRadius: this.clamp(this.mutate(parent.senseRadius, mf), min.senseRadius, max.senseRadius),
-      metabolism: this.clamp(this.mutate(parent.metabolism, mf), min.metabolism, max.metabolism),
-      size: this.clamp(this.mutate(parent.size, mf), min.size, max.size),
-      asymmetry: this.clamp(this.mutate(parent.asymmetry, mf * 2), min.asymmetry, max.asymmetry),
-      spikiness: this.clamp(this.mutate(parent.spikiness, mf * 2), min.spikiness, max.spikiness),
-      glowIntensity: this.clamp(this.mutate(parent.glowIntensity, mf), min.glowIntensity, max.glowIntensity),
-      attackPower: this.clamp(this.mutate(parent.attackPower, mf), 0.5, 2.0),
-      packAffinity: this.clamp(this.mutate(parent.packAffinity, mf), 0, 1),
+      attackPower: this.mutateTrait(parent.attackPower, 0.5, 2.0),
+      packAffinity: this.mutateTrait(parent.packAffinity, 0, 1),
     };
   }
 
-  /** Створити геном на основі батьківського */
+  /** Генерація нового геному на підставі існуючого предка. */
   createFromParent(parentGenome: Genome): Genome {
     if (isPreyGenome(parentGenome)) {
       return this.createPreyGenome(parentGenome);
@@ -425,61 +437,90 @@ export class GenomeFactory {
     }
   }
 
-  /** Скинути лічильник (для тестів) */
+  /** Ресет внутрішніх лічильників ідентифікаторів. */
   reset(): void {
     this.idCounter = 0;
   }
 }
 
 // ============================================================================
-// ФАБРИКА ОРГАНІЗМІВ
+// ФАБРИКА ЕКЗЕМПЛЯРИЗАЦІЇ ОРГАНІЗМІВ (ORGANISM FACTORY)
 // ============================================================================
 
 /**
- * Централізоване створення організмів
+ * Керуючий центр створення та конфігурування живих агентів.
  */
 export class OrganismFactory {
   private idCounter: number = 0;
-  private genomeFactory: GenomeFactory = new GenomeFactory();
+  private genomeFactory: GenomeFactory;
 
-  /** Згенерувати унікальний ID організму */
+  constructor(private readonly rng: Random) {
+    this.genomeFactory = new GenomeFactory(rng);
+  }
+
+  /** Генерація унікального системного ідентифікатора агента. */
   private nextId(): OrganismId {
     return createOrganismId(`org_${++this.idCounter}`);
   }
 
-  /** Створити травоїдного */
+  getIdCounter(): number {
+    return this.idCounter;
+  }
+
+  setIdCounter(counter: number): void {
+    this.idCounter = Math.max(0, counter);
+  }
+
+  getGenomeIdCounter(): number {
+    return this.genomeFactory.getIdCounter();
+  }
+
+  setGenomeIdCounter(counter: number): void {
+    this.genomeFactory.setIdCounter(counter);
+  }
+
+  /** Створення первинного екземпляра травоїдного організму. */
   createPrey(x: number, y: number, z: number): Organism {
-    const genome = this.genomeFactory.createPreyGenome();
-    return new Organism(this.nextId(), { x, y, z }, genome);
+    return this.createOrganism(
+      this.genomeFactory.createPreyGenome(),
+      { x, y, z }
+    );
   }
 
-  /** Створити хижака */
+  /** Створення первинного екземпляра хижого організму. */
   createPredator(x: number, y: number, z: number): Organism {
-    const genome = this.genomeFactory.createPredatorGenome();
-    return new Organism(this.nextId(), { x, y, z }, genome);
+    return this.createOrganism(
+      this.genomeFactory.createPredatorGenome(),
+      { x, y, z }
+    );
   }
 
-  /** Створити нащадка */
+  private createOrganism(genome: Genome, position: { x: number, y: number, z: number }): Organism {
+    return new Organism(this.nextId(), position, genome, null, this.rng);
+  }
+
+  /** Ініціалізація створення нащадка з наслідуванням та зміщенням координат. */
   createOffspring(parent: Organism): Organism {
     const childGenome = this.genomeFactory.createFromParent(parent.genome);
 
-    // Невелике зміщення позиції від батька
+    // Просторова девіація нащадка відносно локації батька
     const offset = parent.radius * 2;
     const childPosition: MutableVector3 = {
-      x: parent.position.x + (Math.random() - 0.5) * offset,
-      y: parent.position.y + (Math.random() - 0.5) * offset,
-      z: parent.position.z + (Math.random() - 0.5) * offset,
+      x: parent.position.x + (this.rng.next() - 0.5) * offset,
+      y: parent.position.y + (this.rng.next() - 0.5) * offset,
+      z: parent.position.z + (this.rng.next() - 0.5) * offset,
     };
 
     return new Organism(
       this.nextId(),
       childPosition,
       childGenome,
-      parent.id as OrganismId
+      parent.id as OrganismId,
+      this.rng
     );
   }
 
-  /** Скинути лічильник (для тестів) */
+  /** Повна очистка стану фабрики. */
   reset(): void {
     this.idCounter = 0;
     this.genomeFactory.reset();
@@ -487,7 +528,7 @@ export class OrganismFactory {
 }
 
 // ============================================================================
-// TYPE GUARDS
+// ПРЕП'ЯТСТВУЮЧІ ПЕРЕВІРКИ ТИПІВ (TYPE GUARDS)
 // ============================================================================
 
 export function isOrganism(entity: Entity): entity is Organism {

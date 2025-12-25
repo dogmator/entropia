@@ -1,16 +1,16 @@
 /**
- * Skeleton Loader для Sidebar
+ * Скелетний люмінесцентний завантажувач для модуля Sidebar (Skeleton Loader).
  *
- * Показується під час lazy loading Sidebar компоненту
- * Імітує структуру панелі управління з графіками та статистикою
+ * Використовується як інерційний заповнювач під час асинхронної ініціалізації (lazy loading) компонента Sidebar.
+ * Імітує архітектуру панелі управління, включаючи блоки аналітики, графіки популяційної динаміки та системні контролери.
  */
 
 import React from 'react';
 
-const SidebarSkeleton: React.FC = () => {
+export const SidebarSkeleton: React.FC = () => {
   return (
     <div className="fixed top-0 right-0 w-full sm:w-[420px] h-full z-20 flex flex-col bg-black/60 backdrop-blur-2xl border-l border-white/5">
-      {/* Header skeleton */}
+      {/* Скелетний заголовок (Header) */}
       <div className="p-6 border-b border-white/5">
         <div className="flex items-center justify-between mb-4">
           <div className="h-6 w-32 bg-gray-700/50 rounded animate-pulse" />
@@ -19,9 +19,9 @@ const SidebarSkeleton: React.FC = () => {
         <div className="h-4 w-48 bg-gray-700/30 rounded animate-pulse" />
       </div>
 
-      {/* Content skeleton */}
+      {/* Основний контейнер контенту */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Controls skeleton */}
+        {/* Скелетні структури контролерів управління */}
         <div className="space-y-4">
           <div className="h-12 bg-gray-800/50 rounded-xl animate-pulse" />
           <div className="grid grid-cols-2 gap-3">
@@ -30,7 +30,7 @@ const SidebarSkeleton: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats cards skeleton */}
+        {/* Скелетні картки статистичних метрик */}
         <div className="grid grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
             <div
@@ -44,11 +44,11 @@ const SidebarSkeleton: React.FC = () => {
           ))}
         </div>
 
-        {/* Chart skeleton */}
+        {/* Скелетна репрезентація графіка аналітики */}
         <div className="bg-gray-800/30 rounded-xl p-4 border border-white/5 space-y-4">
           <div className="h-4 w-32 bg-gray-700/50 rounded animate-pulse" />
           <div className="h-48 bg-gray-700/20 rounded-lg relative overflow-hidden">
-            {/* Animated chart lines */}
+            {/* Анімована апроксимація кривих популяції */}
             <div className="absolute inset-0">
               <svg className="w-full h-full opacity-20">
                 <path
@@ -71,7 +71,7 @@ const SidebarSkeleton: React.FC = () => {
           </div>
         </div>
 
-        {/* Additional stats skeleton */}
+        {/* Скелетні блоки додаткової телеметрії */}
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
             <div
@@ -86,7 +86,7 @@ const SidebarSkeleton: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer skeleton */}
+      {/* Скелетний футер статус-панелі */}
       <div className="p-6 border-t border-white/5">
         <div className="flex items-center gap-3 animate-pulse">
           <div className="w-2 h-2 rounded-full bg-emerald-500/50" />
@@ -96,5 +96,3 @@ const SidebarSkeleton: React.FC = () => {
     </div>
   );
 };
-
-export default SidebarSkeleton;

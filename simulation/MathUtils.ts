@@ -1,91 +1,94 @@
-
 /**
- * Entropia 3D — Математичні Утиліти
+ * Entropia 3D — Математичний апарат симуляції.
  *
- * Оптимізовані математичні функції для 3D симуляції:
- * - Тороїдальна геометрія (обгортання світу)
- * - Векторні операції
- * - Інтерполяція та згладжування
+ * Оптимізовані обчислювальні алгоритми для тривимірного середовища:
+ * - Тороїдальна топологія (циклічне замикання простору).
+ * - Векторна алгебра та операції над радіус-векторами.
+ * - Алгоритми лінійної та нелінійної інтерполяції.
  */
 
 import { Vector3, MutableVector3 } from '../types';
 import { WORLD_SIZE } from '../constants';
 
 /**
- * Математичні утиліти для симуляції
+ * Статичний клас-контейнер для математичних утиліт.
  */
 export class MathUtils {
-  /** Половина розміру світу (кешовано) */
+  /** Половина лінійного розміру світу (кешоване значення для оптимізації). */
   private static readonly HALF_WORLD = WORLD_SIZE / 2;
 
   // ============================================================================
-  // ТОРОЇДАЛЬНА ГЕОМЕТРІЯ
+  // ТОРОЇДАЛЬНА ГЕОМЕТРІЯ (TOROIDAL GEOMETRY)
   // ============================================================================
 
   /**
-   * Обгорнути координату в межах світу
+   * Приведення координати до циклічного діапазону [0, WORLD_SIZE).
    */
-  static wrap(value: number): number {
-    return ((value % WORLD_SIZE) + WORLD_SIZE) % WORLD_SIZE;
+  static wrap(value: number, worldSize: number = WORLD_SIZE): number {
+    return ((value % worldSize) + worldSize) % worldSize;
   }
 
   /**
-   * Обгорнути вектор у межах світу
+   * Мутація вектора для відповідності тороїдальним межам простору.
    */
-  static wrapVector(v: MutableVector3): void {
-    v.x = MathUtils.wrap(v.x);
-    v.y = MathUtils.wrap(v.y);
-    v.z = MathUtils.wrap(v.z);
+  static wrapVector(v: MutableVector3, worldSize: number = WORLD_SIZE): void {
+    v.x = MathUtils.wrap(v.x, worldSize);
+    v.y = MathUtils.wrap(v.y, worldSize);
+    v.z = MathUtils.wrap(v.z, worldSize);
   }
 
   /**
-   * Квадрат тороїдальної відстані між двома точками
+   * Обчислення квадрата найкоротшої тороїдальної відстані між точками.
    */
-  static toroidalDistanceSq(a: Vector3, b: Vector3): number {
+  static toroidalDistanceSq(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
     let dx = Math.abs(a.x - b.x);
     let dy = Math.abs(a.y - b.y);
     let dz = Math.abs(a.z - b.z);
 
-    if (dx > MathUtils.HALF_WORLD) dx = WORLD_SIZE - dx;
-    if (dy > MathUtils.HALF_WORLD) dy = WORLD_SIZE - dy;
-    if (dz > MathUtils.HALF_WORLD) dz = WORLD_SIZE - dz;
+    const halfWorld = worldSize / 2;
+
+    if (dx > halfWorld) dx = worldSize - dx;
+    if (dy > halfWorld) dy = worldSize - dy;
+    if (dz > halfWorld) dz = worldSize - dz;
 
     return dx * dx + dy * dy + dz * dz;
   }
 
   /**
-   * Тороїдальна відстань між двома точками
+   * Обчислення найкоротшої тороїдальної відстані (модуль вектора).
    */
-  static toroidalDistance(a: Vector3, b: Vector3): number {
-    return Math.sqrt(MathUtils.toroidalDistanceSq(a, b));
+  static toroidalDistance(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
+    return Math.sqrt(MathUtils.toroidalDistanceSq(a, b, worldSize));
   }
 
   /**
-   * Тороїдальний вектор від точки A до точки B
+   * Розрахунок найкоротшого різницевого вектора з урахуванням тороїдальної топології.
    */
-  static toroidalVector(from: Vector3, to: Vector3): MutableVector3 {
+  static toroidalVector(from: Vector3, to: Vector3, worldSize: number = WORLD_SIZE): MutableVector3 {
     let dx = to.x - from.x;
     let dy = to.y - from.y;
     let dz = to.z - from.z;
 
-    if (dx > MathUtils.HALF_WORLD) dx -= WORLD_SIZE;
-    else if (dx < -MathUtils.HALF_WORLD) dx += WORLD_SIZE;
+    const halfWorld = worldSize / 2;
 
-    if (dy > MathUtils.HALF_WORLD) dy -= WORLD_SIZE;
-    else if (dy < -MathUtils.HALF_WORLD) dy += WORLD_SIZE;
+    if (dx > halfWorld) dx -= worldSize;
+    else if (dx < -halfWorld) dx += worldSize;
 
-    if (dz > MathUtils.HALF_WORLD) dz -= WORLD_SIZE;
-    else if (dz < -MathUtils.HALF_WORLD) dz += WORLD_SIZE;
+    if (dy > halfWorld) dy -= worldSize;
+    else if (dy < -halfWorld) dy += worldSize;
+
+    if (dz > halfWorld) dz -= worldSize;
+    else if (dz < -halfWorld) dz += worldSize;
 
     return { x: dx, y: dy, z: dz };
   }
 
   // ============================================================================
-  // ВЕКТОРНІ ОПЕРАЦІЇ
+  // ВЕКТОРНА АЛГЕБРА (VECTOR OPERATIONS)
   // ============================================================================
 
   /**
-   * Нормалізувати вектор
+   * Нормалізація вектора (приведення до одиничної довжини).
    */
   static normalize(v: Vector3): MutableVector3 {
     const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
@@ -95,7 +98,7 @@ export class MathUtils {
   }
 
   /**
-   * Обмежити довжину вектора
+   * Обмеження норми вектора заданим максимальним значенням (Clamping).
    */
   static limit(v: Vector3, max: number): MutableVector3 {
     const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
@@ -107,28 +110,28 @@ export class MathUtils {
   }
 
   /**
-   * Магнітуда вектора
+   * Обчислення евклідової норми (довжини) вектора.
    */
   static magnitude(v: Vector3): number {
     return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
   }
 
   /**
-   * Квадрат магнітуди
+   * Обчислення квадрата норми вектора (оптимізовано для порівнянь).
    */
   static magnitudeSq(v: Vector3): number {
     return v.x * v.x + v.y * v.y + v.z * v.z;
   }
 
   /**
-   * Скалярний добуток
+   * Скалярний добуток двох векторів.
    */
   static dot(a: Vector3, b: Vector3): number {
     return a.x * b.x + a.y * b.y + a.z * b.z;
   }
 
   /**
-   * Векторний добуток
+   * Векторний добуток двох векторів у тривимірному просторі.
    */
   static cross(a: Vector3, b: Vector3): MutableVector3 {
     return {
@@ -139,39 +142,39 @@ export class MathUtils {
   }
 
   /**
-   * Додавання векторів
+   * Арифметичне додавання двох векторів.
    */
   static add(a: Vector3, b: Vector3): MutableVector3 {
     return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
   }
 
   /**
-   * Віднімання векторів
+   * Арифметичне віднімання двох векторів.
    */
   static sub(a: Vector3, b: Vector3): MutableVector3 {
     return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
   }
 
   /**
-   * Множення вектора на скаляр
+   * Масштабування вектора на скалярну величину.
    */
   static scale(v: Vector3, s: number): MutableVector3 {
     return { x: v.x * s, y: v.y * s, z: v.z * s };
   }
 
   // ============================================================================
-  // ІНТЕРПОЛЯЦІЯ
+  // АЛГОРИТМИ ІНТЕРПОЛЯЦІЇ (INTERPOLATION)
   // ============================================================================
 
   /**
-   * Лінійна інтерполяція
+   * Лінійна інтерполяція між двома скалярними величинами.
    */
   static lerp(a: number, b: number, t: number): number {
     return a + (b - a) * t;
   }
 
   /**
-   * Лінійна інтерполяція векторів
+   * Покомпонентна лінійна інтерполяція між двома векторами.
    */
   static lerpVector(a: Vector3, b: Vector3, t: number): MutableVector3 {
     return {
@@ -182,7 +185,7 @@ export class MathUtils {
   }
 
   /**
-   * Плавна інтерполяція
+   * Плавна ермітова інтерполяція (Smoothstep).
    */
   static smoothstep(edge0: number, edge1: number, x: number): number {
     const t = MathUtils.clamp((x - edge0) / (edge1 - edge0), 0, 1);
@@ -190,32 +193,32 @@ export class MathUtils {
   }
 
   // ============================================================================
-  // ДОПОМІЖНІ ФУНКЦІЇ
+  // ДОПОМІЖНІ ОБЧИСЛЕННЯ (HELPER FUNCTIONS)
   // ============================================================================
 
   /**
-   * Обмежити значення
+   * Обмеження значення в заданому закритому інтервалі [min, max].
    */
   static clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
   }
 
   /**
-   * Відображення діапазону
+   * Лінійне відображення значення з одного числового діапазону в інший.
    */
   static map(value: number, inMin: number, inMax: number, outMin: number, outMax: number): number {
     return outMin + ((value - inMin) / (inMax - inMin)) * (outMax - outMin);
   }
 
   /**
-   * Випадкове число в діапазоні
+   * Генерація псевдовипадкового числа в заданому діапазоні.
    */
   static random(min: number, max: number): number {
     return min + Math.random() * (max - min);
   }
 
   /**
-   * Випадковий вектор у сфері
+   * Генерація стохастичного вектора, рівномірно розподіленого всередині сфери заданого радіуса.
    */
   static randomInSphere(radius: number): MutableVector3 {
     const u = Math.random();
@@ -232,7 +235,7 @@ export class MathUtils {
   }
 
   /**
-   * Відбиття вектора від нормалі
+   * Дзеркальне відбиття вектора відносно заданої нормалі поверхні.
    */
   static reflect(incident: Vector3, normal: Vector3): MutableVector3 {
     const dot = MathUtils.dot(incident, normal);

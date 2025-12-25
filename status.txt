@@ -1,0 +1,54 @@
+Текущая ветка: main
+Ваша ветка опережает «origin/main» на 1 коммит.
+  (используйте «git push», чтобы опубликовать ваши локальные коммиты)
+
+Изменения, которые будут включены в коммит:
+  (используйте «git restore --staged <файл>...», чтобы убрать из индекса)
+	новый файл:    core/utils/Random.ts
+
+Изменения, которые не в индексе для коммита:
+  (используйте «git add/rm <файл>...», чтобы добавить или удалить файл из индекса)
+  (используйте «git restore <файл>...», чтобы отменить изменения в рабочем каталоге)
+	удалено:       App.tsx
+	изменено:      README.md
+	удалено:       components/Dashboard.tsx
+	удалено:       components/ErrorBoundary.tsx
+	удалено:       components/SettingsPanel.tsx
+	удалено:       components/Sidebar.tsx
+	удалено:       components/SimulationControls.tsx
+	удалено:       components/skeletons/SidebarSkeleton.tsx
+	удалено:       components/skeletons/ViewportSkeleton.tsx
+	изменено:      constants.ts
+	изменено:      core/EventBus.ts
+	удалено:       docs/AI_EVALUATION.uk.md
+	удалено:       index.html
+	удалено:       index.tsx
+	изменено:      package.json
+	изменено:      simulation/Engine.ts
+	изменено:      simulation/Entity.ts
+	изменено:      simulation/MathUtils.ts
+	изменено:      simulation/SpatialHashGrid.ts
+	изменено:      simulation/services/SpawnService.ts
+	изменено:      simulation/systems/BehaviorSystem.ts
+	изменено:      simulation/systems/CollisionSystem.ts
+	изменено:      simulation/systems/MetabolismSystem.ts
+	изменено:      simulation/systems/PhysicsSystem.ts
+	изменено:      simulation/systems/ReproductionSystem.ts
+	изменено:      types.ts
+	удалено:       view/Viewport.tsx
+	удалено:       view/effects/CosmicBackground.ts
+	удалено:       view/effects/ParticleSystem.ts
+	удалено:       view/hooks/useAnimationLoop.ts
+	удалено:       view/hooks/useEntityHover.ts
+	удалено:       view/hooks/useParticleEffects.ts
+	удалено:       view/hooks/useSceneObjects.ts
+	удалено:       view/hooks/useSimulationEvents.ts
+	удалено:       view/hooks/useThreeScene.ts
+	удалено:       view/shaders/OrganismShader.ts
+	изменено:      vite.config.ts
+
+Неотслеживаемые файлы:
+  (используйте «git add <файл>...», чтобы добавить в то, что будет включено в коммит)
+	status.txt
+	ui/
+
