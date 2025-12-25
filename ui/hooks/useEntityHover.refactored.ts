@@ -10,7 +10,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
-import { SimulationEngine } from '../../simulation/Entity';
+import { SimulationEngine } from '../../simulation/Engine';
 import { Organism, Food, Obstacle } from '../../simulation/Entity';
 import { EntityType } from '../../types';
 import { RAYCASTER_CONFIG, TOOLTIP_CONFIG } from '../config/RenderConfig';
