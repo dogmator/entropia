@@ -152,8 +152,12 @@ if (frameCount.current % 120 === 0) {
 ### Крок 1: Встановлення залежностей для тестування
 
 ```bash
-npm install -D vitest @testing-library/react @testing-library/react-hooks
+npm install
+# Автоматично встановить vitest@2.1.9, @vitest/ui@2.1.9, jsdom@25.0.1
+# Всього: 229 нових пакетів
 ```
+
+**Важливо:** `package.json` вже оновлено, тому достатньо `npm install`.
 
 ### Крок 2: Створення нових модулів
 
@@ -263,6 +267,72 @@ const animate = (currentTime: number) => {
 
 ## Troubleshooting
 
+### Проблема: "npm ci" fails with "package.json and package-lock.json are not in sync"
+
+**Причина:** `package-lock.json` не оновлений після змін у `package.json`.
+
+**Рішення:**
+```bash
+npm install  # Регенерує package-lock.json
+git add package-lock.json
+git commit -m "chore: regenerate package-lock.json"
+```
+
+**Статус:** ✅ **Вирішено** (commit `2074595`)
+
+---
+
+### Проблема: TypeScript error in useEntityHover.refactored.ts
+
+**Помилка:**
+```
+error TS2305: Module '"../../simulation/Entity"' has no exported member 'SimulationEngine'
+```
+
+**Причина:** Неправильний шлях імпорту для `SimulationEngine`.
+
+**Рішення:**
+```typescript
+// ❌ Неправильно:
+import { SimulationEngine } from '../../simulation/Entity';
+
+// ✅ Правильно:
+import { SimulationEngine } from '../../simulation/Engine';
+```
+
+**Статус:** ✅ **Вирішено** (commit `2074595`)
+
+---
+
+### Проблема: vitest.config.ts type error з Vite plugin
+
+**Помилка:**
+```
+error TS2769: No overload matches this call.
+Type 'Plugin<any>[]' is not assignable to type 'PluginOption'.
+```
+
+**Причина:** Vitest бандлить власну версію Vite, що викликає конфлікт типів з `@vitejs/plugin-react`.
+
+**Рішення:**
+```typescript
+// ❌ Було:
+import react from '@vitejs/plugin-react';
+export default defineConfig({
+  plugins: [react()],  // Конфлікт типів!
+  test: { ... }
+});
+
+// ✅ Стало (react plugin не потрібен для unit тестів):
+export default defineConfig({
+  test: { ... }
+});
+```
+
+**Статус:** ✅ **Вирішено** (commit `2074595`)
+
+---
+
 ### Проблема: "Cannot read property 'current' of undefined"
 
 **Причина:** `useRef` не ініціалізований до першого рендеру.
@@ -282,17 +352,7 @@ useEffect(() => {
 
 **Причина:** Node.js середовище не має Web Performance API.
 
-**Рішення (vitest.config.ts):**
-```typescript
-import { defineConfig } from 'vitest/config';
-
-export default defineConfig({
-  test: {
-    environment: 'jsdom',
-    globals: true,
-  },
-});
-```
+**Рішення:** Використовуйте `environment: 'jsdom'` у `vitest.config.ts` (вже налаштовано).
 
 ---
 
