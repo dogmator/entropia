@@ -108,11 +108,11 @@ export class SimulationEngine {
 
     // Комплексна ініціалізація системних компонентів
     this.eventBus = new EventBus();
-    this.spatialGrid = new SpatialHashGrid(this.worldConfig.WORLD_SIZE); // Updated
-    this.physicsSystem = new PhysicsSystem(this.config, this.worldConfig); // Updated
+    this.spatialGrid = new SpatialHashGrid(this.worldConfig.WORLD_SIZE);
+    this.physicsSystem = new PhysicsSystem(this.config, this.worldConfig);
     this.metabolismSystem = new MetabolismSystem();
     this.collisionSystem = new CollisionSystem(this.spatialGrid, this.eventBus);
-    this.behaviorSystem = new BehaviorSystem(this.spatialGrid, this.config, this.zones);
+    this.behaviorSystem = new BehaviorSystem(this.spatialGrid, this.config, this.zones, this.worldConfig);
 
     // Попереднє формування середовищних параметрів
     this.createZones();
@@ -408,9 +408,19 @@ export class SimulationEngine {
   private _predBuffer: Float32Array = new Float32Array(0);
   private _foodBuffer: Float32Array = new Float32Array(0);
 
+  // Лічильник для відстеження попереднього розміру популяції
+  private _lastPreyCount: number = 0;
+  private _lastPredCount: number = 0;
+  private _lastFoodCount: number = 0;
+
+  /** Поріг гістерезису для запобігання частим реалокаціям (25%). */
+  private static readonly SHRINK_THRESHOLD = 0.25;
+
   /**
    * Повертає зліпок стану симуляції, оптимізований для передачі/рендерингу.
    * Використовує Float32Array для ефективності zero-copy.
+   *
+   * Оптимізація: Динамічне скорочення буферів при значному зменшенні популяції.
    */
   public getRenderData(): import('../types').RenderBuffers {
     // 1. Розрахунок необхідних розмірів
@@ -430,14 +440,31 @@ export class SimulationEngine {
     });
 
 
-    // 2. Зміна розміру буферів за потреби (тільки збільшення)
+    // 2. Зміна розміру буферів з урахуванням динамічного скорочення
     const PREY_STRIDE = 13;
     const PRED_STRIDE = 13;
     const FOOD_STRIDE = 5;
 
-    this._preyBuffer = this.ensureBufferCapacity(this._preyBuffer, preyCount * PREY_STRIDE);
-    this._predBuffer = this.ensureBufferCapacity(this._predBuffer, predCount * PRED_STRIDE);
-    this._foodBuffer = this.ensureBufferCapacity(this._foodBuffer, activeFoodCount * FOOD_STRIDE);
+    this._preyBuffer = this.ensureBufferCapacityAdaptive(
+      this._preyBuffer,
+      preyCount * PREY_STRIDE,
+      this._lastPreyCount * PREY_STRIDE
+    );
+    this._predBuffer = this.ensureBufferCapacityAdaptive(
+      this._predBuffer,
+      predCount * PRED_STRIDE,
+      this._lastPredCount * PRED_STRIDE
+    );
+    this._foodBuffer = this.ensureBufferCapacityAdaptive(
+      this._foodBuffer,
+      activeFoodCount * FOOD_STRIDE,
+      this._lastFoodCount * FOOD_STRIDE
+    );
+
+    // Оновлення лічильників для наступної ітерації
+    this._lastPreyCount = preyCount;
+    this._lastPredCount = predCount;
+    this._lastFoodCount = activeFoodCount;
 
     // 3. Заповнення буферів
     let preyOffset = 0;
@@ -840,11 +867,48 @@ export class SimulationEngine {
 
   /**
    * Перевірка та збільшення ємності буфера за необхідності.
+   * @deprecated Використовуйте ensureBufferCapacityAdaptive для кращої ефективності пам'яті.
    */
   private ensureBufferCapacity(buffer: Float32Array, requiredSize: number): Float32Array {
     if (buffer.length < requiredSize) {
       return new Float32Array(requiredSize * 1.5);
     }
+    return buffer;
+  }
+
+  /**
+   * Адаптивне управління ємністю буфера з підтримкою динамічного скорочення.
+   *
+   * Стратегія:
+   * - При зростанні популяції: алокація з 50% запасом (growth factor 1.5).
+   * - При значному зменшенні (>75%): скорочення до нового розміру + 25% запасу.
+   * - При незначних коливаннях: збереження існуючої ємності (мінімізація реалокацій).
+   *
+   * @param buffer Поточний буфер.
+   * @param requiredSize Необхідний розмір у елементах.
+   * @param previousSize Попередній використаний розмір для детектування тренду.
+   * @returns Оптимізований буфер.
+   */
+  private ensureBufferCapacityAdaptive(
+    buffer: Float32Array,
+    requiredSize: number,
+    previousSize: number
+  ): Float32Array {
+    const currentCapacity = buffer.length;
+
+    // Сценарій 1: Необхідне збільшення ємності
+    if (requiredSize > currentCapacity) {
+      return new Float32Array(Math.ceil(requiredSize * 1.5));
+    }
+
+    // Сценарій 2: Детектування значного зменшення популяції (гістерезис)
+    const utilizationRatio = requiredSize / currentCapacity;
+    if (utilizationRatio < SimulationEngine.SHRINK_THRESHOLD && currentCapacity > 100) {
+      // Скорочення буфера з невеликим запасом для запобігання частим реалокаціям
+      return new Float32Array(Math.ceil(requiredSize * 1.25));
+    }
+
+    // Сценарій 3: Стабільний стан — повторне використання існуючого буфера
     return buffer;
   }
 
