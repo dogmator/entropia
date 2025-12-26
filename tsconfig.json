@@ -2,11 +2,15 @@
   "compilerOptions": {
     /* Мова та середовище виконання */
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable",
+      "WebWorker"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
-
     /* Строгість типізації (КРИТИЧНО) */
     "strict": true,
     "noImplicitAny": true,
@@ -17,7 +21,6 @@
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
     "alwaysStrict": true,
-
     /* Додаткові перевірки */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -27,11 +30,9 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": false,
-
     /* JSX та React */
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-
     /* Імпорти та модулі */
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
@@ -40,30 +41,44 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-
     /* Шляхи (Path Aliases) */
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@core/*": ["./core/*"],
-      "@simulation/*": ["./simulation/*"],
-      "@ui/*": ["./ui/*"],
-      "@shared/*": ["./shared/*"],
-      "@renderer/*": ["./renderer/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@core/*": [
+        "./src/core/*"
+      ],
+      "@simulation/*": [
+        "./src/simulation/*"
+      ],
+      "@ui/*": [
+        "./src/ui/*"
+      ],
+      "@shared/types": [
+        "./src/types.ts"
+      ],
+      "@shared/config": [
+        "./src/constants.ts"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@renderer/*": [
+        "./src/renderer/*"
+      ]
     },
-
     /* Вивід */
     "noEmit": true,
     "skipLibCheck": true,
-
     /* Експериментальні можливості */
     "experimentalDecorators": true,
     "useDefineForClassFields": false
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
-    "**/*.d.ts"
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
