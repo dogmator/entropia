@@ -9,7 +9,7 @@
  */
 
 import { Organism } from '../Entity';
-import { EntityType, Vector3, EcologicalZone, SimulationConfig, OrganismState } from '../../types';
+import { EntityType, Vector3, EcologicalZone, SimulationConfig, OrganismState, WorldConfig } from '../../types';
 import { SpatialHashGrid } from '../SpatialHashGrid';
 
 /**
@@ -30,11 +30,16 @@ interface ZoneModifiers {
  * Клас, що реалізує інтелектуальний рівень симуляції.
  */
 export class BehaviorSystem {
+  private readonly worldSize: number;
+
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
     private readonly config: SimulationConfig,
-    private readonly zones: Map<string, EcologicalZone>
-  ) { }
+    private readonly zones: Map<string, EcologicalZone>,
+    private readonly worldConfig: WorldConfig
+  ) {
+    this.worldSize = worldConfig.WORLD_SIZE;
+  }
 
   /**
    * Оновлення поведінкових векторів для всієї популяції.
@@ -70,12 +75,7 @@ export class BehaviorSystem {
     for (const n of neighbors) {
       if (n.id === org.id) continue;
 
-      const diff = MathUtils.toroidalVector(org.position, n.position, this.config['worldSize'] || 400); // Wait, BehaviorSystem needs worldSize
-      // BehaviorSystem doesn't have worldSize in config directly if Config is SimulationConfig? 
-      // SimulationConfig has... WORLD_SIZE is global constant.
-      // But we passed WorldConfig to Engine.
-      // Let's use MathUtils default WORLD_SIZE or better get it from somewhere.
-      // MathUtils uses global WORLD_SIZE by default.
+      const diff = MathUtils.toroidalVector(org.position, n.position, this.worldSize);
 
       const distSq = MathUtils.magnitudeSq(diff);
       const dist = Math.sqrt(distSq);
@@ -161,7 +161,7 @@ export class BehaviorSystem {
   private applySeek(org: Organism, seek: { x: number; y: number; z: number }, target: Vector3 | null, mod: ZoneModifiers): void {
     if (!target) return;
 
-    const nav = MathUtils.toroidalVector(org.position, target);
+    const nav = MathUtils.toroidalVector(org.position, target, this.worldSize);
     seek.x = nav.x;
     seek.y = nav.y;
     seek.z = nav.z;
@@ -204,7 +204,7 @@ export class BehaviorSystem {
     let dangerMultiplier = 1;
 
     this.zones.forEach(zone => {
-      const distSq = MathUtils.toroidalDistanceSq(pos, zone.center);
+      const distSq = MathUtils.toroidalDistanceSq(pos, zone.center, this.worldSize);
 
       if (distSq < zone.radius * zone.radius) {
         seekMultiplier *= zone.foodMultiplier;
