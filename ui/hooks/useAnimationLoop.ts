@@ -82,6 +82,14 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
 
     const MAX_INSTANCES = RENDER.maxInstances;
 
+    // ========================================================================
+    // ПОСТІЙНІ ОБ'ЄКТИ ДЛЯ FRUSTUM CULLING (мінімізація алокацій)
+    // ========================================================================
+    const frustum = new THREE.Frustum();
+    const projScreenMatrix = new THREE.Matrix4();
+    const tmpSphere = new THREE.Sphere();
+    const tmpPos = new THREE.Vector3();
+
     /**
      * Головна ітераційна функція відтворення кадру.
      */
@@ -142,9 +150,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
       // АГРЕСИВНЕ CULLING (CPU-SIDE) ТА РЕНДЕРИНГ
       // ======================================================================
 
-      // 1. Оновлюємо фрустум камери
-      const frustum = new THREE.Frustum();
-      const projScreenMatrix = new THREE.Matrix4();
+      // 1. Оновлюємо фрустум камери (повторне використання постійних об'єктів)
       projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
       frustum.setFromProjectionMatrix(projScreenMatrix);
 
@@ -155,9 +161,6 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
       let preyIdx = 0;
       let predIdx = 0;
       let foodIdx = 0;
-
-      const tmpSphere = new THREE.Sphere();
-      const tmpPos = new THREE.Vector3();
 
       // --- ОБРОБКА ЖЕРТВ ---
       const preyData = renderBuffers.prey;
@@ -172,12 +175,12 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         const z = preyData[offset + 2];
         const r = preyData[offset + 6];
 
-        // Перевірка видимості (Culling)
+        // Перевірка видимості (Frustum Culling)
         tmpSphere.center.set(x, y, z);
         tmpSphere.radius = r;
 
         if (!frustum.intersectsSphere(tmpSphere)) {
-          // continue; 
+          continue; // Пропускаємо об'єкти поза межами видимості
         }
 
         const vx = preyData[offset + 3];
@@ -239,7 +242,7 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         tmpSphere.radius = r;
 
         if (!frustum.intersectsSphere(tmpSphere)) {
-          // continue;
+          continue; // Пропускаємо об'єкти поза межами видимості
         }
 
         const vx = predData[offset + 3];
@@ -279,10 +282,10 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
         const r = foodData[offset + 3];
 
         tmpSphere.center.set(x, y, z);
-        tmpSphere.radius = r; // Геометричний радіус?
+        tmpSphere.radius = r;
 
         if (!frustum.intersectsSphere(tmpSphere)) {
-          // continue;
+          continue; // Пропускаємо об'єкти поза межами видимості
         }
 
         const id = foodData[offset + 4];
@@ -303,23 +306,15 @@ export function useAnimationLoop(options: AnimationLoopOptions) {
       // Синхронізація матриць інстансів організмів із графічним конвеєром
       preyMesh.count = preyIdx;
       preyMesh.instanceMatrix.needsUpdate = true;
-      preyMesh.updateMatrixWorld();
-      preyMesh.computeBoundingSphere(); // Тепер сфера буде охоплювати ТІЛЬКИ видимі об'єкти? Ні, THREE.js рахуватиме для всіх instance? 
-      // InstancedMesh.computeBoundingSphere обчислює сферу для ВCІХ інстансів.
-      // Але ми виставляємо count = preyIdx. Three.js рендерить тільки 0..count.
-      // Raycaster теж дивиться на count.
-      // ВАЖЛИВО: computeBoundingSphere може бути дорогим, якщо об'єктів багато.
+      // ОПТИМІЗАЦІЯ: видалено computeBoundingSphere() з гарячого шляху.
+      // BoundingSphere встановлюється один раз у useSceneObjects.
 
       predMesh.count = predIdx;
       predMesh.instanceMatrix.needsUpdate = true;
-      predMesh.updateMatrixWorld();
-      predMesh.computeBoundingSphere();
 
       // Актуалізація стану об'єктів їжі
       foodMesh.count = foodIdx;
       foodMesh.instanceMatrix.needsUpdate = true;
-      foodMesh.updateMatrixWorld();
-      foodMesh.computeBoundingSphere();
 
       // Оновлення стану інтерактивного наведення
       updateHoveredEntity(
