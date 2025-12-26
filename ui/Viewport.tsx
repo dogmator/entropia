@@ -51,6 +51,13 @@ export const Viewport: React.FC = () => {
 
   const worldSize = engine.worldConfig?.WORLD_SIZE; // Will fallback to default in hook if undefined
   const sceneData = useThreeScene(container, worldSize);
+  const { setSceneData } = useSimulation();
+  
+  // Передаємо sceneData в SimulationContext
+  useEffect(() => {
+    setSceneData(sceneData);
+  }, [sceneData, setSceneData]);
+  
   const sceneObjects = useSceneObjects(sceneData?.scene || null, engine);
   const particleEffects = useParticleEffects(sceneData?.scene || null);
   const {

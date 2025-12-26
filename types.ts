@@ -187,6 +187,32 @@ export interface SimulationStats {
   readonly totalBirths: number;
   readonly extinctionRisk: number;    // Імовірність колапсу екосистеми (0-1)
   readonly performance?: PerformanceMetrics;
+  // Геометричний стан світу
+  readonly worldSize?: number;
+  readonly cameraX?: number;
+  readonly cameraY?: number;
+  readonly cameraZ?: number;
+  readonly targetX?: number;
+  readonly targetY?: number;
+  readonly targetZ?: number;
+  readonly zoom?: number;
+  readonly cameraDistance?: number;
+  readonly cameraFov?: number;
+  readonly cameraAspect?: number;
+  readonly growthZones?: number;
+  readonly neutralZones?: number;
+  readonly dangerZones?: number;
+  readonly totalZones?: number;
+  readonly cellSize?: number;
+  readonly totalCells?: number;
+  readonly occupiedCells?: number;
+  readonly avgDensity?: number;
+  readonly maxDensity?: number;
+  readonly gridEfficiency?: number;
+  readonly foodSpawnRate?: number;
+  readonly obstacleCount?: number;
+  readonly worldAge?: number;
+  readonly activeZones?: number;
 }
 
 export interface PopulationSnapshot {
