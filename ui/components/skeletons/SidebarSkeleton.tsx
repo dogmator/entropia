@@ -20,7 +20,7 @@ export const SidebarSkeleton: React.FC = () => {
       </div>
 
       {/* Основний контейнер контенту */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
         {/* Скелетні структури контролерів управління */}
         <div className="space-y-4">
           <div className="h-12 bg-gray-800/50 rounded-xl animate-pulse" />

@@ -1,4 +1,4 @@
-name: CI
+name: CI (Quality Gate)
 
 on:
   pull_request:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   check:
+    name: Verification
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,8 +23,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript перевірка
+      # КРОК 1: Статичний аналіз (найшвидший)
+      - name: TypeScript Lint
         run: npm run typecheck
 
-      - name: Build перевірка
+      # КРОК 2: Логічний аналіз (Unit Tests)
+      # Критично важливо для вашого рефакторингу Three.js
+      - name: Run Unit Tests
+        run: npm run test
+
+      # КРОК 3: Перевірка збірки
+      - name: Build Dry-Run
         run: npm run build

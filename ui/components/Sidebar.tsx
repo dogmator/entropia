@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dashboard } from './Dashboard';
 import { SettingsPanel } from './SettingsPanel';
 import { SimulationControls } from './SimulationControls';
+import { DiagnosticsModal } from './DiagnosticsModal';
 import { SimulationEngine } from '../../simulation/Engine';
 import { SimulationStats, PopulationDataPoint } from '../../types';
 
@@ -17,6 +18,7 @@ export const Sidebar: React.FC = () => {
   const {
     engine, stats, history, onReset, speed, setSpeed, worldScale, setWorldScale
   } = useSimulation();
+
   /**
    * Стан видимості панелі. Автоматично визначається згідно з пороговими значеннями ширини вікна.
    */
@@ -26,6 +28,11 @@ export const Sidebar: React.FC = () => {
     }
     return true;
   });
+
+  /**
+   * Стан видимості діагностичного модального вікна.
+   */
+  const [isDiagnosticsOpen, setIsDiagnosticsOpen] = useState(false);
 
   /** Референси для обробки сенсорних жестів на мобільних пристроях. */
   const touchStartX = useRef(0);
@@ -129,6 +136,29 @@ export const Sidebar: React.FC = () => {
               worldScale={worldScale}
               onWorldScaleChange={setWorldScale}
             />
+
+            {/* Кнопка діагностики */}
+            <div className="bg-white/5 rounded-xl p-4 border border-white/5 hover:bg-white/10 hover:border-purple-500/30 hover:shadow-[0_0_20px_rgba(168,85,247,0.15)] transition-all duration-300 group">
+              <button
+                onClick={() => setIsDiagnosticsOpen(true)}
+                className="w-full flex items-center justify-between group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center group-hover:bg-purple-500/30 transition-colors">
+                    <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-medium text-purple-400 group-hover:text-purple-300 transition-colors">Диагностика</div>
+                    <div className="text-xs text-gray-500">Мониторинг производительности</div>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 group-hover:text-purple-400 transition-colors">
+                  {stats.performance?.fps || 0} FPS
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Інформаційна довідка про маніпуляції та гарячі клавіші */}
@@ -140,6 +170,22 @@ export const Sidebar: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Диагностическое модальное окно */}
+      <DiagnosticsModal
+        isOpen={isDiagnosticsOpen}
+        onClose={() => setIsDiagnosticsOpen(false)}
+        currentStats={stats}
+        performanceHistory={engine?.getPerformanceMonitor()?.getPerformanceHistory() || []}
+        memoryStats={{
+          usedJSHeapSize: engine?.getPerformanceMonitor()?.getMemoryStats()?.usedJSHeapSize || 0,
+          totalJSHeapSize: engine?.getPerformanceMonitor()?.getMemoryStats()?.totalJSHeapSize || 0,
+          jsHeapSizeLimit: engine?.getPerformanceMonitor()?.getMemoryStats()?.jsHeapSizeLimit || 0,
+          used: engine?.getPerformanceMonitor()?.getMemoryStats()?.usedJSHeapSize || 0,
+          total: engine?.getPerformanceMonitor()?.getMemoryStats()?.totalJSHeapSize || 0,
+          limit: engine?.getPerformanceMonitor()?.getMemoryStats()?.jsHeapSizeLimit || 0
+        }}
+      />
     </>
   );
 };
