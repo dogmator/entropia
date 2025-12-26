@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect, useMemo, useRef,
 import { SimulationEngine } from '../../simulation/Engine';
 import { SimulationStats, PopulationDataPoint } from '../../types';
 import { UI_CONFIG } from '../../constants';
+import { useCameraState, CameraState } from '../hooks/useCameraState';
+import { ThreeScene } from '../hooks/useThreeScene';
 
 interface SimulationContextValue {
     engine: SimulationEngine;
@@ -14,6 +16,9 @@ interface SimulationContextValue {
     setWorldScale: (val: number) => void;
     isLoading: boolean;
     onReset: () => void;
+    sceneData: ThreeScene | null;
+    cameraState: CameraState;
+    setSceneData: (data: ThreeScene | null) => void;
 }
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
@@ -35,6 +40,37 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
 
     /** Темпоральний масштаб симуляції (0x - 5x). */
     const [speed, setSpeed] = useState(1);
+
+    /** Дані сцени Three.js (будуть встановлені з Viewport). */
+    const [sceneData, setSceneData] = useState<ThreeScene | null>(null);
+
+    /** Стан камери в реальному часі. */
+    const cameraState = useCameraState(sceneData);
+
+    // Передаємо дані камери в Engine з ефективним дебаунсингом
+    const lastCameraStateRef = useRef<CameraState | null>(null);
+    useEffect(() => {
+        if (sceneData && cameraState) {
+            // Ефективна перевірка змін камери
+            const lastState = lastCameraStateRef.current;
+            const hasChanges = !lastState ||
+                lastState.position.x !== cameraState.position.x ||
+                lastState.position.y !== cameraState.position.y ||
+                lastState.position.z !== cameraState.position.z ||
+                lastState.target.x !== cameraState.target.x ||
+                lastState.target.y !== cameraState.target.y ||
+                lastState.target.z !== cameraState.target.z ||
+                lastState.zoom !== cameraState.zoom ||
+                lastState.distance !== cameraState.distance ||
+                lastState.fov !== cameraState.fov ||
+                lastState.aspect !== cameraState.aspect;
+
+            if (hasChanges) {
+                lastCameraStateRef.current = cameraState;
+                engine.setCameraData(cameraState);
+            }
+        }
+    }, [cameraState, sceneData, engine]);
 
     /** Агрегована статистика симуляційного процесу. */
     const [stats, setStats] = useState<SimulationStats>({
@@ -118,9 +154,10 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
                 const frameTime = now - frameTimestampRef.current;
                 frameTimestampRef.current = now;
 
-                /** Формування розширеного об'єкта статистики з метриками продуктивності. */
+                /** Формування розширеного об'єкта статистики з метриками продуктивності та геометричними даними. */
+                const engineStats = engine.getStatsWithWorldData();
                 const statsWithPerformance: SimulationStats = {
-                    ...event.stats,
+                    ...engineStats,
                     performance: {
                         fps: fpsCounter.current.fps,
                         tps: tpsCounter.current.tps,
@@ -195,7 +232,10 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
         worldScale,
         setWorldScale,
         isLoading,
-        onReset
+        onReset,
+        sceneData,
+        cameraState,
+        setSceneData,
     };
 
     return (
