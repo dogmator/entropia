@@ -326,6 +326,26 @@ COVERAGE:
 
 ---
 
+## Історія комітів
+
+### Commit 1: `0101977` — feat(refactor): комплексна оптимізація Three.js/React підсистеми
+- 14 нових файлів (+2652 рядків)
+- Оптимізація render loop (useAnimationLoop)
+- Створення utilities (RenderConfig, EntityTypeGuards, OrganismStateFormatters)
+- Performance monitoring (PerformanceMonitor.ts)
+- Unit тести (45 тестів, >85% coverage)
+- Документація (GUIDE + SUMMARY)
+
+### Commit 2: `2074595` — fix: resolve TypeScript errors and update package-lock.json
+- Виправлено імпорт SimulationEngine у useEntityHover.refactored.ts
+- Видалено react plugin з vitest.config.ts (конфлікт версій Vite)
+- Оновлено package-lock.json (229 пакетів для vitest)
+- ✅ npm run typecheck — Passed
+- ✅ npm run build — Passed (8.25s)
+
+---
+
 **Контакт:** GitHub Issues
 **Branch:** `claude/refactor-threejs-performance-vir3A`
-**Commit:** TBD (після merge)
+**Latest Commit:** `2074595`
+**Status:** ✅ Ready for merge (CI passing)
