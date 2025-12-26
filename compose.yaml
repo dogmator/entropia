@@ -1,0 +1,10 @@
+services:
+  dev:
+    build: .
+    volumes:
+      - .:/app:z
+    ports:
+      - "3000:3000"
+    command: sh -c "pnpm install && pnpm run dev"
+    tty: true
+    stdin_open: true
