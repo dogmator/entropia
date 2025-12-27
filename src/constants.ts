@@ -535,3 +535,125 @@ export const POOL_CONSTANTS = {
   /** Максимальний розмір для Particle пулу. */
   PARTICLE_MAX_SIZE: 20000,
 } as const;
+
+// ============================================================================
+// PARTICLE SYSTEM CONSTANTS
+// ============================================================================
+
+/**
+ * Константи системи часток для візуальних ефектів.
+ * Використовується в ParticleSystem для генерації death/birth/eat/hunt ефектів.
+ */
+export const PARTICLE_CONSTANTS = {
+  // Death effect parameters
+  DEATH_COUNT_PREDATOR: 40,
+  DEATH_COUNT_PREY: 25,
+  DEATH_SPEED_PREDATOR: 3,
+  DEATH_SPEED_PREY: 2,
+  DEATH_SIZE_PREDATOR: 4,
+  DEATH_SIZE_PREY: 3,
+  DEATH_LIFE_MIN: 0.8,
+  DEATH_LIFE_ADDITIONAL: 0.4,
+
+  // Birth effect parameters
+  BIRTH_COUNT_RING: 30,
+  BIRTH_SPEED: 2,
+  BIRTH_LIFE: 0.6,
+  BIRTH_SIZE: 3,
+  BIRTH_COUNT_FLASH: 10,
+  BIRTH_FLASH_SPEED: 1,
+  BIRTH_FLASH_SIZE: 5,
+  BIRTH_FLASH_LIFE: 0.3,
+  BIRTH_Y_VARIANCE: 0.5,
+
+  // Eat effect parameters
+  EAT_COUNT: 8,
+  EAT_SPEED: 1.5,
+  EAT_SIZE: 2,
+  EAT_LIFE: 0.4,
+
+  // Hunt effect parameters
+  HUNT_STEPS: 5,
+  HUNT_SPEED: 0.5,
+  HUNT_SIZE: 2,
+  HUNT_LIFE: 0.3,
+
+  // Update physics constants
+  FRAME_RATE_MULTIPLIER: 60,
+  DRAG_COEFFICIENT: 0.98,
+  GRAVITY: 0.02,
+  SIZE_SCALE_MIN: 0.5,
+  SIZE_SCALE_FACTOR: 0.5,
+
+  // Trail system constants
+  TRAIL_TELEPORT_THRESHOLD_SQ: 2500,
+  TRAIL_OPACITY: 0.6,
+
+  // Color bit manipulation
+  COLOR_SHIFT_R: 16,
+  COLOR_SHIFT_G: 8,
+  COLOR_MASK: 255,
+  COLOR_DIVISOR: 255,
+
+  // Geometry constants
+  TWO_PI: Math.PI * 2,
+  SPHERE_PHI_MULTIPLIER: 2,
+  SPHERE_RANDOM_OFFSET: 1,
+  VELOCITY_CENTER_OFFSET: 0.5,
+} as const;
+
+// ============================================================================
+// ENTITY CONSTANTS
+// ============================================================================
+
+/**
+ * Константи для створення та мутації сутностей (організмів, їжі, перешкод).
+ * Використовується в Entity.ts, GenomeFactory, OrganismFactory.
+ */
+export const ENTITY_CONSTANTS = {
+  // Food properties
+  FOOD_RADIUS: 2,
+
+  // Prey genome creation variance
+  PREY_SPEED_VARIANCE: 0.5,
+  PREY_SENSE_VARIANCE: 20,
+  PREY_METABOLISM_VARIANCE: 0.2,
+  PREY_SIZE_VARIANCE: 1,
+  PREY_ASYMMETRY_MAX: 0.3,
+  PREY_SPIKINESS_MAX: 0.2,
+  PREY_GLOW_MIN: 0.3,
+  PREY_GLOW_VARIANCE: 0.3,
+  PREY_FLOCKING_VARIANCE: 0.2,
+
+  // Predator genome creation variance
+  PREDATOR_SPEED_VARIANCE: 0.5,
+  PREDATOR_SENSE_VARIANCE: 30,
+  PREDATOR_METABOLISM_VARIANCE: 0.2,
+  PREDATOR_SIZE_VARIANCE: 1.5,
+  PREDATOR_ASYMMETRY_MAX: 0.4,
+  PREDATOR_SPIKINESS_MIN: 0.3,
+  PREDATOR_SPIKINESS_VARIANCE: 0.4,
+  PREDATOR_GLOW_MIN: 0.4,
+  PREDATOR_GLOW_VARIANCE: 0.4,
+  PREDATOR_PACK_VARIANCE: 0.2,
+
+  // Obstacle properties
+  OBSTACLE_COLOR_VARIANCE: 0x222222,
+  OBSTACLE_OPACITY_MIN: 0.3,
+  OBSTACLE_OPACITY_VARIANCE: 0.5,
+  OBSTACLE_WIREFRAME_THRESHOLD: 0.7,
+
+  // Organism properties
+  VELOCITY_RANGE: 2,
+  OFFSPRING_RADIUS_MULTIPLIER: 2,
+
+  // Trait mutation bounds
+  TRAIT_MIN_BOUND: 0,
+  TRAIT_MAX_BOUND: 1,
+  TRAIT_MIN_ATTACK: 0.5,
+  TRAIT_MAX_ATTACK: 2.0,
+  TRAIT_MUTATION_FACTOR: 2,
+
+  // Subtype inheritance
+  SUBTYPE_INHERITANCE_PROBABILITY: 0.9,
+} as const;
