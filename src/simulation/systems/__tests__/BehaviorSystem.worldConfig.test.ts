@@ -7,7 +7,7 @@
  * - Відсутності залежності від глобальних констант (інкапсуляція).
  */
 
-import { beforeEach,describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createWorldConfig } from '../../../constants';
 import { Random } from '../../../core/utils/Random';
@@ -49,6 +49,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
       showTrails: true,
       showParticles: true,
       graphicsQuality: 'HIGH',
+      showGrid: true,
     };
   });
 
@@ -60,7 +61,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
     // Доступ до приватного поля через type assertion (тільки для тестів)
     const worldSize = (behaviorSystem as any).worldSize;
 
-    expect(worldSize).toBe(400); // WORLD_SIZE при scale=1.0
+    expect(worldSize).toBe(600); // WORLD_SIZE при scale=1.0
   });
 
   it('повинен коректно працювати з масштабованим світом (scale=2.0)', () => {
@@ -70,7 +71,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
 
     const worldSize = (behaviorSystem as any).worldSize;
 
-    expect(worldSize).toBe(800); // 400 * 2.0
+    expect(worldSize).toBe(1200); // 600 * 2.0
   });
 
   it('повинен коректно обчислювати тороїдальні вектори для масштабованого світу', () => {
