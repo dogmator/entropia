@@ -67,21 +67,21 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ currentStats }) => {
             {/* Entity Statistics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard
-                    title="Травоядные"
+                    title="Травоїдні"
                     value={currentStats.preyCount}
                     unit=""
                     color="text-emerald-400"
                     subtitle={`Середня енергія: ${currentStats.avgPreyEnergy.toFixed(1)}`}
                 />
                 <MetricCard
-                    title="Хищники"
+                    title="Хижаки"
                     value={currentStats.predatorCount}
                     unit=""
                     color="text-red-400"
                     subtitle={`Середня енергія: ${currentStats.avgPredatorEnergy.toFixed(1)}`}
                 />
                 <MetricCard
-                    title="Ресурсы"
+                    title="Ресурси"
                     value={currentStats.foodCount}
                     unit=""
                     color="text-yellow-400"
