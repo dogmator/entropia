@@ -510,6 +510,29 @@ export const ENGINE_CONSTANTS = {
   EXTINCTION_RISK_MEDIUM: 0.5,
   RISK_COLOR_THRESHOLD: 0.8,
   RISK_FACTOR_OFFSET: 0.1,
+
+  // Екологічні зони - множники радіусів
+  ZONE_OASIS_RADIUS_MULT: 0.15,
+  ZONE_DESERT_RADIUS_MULT: 0.2,
+  ZONE_HUNTING_RADIUS_MULT: 0.12,
+  ZONE_SANCTUARY_RADIUS_MULT: 0.1,
+
+  // Екологічні зони - множники позицій
+  ZONE_HUNTING_X_MULT: 0.75,
+  ZONE_HUNTING_Z_MULT: 0.25,
+  ZONE_SANCTUARY_X_MULT: 0.25,
+  ZONE_SANCTUARY_Z_MULT: 0.75,
+  ZONE_CENTER_MULT: 0.5,
+
+  // Конфігурація перешкод
+  OBSTACLE_COUNT: 12,
+  OBSTACLE_MIN_RADIUS: 12,
+  OBSTACLE_RADIUS_RANGE: 25,
+
+  // Початкові значення статистики
+  INITIAL_GENERATION: 0,
+  INITIAL_MAX_GENERATION: 1,
+  INITIAL_STAT_VALUE: 0,
 } as const;
 
 // ============================================================================
