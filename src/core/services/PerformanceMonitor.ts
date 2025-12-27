@@ -11,6 +11,7 @@
 
 import type { PerformanceMetrics } from '../../types';
 import type { MemoryInfo } from '../utils/PerformanceUtils';
+import { PERFORMANCE_CONSTANTS } from '../../constants';
 import { PerformanceHelpers } from '../utils/PerformanceUtils';
 import { logger } from './Logger';
 
@@ -35,32 +36,32 @@ interface SubsystemMetrics {
 
 export class PerformanceMonitor {
   private entries: PerformanceEntry[] = [];
-  private maxEntries: number = 300; // Храним 5 минут при частоте 1 Гц
+  private maxEntries: number = PERFORMANCE_CONSTANTS.MAX_ENTRIES;
   private frameCount: number = 0;
   private lastFPSUpdate: number = performance.now();
-  private currentFPS: number = 60;
+  private currentFPS: number = PERFORMANCE_CONSTANTS.DEFAULT_FPS;
   private lastTPSUpdate: number = performance.now();
-  private currentTPS: number = 60;
+  private currentTPS: number = PERFORMANCE_CONSTANTS.DEFAULT_TPS;
   private tickCount: number = 0;
 
-  // Метрики подсистем
+  // Метрики підсистем
   private subsystemMetrics: Map<string, SubsystemMetrics> = new Map();
   private currentFrameStartTime: number = 0;
 
-  // Исторические данные для анализа трендов (кольцевые буферы)
-  private fpsRingBuffer: number[] = new Array(60).fill(60);
+  // Історичні дані для аналізу трендів (кільцеві буфери)
+  private fpsRingBuffer: number[] = new Array(PERFORMANCE_CONSTANTS.RING_BUFFER_SIZE).fill(PERFORMANCE_CONSTANTS.DEFAULT_FPS);
   private fpsRingIndex: number = 0;
-  private memoryRingBuffer: (MemoryInfo | null)[] = new Array(60).fill(null);
+  private memoryRingBuffer: (MemoryInfo | null)[] = new Array(PERFORMANCE_CONSTANTS.RING_BUFFER_SIZE).fill(null);
   private memoryRingIndex: number = 0;
 
-  // Таймеры для управления
+  // Таймери для управління
   private fpsUpdateTimer: NodeJS.Timeout | null = null;
   private memoryTimer: NodeJS.Timeout | null = null;
   private isCollectingMemory: boolean = false;
-  private memoryCollectionInterval: number = 5000; // 5 секунд для минимизации влияния
+  private memoryCollectionInterval: number = PERFORMANCE_CONSTANTS.MEMORY_COLLECTION_INTERVAL;
   private isMonitoringEnabled: boolean = true;
   private lastCleanupTime: number = 0;
-  private cleanupInterval: number = 30000; // 30 секунд
+  private cleanupInterval: number = PERFORMANCE_CONSTANTS.CLEANUP_INTERVAL;
 
   constructor() {
     logger.info('Initializing PerformanceMonitor', 'PerformanceMonitor');
@@ -72,14 +73,14 @@ export class PerformanceMonitor {
    * Оптимизированный запуск мониторинга с минимальным влиянием
    */
   private startOptimizedMonitoring(): void {
-    // Обновление FPS каждые 500мс (реже для уменьшения нагрузки)
+    // Оновлення FPS кожні 500мс (рідше для зменшення навантаження)
     this.fpsUpdateTimer = PerformanceHelpers.time.createTimer(() => {
       if (this.isMonitoringEnabled) {
         this.updateFPS();
       }
-    }, 500);
+    }, PERFORMANCE_CONSTANTS.FPS_UPDATE_INTERVAL);
 
-    // Сбор метрик памяти каждые 5 секунд (минимальное влияние)
+    // Збір метрик пам'яті кожні 5 секунд (мінімальний вплив)
     this.memoryTimer = PerformanceHelpers.time.createTimer(() => {
       if (this.isMonitoringEnabled) {
         this.collectMemoryMetrics();
@@ -94,12 +95,12 @@ export class PerformanceMonitor {
     const now = PerformanceHelpers.time.now();
     const delta = now - this.lastFPSUpdate;
 
-    if (delta >= 1000) {
-      this.currentFPS = Math.round((this.frameCount * 1000) / delta);
+    if (delta >= PERFORMANCE_CONSTANTS.UPDATE_THRESHOLD) {
+      this.currentFPS = Math.round((this.frameCount * PERFORMANCE_CONSTANTS.UPDATE_THRESHOLD) / delta);
       this.frameCount = 0;
       this.lastFPSUpdate = now;
 
-      // Обновляем кольцевой буфер
+      // Оновлюємо кільцевий буфер
       this.fpsRingBuffer[this.fpsRingIndex] = this.currentFPS;
       this.fpsRingIndex = (this.fpsRingIndex + 1) % this.fpsRingBuffer.length;
     }
@@ -154,13 +155,13 @@ export class PerformanceMonitor {
     const now = PerformanceHelpers.time.now();
     const delta = now - this.lastTPSUpdate;
 
-    if (delta >= 1000) {
-      this.currentTPS = Math.round((this.tickCount * 1000) / delta);
+    if (delta >= PERFORMANCE_CONSTANTS.UPDATE_THRESHOLD) {
+      this.currentTPS = Math.round((this.tickCount * PERFORMANCE_CONSTANTS.UPDATE_THRESHOLD) / delta);
       this.tickCount = 0;
       this.lastTPSUpdate = now;
     }
 
-    // Обновляем последнюю запись
+    // Оновлюємо останній запис
     if (this.entries.length > 0) {
       const lastEntry = this.entries[this.entries.length - 1];
       if (lastEntry) {
@@ -176,7 +177,7 @@ export class PerformanceMonitor {
    */
   public startSubsystemTimer(name: string): () => void {
     if (!this.isMonitoringEnabled) {
-      return () => { }; // No-op если мониторинг отключен
+      return () => { }; // No-op якщо моніторинг вимкнено
     }
 
     const startTime = PerformanceHelpers.time.now();
@@ -185,8 +186,8 @@ export class PerformanceMonitor {
       const endTime = PerformanceHelpers.time.now();
       const executionTime = endTime - startTime;
 
-      // Обновляем метрики только если время выполнения значительное
-      if (executionTime > 0.1) {
+      // Оновлюємо метрики тільки якщо час виконання значний
+      if (executionTime > PERFORMANCE_CONSTANTS.MIN_EXECUTION_TIME) {
         const existing = this.subsystemMetrics.get(name);
         if (existing) {
           existing.calls++;
@@ -282,44 +283,44 @@ export class PerformanceMonitor {
 
     // Адаптивне керування моніторингом залежно від FPS
     const fps = this.getCurrentFPS();
-    if (fps < 10 && this.isMonitoringEnabled) {
+    if (fps < PERFORMANCE_CONSTANTS.FPS_CRITICAL_LOW && this.isMonitoringEnabled) {
       // Критично низький FPS - вимикаємо моніторинг
       logger.warning('Critical low FPS detected, disabling monitoring', 'PerformanceMonitor', {
         fps,
-        threshold: 10
+        threshold: PERFORMANCE_CONSTANTS.FPS_CRITICAL_LOW
       });
       this.setMonitoringEnabled(false);
 
-      // Включаємо назад через 30 секунд (зменшено з 60)
+      // Включаємо назад через 30 секунд
       setTimeout(() => {
         if (!this.isMonitoringEnabled) {
           this.setMonitoringEnabled(true);
           logger.info('Monitoring re-enabled after performance recovery', 'PerformanceMonitor');
         }
-      }, 30000);
-    } else if (fps < 15 && this.isMonitoringEnabled) {
+      }, PERFORMANCE_CONSTANTS.RECOVERY_TIMEOUT);
+    } else if (fps < PERFORMANCE_CONSTANTS.FPS_LOW && this.isMonitoringEnabled) {
       // Низький FPS - зменшуємо частоту оновлення
       this.setMonitoringEnabled(false);
       setTimeout(() => {
         if (!this.isMonitoringEnabled) {
           this.setMonitoringEnabled(true);
         }
-      }, 5000); // Включаємо через 5 секунд
-    } else if (fps < 30 && this.isMonitoringEnabled) {
+      }, PERFORMANCE_CONSTANTS.QUICK_RECOVERY_TIMEOUT);
+    } else if (fps < PERFORMANCE_CONSTANTS.FPS_MEDIUM && this.isMonitoringEnabled) {
       // Низький FPS - зменшуємо частоту збору пам'яті
-      this.memoryCollectionInterval = 10000; // 10 секунд
+      this.memoryCollectionInterval = PERFORMANCE_CONSTANTS.SLOW_MEMORY_INTERVAL;
       logger.warning('Low FPS detected, reducing memory collection frequency', 'PerformanceMonitor', {
         fps,
-        threshold: 30,
+        threshold: PERFORMANCE_CONSTANTS.FPS_MEDIUM,
         newInterval: this.memoryCollectionInterval
       });
-    } else if (fps > 50 && !this.isMonitoringEnabled) {
+    } else if (fps > PERFORMANCE_CONSTANTS.FPS_GOOD && !this.isMonitoringEnabled) {
       // Хороша продуктивність - включаємо моніторинг
       this.setMonitoringEnabled(true);
-      this.memoryCollectionInterval = 5000; // 5 секунд
+      this.memoryCollectionInterval = PERFORMANCE_CONSTANTS.MEMORY_COLLECTION_INTERVAL;
       logger.info('Good FPS detected, enabling full monitoring', 'PerformanceMonitor', {
         fps,
-        threshold: 50
+        threshold: PERFORMANCE_CONSTANTS.FPS_GOOD
       });
     }
   }
@@ -329,7 +330,7 @@ export class PerformanceMonitor {
    */
   private getCurrentFPS(): number {
     const now = PerformanceHelpers.time.now();
-    if (now - this.lastFPSUpdate > 1000) { // Оновлюємо раз на секунду
+    if (now - this.lastFPSUpdate > PERFORMANCE_CONSTANTS.UPDATE_THRESHOLD) {
       this.currentFPS = this.calculateFPS();
       this.lastFPSUpdate = now;
     }
@@ -343,7 +344,7 @@ export class PerformanceMonitor {
     if (this.entries.length === 0) { return 0; }
 
     // Використовуємо останні записи для розрахунку
-    const recentEntries = this.entries.slice(-10); // Останні 10 записів
+    const recentEntries = this.entries.slice(-PERFORMANCE_CONSTANTS.RECENT_ENTRIES_WINDOW);
     if (recentEntries.length === 0) { return 0; }
 
     const totalFrameTime = recentEntries.reduce((sum, entry) => sum + entry.frameTime, 0);
@@ -351,9 +352,9 @@ export class PerformanceMonitor {
 
     if (avgFrameTime === 0) { return 0; }
 
-    const fps = 1000 / avgFrameTime;
+    const fps = PERFORMANCE_CONSTANTS.UPDATE_THRESHOLD / avgFrameTime;
 
-    return Math.min(Math.max(fps, 0), 999); // Обмежуємо діапазон
+    return Math.min(Math.max(fps, PERFORMANCE_CONSTANTS.FPS_MIN), PERFORMANCE_CONSTANTS.FPS_MAX);
   }
 
   /**
@@ -415,15 +416,15 @@ export class PerformanceMonitor {
     const recent = this.getMemoryHistory().slice(-10);
     let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
 
-    if (recent.length >= 3) {
+    if (recent.length >= PERFORMANCE_CONSTANTS.MIN_TREND_SAMPLES) {
       const first = recent[0]?.usedJSHeapSize;
       const last = recent[recent.length - 1]?.usedJSHeapSize;
 
       if (first !== undefined && last !== undefined) {
         const change = (last - first) / first;
 
-        if (change > 0.05) { trend = 'increasing'; }
-        else if (change < -0.05) { trend = 'decreasing'; }
+        if (change > PERFORMANCE_CONSTANTS.MEMORY_TREND_THRESHOLD) { trend = 'increasing'; }
+        else if (change < PERFORMANCE_CONSTANTS.MEMORY_TREND_NEG_THRESHOLD) { trend = 'decreasing'; }
       }
     }
 
@@ -433,7 +434,7 @@ export class PerformanceMonitor {
   /**
    * Получение средней производительности за период
    */
-  public getAveragePerformance(windowMs: number = 60000): PerformanceMetrics {
+  public getAveragePerformance(windowMs: number = PERFORMANCE_CONSTANTS.AVG_PERFORMANCE_WINDOW): PerformanceMetrics {
     const cutoffTime = PerformanceHelpers.time.now() - windowMs;
     const recentEntries = this.entries.filter(entry => entry.timestamp > cutoffTime);
 
@@ -469,26 +470,26 @@ export class PerformanceMonitor {
     const current = this.getCurrentMetrics();
     // const avg = this.getAveragePerformance(10000); // За последние 10 секунд (unused)
 
-    // Низкий FPS
-    if (current.fps < 30) {
+    // Низький FPS
+    if (current.fps < PERFORMANCE_CONSTANTS.FPS_MEDIUM) {
       issues.push({
         type: 'low_fps',
-        severity: current.fps < 15 ? 'critical' : 'warning',
-        message: `Низкий FPS: ${current.fps}`,
+        severity: current.fps < PERFORMANCE_CONSTANTS.FPS_LOW ? 'critical' : 'warning',
+        message: `Низький FPS: ${current.fps}`,
         suggestions: [
-          'Уменьшите количество сущностей',
-          'Оптимизируйте настройки графики',
-          'Проверьте загрузку CPU'
+          'Зменшіть кількість сутностей',
+          'Оптимізуйте налаштування графіки',
+          'Перевірте завантаженість CPU'
         ]
       });
     }
 
-    // Высокое время кадра
-    if (current.frameTime > 20) {
+    // Високий час кадру
+    if (current.frameTime > PERFORMANCE_CONSTANTS.FRAME_TIME_WARNING) {
       issues.push({
         type: 'high_frame_time',
-        severity: current.frameTime > 33 ? 'critical' : 'warning',
-        message: `Высокое время кадра: ${current.frameTime.toFixed(1)}ms`,
+        severity: current.frameTime > PERFORMANCE_CONSTANTS.FRAME_TIME_CRITICAL ? 'critical' : 'warning',
+        message: `Високий час кадру: ${current.frameTime.toFixed(1)}ms`,
         suggestions: [
           'Оптимизируйте логику рендеринга',
           'Уменьшите сложность шейдеров',
@@ -497,9 +498,9 @@ export class PerformanceMonitor {
       });
     }
 
-    // Утечка памяти
+    // Витік пам'яті
     const memoryStats = this.getMemoryStats();
-    if (memoryStats.trend === 'increasing' && memoryStats.usedJSHeapSize > memoryStats.jsHeapSizeLimit * 0.8) {
+    if (memoryStats.trend === 'increasing' && memoryStats.usedJSHeapSize > memoryStats.jsHeapSizeLimit * PERFORMANCE_CONSTANTS.MEMORY_LEAK_THRESHOLD) {
       issues.push({
         type: 'memory_leak',
         severity: 'critical',
@@ -512,8 +513,8 @@ export class PerformanceMonitor {
       });
     }
 
-    // Медленная подсистема
-    const slowSubsystems = this.getSubsystemMetrics().filter(s => s.averageTime > 5);
+    // Повільна підсистема
+    const slowSubsystems = this.getSubsystemMetrics().filter(s => s.averageTime > PERFORMANCE_CONSTANTS.SUBSYSTEM_SLOW_THRESHOLD);
     if (slowSubsystems.length > 0) {
       issues.push({
         type: 'slow_subsystem',
@@ -559,7 +560,7 @@ export class PerformanceMonitor {
 
     this.entries = [];
     this.subsystemMetrics.clear();
-    this.fpsRingBuffer.fill(60);
+    this.fpsRingBuffer.fill(PERFORMANCE_CONSTANTS.DEFAULT_FPS);
     this.fpsRingIndex = 0;
     this.memoryRingBuffer.fill(null);
     this.memoryRingIndex = 0;
