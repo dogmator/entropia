@@ -113,19 +113,8 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
     /** Референс для зберігання історії без тригера рендерингу. */
     const historyRef = useRef<PopulationDataPoint[]>([]);
 
-    const fadeTimeoutRef = useRef<number | null>(null);
     useEffect(() => {
-        if (hoveredEntity) {
-            setTooltipVisible(true);
-            if (fadeTimeoutRef.current) {clearTimeout(fadeTimeoutRef.current);}
-        } else {
-            fadeTimeoutRef.current = window.setTimeout(() => {
-                setTooltipVisible(false);
-            }, 180);
-        }
-        return () => {
-            if (fadeTimeoutRef.current) {clearTimeout(fadeTimeoutRef.current);}
-        };
+        setTooltipVisible(!!hoveredEntity);
     }, [hoveredEntity]);
 
     /** Метрики продуктивності системного рендерингу та логіки. */
