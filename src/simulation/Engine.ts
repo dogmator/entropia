@@ -39,6 +39,7 @@ import {
 
 import {
   createWorldConfig,
+  ENGINE_CONSTANTS,
   GENETICS,
   INITIAL_VIS_CONFIG,
   PHYSICS,
@@ -50,29 +51,7 @@ import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
 import { SpatialHashGrid } from './SpatialHashGrid';
 
-const ENGINE_CONSTANTS = {
-  MS_PER_SECOND: 1000,
-  TRAIL_BUFFER_SIZE: 13,
-  FOOD_BUFFER_SIZE: 5,
-  MAX_DEPTH: 3,
-  MAX_CELL_SIZE: 80,
-  DEFAULT_CAMERA_FOV: 60,
-  DEFAULT_ZOOM: 1,
-  TICK_RATE: 60,
-  HIT_RADIUS_MULT_ORG: 2.5,
-  HIT_RADIUS_MULT_ORG_FALLBACK: 2,
-  HIT_RADIUS_MULT_FOOD: 2,
-  GRID_FALLBACK_MULT: 2,
-  WORLD_AGE_FALLBACK_TPS: 60,
-  BUFFER_GROWTH_FACTOR: 1.5,
-  BUFFER_SHRINK_FACTOR: 1.25,
-  BUFFER_MIN_CAPACITY: 100,
-  EXTINCTION_THRESHOLD_LOW: 5,
-  EXTINCTION_RISK_HIGH: 0.9,
-  EXTINCTION_RISK_MEDIUM: 0.5,
-  RISK_COLOR_THRESHOLD: 0.8,
-  RISK_FACTOR_OFFSET: 0.1,
-};
+// ENGINE_CONSTANTS тепер імпортується з constants.ts
 
 export class SimulationEngine {
   // Дескриптори колекцій віртуальних сутностей
@@ -211,11 +190,13 @@ export class SimulationEngine {
    */
   private createZones(): void {
     const ws = this.worldConfig.WORLD_SIZE;
+    const centerMult = ENGINE_CONSTANTS.ZONE_CENTER_MULT;
+
     this.zones.set('oasis_center', {
       id: 'oasis_center',
       type: ZoneType.OASIS,
-      center: { x: ws / 2, y: ws / 2, z: ws / 2 },
-      radius: ws * 0.15,
+      center: { x: ws * centerMult, y: ws * centerMult, z: ws * centerMult },
+      radius: ws * ENGINE_CONSTANTS.ZONE_OASIS_RADIUS_MULT,
       foodMultiplier: ZONE_DEFAULTS.OASIS.foodMultiplier,
       dangerMultiplier: ZONE_DEFAULTS.OASIS.dangerMultiplier,
     });
@@ -229,7 +210,7 @@ export class SimulationEngine {
         id: `desert_${i}`,
         type: ZoneType.DESERT,
         center: pos,
-        radius: ws * 0.2,
+        radius: ws * ENGINE_CONSTANTS.ZONE_DESERT_RADIUS_MULT,
         foodMultiplier: ZONE_DEFAULTS.DESERT.foodMultiplier,
         dangerMultiplier: ZONE_DEFAULTS.DESERT.dangerMultiplier,
       });
@@ -238,8 +219,8 @@ export class SimulationEngine {
     this.zones.set('hunting_ground', {
       id: 'hunting_ground',
       type: ZoneType.HUNTING_GROUND,
-      center: { x: ws * 0.75, y: ws / 2, z: ws * 0.25 },
-      radius: ws * 0.12,
+      center: { x: ws * ENGINE_CONSTANTS.ZONE_HUNTING_X_MULT, y: ws * centerMult, z: ws * ENGINE_CONSTANTS.ZONE_HUNTING_Z_MULT },
+      radius: ws * ENGINE_CONSTANTS.ZONE_HUNTING_RADIUS_MULT,
       foodMultiplier: ZONE_DEFAULTS.HUNTING_GROUND.foodMultiplier,
       dangerMultiplier: ZONE_DEFAULTS.HUNTING_GROUND.dangerMultiplier,
     });
@@ -247,8 +228,8 @@ export class SimulationEngine {
     this.zones.set('sanctuary', {
       id: 'sanctuary',
       type: ZoneType.SANCTUARY,
-      center: { x: ws * 0.25, y: ws / 2, z: ws * 0.75 },
-      radius: ws * 0.1,
+      center: { x: ws * ENGINE_CONSTANTS.ZONE_SANCTUARY_X_MULT, y: ws * centerMult, z: ws * ENGINE_CONSTANTS.ZONE_SANCTUARY_Z_MULT },
+      radius: ws * ENGINE_CONSTANTS.ZONE_SANCTUARY_RADIUS_MULT,
       foodMultiplier: ZONE_DEFAULTS.SANCTUARY.foodMultiplier,
       dangerMultiplier: ZONE_DEFAULTS.SANCTUARY.dangerMultiplier,
     });
@@ -258,9 +239,9 @@ export class SimulationEngine {
    * Створення статичних геометричних перешкод у просторі.
    */
   private createObstacles(): void {
-    const count = 12;
+    const count = ENGINE_CONSTANTS.OBSTACLE_COUNT;
     for (let i = 0; i < count; i++) {
-      const radius = 12 + this.rng.next() * 25;
+      const radius = ENGINE_CONSTANTS.OBSTACLE_MIN_RADIUS + this.rng.next() * ENGINE_CONSTANTS.OBSTACLE_RADIUS_RANGE;
       const obstacle = Obstacle.create(
         ++this.obstacleIdCounter,
         this.rng.next() * this.worldConfig.WORLD_SIZE,
@@ -317,11 +298,11 @@ export class SimulationEngine {
       avgEnergy: 0,
       avgPreyEnergy: 0,
       avgPredatorEnergy: 0,
-      generation: 0,
-      maxGeneration: 1,
-      maxAge: 0,
-      totalDeaths: 0,
-      totalBirths: 0,
+      generation: ENGINE_CONSTANTS.INITIAL_GENERATION,
+      maxGeneration: ENGINE_CONSTANTS.INITIAL_MAX_GENERATION,
+      maxAge: ENGINE_CONSTANTS.INITIAL_STAT_VALUE,
+      totalDeaths: ENGINE_CONSTANTS.INITIAL_STAT_VALUE,
+      totalBirths: ENGINE_CONSTANTS.INITIAL_STAT_VALUE,
       extinctionRisk: 0,
     };
 
