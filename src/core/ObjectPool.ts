@@ -163,8 +163,6 @@ export interface PoolStats {
 // ============================================================================
 
 import type { MutableVector3 } from '@/types';
-import { vec3Zero } from '@/types';
-
 import { POOL_CONSTANTS } from '../constants';
 
 /**
@@ -177,7 +175,7 @@ export class Vector3Pool {
   public static getInstance(): ObjectPool<MutableVector3> {
     if (!Vector3Pool.instance) {
       Vector3Pool.instance = new ObjectPool<MutableVector3>(
-        () => vec3Zero(),
+        () => ({ x: 0, y: 0, z: 0 }),
         (v) => { v.x = 0; v.y = 0; v.z = 0; },
         POOL_CONSTANTS.VECTOR3_INITIAL_SIZE,
         POOL_CONSTANTS.VECTOR3_MAX_SIZE

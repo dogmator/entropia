@@ -3,11 +3,12 @@
  * Виконує ініціалізацію віртуальної структури вузлів React та монтування кореневого компонента в DOM.
  */
 
+import './index.css';
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { App } from './App';
-import './index.css';
 
 /** Пошук кореневого контейнера в структурі документа. */
 const rootElement = document.getElementById('root');

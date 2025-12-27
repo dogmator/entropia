@@ -11,13 +11,14 @@
 /**
  * Константи фізичних параметрів колізій.
  */
-import { INTERACTION } from '@/constants.ts';
+import { INTERACTION, PHYSICS } from '@/constants.ts';
 import type { EventBus } from '@/core';
+import { Vector3Pool } from '@/core/ObjectPool';
 import type { SpatialHashGrid } from '@/simulation';
-import type { EntityId, GridEntity,Vector3 } from '@/types';
+import type { EntityId, GridEntity, Vector3 } from '@/types';
 import { EntityType } from '@/types';
 
-import type { Food, Obstacle,Organism } from '../Entity';
+import type { Food, Obstacle, Organism } from '../Entity';
 import { MathUtils } from '../MathUtils';
 
 /**
@@ -40,7 +41,7 @@ export class CollisionSystem {
     const deadOrganismIds: string[] = [];
 
     organisms.forEach(organism => {
-      if (organism.isDead) {return;}
+      if (organism.isDead) { return; }
 
       this.handleOrganismCollisions(
         organism,
@@ -64,12 +65,12 @@ export class CollisionSystem {
     organisms: Map<string, Organism>,
     deadIds: string[]
   ): void {
-    const searchRadius = organism.radius + 20;
+    const searchRadius = organism.radius + PHYSICS.COLLISION_SEARCH_RADIUS_OFFSET;
     const neighbors = this.spatialGrid.getNearby(organism.position, searchRadius);
 
     for (const neighbor of neighbors) {
       // Виключення самоперетину
-      if (neighbor.id === organism.id) {continue;}
+      if (neighbor.id === organism.id) { continue; }
 
       // Диференціація логіки залежно від типу об'єкта перетину
       switch (neighbor.type) {
@@ -101,19 +102,21 @@ export class CollisionSystem {
     obstacles: Map<string, Obstacle>
   ): void {
     const obstacle = obstacles.get(neighborEntity.id);
-    if (!obstacle) {return;}
+    if (!obstacle) { return; }
 
     if (this.isColliding(organism, obstacle)) {
       const distSq = MathUtils.toroidalDistanceSq(organism.position, neighborEntity.position);
       const minDist = organism.radius + obstacle.radius; // Restore required variable
       const dist = Math.sqrt(distSq);
-      if (dist < 0.001) {return;} // Запобігання сингулярності (ділення на нуль)
+      if (dist < PHYSICS.EPSILON) { return; } // Запобігання сингулярності (ділення на нуль)
 
       // Розрахунок нормувального вектора зіткнення
-      const diff = MathUtils.toroidalVector(organism.position, neighborEntity.position);
+      const diff = Vector3Pool.acquire();
+      MathUtils.toroidalVector(organism.position, neighborEntity.position, undefined, diff);
       const nx = diff.x / dist;
       const ny = diff.y / dist;
       const nz = diff.z / dist;
+      Vector3Pool.release(diff);
 
       // Пружне відбиття вектора швидкості відносно нормалі
       const dot = organism.velocity.x * nx + organism.velocity.y * ny + organism.velocity.z * nz;
@@ -138,7 +141,7 @@ export class CollisionSystem {
     food: Map<string, Food>
   ): void {
     const foodItem = food.get(neighborEntity.id);
-    if (!foodItem || foodItem.consumed) {return;}
+    if (!foodItem || foodItem.consumed) { return; }
 
     if (this.isColliding(organism, foodItem)) {
       // Абсорбція енергії субстрату організмом
@@ -151,7 +154,7 @@ export class CollisionSystem {
         type: 'EntityDied',
         entityType: EntityType.FOOD,
         id: neighborEntity.id as EntityId,
-        position: { ...foodItem.position },
+        position: { x: foodItem.position.x, y: foodItem.position.y, z: foodItem.position.z },
         causeOfDeath: 'predation',
       });
     }
@@ -167,7 +170,7 @@ export class CollisionSystem {
     deadIds: string[]
   ): void {
     const prey = organisms.get(preyEntity.id);
-    if (!prey || prey.isDead) {return;}
+    if (!prey || prey.isDead) { return; }
 
     if (this.isColliding(predator, prey)) {
       // Розрахунок енергетичного прибутку на основі стану жертви

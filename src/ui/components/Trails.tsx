@@ -1,8 +1,8 @@
-import { useFrame,useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import type React from 'react';
-import { useEffect,useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
-import { COLORS,RENDER } from '../../constants';
+import { COLORS, RENDER } from '../../constants';
 import type { SimulationEngine } from '../../simulation/Engine';
 import { TrailSystem } from '../effects/ParticleSystem';
 
@@ -42,12 +42,11 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
             const y = prey[offset + 1] || 0;
             const z = prey[offset + 2] || 0;
 
-            trailSystem.updateTrail(
-                id,
-                { x, y, z },
-                COLORS.prey.trail || 0x00ff00,
-                true
-            );
+            trailSystem.updateTrail(id, {
+                position: { x, y, z },
+                color: COLORS.prey.trail || 0x00ff00,
+                enabled: true
+            });
         }
 
         // Update Predator Trails
@@ -60,12 +59,11 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
             const y = predators[offset + 1] || 0;
             const z = predators[offset + 2] || 0;
 
-            trailSystem.updateTrail(
-                id,
-                { x, y, z },
-                COLORS.predator.trail || 0xff0000,
-                true
-            );
+            trailSystem.updateTrail(id, {
+                position: { x, y, z },
+                color: COLORS.predator.trail || 0xff0000,
+                enabled: true
+            });
         }
     });
 
