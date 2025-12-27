@@ -1,6 +1,6 @@
 import type { ThreeEvent } from '@react-three/fiber';
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import * as THREE from 'three';
 
 import { COLORS, RENDER } from '../../constants';
@@ -181,7 +181,7 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
         }
     });
 
-    const handlePointerMove = (e: ThreeEvent<PointerEvent>, type: 'prey' | 'predator' | 'food') => {
+    const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>, type: 'prey' | 'predator' | 'food') => {
         e.stopPropagation();
         // Instance ID is in e.instanceId
         if (e.instanceId === undefined) {
@@ -200,12 +200,17 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
             // Use pointer screen coordinates directly for stable tooltip
             setTooltipPos({ x: e.clientX, y: e.clientY });
         }
-    };
+    }, [engine, setHoveredEntity, setTooltipPos]);
+
+    // Reset tooltip when pointer leaves object
+    const handlePointerOut = useCallback(() => {
+        setHoveredEntity(null);
+    }, [setHoveredEntity]);
 
     // Reset tooltip when pointer misses
-    const handlePointerMiss = () => {
+    const handlePointerMiss = useCallback(() => {
         setHoveredEntity(null);
-    };
+    }, [setHoveredEntity]);
 
     return (
         <group onPointerMissed={handlePointerMiss}>
@@ -214,6 +219,7 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
                 args={[orgGeo, undefined, MAX_INSTANCES]}
                 frustumCulled={false}
                 onPointerMove={(e) => handlePointerMove(e, 'prey')}
+                onPointerOut={handlePointerOut}
             >
                 <meshPhongMaterial
                     color={COLORS.prey.base}
@@ -230,6 +236,7 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
                 args={[orgGeo, undefined, MAX_INSTANCES]}
                 frustumCulled={false}
                 onPointerMove={(e) => handlePointerMove(e, 'predator')}
+                onPointerOut={handlePointerOut}
             >
                 <meshPhongMaterial
                     color={COLORS.predator.base}
@@ -246,6 +253,7 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
                 args={[foodGeo, undefined, MAX_INSTANCES * 2]}
                 frustumCulled={false}
                 onPointerMove={(e) => handlePointerMove(e, 'food')}
+                onPointerOut={handlePointerOut}
             >
                 <meshPhongMaterial
                     color={COLORS.food.base}
