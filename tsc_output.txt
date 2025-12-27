@@ -1,0 +1,2 @@
+src/simulation/EngineProxy.ts(52,13): error TS6133: 'cachedSharedBuffer' is declared but its value is never read.
+src/simulation/services/StatisticsManager.ts(394,13): error TS2353: Object literal may only specify known properties, and 'gridDimensions' does not exist in type 'SimulationStats'.

@@ -10,6 +10,17 @@
  * - ReproductionSystem - механізми генетичного наслідування та популяційної динаміки.
  */
 
+import { SpawnService } from '@simulation/services';
+import { BehaviorSystem } from '@simulation/systems';
+import { CollisionSystem } from '@simulation/systems';
+import { MetabolismSystem } from '@simulation/systems';
+import { PhysicsSystem } from '@simulation/systems';
+import { ReproductionSystem } from '@simulation/systems';
+
+import { EventBus } from '@/core';
+import { logger } from '@/core';
+import { PerformanceMonitor } from '@/core';
+import { Random } from '@/core';
 import type {
   EcologicalZone,
   EntityId,
@@ -34,19 +45,10 @@ import {
   REPRODUCTION_ENERGY_THRESHOLD,
   ZONE_DEFAULTS,
 } from '../constants';
-import { EventBus } from '@/core';
-import { logger } from '@/core';
-import { PerformanceMonitor } from '@/core';
-import { Random } from '@/core';
 import { Food, Obstacle, Organism } from './Entity';
+import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
-import { SpawnService } from '@simulation/services';
 import { SpatialHashGrid } from './SpatialHashGrid';
-import { BehaviorSystem } from '@simulation/systems';
-import { CollisionSystem } from '@simulation/systems';
-import { MetabolismSystem } from '@simulation/systems';
-import { PhysicsSystem } from '@simulation/systems';
-import { ReproductionSystem } from '@simulation/systems';
 
 const ENGINE_CONSTANTS = {
   MS_PER_SECOND: 1000,
@@ -95,6 +97,7 @@ export class SimulationEngine {
   // Модулі сервісної підтримки
   private readonly spawnService: SpawnService;
   private readonly performanceMonitor: PerformanceMonitor;
+  private readonly bufferManager: BufferManager;
 
   // Системні лічильники та часова дискретизація
   private foodIdCounter: number = 0;
@@ -159,9 +162,10 @@ export class SimulationEngine {
       this.worldConfig // Passed WorldConfig
     );
 
-    // Ініціалізація монітора продуктивності
+    // Ініціалізація монітора продуктивності та менеджера буферів
     this.performanceMonitor = new PerformanceMonitor();
-    logger.info('PerformanceMonitor initialized', 'Engine');
+    this.bufferManager = new BufferManager(true);
+    logger.info('PerformanceMonitor and BufferManager initialized', 'Engine');
 
     // Налаштування системи репродукції з інтеграцією фабрики об'єктів
     this.reproductionSystem = new ReproductionSystem(
@@ -322,6 +326,7 @@ export class SimulationEngine {
     };
 
     this.spawnService.resetFactory();
+    this.bufferManager.reset();
     this.eventBus.clearHistory();
     this.createZones();
     this.createObstacles();
@@ -345,124 +350,13 @@ export class SimulationEngine {
   // ЕКСПОРТ ДАНИХ ДЛЯ РЕНДЕРИНГУ / WEB WORKERS
   // ============================================================================
 
-  // Внутрішні буфери для повторного використання (мінімізація GC)
-  private _preyBuffer: Float32Array = new Float32Array(0);
-  private _predBuffer: Float32Array = new Float32Array(0);
-  private _foodBuffer: Float32Array = new Float32Array(0);
+  // Внутрішні буфери тепер управляються BufferManager
 
-  // Лічильник для відстеження попереднього розміру популяції
-  // private _lastPreyCount: number = 0; // unused
-  // private _lastPredCount: number = 0; // unused
-  // private _lastFoodCount: number = 0; // unused
-
-  /** Поріг гістерезису для запобігання частим реалокаціям (25%). */
-  private static readonly SHRINK_THRESHOLD = 0.25;
-
-  private static readonly PREY_STRIDE = ENGINE_CONSTANTS.TRAIL_BUFFER_SIZE;
-  private static readonly PRED_STRIDE = ENGINE_CONSTANTS.TRAIL_BUFFER_SIZE;
-  private static readonly FOOD_STRIDE = ENGINE_CONSTANTS.FOOD_BUFFER_SIZE;
-
-  /**
-   * Повертає зліпок стану симуляції, оптимізований для передачі/рендерингу.
-   */
   public getRenderData(): import('../types').RenderBuffers {
-    const counts = this.countActiveEntities();
-    this.updateBufferCapacities(counts);
-    this.fillRenderBuffers();
-
-    return {
-      prey: this._preyBuffer,
-      preyCount: counts.prey,
-      predators: this._predBuffer,
-      predatorCount: counts.pred,
-      food: this._foodBuffer,
-      foodCount: counts.food,
-    };
+    return this.bufferManager.getRenderData(this.organisms, this.food);
   }
 
-  private countActiveEntities(): { prey: number; pred: number; food: number } {
-    let prey = 0;
-    let pred = 0;
-    this.organisms.forEach(o => {
-      if (!o.isDead) {
-        if (o.isPrey) { prey++; } else { pred++; }
-      }
-    });
-
-    let food = 0;
-    this.food.forEach(f => {
-      if (!f.consumed) { food++; }
-    });
-
-    return { prey, pred, food };
-  }
-
-  private updateBufferCapacities(counts: { prey: number; pred: number; food: number }): void {
-    this._preyBuffer = this.ensureBufferCapacityAdaptive(
-      this._preyBuffer,
-      counts.prey * SimulationEngine.PREY_STRIDE
-    );
-    this._predBuffer = this.ensureBufferCapacityAdaptive(
-      this._predBuffer,
-      counts.pred * SimulationEngine.PRED_STRIDE
-    );
-    this._foodBuffer = this.ensureBufferCapacityAdaptive(
-      this._foodBuffer,
-      counts.food * SimulationEngine.FOOD_STRIDE
-    );
-  }
-
-  private fillRenderBuffers(): void {
-    let preyOffset = 0;
-    let predOffset = 0;
-
-    this.organisms.forEach(o => {
-      if (o.isDead) { return; }
-
-      const isPrey = o.isPrey;
-      const buffer = isPrey ? this._preyBuffer : this._predBuffer;
-      const offset = isPrey ? preyOffset : predOffset;
-
-      this.writeOrganismToBuffer(o, buffer, offset);
-
-      if (isPrey) {
-        preyOffset += SimulationEngine.PREY_STRIDE;
-      } else {
-        predOffset += SimulationEngine.PRED_STRIDE;
-      }
-    });
-
-    let foodOffset = 0;
-    this.food.forEach(f => {
-      if (f.consumed) { return; }
-      this.writeFoodToBuffer(f, this._foodBuffer, foodOffset);
-      foodOffset += SimulationEngine.FOOD_STRIDE;
-    });
-  }
-
-  private writeOrganismToBuffer(o: Organism, buffer: Float32Array, offset: number): void {
-    buffer[offset + 0] = o.position.x;
-    buffer[offset + 1] = o.position.y;
-    buffer[offset + 2] = o.position.z;
-    buffer[offset + 3] = o.velocity.x;
-    buffer[offset + 4] = o.velocity.y;
-    buffer[offset + 5] = o.velocity.z;
-    buffer[offset + 6] = o.radius;
-    buffer[offset + 7] = 0;
-    buffer[offset + 8] = parseInt(o.id.split('_')[1] || '0', 10);
-    buffer[offset + 9] = 0;
-    buffer[offset + 10] = 0;
-    buffer[offset + 11] = 0;
-    buffer[offset + 12] = 0;
-  }
-
-  private writeFoodToBuffer(f: Food, buffer: Float32Array, offset: number): void {
-    buffer[offset + 0] = f.position.x;
-    buffer[offset + 1] = f.position.y;
-    buffer[offset + 2] = f.position.z;
-    buffer[offset + 3] = f.radius;
-    buffer[offset + 4] = parseInt(f.id.split('_')[1] || '0', 10);
-  }
+  // Методи для рендерингу тепер виконуються через BufferManager
 
   public importState(state: SerializedSimulationStateV1): void {
     PersistenceService.importState(this, state);
@@ -735,32 +629,38 @@ export class SimulationEngine {
 
   private updateCameraStats(cameraData?: any): void {
     if (cameraData) {
-      (this.stats as any).cameraX = cameraData.position.x;
-      (this.stats as any).cameraY = cameraData.position.y;
-      (this.stats as any).cameraZ = cameraData.position.z;
-      (this.stats as any).targetX = cameraData.target.x;
-      (this.stats as any).targetY = cameraData.target.y;
-      (this.stats as any).targetZ = cameraData.target.z;
-      (this.stats as any).zoom = cameraData.zoom;
-      (this.stats as any).cameraDistance = cameraData.distance;
-      (this.stats as any).cameraFov = cameraData.fov;
-      (this.stats as any).cameraAspect = cameraData.aspect;
+      this.stats = {
+        ...this.stats,
+        cameraX: cameraData.position.x,
+        cameraY: cameraData.position.y,
+        cameraZ: cameraData.position.z,
+        targetX: cameraData.target.x,
+        targetY: cameraData.target.y,
+        targetZ: cameraData.target.z,
+        zoom: cameraData.zoom,
+        cameraDistance: cameraData.distance,
+        cameraFov: cameraData.fov,
+        cameraAspect: cameraData.aspect,
+      };
     } else {
       this.resetCameraStats();
     }
   }
 
   private resetCameraStats(): void {
-    (this.stats as any).cameraX = 0;
-    (this.stats as any).cameraY = 0;
-    (this.stats as any).cameraZ = 0;
-    (this.stats as any).targetX = this.worldConfig.WORLD_SIZE / 2;
-    (this.stats as any).targetY = this.worldConfig.WORLD_SIZE / 2;
-    (this.stats as any).targetZ = this.worldConfig.WORLD_SIZE / 2;
-    (this.stats as any).zoom = ENGINE_CONSTANTS.DEFAULT_ZOOM;
-    (this.stats as any).cameraDistance = 0;
-    (this.stats as any).cameraFov = ENGINE_CONSTANTS.DEFAULT_CAMERA_FOV;
-    (this.stats as any).cameraAspect = 1;
+    this.stats = {
+      ...this.stats,
+      cameraX: 0,
+      cameraY: 0,
+      cameraZ: 0,
+      targetX: this.worldConfig.WORLD_SIZE / 2,
+      targetY: this.worldConfig.WORLD_SIZE / 2,
+      targetZ: this.worldConfig.WORLD_SIZE / 2,
+      zoom: ENGINE_CONSTANTS.DEFAULT_ZOOM,
+      cameraDistance: 0,
+      cameraFov: ENGINE_CONSTANTS.DEFAULT_CAMERA_FOV,
+      cameraAspect: 1,
+    };
   }
 
   private updateZoneStats(): void {
@@ -776,11 +676,14 @@ export class SimulationEngine {
       else if (z.type === 'SANCTUARY') { sanctuary++; }
     });
 
-    (this.stats as any).growthZones = oasis;
-    (this.stats as any).neutralZones = desert;
-    (this.stats as any).dangerZones = hunting;
-    (this.stats as any).totalZones = this.zones.size;
-    (this.stats as any).activeZones = this.zones.size;
+    this.stats = {
+      ...this.stats,
+      growthZones: oasis,
+      neutralZones: desert,
+      dangerZones: hunting,
+      totalZones: this.zones.size,
+      activeZones: this.zones.size,
+    };
   }
 
   private updateGridStats(): void {
@@ -789,12 +692,15 @@ export class SimulationEngine {
     const occupied = this.calculateOccupiedCells();
     const totalCells = dimensions ** 3;
 
-    (this.stats as any).cellSize = cellSize;
-    (this.stats as any).totalCells = totalCells;
-    (this.stats as any).occupiedCells = occupied;
-    (this.stats as any).avgDensity = totalCells > 0 ? (occupied / totalCells * 100) : 0;
-    (this.stats as any).maxDensity = this.calculateMaxCellDensity();
-    (this.stats as any).gridEfficiency = this.calculateGridEfficiency();
+    this.stats = {
+      ...this.stats,
+      cellSize: cellSize,
+      totalCells: totalCells,
+      occupiedCells: occupied,
+      avgDensity: totalCells > 0 ? (occupied / totalCells * 100) : 0,
+      maxDensity: this.calculateMaxCellDensity(),
+      gridEfficiency: this.calculateGridEfficiency(),
+    };
   }
 
   /**
@@ -844,15 +750,9 @@ export class SimulationEngine {
    */
   private calculateMaxCellDensity(): number {
     const cellCounts = new Map<number, number>();
-    const worldSize = this.worldConfig.WORLD_SIZE;
-    const cellSize = this.getCellSizeFromGrid();
-    const dimensions = this.getDimensionsFromGrid();
-
-    console.log({
-      worldSize,
-      cellSize,
-      dimensions,
-    })
+    //const worldSize = this.worldConfig.WORLD_SIZE;
+    //const cellSize = this.getCellSizeFromGrid();
+    //const dimensions = this.getDimensionsFromGrid();
 
     this.organisms.forEach(org => {
       const key = this.getGridKey(org.position);
@@ -1090,40 +990,7 @@ export class SimulationEngine {
 
 
 
-  /**
-   * Адаптивне управління ємністю буфера з підтримкою динамічного скорочення.
-   *
-   * Стратегія:
-   * - При зростанні популяції: алокація з 50% запасом (growth factor 1.5).
-   * - При значному зменшенні (>75%): скорочення до нового розміру + 25% запасу.
-   * - При незначних коливаннях: збереження існуючої ємності (мінімізація реалокацій).
-   *
-   * @param buffer Поточний буфер.
-   * @param requiredSize Необхідний розмір у елементах.
-   * @param previousSize Попередній використаний розмір для детектування тренду.
-   * @returns Оптимізований буфер.
-   */
-  private ensureBufferCapacityAdaptive(
-    buffer: Float32Array,
-    requiredSize: number
-  ): Float32Array {
-    const currentCapacity = buffer.length;
-
-    // Сценарій 1: Необхідне збільшення ємності
-    if (requiredSize > currentCapacity) {
-      return new Float32Array(Math.ceil(requiredSize * ENGINE_CONSTANTS.BUFFER_GROWTH_FACTOR));
-    }
-
-    // Сценарій 2: Детектування значного зменшення популяції (гістерезис)
-    const utilizationRatio = requiredSize / currentCapacity;
-    if (utilizationRatio < SimulationEngine.SHRINK_THRESHOLD && currentCapacity > ENGINE_CONSTANTS.BUFFER_MIN_CAPACITY) {
-      // Скорочення буфера з невеликим запасом для запобігання частим реалокаціям
-      return new Float32Array(Math.ceil(requiredSize * ENGINE_CONSTANTS.BUFFER_SHRINK_FACTOR));
-    }
-
-    // Сценарій 3: Стабільний стан — повторне використання існуючого буфера
-    return buffer;
-  }
+  // Адаптивне управління тепер винесено до BufferManager
 
 
   /**
