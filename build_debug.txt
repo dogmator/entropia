@@ -1,0 +1,714 @@
+2025-12-27T13:15:33.375Z vite:config config file loaded in 16.16ms
+2025-12-27T13:15:33.375Z vite:env loading env files: [
+  '/home/pavel/repo/entropia/.env',
+  '/home/pavel/repo/entropia/.env.local',
+  '/home/pavel/repo/entropia/.env.production',
+  '/home/pavel/repo/entropia/.env.production.local'
+]
+2025-12-27T13:15:33.375Z vite:env env files loaded in 0.33ms
+2025-12-27T13:15:33.376Z vite:env using resolved env: {
+  SHELL: '/bin/bash',
+  npm_command: 'exec',
+  COLORTERM: 'truecolor',
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '1',
+  NVM_INC: '/home/pavel/.nvm/versions/node/v22.19.0/include/node',
+  XDG_MENU_PREFIX: 'gnome-',
+  TERM_PROGRAM_VERSION: '1.104.0',
+  QT_IM_MODULES: 'wayland;ibus',
+  HISTSIZE: '1000',
+  HOSTNAME: 'fedora',
+  SSH_AUTH_SOCK: '/run/user/1000/gcr/ssh',
+  npm_config_verify_deps_before_run: 'false',
+  MEMORY_PRESSURE_WRITE: 'c29tZSAyMDAwMDAgMjAwMDAwMAA=',
+  HOMEBREW_PREFIX: '/home/linuxbrew/.linuxbrew',
+  XMODIFIERS: '@im=ibus',
+  DESKTOP_SESSION: 'gnome',
+  NO_AT_BRIDGE: '1',
+  GPG_TTY: '/dev/pts/9',
+  ANTIGRAVITY_CLI_ALIAS: 'agy',
+  EDITOR: '/usr/bin/nano',
+  PWD: '/home/pavel/repo/entropia',
+  LOGNAME: 'pavel',
+  XDG_SESSION_DESKTOP: 'gnome',
+  XDG_SESSION_TYPE: 'wayland',
+  SYSTEMD_EXEC_PID: '3844',
+  XAUTHORITY: '/run/user/1000/.mutter-Xwaylandauth.CFO1H3',
+  VSCODE_GIT_ASKPASS_NODE: '/usr/share/antigravity/antigravity',
+  GJS_DEBUG_TOPICS: 'JS ERROR;JS LOG',
+  GDM_LANG: 'ru_UA.UTF-8',
+  HOME: '/home/pavel',
+  USERNAME: 'pavel',
+  COREPACK_ROOT: '/home/pavel/.nvm/versions/node/v22.19.0/lib/node_modules/corepack',
+  SSH_ASKPASS: '/usr/bin/ksshaskpass',
+  LANG: 'ru_UA.UTF-8',
+  LS_COLORS: 'rs=0:di=01;34:ln=01;36:mh=00:pi=40;33:so=01;35:do=01;35:bd=40;33;01:cd=40;33;01:or=40;31;01:mi=01;37;41:su=37;41:sg=30;43:ca=00:tw=30;42:ow=34;42:st=37;44:ex=01;32:*.7z=01;31:*.ace=01;31:*.alz=01;31:*.apk=01;31:*.arc=01;31:*.arj=01;31:*.bz=01;31:*.bz2=01;31:*.cab=01;31:*.cpio=01;31:*.crate=01;31:*.deb=01;31:*.drpm=01;31:*.dwm=01;31:*.dz=01;31:*.ear=01;31:*.egg=01;31:*.esd=01;31:*.gz=01;31:*.jar=01;31:*.lha=01;31:*.lrz=01;31:*.lz=01;31:*.lz4=01;31:*.lzh=01;31:*.lzma=01;31:*.lzo=01;31:*.pyz=01;31:*.rar=01;31:*.rpm=01;31:*.rz=01;31:*.sar=01;31:*.swm=01;31:*.t7z=01;31:*.tar=01;31:*.taz=01;31:*.tbz=01;31:*.tbz2=01;31:*.tgz=01;31:*.tlz=01;31:*.txz=01;31:*.tz=01;31:*.tzo=01;31:*.tzst=01;31:*.udeb=01;31:*.war=01;31:*.whl=01;31:*.wim=01;31:*.xz=01;31:*.z=01;31:*.zip=01;31:*.zoo=01;31:*.zst=01;31:*.avif=01;35:*.jpg=01;35:*.jpeg=01;35:*.jxl=01;35:*.mjpg=01;35:*.mjpeg=01;35:*.gif=01;35:*.bmp=01;35:*.pbm=01;35:*.pgm=01;35:*.ppm=01;35:*.tga=01;35:*.xbm=01;35:*.xpm=01;35:*.tif=01;35:*.tiff=01;35:*.png=01;35:*.svg=01;35:*.svgz=01;35:*.mng=01;35:*.pcx=01;35:*.mov=01;35:*.mpg=01;35:*.mpeg=01;35:*.m2v=01;35:*.mkv=01;35:*.webm=01;35:*.webp=01;35:*.ogm=01;35:*.mp4=01;35:*.m4v=01;35:*.mp4v=01;35:*.vob=01;35:*.qt=01;35:*.nuv=01;35:*.wmv=01;35:*.asf=01;35:*.rm=01;35:*.rmvb=01;35:*.flc=01;35:*.avi=01;35:*.fli=01;35:*.flv=01;35:*.gl=01;35:*.dl=01;35:*.xcf=01;35:*.xwd=01;35:*.yuv=01;35:*.cgm=01;35:*.emf=01;35:*.ogv=01;35:*.ogx=01;35:*.aac=01;36:*.au=01;36:*.flac=01;36:*.m4a=01;36:*.mid=01;36:*.midi=01;36:*.mka=01;36:*.mp3=01;36:*.mpc=01;36:*.ogg=01;36:*.ra=01;36:*.wav=01;36:*.oga=01;36:*.opus=01;36:*.spx=01;36:*.xspf=01;36:*~=00;90:*#=00;90:*.bak=00;90:*.crdownload=00;90:*.dpkg-dist=00;90:*.dpkg-new=00;90:*.dpkg-old=00;90:*.dpkg-tmp=00;90:*.old=00;90:*.orig=00;90:*.part=00;90:*.rej=00;90:*.rpmnew=00;90:*.rpmorig=00;90:*.rpmsave=00;90:*.swp=00;90:*.tmp=00;90:*.ucf-dist=00;90:*.ucf-new=00;90:*.ucf-old=00;90:',
+  XDG_CURRENT_DESKTOP: 'GNOME',
+  MEMORY_PRESSURE_WATCH: '/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/session.slice/org.gnome.Shell@wayland.service/memory.pressure',
+  WAYLAND_DISPLAY: 'wayland-0',
+  GIT_ASKPASS: '/usr/share/antigravity/resources/app/extensions/git/dist/askpass.sh',
+  INVOCATION_ID: '8e3bca086b4945879e4607d72202b080',
+  pnpm_config_verify_deps_before_run: 'false',
+  MANAGERPID: '3203',
+  CHROME_DESKTOP: 'antigravity.desktop',
+  INFOPATH: '/home/linuxbrew/.linuxbrew/share/info:',
+  GJS_DEBUG_OUTPUT: 'stderr',
+  MOZ_GMP_PATH: '/usr/lib64/mozilla/plugins/gmp-gmpopenh264/system-installed',
+  NVM_DIR: '/home/pavel/.nvm',
+  VSCODE_GIT_ASKPASS_EXTRA_ARGS: '',
+  GNOME_SETUP_DISPLAY: ':1',
+  VSCODE_PYTHON_AUTOACTIVATE_GUARD: '1',
+  XDG_SESSION_CLASS: 'user',
+  TERM: 'xterm-256color',
+  LESSOPEN: '||/usr/bin/lesspipe.sh %s',
+  USER: 'pavel',
+  VSCODE_GIT_IPC_HANDLE: '/run/user/1000/vscode-git-22080c8432.sock',
+  HOMEBREW_CELLAR: '/home/linuxbrew/.linuxbrew/Cellar',
+  DISPLAY: ':0',
+  SHLVL: '2',
+  NVM_CD_FLAGS: '',
+  PAGER: 'cat',
+  QT_IM_MODULE: 'ibus',
+  HOMEBREW_REPOSITORY: '/home/linuxbrew/.linuxbrew/Homebrew',
+  ANTIGRAVITY_AGENT: '1',
+  MANAGERPIDFDID: '3204',
+  npm_config_user_agent: 'pnpm/10.23.0 npm/? node/v22.19.0 linux x64',
+  PNPM_PACKAGE_NAME: 'entropia-biological-evolution-sandbox',
+  XDG_RUNTIME_DIR: '/run/user/1000',
+  NODE_PATH: '/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules/vite/bin/node_modules:/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules/vite/node_modules:/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules:/home/pavel/repo/entropia/node_modules/.pnpm/node_modules',
+  DEBUGINFOD_URLS: 'ima:enforcing https://debuginfod.fedoraproject.org/ ima:ignore ',
+  DEBUGINFOD_IMA_CERT_PATH: '/etc/keys/ima:',
+  KDEDIRS: '/usr',
+  VSCODE_GIT_ASKPASS_MAIN: '/usr/share/antigravity/resources/app/extensions/git/dist/askpass-main.js',
+  JOURNAL_STREAM: '9:25407',
+  XDG_DATA_DIRS: '/home/pavel/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share/:/usr/share/',
+  GDK_BACKEND: 'x11',
+  PATH: './node_modules/.bin:/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin:/home/pavel/.nvm/versions/node/v22.19.0/bin:/home/pavel/.local/bin:/home/pavel/bin:/usr/local/bin:/usr/bin:/home/pavel/.local/share/JetBrains/Toolbox/scripts',
+  __GLX_VENDOR_LIBRARY_NAME: 'nvidia',
+  GDMSESSION: 'gnome',
+  ORIGINAL_XDG_CURRENT_DESKTOP: 'GNOME',
+  DBUS_SESSION_BUS_ADDRESS: 'unix:path=/run/user/1000/bus',
+  MAIL: '/var/spool/mail/pavel',
+  NVM_BIN: '/home/pavel/.nvm/versions/node/v22.19.0/bin',
+  __NV_PRIME_RENDER_OFFLOAD: '1',
+  GIO_LAUNCHED_DESKTOP_FILE_PID: '12853',
+  GIO_LAUNCHED_DESKTOP_FILE: '/home/pavel/.local/share/applications/antigravity.desktop',
+  TERM_PROGRAM: 'vscode',
+  DEBUG: 'vite:*',
+  NODE_ENV: 'production'
+}
+2025-12-27T13:15:33.378Z vite:env loading env files: [
+  '/home/pavel/repo/entropia/src/.env',
+  '/home/pavel/repo/entropia/src/.env.local',
+  '/home/pavel/repo/entropia/src/.env.production',
+  '/home/pavel/repo/entropia/src/.env.production.local'
+]
+2025-12-27T13:15:33.378Z vite:env env files loaded in 0.12ms
+2025-12-27T13:15:33.378Z vite:env using resolved env: {}
+2025-12-27T13:15:33.395Z vite:config using resolved config: {
+  root: '/home/pavel/repo/entropia/src/ui',
+  publicDir: '/home/pavel/repo/entropia/public',
+  envDir: '/home/pavel/repo/entropia/src',
+  base: '/entropia/',
+  server: {
+    port: 3000,
+    strictPort: false,
+    host: '0.0.0.0',
+    allowedHosts: [],
+    https: undefined,
+    open: false,
+    proxy: undefined,
+    cors: {
+      origin: /^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/
+    },
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    },
+    warmup: { clientFiles: [], ssrFiles: [] },
+    middlewareMode: false,
+    fs: {
+      strict: true,
+      deny: [ '.env', '.env.*', '*.{crt,pem}', '**/.git/**' ],
+      allow: [ '/home/pavel/repo/entropia' ]
+    },
+    preTransformRequests: true,
+    perEnvironmentStartEndDuringDev: false,
+    sourcemapIgnoreList: [Function: isInNodeModules$1],
+    watch: { usePolling: true },
+    hmr: { clientPort: 3000 }
+  },
+  plugins: [
+    'vite:build-metadata',
+    'vite:watch-package-data',
+    'alias',
+    'vite:react-babel',
+    'vite:react-refresh',
+    'vite:modulepreload-polyfill',
+    'vite:resolve',
+    'vite:html-inline-proxy',
+    'vite:css',
+    'vite:esbuild',
+    'vite:json',
+    'vite:wasm-helper',
+    'vite:worker',
+    'vite:asset',
+    'vite:react-virtual-preamble',
+    'configure-response-headers',
+    'vite:wasm-fallback',
+    'vite:define',
+    'vite:css-post',
+    'vite:build-html',
+    'vite:worker-import-meta-url',
+    'vite:asset-import-meta-url',
+    'vite:force-systemjs-wrap-complete',
+    'commonjs',
+    'vite:data-uri',
+    'vite:rollup-options-plugins',
+    'vite:dynamic-import-vars',
+    'vite:import-glob',
+    'vite:build-import-analysis',
+    'vite:esbuild-transpile',
+    'vite:terser',
+    'vite:manifest',
+    'vite:ssr-manifest',
+    'vite:reporter',
+    'vite:load-fallback'
+  ],
+  define: {
+    'process.env.API_KEY': undefined,
+    'process.env.GEMINI_API_KEY': undefined
+  },
+  resolve: {
+    externalConditions: [ 'node' ],
+    extensions: [
+      '.mjs',  '.js',
+      '.mts',  '.ts',
+      '.jsx',  '.tsx',
+      '.json'
+    ],
+    dedupe: [],
+    noExternal: [],
+    external: [],
+    preserveSymlinks: false,
+    alias: [
+      { find: '@', replacement: '/home/pavel/repo/entropia/src' },
+      {
+        find: '@shared',
+        replacement: '/home/pavel/repo/entropia/src/shared'
+      },
+      {
+        find: '@core',
+        replacement: '/home/pavel/repo/entropia/src/core'
+      },
+      {
+        find: '@simulation',
+        replacement: '/home/pavel/repo/entropia/src/simulation'
+      },
+      { find: '@ui', replacement: '/home/pavel/repo/entropia/src/ui' },
+      {
+        find: /^\/?@vite\/env/,
+        replacement: '/@fs/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules/vite/dist/client/env.mjs'
+      },
+      {
+        find: /^\/?@vite\/client/,
+        replacement: '/@fs/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules/vite/dist/client/client.mjs'
+      }
+    ],
+    mainFields: [ 'browser', 'module', 'jsnext:main', 'jsnext' ],
+    conditions: [ 'module', 'browser', 'development|production' ],
+    builtins: []
+  },
+  build: {
+    target: 'es2015',
+    polyfillModulePreload: true,
+    modulePreload: { polyfill: true },
+    outDir: '../../dist',
+    assetsDir: 'assets',
+    assetsInlineLimit: 4096,
+    sourcemap: false,
+    terserOptions: { compress: { drop_console: true, drop_debugger: true } },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'three-core': [ 'three' ],
+          charts: [ 'recharts' ],
+          'react-vendor': [ 'react', 'react-dom' ]
+        },
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
+      },
+      onwarn: [Function: onwarn]
+    },
+    commonjsOptions: { include: [ /node_modules/ ], extensions: [ '.js', '.cjs' ] },
+    dynamicImportVarsOptions: { warnOnError: true, exclude: [ /node_modules/ ] },
+    write: true,
+    emptyOutDir: true,
+    copyPublicDir: true,
+    manifest: false,
+    lib: false,
+    ssrManifest: false,
+    ssrEmitAssets: false,
+    reportCompressedSize: true,
+    chunkSizeWarningLimit: 600,
+    watch: null,
+    cssCodeSplit: true,
+    minify: 'terser',
+    ssr: false,
+    emitAssets: true,
+    createEnvironment: [Function: createEnvironment],
+    cssTarget: 'es2015',
+    cssMinify: true
+  },
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      'three',
+      'react',
+      'react-dom',
+      'react/jsx-dev-runtime',
+      'react/jsx-runtime'
+    ],
+    exclude: [],
+    needsInterop: [],
+    extensions: [],
+    disabled: undefined,
+    holdUntilCrawlEnd: true,
+    force: false,
+    noDiscovery: false,
+    esbuildOptions: { preserveSymlinks: false, jsx: 'automatic' }
+  },
+  esbuild: { jsxDev: false, jsx: 'automatic', jsxImportSource: undefined },
+  environments: {
+    client: {
+      define: {
+        'process.env.API_KEY': undefined,
+        'process.env.GEMINI_API_KEY': undefined
+      },
+      resolve: {
+        externalConditions: [ 'node' ],
+        extensions: [
+          '.mjs',  '.js',
+          '.mts',  '.ts',
+          '.jsx',  '.tsx',
+          '.json'
+        ],
+        dedupe: [],
+        noExternal: [],
+        external: [],
+        preserveSymlinks: false,
+        alias: [
+          { find: '@', replacement: '/home/pavel/repo/entropia/src' },
+          {
+            find: '@shared',
+            replacement: '/home/pavel/repo/entropia/src/shared'
+          },
+          {
+            find: '@core',
+            replacement: '/home/pavel/repo/entropia/src/core'
+          },
+          {
+            find: '@simulation',
+            replacement: '/home/pavel/repo/entropia/src/simulation'
+          },
+          {
+            find: '@ui',
+            replacement: '/home/pavel/repo/entropia/src/ui'
+          },
+          {
+            find: /^\/?@vite\/env/,
+            replacement: '/@fs/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules/vite/dist/client/env.mjs'
+          },
+          {
+            find: /^\/?@vite\/client/,
+            replacement: '/@fs/home/pavel/repo/entropia/node_modules/.pnpm/vite@6.4.1_@types+node@22.19.3_terser@5.44.1/node_modules/vite/dist/client/client.mjs'
+          }
+        ],
+        mainFields: [ 'browser', 'module', 'jsnext:main', 'jsnext' ],
+        conditions: [ 'module', 'browser', 'development|production' ],
+        builtins: []
+      },
+      keepProcessEnv: false,
+      consumer: 'client',
+      optimizeDeps: {
+        include: [
+          'react',
+          'react-dom',
+          'three',
+          'react',
+          'react-dom',
+          'react/jsx-dev-runtime',
+          'react/jsx-runtime'
+        ],
+        exclude: [],
+        needsInterop: [],
+        extensions: [],
+        disabled: undefined,
+        holdUntilCrawlEnd: true,
+        force: false,
+        noDiscovery: false,
+        esbuildOptions: { preserveSymlinks: false, jsx: 'automatic' }
+      },
+      dev: {
+        warmup: [],
+        sourcemap: { js: true },
+        sourcemapIgnoreList: [Function: isInNodeModules$1],
+        preTransformRequests: true,
+        createEnvironment: [Function: defaultCreateClientDevEnvironment],
+        recoverable: true,
+        moduleRunnerTransform: false
+      },
+      build: {
+        target: 'es2015',
+        polyfillModulePreload: true,
+        modulePreload: { polyfill: true },
+        outDir: '../../dist',
+        assetsDir: 'assets',
+        assetsInlineLimit: 4096,
+        sourcemap: false,
+        terserOptions: { compress: { drop_console: true, drop_debugger: true } },
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'three-core': [ 'three' ],
+              charts: [ 'recharts' ],
+              'react-vendor': [ 'react', 'react-dom' ]
+            },
+            chunkFileNames: 'assets/[name]-[hash].js',
+            entryFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]'
+          },
+          onwarn: [Function: onwarn]
+        },
+        commonjsOptions: { include: [ /node_modules/ ], extensions: [ '.js', '.cjs' ] },
+        dynamicImportVarsOptions: { warnOnError: true, exclude: [ /node_modules/ ] },
+        write: true,
+        emptyOutDir: true,
+        copyPublicDir: true,
+        manifest: false,
+        lib: false,
+        ssrManifest: false,
+        ssrEmitAssets: false,
+        reportCompressedSize: true,
+        chunkSizeWarningLimit: 600,
+        watch: null,
+        cssCodeSplit: true,
+        minify: 'terser',
+        ssr: false,
+        emitAssets: true,
+        createEnvironment: [Function: createEnvironment],
+        cssTarget: 'es2015',
+        cssMinify: true
+      }
+    }
+  },
+  configFile: '/home/pavel/repo/entropia/vite.config.ts',
+  configFileDependencies: [ '/home/pavel/repo/entropia/vite.config.ts' ],
+  inlineConfig: {
+    root: undefined,
+    base: undefined,
+    mode: undefined,
+    configFile: undefined,
+    configLoader: undefined,
+    logLevel: undefined,
+    clearScreen: undefined,
+    build: {}
+  },
+  decodedBase: '/entropia/',
+  rawBase: '/entropia/',
+  cacheDir: '/home/pavel/repo/entropia/node_modules/.vite',
+  command: 'build',
+  mode: 'production',
+  isWorker: false,
+  mainConfig: null,
+  bundleChain: [],
+  isProduction: true,
+  css: {
+    transformer: 'postcss',
+    preprocessorMaxWorkers: 0,
+    devSourcemap: false
+  },
+  json: { namedExports: true, stringify: 'auto' },
+  builder: undefined,
+  preview: {
+    port: 4173,
+    strictPort: false,
+    host: '0.0.0.0',
+    allowedHosts: [],
+    https: undefined,
+    open: false,
+    proxy: undefined,
+    cors: {
+      origin: /^https?:\/\/(?:(?:[^:]+\.)?localhost|127\.0\.0\.1|\[::1\])(?::\d+)?$/
+    },
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp'
+    }
+  },
+  env: {
+    BASE_URL: '/entropia/',
+    MODE: 'production',
+    DEV: false,
+    PROD: true
+  },
+  assetsInclude: [Function: assetsInclude],
+  logger: {
+    hasWarned: false,
+    info: [Function: info],
+    warn: [Function: warn],
+    warnOnce: [Function: warnOnce],
+    error: [Function: error],
+    clearScreen: [Function: clearScreen],
+    hasErrorLogged: [Function: hasErrorLogged]
+  },
+  packageCache: Map(3) {
+    'fnpd_/home/pavel/repo/entropia' => {
+      dir: '/home/pavel/repo/entropia',
+      data: {
+        name: 'entropia-biological-evolution-sandbox',
+        private: true,
+        version: '2.5.0',
+        type: 'module',
+        scripts: {
+          dev: 'vite',
+          build: 'vite build',
+          preview: 'vite preview',
+          lint: 'eslint .',
+          typecheck: 'tsc --noEmit',
+          prepare: 'husky',
+          test: 'vitest',
+          'test:ui': 'vitest --ui',
+          'test:coverage': 'vitest --coverage',
+          'docker:up': 'docker compose up -d',
+          'docker:rebuild': 'docker compose up -d --build',
+          'docker:down': 'docker compose down',
+          'docker:logs': 'docker compose logs -f',
+          'docker:typecheck': 'docker compose exec dev pnpm run typecheck',
+          'docker:test': 'docker compose exec dev pnpm run test --run',
+          'ne:sratb': 'jscpd ./src'
+        },
+        dependencies: {
+          '@react-three/drei': '^10.7.7',
+          '@react-three/fiber': '^9.4.2',
+          '@react-three/postprocessing': '^3.0.4',
+          react: '^19.2.3',
+          'react-dom': '^19.2.3',
+          recharts: '^3.6.0',
+          three: '^0.182.0',
+          'three-stdlib': '^2.36.1'
+        },
+        devDependencies: {
+          '@eslint/js': '^9.39.2',
+          '@types/node': '^22.14.0',
+          '@types/react': '^19.2.3',
+          '@types/react-dom': '^19.2.3',
+          '@types/three': '^0.182.0',
+          '@typescript/native-preview': '7.0.0-dev.20251226.1',
+          '@vitejs/plugin-react': '^5.0.0',
+          '@vitest/ui': '^2.1.8',
+          autoprefixer: '^10.4.23',
+          eslint: '^9.39.2',
+          'eslint-config-prettier': '^10.1.8',
+          'eslint-plugin-jsx-a11y': '^6.10.2',
+          'eslint-plugin-react': '^7.37.5',
+          'eslint-plugin-react-hooks': '^7.0.1',
+          'eslint-plugin-react-refresh': '^0.4.26',
+          'eslint-plugin-simple-import-sort': '^12.1.1',
+          'eslint-plugin-sonarjs': '^3.0.5',
+          globals: '^16.5.0',
+          husky: '^9.1.7',
+          jscpd: '^4.0.5',
+          jsdom: '^25.0.1',
+          postcss: '^8.5.6',
+          tailwindcss: '^4.1.18',
+          terser: '^5.44.1',
+          'typescript-eslint': '^8.50.1',
+          vite: '^6.2.0',
+          vitest: '^2.1.8'
+        }
+      },
+      hasSideEffects: [Function: hasSideEffects],
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    'fnpd_/home/pavel/repo/entropia/src/ui' => {
+      dir: '/home/pavel/repo/entropia',
+      data: {
+        name: 'entropia-biological-evolution-sandbox',
+        private: true,
+        version: '2.5.0',
+        type: 'module',
+        scripts: {
+          dev: 'vite',
+          build: 'vite build',
+          preview: 'vite preview',
+          lint: 'eslint .',
+          typecheck: 'tsc --noEmit',
+          prepare: 'husky',
+          test: 'vitest',
+          'test:ui': 'vitest --ui',
+          'test:coverage': 'vitest --coverage',
+          'docker:up': 'docker compose up -d',
+          'docker:rebuild': 'docker compose up -d --build',
+          'docker:down': 'docker compose down',
+          'docker:logs': 'docker compose logs -f',
+          'docker:typecheck': 'docker compose exec dev pnpm run typecheck',
+          'docker:test': 'docker compose exec dev pnpm run test --run',
+          'ne:sratb': 'jscpd ./src'
+        },
+        dependencies: {
+          '@react-three/drei': '^10.7.7',
+          '@react-three/fiber': '^9.4.2',
+          '@react-three/postprocessing': '^3.0.4',
+          react: '^19.2.3',
+          'react-dom': '^19.2.3',
+          recharts: '^3.6.0',
+          three: '^0.182.0',
+          'three-stdlib': '^2.36.1'
+        },
+        devDependencies: {
+          '@eslint/js': '^9.39.2',
+          '@types/node': '^22.14.0',
+          '@types/react': '^19.2.3',
+          '@types/react-dom': '^19.2.3',
+          '@types/three': '^0.182.0',
+          '@typescript/native-preview': '7.0.0-dev.20251226.1',
+          '@vitejs/plugin-react': '^5.0.0',
+          '@vitest/ui': '^2.1.8',
+          autoprefixer: '^10.4.23',
+          eslint: '^9.39.2',
+          'eslint-config-prettier': '^10.1.8',
+          'eslint-plugin-jsx-a11y': '^6.10.2',
+          'eslint-plugin-react': '^7.37.5',
+          'eslint-plugin-react-hooks': '^7.0.1',
+          'eslint-plugin-react-refresh': '^0.4.26',
+          'eslint-plugin-simple-import-sort': '^12.1.1',
+          'eslint-plugin-sonarjs': '^3.0.5',
+          globals: '^16.5.0',
+          husky: '^9.1.7',
+          jscpd: '^4.0.5',
+          jsdom: '^25.0.1',
+          postcss: '^8.5.6',
+          tailwindcss: '^4.1.18',
+          terser: '^5.44.1',
+          'typescript-eslint': '^8.50.1',
+          vite: '^6.2.0',
+          vitest: '^2.1.8'
+        }
+      },
+      hasSideEffects: [Function: hasSideEffects],
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    'fnpd_/home/pavel/repo/entropia/src' => {
+      dir: '/home/pavel/repo/entropia',
+      data: {
+        name: 'entropia-biological-evolution-sandbox',
+        private: true,
+        version: '2.5.0',
+        type: 'module',
+        scripts: {
+          dev: 'vite',
+          build: 'vite build',
+          preview: 'vite preview',
+          lint: 'eslint .',
+          typecheck: 'tsc --noEmit',
+          prepare: 'husky',
+          test: 'vitest',
+          'test:ui': 'vitest --ui',
+          'test:coverage': 'vitest --coverage',
+          'docker:up': 'docker compose up -d',
+          'docker:rebuild': 'docker compose up -d --build',
+          'docker:down': 'docker compose down',
+          'docker:logs': 'docker compose logs -f',
+          'docker:typecheck': 'docker compose exec dev pnpm run typecheck',
+          'docker:test': 'docker compose exec dev pnpm run test --run',
+          'ne:sratb': 'jscpd ./src'
+        },
+        dependencies: {
+          '@react-three/drei': '^10.7.7',
+          '@react-three/fiber': '^9.4.2',
+          '@react-three/postprocessing': '^3.0.4',
+          react: '^19.2.3',
+          'react-dom': '^19.2.3',
+          recharts: '^3.6.0',
+          three: '^0.182.0',
+          'three-stdlib': '^2.36.1'
+        },
+        devDependencies: {
+          '@eslint/js': '^9.39.2',
+          '@types/node': '^22.14.0',
+          '@types/react': '^19.2.3',
+          '@types/react-dom': '^19.2.3',
+          '@types/three': '^0.182.0',
+          '@typescript/native-preview': '7.0.0-dev.20251226.1',
+          '@vitejs/plugin-react': '^5.0.0',
+          '@vitest/ui': '^2.1.8',
+          autoprefixer: '^10.4.23',
+          eslint: '^9.39.2',
+          'eslint-config-prettier': '^10.1.8',
+          'eslint-plugin-jsx-a11y': '^6.10.2',
+          'eslint-plugin-react': '^7.37.5',
+          'eslint-plugin-react-hooks': '^7.0.1',
+          'eslint-plugin-react-refresh': '^0.4.26',
+          'eslint-plugin-simple-import-sort': '^12.1.1',
+          'eslint-plugin-sonarjs': '^3.0.5',
+          globals: '^16.5.0',
+          husky: '^9.1.7',
+          jscpd: '^4.0.5',
+          jsdom: '^25.0.1',
+          postcss: '^8.5.6',
+          tailwindcss: '^4.1.18',
+          terser: '^5.44.1',
+          'typescript-eslint': '^8.50.1',
+          vite: '^6.2.0',
+          vitest: '^2.1.8'
+        }
+      },
+      hasSideEffects: [Function: hasSideEffects],
+      setResolvedCache: [Function: setResolvedCache],
+      getResolvedCache: [Function: getResolvedCache]
+    },
+    set: [Function (anonymous)]
+  },
+  worker: { format: 'iife', plugins: '() => plugins', rollupOptions: {} },
+  appType: 'spa',
+  experimental: { importGlobRestoreExtension: false, hmrPartialAccept: false },
+  future: undefined,
+  ssr: {
+    target: 'node',
+    optimizeDeps: { esbuildOptions: { preserveSymlinks: false } },
+    resolve: { conditions: undefined, externalConditions: undefined }
+  },
+  dev: {
+    warmup: [],
+    sourcemap: { js: true },
+    sourcemapIgnoreList: [Function: isInNodeModules$1],
+    preTransformRequests: false,
+    createEnvironment: [Function: defaultCreateDevEnvironment],
+    recoverable: false,
+    moduleRunnerTransform: false
+  },
+  webSocketToken: 'IOyA_sX8bv1N',
+  getSortedPlugins: [Function: getSortedPlugins],
+  getSortedPluginHooks: [Function: getSortedPluginHooks],
+  createResolver: [Function: createResolver],
+  fsDenyGlob: [Function: arrayMatcher],
+  safeModulePaths: Set(0) {},
+  additionalAllowedHosts: [ '0.0.0.0', '0.0.0.0' ],
+  [Symbol(vite:resolved-config)]: true
+}
+vite v6.4.1 building for production...
+transforming...
+✓ 2 modules transformed.
+✗ Build failed in 148ms
+error during build:
+[vite:css] [postcss] It looks like you're trying to use `tailwindcss` directly as a PostCSS plugin. The PostCSS plugin has moved to a separate package, so to continue using Tailwind CSS with PostCSS you'll need to install `@tailwindcss/postcss` and update your PostCSS configuration.
+file: /home/pavel/repo/entropia/src/ui/index.html?html-proxy&inline-css&index=0.css:undefined:NaN
+    at lt (/home/pavel/repo/entropia/node_modules/.pnpm/tailwindcss@4.1.18/node_modules/tailwindcss/dist/lib.js:38:1643)
+    at LazyResult.runOnRoot (/home/pavel/repo/entropia/node_modules/.pnpm/postcss@8.5.6/node_modules/postcss/lib/lazy-result.js:361:16)
+    at LazyResult.runAsync (/home/pavel/repo/entropia/node_modules/.pnpm/postcss@8.5.6/node_modules/postcss/lib/lazy-result.js:290:26)
+    at LazyResult.async (/home/pavel/repo/entropia/node_modules/.pnpm/postcss@8.5.6/node_modules/postcss/lib/lazy-result.js:192:30)
+    at LazyResult.then (/home/pavel/repo/entropia/node_modules/.pnpm/postcss@8.5.6/node_modules/postcss/lib/lazy-result.js:436:17)
