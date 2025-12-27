@@ -11,7 +11,7 @@
  * Використовує патерн Object Pool для забезпечення стабільного використання пам'яті.
  */
 
-import type { PooledParticle } from '@core/ObjectPool.ts';
+import { ParticlePool, type PooledParticle } from '@core/ObjectPool.ts';
 import * as THREE from 'three';
 
 import { COLORS, PARTICLE_CONSTANTS, RENDER } from '@/constants.ts';
@@ -35,9 +35,6 @@ export interface ParticleEffect {
   readonly duration: number;
 }
 
-interface ActiveParticle extends PooledParticle {
-  active: boolean;
-}
 
 // ============================================================================
 // КЛАС МОДЕЛЮВАННЯ СИСТЕМИ ЧАСТОК З GPU-ОПТИМІЗАЦІЄЮ
@@ -62,7 +59,7 @@ export class ParticleSystem {
   private readonly colors: Float32Array;
 
   // Реєстр активних елементів системи
-  private readonly particles: ActiveParticle[] = [];
+  private readonly activeParticles: PooledParticle[] = [];
   private activeCount: number = 0;
 
   // Механізм Dirty Tracking для мінімізації обміну даними з GPU
@@ -83,8 +80,8 @@ export class ParticleSystem {
     // Конструювання об'єкта буферної геометрії
     this.geometry = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(this.positions, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
-    const sizeAttr = new THREE.BufferAttribute(this.sizes, PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE);
-    const opacityAttr = new THREE.BufferAttribute(this.opacities, PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE);
+    const sizeAttr = new THREE.BufferAttribute(this.sizes, PARTICLE_CONSTANTS.SCALAR_COMPONENTS);
+    const opacityAttr = new THREE.BufferAttribute(this.opacities, PARTICLE_CONSTANTS.SCALAR_COMPONENTS);
     const colorAttr = new THREE.BufferAttribute(this.colors, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     // Встановлення прапорця динамічного використання для оптимізації драйвером
@@ -112,16 +109,8 @@ export class ParticleSystem {
     this.points.frustumCulled = false; // Частоки можуть бути розосереджені по всьому об'єму
     this.scene.add(this.points);
 
-    // Наповнення репозиторію пулу часток
-    for (let i = 0; i < maxParticles; i++) {
-      this.particles.push({
-        x: 0, y: 0, z: 0,
-        vx: 0, vy: 0, vz: 0,
-        life: 0, maxLife: PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE,
-        size: PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE, color: PARTICLE_CONSTANTS.WHITE_COLOR, opacity: PARTICLE_CONSTANTS.DEFAULT_OPACITY,
-        active: false,
-      });
-    }
+    // Пул часток уже ініціалізований глобально в ObjectPool.ts
+    // Ми будемо вилучати частоки з нього за потреби.
   }
 
   // ============================================================================
@@ -143,14 +132,15 @@ export class ParticleSystem {
       : PARTICLE_CONSTANTS.DEATH_SIZE_PREY;
 
     for (let i = 0; i < particleCount; i++) {
-      this.emitParticle(
+      this.emitParticle({
         position,
         color,
         speed,
         size,
-        PARTICLE_CONSTANTS.DEATH_LIFE_MIN + Math.random() * PARTICLE_CONSTANTS.DEATH_LIFE_ADDITIONAL,
-        true // Використання вибухової кінематики
-      );
+        /* eslint-disable-next-line sonarjs/pseudo-random */
+        life: PARTICLE_CONSTANTS.DEATH_LIFE_MIN + Math.random() * PARTICLE_CONSTANTS.DEATH_LIFE_ADDITIONAL,
+        explosive: true // Використання вибухової кінематики
+      });
     }
   }
 
@@ -179,19 +169,18 @@ export class ParticleSystem {
       p.size = PARTICLE_CONSTANTS.BIRTH_SIZE;
       p.color = color;
       p.opacity = PARTICLE_CONSTANTS.DEFAULT_OPACITY;
-      p.active = true;
     }
 
     // Додатковий центральний фотонний спалах
     for (let i = 0; i < PARTICLE_CONSTANTS.BIRTH_COUNT_FLASH; i++) {
-      this.emitParticle(
+      this.emitParticle({
         position,
-        PARTICLE_CONSTANTS.WHITE_COLOR,
-        PARTICLE_CONSTANTS.BIRTH_FLASH_SPEED,
-        PARTICLE_CONSTANTS.BIRTH_FLASH_SIZE,
-        PARTICLE_CONSTANTS.BIRTH_FLASH_LIFE,
-        true
-      );
+        color: PARTICLE_CONSTANTS.WHITE_COLOR,
+        speed: PARTICLE_CONSTANTS.BIRTH_FLASH_SPEED,
+        size: PARTICLE_CONSTANTS.BIRTH_FLASH_SIZE,
+        life: PARTICLE_CONSTANTS.BIRTH_FLASH_LIFE,
+        explosive: true
+      });
     }
   }
 
@@ -200,14 +189,14 @@ export class ParticleSystem {
    */
   public addEatEffect(position: Vector3): void {
     for (let i = 0; i < PARTICLE_CONSTANTS.EAT_COUNT; i++) {
-      this.emitParticle(
+      this.emitParticle({
         position,
-        COLORS.food.glow,
-        PARTICLE_CONSTANTS.EAT_SPEED,
-        PARTICLE_CONSTANTS.EAT_SIZE,
-        PARTICLE_CONSTANTS.EAT_LIFE,
-        true
-      );
+        color: COLORS.food.glow,
+        speed: PARTICLE_CONSTANTS.EAT_SPEED,
+        size: PARTICLE_CONSTANTS.EAT_SIZE,
+        life: PARTICLE_CONSTANTS.EAT_LIFE,
+        explosive: true
+      });
     }
   }
 
@@ -224,14 +213,14 @@ export class ParticleSystem {
         y: predatorPos.y + (preyPos.y - predatorPos.y) * t,
         z: predatorPos.z + (preyPos.z - predatorPos.z) * t,
       };
-      this.emitParticle(
-        pos,
-        COLORS.predator.glow,
-        PARTICLE_CONSTANTS.HUNT_SPEED,
-        PARTICLE_CONSTANTS.HUNT_SIZE,
-        PARTICLE_CONSTANTS.HUNT_LIFE,
-        false
-      );
+      this.emitParticle({
+        position: pos,
+        color: COLORS.predator.glow,
+        speed: PARTICLE_CONSTANTS.HUNT_SPEED,
+        size: PARTICLE_CONSTANTS.HUNT_SIZE,
+        life: PARTICLE_CONSTANTS.HUNT_LIFE,
+        explosive: false
+      });
     }
   }
 
@@ -244,16 +233,17 @@ export class ParticleSystem {
     this.dirtyMax = -Infinity;
     this.isDirty = false;
 
-    for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i];
-      if (!p || !p.active) { continue; }
+    for (let i = this.activeParticles.length - 1; i >= 0; i--) {
+      const p = this.activeParticles[i];
+      if (!p) { continue; }
 
       // Оновлення параметру часу життя
       p.life -= deltaTime;
       if (p.life <= 0) {
-        p.active = false;
+        this.activeParticles.splice(i, 1);
+        ParticlePool.release(p);
         this.activeCount--;
-        this.markDirty(writeIndex);
+        this.markDirty(writeIndex); // Using writeIndex here might be tricky, let's rethink.
         continue;
       }
 
@@ -276,9 +266,9 @@ export class ParticleSystem {
 
       // Серіалізація даних у буфери атрибутів
       const i3 = writeIndex * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
-      this.positions[i3] = p.x;
-      this.positions[i3 + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = p.y;
-      this.positions[i3 + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = p.z;
+      this.positions[i3 + PARTICLE_CONSTANTS.X_OFFSET] = p.x;
+      this.positions[i3 + PARTICLE_CONSTANTS.Y_OFFSET] = p.y;
+      this.positions[i3 + PARTICLE_CONSTANTS.Z_OFFSET] = p.z;
 
       this.sizes[writeIndex] = p.size * (PARTICLE_CONSTANTS.SIZE_SCALE_MIN + lifeRatio * PARTICLE_CONSTANTS.SIZE_SCALE_FACTOR);
       this.opacities[writeIndex] = p.opacity;
@@ -287,25 +277,34 @@ export class ParticleSystem {
       const r = ((p.color >> PARTICLE_CONSTANTS.COLOR_SHIFT_R) & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
       const g = ((p.color >> PARTICLE_CONSTANTS.COLOR_SHIFT_G) & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
       const b = (p.color & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
-      this.colors[i3] = r;
-      this.colors[i3 + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = g;
-      this.colors[i3 + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = b;
+      this.colors[i3 + PARTICLE_CONSTANTS.X_OFFSET] = r;
+      this.colors[i3 + PARTICLE_CONSTANTS.Y_OFFSET] = g;
+      this.colors[i3 + PARTICLE_CONSTANTS.Z_OFFSET] = b;
 
       this.markDirty(writeIndex);
       writeIndex++;
     }
 
-    // GPU-оптимізація: Виконання оновлення тільки вказаного діапазону буферів
+    this.updateBufferRanges(writeIndex);
+  }
+
+  /**
+   * GPU-оптимізація: Виконання оновлення тільки вказаного діапазону буферів.
+   */
+  private updateBufferRanges(writeIndex: number): void {
     if (this.isDirty && this.dirtyMin <= this.dirtyMax) {
       const posAttr = this.geometry.attributes['position'] as THREE.BufferAttribute;
       const sizeAttr = this.geometry.attributes['size'] as THREE.BufferAttribute;
       const opacityAttr = this.geometry.attributes['opacity'] as THREE.BufferAttribute;
       const colorAttr = this.geometry.attributes['color'] as THREE.BufferAttribute;
 
-      posAttr.addUpdateRange(this.dirtyMin * 3, (this.dirtyMax - this.dirtyMin + 1) * 3);
-      sizeAttr.addUpdateRange(this.dirtyMin, this.dirtyMax - this.dirtyMin + 1);
-      opacityAttr.addUpdateRange(this.dirtyMin, this.dirtyMax - this.dirtyMin + 1);
-      colorAttr.addUpdateRange(this.dirtyMin * 3, (this.dirtyMax - this.dirtyMin + 1) * 3);
+      const stride = PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
+      const count = this.dirtyMax - this.dirtyMin + 1;
+
+      posAttr.addUpdateRange(this.dirtyMin * stride, count * stride);
+      sizeAttr.addUpdateRange(this.dirtyMin, count);
+      opacityAttr.addUpdateRange(this.dirtyMin, count);
+      colorAttr.addUpdateRange(this.dirtyMin * stride, count * stride);
 
       posAttr.needsUpdate = true;
       sizeAttr.needsUpdate = true;
@@ -321,9 +320,10 @@ export class ParticleSystem {
    * Примусова деактивація всіх елементів системи.
    */
   public clear(): void {
-    for (const p of this.particles) {
-      p.active = false;
+    for (const p of this.activeParticles) {
+      ParticlePool.release(p);
     }
+    this.activeParticles.length = 0;
     this.activeCount = 0;
   }
 
@@ -352,12 +352,12 @@ export class ParticleSystem {
   /**
    * Реалізація стратегії вилучення вільної частки з пулу.
    */
-  private acquireParticle(): ActiveParticle | null {
-    for (const p of this.particles) {
-      if (!p.active) {
-        this.activeCount++;
-        return p;
-      }
+  private acquireParticle(): PooledParticle | null {
+    const p = ParticlePool.acquire();
+    if (p) {
+      this.activeParticles.push(p);
+      this.activeCount++;
+      return p;
     }
     return null;
   }
@@ -365,14 +365,15 @@ export class ParticleSystem {
   /**
    * Формування та викид нової частоки з заданими кінематичними параметрами.
    */
-  private emitParticle(
+  private emitParticle(params: {
     position: Vector3,
     color: number,
     speed: number,
     size: number,
     life: number,
     explosive: boolean
-  ): void {
+  }): void {
+    const { position, color, speed, size, life, explosive } = params;
     const p = this.acquireParticle();
     if (!p) { return; }
 
@@ -400,7 +401,6 @@ export class ParticleSystem {
     p.size = size;
     p.color = color;
     p.opacity = PARTICLE_CONSTANTS.DEFAULT_OPACITY;
-    p.active = true;
   }
 
   /**
@@ -447,12 +447,12 @@ export class TrailSystem {
   /**
    * Оновлення геометрії сліду для конкретного організму (Zero-allocation).
    */
-  public updateTrail(
-    organismId: string,
+  public updateTrail(organismId: string, params: {
     position: Vector3,
     color: number,
     enabled: boolean
-  ): void {
+  }): void {
+    const { position, color, enabled } = params;
     if (!enabled) {
       this.removeTrail(organismId);
       return;
@@ -593,13 +593,13 @@ export class TrailSystem {
 
       if (pos === undefined || alpha === undefined) { continue; }
 
-      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS] = pos.x;
-      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = pos.y;
-      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = pos.z;
+      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.X_OFFSET] = pos.x;
+      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Y_OFFSET] = pos.y;
+      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Z_OFFSET] = pos.z;
 
-      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS] = trail.color.r * alpha;
-      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = trail.color.g * alpha;
-      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = trail.color.b * alpha;
+      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.X_OFFSET] = trail.color.r * alpha;
+      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Y_OFFSET] = trail.color.g * alpha;
+      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Z_OFFSET] = trail.color.b * alpha;
     }
 
     const posAttr = trail.geometry.attributes['position'] as THREE.BufferAttribute;

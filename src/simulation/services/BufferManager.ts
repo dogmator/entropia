@@ -141,6 +141,7 @@ export class BufferManager {
         });
     }
 
+    /* eslint-disable @typescript-eslint/no-magic-numbers */
     private writeOrganismToBuffer(o: Organism, buffer: Float32Array, offset: number): void {
         buffer[offset + 0] = o.position.x;
         buffer[offset + 1] = o.position.y;
@@ -164,6 +165,7 @@ export class BufferManager {
         buffer[offset + 3] = f.radius;
         buffer[offset + 4] = parseInt(f.id.split('_')[1] || '0', 10);
     }
+    /* eslint-enable @typescript-eslint/no-magic-numbers */
 
     /**
      * Адаптивне управління ємністю буфера з підтримкою динамічного скорочення.

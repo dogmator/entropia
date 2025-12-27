@@ -1,6 +1,6 @@
 /**
- * Performance Utils - утилиты для работы с метриками производительности
- * Устраняет нарушения DRY в системе мониторинга
+ * Performance Utils - утиліти для роботи з метриками продуктивності
+ * Усуває порушення DRY в системі моніторингу
  */
 
 // Константи для PerformanceUtils
@@ -15,7 +15,7 @@ const STABILITY_CRITICAL_THRESHOLD = 20;
 const STABILITY_UNSTABLE_THRESHOLD = 10;
 const FRAME_TIME_INVERT_MAX = 100;
 
-// Общие константы для порогов производительности
+// Спільні константи для порогів продуктивності
 export const PERFORMANCE_THRESHOLDS = {
   FPS: { good: 55, warning: 30 },
   TPS: { good: 55, warning: 30 },
@@ -23,10 +23,10 @@ export const PERFORMANCE_THRESHOLDS = {
   MEMORY_USAGE: { good: 70, warning: 85 }
 } as const;
 
-// Утилиты для форматирования
+// Утиліти для форматування
 export class FormatUtils {
   /**
-   * Форматирование байтов в человекочитаемый формат
+   * Форматування байтів у людиночитаний формат
    */
   public static formatBytes(bytes: number): string {
     if (bytes === 0) { return '0 B'; }
@@ -36,7 +36,7 @@ export class FormatUtils {
   }
 
   /**
-   * Форматирование времени в миллисекундах
+   * Форматування часу в мілісекундах
    */
   public static formatTime(ms: number): string {
     if (ms < 1) { return `${(ms * MICROSECONDS_PER_MS).toFixed(1)}μs`; }
@@ -45,17 +45,17 @@ export class FormatUtils {
   }
 
   /**
-   * Форматирование процентов
+   * Форматування відсотків
    */
   public static formatPercentage(value: number): string {
     return `${value.toFixed(1)}%`;
   }
 }
 
-// Утилиты для цветовой индикации
+// Утиліти для колірної індикації
 export class ColorUtils {
   /**
-   * Получение цвета на основе порогов производительности
+   * Отримання кольору на основі порогів продуктивності
    */
   public static getPerformanceColor(value: number, thresholds: { good: number; warning: number }): string {
     if (value >= thresholds.good) { return 'text-emerald-400'; }
@@ -64,7 +64,7 @@ export class ColorUtils {
   }
 
   /**
-   * Получение цвета для использования памяти
+   * Отримання кольору для використання пам'яті
    */
   public static getMemoryColor(usage: number): string {
     if (usage < PERFORMANCE_THRESHOLDS.MEMORY_USAGE.good) { return 'text-emerald-400'; }
@@ -73,37 +73,37 @@ export class ColorUtils {
   }
 
   /**
-   * Получение цвета для FPS
+   * Отримання кольору для FPS
    */
   public static getFPSColor(fps: number): string {
     return ColorUtils.getPerformanceColor(fps, PERFORMANCE_THRESHOLDS.FPS);
   }
 
   /**
-   * Получение цвета для TPS
+   * Отримання кольору для TPS
    */
   public static getTPSColor(tps: number): string {
     return ColorUtils.getPerformanceColor(tps, PERFORMANCE_THRESHOLDS.TPS);
   }
 
   /**
-   * Получение цвета для frame time
+   * Отримання кольору для frame time
    */
   public static getFrameTimeColor(frameTime: number): string {
-    // Инвертированные пороги для frame time (меньше = лучше)
+    // Інвертовані пороги для frame time (менше = краще)
     const invertedValue = Math.max(0, FRAME_TIME_INVERT_MAX - frameTime);
-    const thresholds = { 
-      good: FRAME_TIME_INVERT_MAX - PERFORMANCE_THRESHOLDS.FRAME_TIME.warning, 
-      warning: FRAME_TIME_INVERT_MAX - PERFORMANCE_THRESHOLDS.FRAME_TIME.good 
+    const thresholds = {
+      good: FRAME_TIME_INVERT_MAX - PERFORMANCE_THRESHOLDS.FRAME_TIME.warning,
+      warning: FRAME_TIME_INVERT_MAX - PERFORMANCE_THRESHOLDS.FRAME_TIME.good
     };
     return ColorUtils.getPerformanceColor(invertedValue, thresholds);
   }
 }
 
-// Утилиты для работы с памятью
+// Утиліти для роботи з пам'яттю
 export class MemoryUtils {
   /**
-   * Получение информации о памяти браузера
+   * Отримання інформації про пам'ять браузера
    */
   public static getCurrentMemoryInfo(): MemoryInfo | undefined {
     if ('memory' in performance) {
@@ -118,14 +118,14 @@ export class MemoryUtils {
   }
 
   /**
-   * Расчет использования памяти в процентах
+   * Розрахунок використання пам'яті у відсотках
    */
   public static getMemoryUsagePercentage(memoryInfo: MemoryInfo): number {
     return (memoryInfo.usedJSHeapSize / memoryInfo.jsHeapSizeLimit) * 100;
   }
 
   /**
-   * Определение тренда использования памяти
+   * Визначення тренду використання пам'яті
    */
   public static getMemoryTrend(history: MemoryInfo[]): 'increasing' | 'decreasing' | 'stable' {
     if (history.length < MEMORY_TREND_HISTORY_MIN) { return 'stable'; }
@@ -142,10 +142,10 @@ export class MemoryUtils {
   }
 }
 
-// Утилиты для анализа производительности
+// Утиліти для аналізу продуктивності
 export class AnalysisUtils {
   /**
-   * Расчет скользящего среднего
+   * Розрахунок ковзного середнього
    */
   public static calculateMovingAverage(values: number[], windowSize: number): number {
     if (values.length === 0) { return 0; }
@@ -161,7 +161,7 @@ export class AnalysisUtils {
   }
 
   /**
-   * Быстрый расчет медианы
+   * Швидкий розрахунок медіани
    */
   public static quickMedian(values: number[]): number {
     if (values.length === 0) { return 0; }
@@ -178,7 +178,7 @@ export class AnalysisUtils {
   }
 
   /**
-   * Расчет стандартного отклонения
+   * Розрахунок стандартного відхилення
    */
   public static calculateStandardDeviation(values: number[]): number {
     if (values.length === 0) { return 0; }
@@ -189,7 +189,7 @@ export class AnalysisUtils {
   }
 
   /**
-   * Определение стабильности производительности
+   * Визначення стабільності продуктивності
    */
   public static getPerformanceStability(values: number[]): 'stable' | 'unstable' | 'critical' {
     if (values.length < STABILITY_MIN_VALUES) { return 'stable'; }
@@ -204,24 +204,24 @@ export class AnalysisUtils {
   }
 }
 
-// Утилиты для времени
+// Утиліти для часу
 export class TimeUtils {
   /**
-   * Получение текущего времени с высокой точностью
+   * Отримання поточного часу з високою точністю
    */
   public static now(): number {
     return performance.now();
   }
 
   /**
-   * Создание таймера с автоматической очисткой
+   * Створення таймера з автоматичним очищенням
    */
   public static createTimer(callback: () => void, interval: number): NodeJS.Timeout {
     return setInterval(callback, interval);
   }
 
   /**
-   * Очистка таймера
+   * Очищення таймера
    */
   public static clearTimer(timer: NodeJS.Timeout | null): void {
     if (timer) {
@@ -230,14 +230,14 @@ export class TimeUtils {
   }
 
   /**
-   * Создание requestAnimationFrame с автоматической очисткой
+   * Створення requestAnimationFrame з автоматичним очищенням
    */
   public static requestAnimationFrame(callback: () => void): number {
     return requestAnimationFrame(callback);
   }
 
   /**
-   * Очистка requestAnimationFrame
+   * Очищення requestAnimationFrame
    */
   public static cancelAnimationFrame(frameId: number | null): void {
     if (frameId) {
@@ -246,7 +246,7 @@ export class TimeUtils {
   }
 }
 
-// Интерфейсы
+// Інтерфейси
 export interface MemoryInfo {
   usedJSHeapSize: number;
   totalJSHeapSize: number;
@@ -258,7 +258,7 @@ export interface PerformanceThresholds {
   warning: number;
 }
 
-// Комбинированные утилиты для удобства
+// Комбіновані утиліти для зручності
 export const PerformanceHelpers = {
   format: FormatUtils,
   color: ColorUtils,

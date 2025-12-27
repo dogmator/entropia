@@ -256,6 +256,28 @@ export interface SimulationStats {
   readonly gridEfficiency?: number;
 }
 
+/**
+ * Дані камери для синхронізації з двигуном.
+ */
+export interface CameraData {
+  position: Vector3;
+  target: Vector3;
+  zoom: number;
+  distance: number;
+  fov: number;
+  aspect: number;
+  near: number;
+  far: number;
+}
+
+/**
+ * Структура даних для подій популяції.
+ */
+export interface EngineEventData {
+  deadCount?: number;
+  newbornCount?: number;
+}
+
 export interface PopulationSnapshot {
   readonly tick: number;
   readonly prey: number;

@@ -71,7 +71,7 @@ export default tseslint.config(
           ignoreReadonlyClassProperties: true
         }
       ],
-      'react/no-unknown-property': ['error', { ignore: ['args', 'attach', 'position', 'rotation', 'scale', 'intensity', 'groundColor', 'object', 'geometry', 'material', 'castShadow', 'receiveShadow', 'decay', 'penumbra', 'angle', 'target', 'transparent', 'opacity', 'side', 'map'] }],
+      'react/no-unknown-property': ['error', { ignore: ['args', 'attach', 'position', 'rotation', 'scale', 'intensity', 'groundColor', 'object', 'geometry', 'material', 'castShadow', 'receiveShadow', 'decay', 'penumbra', 'angle', 'target', 'transparent', 'opacity', 'side', 'map', 'emissive', 'emissiveIntensity', 'shininess', 'specular', 'frustumCulled', 'onPointerMissed'] }],
     },
   }
 );

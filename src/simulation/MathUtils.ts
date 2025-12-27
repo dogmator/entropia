@@ -65,7 +65,7 @@ export class MathUtils {
   /**
    * Розрахунок найкоротшого різницевого вектора з урахуванням тороїдальної топології.
    */
-  static toroidalVector(from: Vector3, to: Vector3, worldSize: number = WORLD_SIZE): MutableVector3 {
+  static toroidalVector(from: Vector3, to: Vector3, worldSize: number = WORLD_SIZE, target?: MutableVector3): MutableVector3 {
     let dx = to.x - from.x;
     let dy = to.y - from.y;
     let dz = to.z - from.z;
@@ -81,6 +81,12 @@ export class MathUtils {
     if (dz > halfWorld) { dz -= worldSize; }
     else if (dz < -halfWorld) { dz += worldSize; }
 
+    if (target) {
+      target.x = dx;
+      target.y = dy;
+      target.z = dz;
+      return target;
+    }
     return { x: dx, y: dy, z: dz };
   }
 
@@ -91,23 +97,42 @@ export class MathUtils {
   /**
    * Нормалізація вектора (приведення до одиничної довжини).
    */
-  static normalize(v: Vector3): MutableVector3 {
+  static normalize(v: Vector3, target?: MutableVector3): MutableVector3 {
     const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
-    if (magSq < 0.000001) { return { x: 0, y: 0, z: 0 }; }
+    const res = target || { x: 0, y: 0, z: 0 };
+
+    if (magSq < 0.000001) {
+      res.x = 0; res.y = 0; res.z = 0;
+      return res;
+    }
+
     const mag = Math.sqrt(magSq);
-    return { x: v.x / mag, y: v.y / mag, z: v.z / mag };
+    res.x = v.x / mag;
+    res.y = v.y / mag;
+    res.z = v.z / mag;
+    return res;
   }
 
   /**
    * Обмеження норми вектора заданим максимальним значенням (Clamping).
    */
-  static limit(v: Vector3, max: number): MutableVector3 {
+  static limit(v: Vector3, max: number, target?: MutableVector3): MutableVector3 {
     const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
+    const res = target || { x: 0, y: 0, z: 0 };
+
     if (magSq > max * max && magSq > 0) {
       const mag = Math.sqrt(magSq);
-      return { x: (v.x / mag) * max, y: (v.y / mag) * max, z: (v.z / mag) * max };
+      const scale = max / mag;
+      res.x = v.x * scale;
+      res.y = v.y * scale;
+      res.z = v.z * scale;
+      return res;
     }
-    return { x: v.x, y: v.y, z: v.z };
+
+    res.x = v.x;
+    res.y = v.y;
+    res.z = v.z;
+    return res;
   }
 
   /**
@@ -134,33 +159,69 @@ export class MathUtils {
   /**
    * Векторний добуток двох векторів у тривимірному просторі.
    */
-  static cross(a: Vector3, b: Vector3): MutableVector3 {
-    return {
-      x: a.y * b.z - a.z * b.y,
-      y: a.z * b.x - a.x * b.z,
-      z: a.x * b.y - a.y * b.x,
-    };
+  static cross(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
+    const x = a.y * b.z - a.z * b.y;
+    const y = a.z * b.x - a.x * b.z;
+    const z = a.x * b.y - a.y * b.x;
+
+    if (target) {
+      target.x = x;
+      target.y = y;
+      target.z = z;
+      return target;
+    }
+    return { x, y, z };
   }
 
   /**
    * Арифметичне додавання двох векторів.
    */
-  static add(a: Vector3, b: Vector3): MutableVector3 {
-    return { x: a.x + b.x, y: a.y + b.y, z: a.z + b.z };
+  static add(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
+    const x = a.x + b.x;
+    const y = a.y + b.y;
+    const z = a.z + b.z;
+
+    if (target) {
+      target.x = x;
+      target.y = y;
+      target.z = z;
+      return target;
+    }
+    return { x, y, z };
   }
 
   /**
    * Арифметичне віднімання двох векторів.
    */
-  static sub(a: Vector3, b: Vector3): MutableVector3 {
-    return { x: a.x - b.x, y: a.y - b.y, z: a.z - b.z };
+  static sub(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
+    const x = a.x - b.x;
+    const y = a.y - b.y;
+    const z = a.z - b.z;
+
+    if (target) {
+      target.x = x;
+      target.y = y;
+      target.z = z;
+      return target;
+    }
+    return { x, y, z };
   }
 
   /**
    * Масштабування вектора на скалярну величину.
    */
-  static scale(v: Vector3, s: number): MutableVector3 {
-    return { x: v.x * s, y: v.y * s, z: v.z * s };
+  static scale(v: Vector3, s: number, target?: MutableVector3): MutableVector3 {
+    const x = v.x * s;
+    const y = v.y * s;
+    const z = v.z * s;
+
+    if (target) {
+      target.x = x;
+      target.y = y;
+      target.z = z;
+      return target;
+    }
+    return { x, y, z };
   }
 
   // ============================================================================
@@ -177,12 +238,18 @@ export class MathUtils {
   /**
    * Покомпонентна лінійна інтерполяція між двома векторами.
    */
-  static lerpVector(a: Vector3, b: Vector3, t: number): MutableVector3 {
-    return {
-      x: a.x + (b.x - a.x) * t,
-      y: a.y + (b.y - a.y) * t,
-      z: a.z + (b.z - a.z) * t,
-    };
+  static lerpVector(a: Vector3, b: Vector3, t: number, target?: MutableVector3): MutableVector3 {
+    const x = a.x + (b.x - a.x) * t;
+    const y = a.y + (b.y - a.y) * t;
+    const z = a.z + (b.z - a.z) * t;
+
+    if (target) {
+      target.x = x;
+      target.y = y;
+      target.z = z;
+      return target;
+    }
+    return { x, y, z };
   }
 
   /**

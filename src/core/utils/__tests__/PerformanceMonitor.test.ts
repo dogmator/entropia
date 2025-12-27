@@ -3,6 +3,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { PerformanceMonitor } from "../../services/PerformanceMonitor";
 
 describe('PerformanceMonitor', () => {

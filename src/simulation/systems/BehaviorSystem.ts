@@ -12,6 +12,7 @@
  * Константи параметрів поведінкової динаміки.
  */
 import { PHYSICS } from '@/constants.ts';
+import { Vector3Pool } from '@/core/ObjectPool';
 import type { SpatialHashGrid } from '@/simulation';
 import { EntityType } from '@/types';
 import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
@@ -96,16 +97,18 @@ export class BehaviorSystem {
     let targetPos: Vector3 | null = null;
     let newState: OrganismState = 'IDLE';
 
+    const diff = Vector3Pool.acquire();
+
     // Аналіз об'єктів у радіусі сенсорного сприйняття
     for (const n of neighbors) {
       if (n.id === org.id) { continue; }
 
-      const diff = MathUtils.toroidalVector(org.position, n.position, this.worldSize);
+      MathUtils.toroidalVector(org.position, n.position, this.worldSize, diff);
 
       const distSq = MathUtils.magnitudeSq(diff);
       const dist = Math.sqrt(distSq);
 
-      if (dist < 0.001) { continue; }
+      if (dist < PHYSICS.EPSILON) { continue; }
 
       const ndx = diff.x;
       const ndy = diff.y;
@@ -158,6 +161,8 @@ export class BehaviorSystem {
       }
     }
 
+    Vector3Pool.release(diff);
+
     // Отримання екологічних коефіцієнтів поточної локації
     const zoneModifier = this.getZoneModifier(org.position, org.type);
 
@@ -186,12 +191,14 @@ export class BehaviorSystem {
   private applySeek(org: Organism, seek: { x: number; y: number; z: number }, target: Vector3 | null, mod: ZoneModifiers): void {
     if (!target) { return; }
 
-    const nav = MathUtils.toroidalVector(org.position, target, this.worldSize);
+    const nav = Vector3Pool.acquire();
+    MathUtils.toroidalVector(org.position, target, this.worldSize, nav);
     seek.x = nav.x;
     seek.y = nav.y;
     seek.z = nav.z;
 
     this.applySteeringForce(org, seek, this.config.seekWeight * mod.seekMultiplier);
+    Vector3Pool.release(nav);
   }
 
   /**
@@ -205,7 +212,7 @@ export class BehaviorSystem {
    * Застосування сили ухилення від статичних об'єктів.
    */
   private applyObstacleAvoidance(org: Organism, obs: { x: number; y: number; z: number }): void {
-    this.applySteeringForce(org, obs, 12);
+    this.applySteeringForce(org, obs, PHYSICS.OBSTACLE_AVOIDANCE_WEIGHT);
   }
 
   /**
