@@ -427,6 +427,41 @@ export const AUDIO = {
 } as const;
 
 // ============================================================================
+// UI THRESHOLDS & FORMATTING
+// ============================================================================
+
+export const UI_THRESHOLDS = {
+  FPS: {
+    HIGH: 55,
+    MEDIUM: 30,
+  },
+  EXTINCTION_RISK: {
+    CRITICAL: 0.7,
+    HIGH: 0.4,
+    WARNING: 0.3,
+  },
+  DEBOUNCE_DELAY: 50,
+} as const;
+
+export const DIAGNOSTICS_CONFIG = {
+  CHART: {
+    REFRESH_RATE: 1000,
+    HISTORY_LENGTH: 60,
+    MARGINS: { top: 5, right: 30, left: 20, bottom: 5 },
+    COLORS: {
+      FPS: '#10b981',
+      ENTITIES: '#60a5fa',
+      MEMORY: '#f59e0b',
+    },
+    GRID_COLOR: '#333',
+  },
+  LOGS: {
+    MAX_ENTRIES: 100,
+    SCROLL_THRESHOLD: 50,
+  },
+} as const;
+
+// ============================================================================
 // ДИНАМІЧНА КОНФІГУРАЦІЯ СВІТУ (SCALING)
 // ============================================================================
 
@@ -453,30 +488,29 @@ export function createWorldConfig(scale: number = 1.0): WorldConfig {
 // ENGINE INTERNAL CONSTANTS
 // ============================================================================
 
-export
-  const ENGINE_CONSTANTS = {
-    MS_PER_SECOND: 1000,
-    TRAIL_BUFFER_SIZE: 13,
-    FOOD_BUFFER_SIZE: 5,
-    MAX_DEPTH: 3,
-    MAX_CELL_SIZE: 80,
-    DEFAULT_CAMERA_FOV: 60,
-    DEFAULT_ZOOM: 1,
-    TICK_RATE: 60,
-    HIT_RADIUS_MULT_ORG: 2.5,
-    HIT_RADIUS_MULT_ORG_FALLBACK: 2,
-    HIT_RADIUS_MULT_FOOD: 2,
-    GRID_FALLBACK_MULT: 2,
-    WORLD_AGE_FALLBACK_TPS: 60,
-    BUFFER_GROWTH_FACTOR: 1.5,
-    BUFFER_SHRINK_FACTOR: 1.25,
-    BUFFER_MIN_CAPACITY: 100,
-    EXTINCTION_THRESHOLD_LOW: 5,
-    EXTINCTION_RISK_HIGH: 0.9,
-    EXTINCTION_RISK_MEDIUM: 0.5,
-    RISK_COLOR_THRESHOLD: 0.8,
-    RISK_FACTOR_OFFSET: 0.1,
-  } as const;
+export const ENGINE_CONSTANTS = {
+  MS_PER_SECOND: 1000,
+  TRAIL_BUFFER_SIZE: 13,
+  FOOD_BUFFER_SIZE: 5,
+  MAX_DEPTH: 3,
+  MAX_CELL_SIZE: 80,
+  DEFAULT_CAMERA_FOV: 60,
+  DEFAULT_ZOOM: 1,
+  TICK_RATE: 60,
+  HIT_RADIUS_MULT_ORG: 2.5,
+  HIT_RADIUS_MULT_ORG_FALLBACK: 2,
+  HIT_RADIUS_MULT_FOOD: 2,
+  GRID_FALLBACK_MULT: 2,
+  WORLD_AGE_FALLBACK_TPS: 60,
+  BUFFER_GROWTH_FACTOR: 1.5,
+  BUFFER_SHRINK_FACTOR: 1.25,
+  BUFFER_MIN_CAPACITY: 100,
+  EXTINCTION_THRESHOLD_LOW: 5,
+  EXTINCTION_RISK_HIGH: 0.9,
+  EXTINCTION_RISK_MEDIUM: 0.5,
+  RISK_COLOR_THRESHOLD: 0.8,
+  RISK_FACTOR_OFFSET: 0.1,
+} as const;
 
 // ============================================================================
 // OBJECT POOL CONSTANTS
@@ -485,19 +519,19 @@ export
 export const POOL_CONSTANTS = {
   /** Стандартний початковий розмір пулу об'єктів. */
   DEFAULT_INITIAL_SIZE: 100,
-  
+
   /** Стандартний максимальний розмір пулу об'єктів. */
   DEFAULT_MAX_SIZE: 10000,
-  
+
   /** Початковий розмір для Vector3 пулу. */
   VECTOR3_INITIAL_SIZE: 500,
-  
+
   /** Максимальний розмір для Vector3 пулу. */
   VECTOR3_MAX_SIZE: 5000,
-  
+
   /** Початковий розмір для Particle пулу. */
   PARTICLE_INITIAL_SIZE: 2000,
-  
+
   /** Максимальний розмір для Particle пулу. */
   PARTICLE_MAX_SIZE: 20000,
 } as const;

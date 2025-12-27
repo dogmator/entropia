@@ -11,11 +11,12 @@
  * Використовує патерн Object Pool для забезпечення стабільного використання пам'яті.
  */
 
-import type { Vector3 } from '@/types';
+import type { PooledParticle } from '@core/ObjectPool.ts';
 import * as THREE from 'three';
 
 import { COLORS, RENDER } from '@/constants.ts';
-import type { PooledParticle } from '@core/ObjectPool.ts';
+import type { Vector3 } from '@/types';
+
 import {
   particleFragmentShader,
   particleVertexShader,

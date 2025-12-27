@@ -8,10 +8,10 @@
  * - Формування та актуалізація філогенетичного дерева популяції.
  */
 
-import type { GeneticTreeNode, GenomeId, OrganismId, SimulationConfig } from '@/types';
-
 import { MIN_REPRODUCTION_AGE, REPRODUCTION } from '@/constants.ts';
 import type { EventBus } from '@/core';
+import type { GeneticTreeNode, GenomeId, OrganismId, SimulationConfig } from '@/types';
+
 import type { Organism, OrganismFactory } from '../Entity';
 
 /**
@@ -125,7 +125,7 @@ export class ReproductionSystem {
   /**
    * Реєстрація нового вузла у філогенетичному дереві.
    */
-  private addToGeneticTree(organism: Organism, parent?: Organism): void {
+  public addToGeneticTree(organism: Organism, parent?: Organism): void {
     const node: GeneticTreeNode = {
       id: organism.genome.id,
       parentId: parent?.genome.id || null,

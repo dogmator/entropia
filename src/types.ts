@@ -221,8 +221,14 @@ export interface SimulationStats {
   readonly totalBirths: number;
   readonly extinctionRisk: number;    // Імовірність колапсу екосистеми (0-1)
   readonly performance?: PerformanceMetrics;
+
   // Геометричний стан світу
   readonly worldSize?: number;
+  readonly foodSpawnRate?: number;
+  readonly obstacleCount?: number;
+  readonly worldAge?: number;
+
+  // Стан камери
   readonly cameraX?: number;
   readonly cameraY?: number;
   readonly cameraZ?: number;
@@ -233,20 +239,21 @@ export interface SimulationStats {
   readonly cameraDistance?: number;
   readonly cameraFov?: number;
   readonly cameraAspect?: number;
+
+  // Екологічні зони
   readonly growthZones?: number;
   readonly neutralZones?: number;
   readonly dangerZones?: number;
   readonly totalZones?: number;
+  readonly activeZones?: number;
+
+  // Просторова сітка
   readonly cellSize?: number;
   readonly totalCells?: number;
   readonly occupiedCells?: number;
   readonly avgDensity?: number;
   readonly maxDensity?: number;
   readonly gridEfficiency?: number;
-  readonly foodSpawnRate?: number;
-  readonly obstacleCount?: number;
-  readonly worldAge?: number;
-  readonly activeZones?: number;
 }
 
 export interface PopulationSnapshot {
@@ -528,6 +535,12 @@ export interface RenderBuffers {
    */
   food: Float32Array;
   foodCount: number;
+
+  /**
+   * Optional SharedArrayBuffer backing these typed arrays.
+   * If present, communication uses SAB logic.
+   */
+  sharedBuffer?: SharedArrayBuffer;
 }
 
 
@@ -639,3 +652,24 @@ export interface WorldConfig {
 }
 
 
+export interface MemoryStats {
+  readonly usedJSHeapSize: number;
+  readonly totalJSHeapSize: number;
+  readonly jsHeapSizeLimit: number;
+  readonly used: number;
+  readonly total: number;
+  readonly limit: number;
+}
+
+export interface SystemMetrics {
+  readonly cpu: number;
+  readonly memory: number;
+  readonly fps: number;
+  readonly tps: number;
+  readonly timestamp: number;
+  readonly frameTime: number;
+  readonly simulationTime: number;
+  readonly entityCount: number;
+  readonly memoryUsage: number;
+  readonly drawCalls: number;
+}

@@ -1,14 +1,15 @@
-import type { OrganismState } from '@/types';
-import { EntityType } from '@/types';
+import { useEntityHover } from '@ui/hooks';
 import React from 'react';
 
 import type { Food, Obstacle,Organism } from '@/simulation';
+import type { OrganismState } from '@/types';
+import { EntityType } from '@/types';
+
 import { Entities } from './components/Entities';
 import { Environment } from './components/Environment';
 import { SceneContainer } from './components/SceneContainer';
 import { Trails } from './components/Trails';
 import { useSimulation } from './context/SimulationContext';
-import { useEntityHover } from '@ui/hooks';
 
 export const Viewport: React.FC = () => {
   const { engine } = useSimulation();

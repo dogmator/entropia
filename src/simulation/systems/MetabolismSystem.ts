@@ -38,6 +38,18 @@ export class MetabolismSystem {
   private currentTick: number = 0;
 
   /**
+   * Кешований об'єкт MetabolicBreakdown для уникнення алокацій.
+   * УВАГА: caller повинен скопіювати значення, якщо потрібно зберегти їх.
+   */
+  private readonly cachedBreakdown: MetabolicBreakdown = {
+    existCost: 0,
+    moveCost: 0,
+    senseCost: 0,
+    sizeCost: 0,
+    totalCost: 0,
+  };
+
+  /**
    * Оновлення метаболічного стану для всієї біологічної популяції.
    */
   update(organisms: Map<string, Organism>, tick: number): void {
@@ -70,36 +82,29 @@ export class MetabolismSystem {
    * Розрахунок інтегральних енергетичних витрат.
    */
   private calculateEnergyLoss(org: Organism): number {
-    const breakdown = this.getMetabolicBreakdown(org);
-    return breakdown.totalCost;
+    this.fillBreakdown(org);
+    return this.cachedBreakdown.totalCost;
+  }
+
+  /**
+   * Заповнення кешованого об'єкта MetabolicBreakdown даними організму.
+   */
+  private fillBreakdown(org: Organism): void {
+    const b = this.cachedBreakdown;
+    b.existCost = this.calculateExistCost(org);
+    b.moveCost = this.calculateMoveCost(org);
+    b.senseCost = this.calculateSenseCost(org);
+    b.sizeCost = this.calculateSizeCost(org);
+    b.totalCost = (b.existCost + b.moveCost + b.senseCost + b.sizeCost) * org.genome.metabolism;
   }
 
   /**
    * Генерація деталізованої декомпозиції метаболічних витрат.
+   * УВАГА: повертає кешований об'єкт — caller повинен скопіювати, якщо потрібно зберегти.
    */
   getMetabolicBreakdown(org: Organism): MetabolicBreakdown {
-    // Базові витрати на підтримку гомеостазу
-    const existCost = this.calculateExistCost(org);
-
-    // Кінетичні витрати (корелюють із квадратом лінійної швидкості)
-    const moveCost = this.calculateMoveCost(org);
-
-    // Енергетичне забезпечення когнітивної/сенсорної діяльності
-    const senseCost = this.calculateSenseCost(org);
-
-    // Морфологічні витрати (підтримка фізичного об'єму)
-    const sizeCost = this.calculateSizeCost(org);
-
-    // Агреговані витрати з урахуванням генетично детермінованої ефективності метаболізму
-    const totalCost = (existCost + moveCost + senseCost + sizeCost) * org.genome.metabolism;
-
-    return {
-      existCost,
-      moveCost,
-      senseCost,
-      sizeCost,
-      totalCost,
-    };
+    this.fillBreakdown(org);
+    return this.cachedBreakdown;
   }
 
   /**
@@ -156,7 +161,7 @@ export class MetabolismSystem {
    */
   estimateSurvivalTime(org: Organism): number {
     const breakdown = this.getMetabolicBreakdown(org);
-    if (breakdown.totalCost <= 0) {return Infinity;}
+    if (breakdown.totalCost <= 0) { return Infinity; }
 
     return Math.floor(org.energy / breakdown.totalCost);
   }

@@ -40,3 +40,13 @@ export { ReproductionSystem } from './systems/ReproductionSystem';
 
 // Сервіси
 export { SpawnService } from './services/SpawnService';
+
+// Web Worker інтерфейс
+export { EngineProxy, type EngineProxyCallbacks, type EngineProxyOptions } from './EngineProxy';
+export type {
+  InitCommand,
+  ResetCommand,
+  UpdateCommand,
+  WorkerCommand,
+  WorkerResponse,
+} from './WorkerMessages';

@@ -1,8 +1,9 @@
-import type { GraphicsQuality } from '@/types';
 import React, { useState } from 'react';
 
 import { GRAPHICS_PRESETS } from '@/constants.ts';
 import type { SimulationEngine } from '@/simulation';
+import type { GraphicsQuality } from '@/types';
+
 import { SettingsSlider } from './SettingsSlider';
 
 /**

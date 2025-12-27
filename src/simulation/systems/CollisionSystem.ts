@@ -8,17 +8,17 @@
  * - Моніторинг та реєстрація фактів загибелі сутностей внаслідок фізичних чинників.
  */
 
-import type { EntityId, GridEntity,Vector3 } from '@/types';
-import { EntityType } from '@/types';
-
 /**
  * Константи фізичних параметрів колізій.
  */
 import { INTERACTION } from '@/constants.ts';
 import type { EventBus } from '@/core';
+import type { SpatialHashGrid } from '@/simulation';
+import type { EntityId, GridEntity,Vector3 } from '@/types';
+import { EntityType } from '@/types';
+
 import type { Food, Obstacle,Organism } from '../Entity';
 import { MathUtils } from '../MathUtils';
-import type { SpatialHashGrid } from '@/simulation';
 
 /**
  * Клас, що реалізує фізику просторових взаємодій.
