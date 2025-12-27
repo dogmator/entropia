@@ -14,7 +14,7 @@
 import type { PooledParticle } from '@core/ObjectPool.ts';
 import * as THREE from 'three';
 
-import { COLORS, RENDER } from '@/constants.ts';
+import { COLORS, PARTICLE_CONSTANTS, RENDER } from '@/constants.ts';
 import type { Vector3 } from '@/types';
 
 import {
@@ -132,9 +132,15 @@ export class ParticleSystem {
    * Ініціалізація візуального ефекту термінального стану (смерті) організму.
    */
   public addDeathEffect(position: Vector3, color: number, isPredator: boolean = false): void {
-    const particleCount = isPredator ? 40 : 25;
-    const speed = isPredator ? 3 : 2;
-    const size = isPredator ? 4 : 3;
+    const particleCount = isPredator
+      ? PARTICLE_CONSTANTS.DEATH_COUNT_PREDATOR
+      : PARTICLE_CONSTANTS.DEATH_COUNT_PREY;
+    const speed = isPredator
+      ? PARTICLE_CONSTANTS.DEATH_SPEED_PREDATOR
+      : PARTICLE_CONSTANTS.DEATH_SPEED_PREY;
+    const size = isPredator
+      ? PARTICLE_CONSTANTS.DEATH_SIZE_PREDATOR
+      : PARTICLE_CONSTANTS.DEATH_SIZE_PREY;
 
     for (let i = 0; i < particleCount; i++) {
       this.emitParticle(
@@ -142,7 +148,7 @@ export class ParticleSystem {
         color,
         speed,
         size,
-        0.8 + Math.random() * 0.4, // Тривалість життєвого циклу 0.8-1.2с
+        PARTICLE_CONSTANTS.DEATH_LIFE_MIN + Math.random() * PARTICLE_CONSTANTS.DEATH_LIFE_ADDITIONAL,
         true // Використання вибухової кінематики
       );
     }
@@ -152,12 +158,12 @@ export class ParticleSystem {
    * Ініціалізація візуального ефекту виникнення (народження) агента.
    */
   public addBirthEffect(position: Vector3, color: number): void {
-    const particleCount = 30;
+    const particleCount = PARTICLE_CONSTANTS.BIRTH_COUNT_RING;
 
     // Генерація кільцевої ударної хвилі
     for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2;
-      const speed = 2;
+      const angle = (i / particleCount) * PARTICLE_CONSTANTS.TWO_PI;
+      const speed = PARTICLE_CONSTANTS.BIRTH_SPEED;
 
       const p = this.acquireParticle();
       if (!p) { return; }
@@ -166,19 +172,26 @@ export class ParticleSystem {
       p.y = position.y;
       p.z = position.z;
       p.vx = Math.cos(angle) * speed;
-      p.vy = (Math.random() - 0.5) * 0.5;
+      p.vy = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * PARTICLE_CONSTANTS.BIRTH_Y_VARIANCE;
       p.vz = Math.sin(angle) * speed;
-      p.life = 0.6;
-      p.maxLife = 0.6;
-      p.size = 3;
+      p.life = PARTICLE_CONSTANTS.BIRTH_LIFE;
+      p.maxLife = PARTICLE_CONSTANTS.BIRTH_LIFE;
+      p.size = PARTICLE_CONSTANTS.BIRTH_SIZE;
       p.color = color;
       p.opacity = 1;
       p.active = true;
     }
 
     // Додатковий центральний фотонний спалах
-    for (let i = 0; i < 10; i++) {
-      this.emitParticle(position, 0xffffff, 1, 5, 0.3, true);
+    for (let i = 0; i < PARTICLE_CONSTANTS.BIRTH_COUNT_FLASH; i++) {
+      this.emitParticle(
+        position,
+        0xffffff,
+        PARTICLE_CONSTANTS.BIRTH_FLASH_SPEED,
+        PARTICLE_CONSTANTS.BIRTH_FLASH_SIZE,
+        PARTICLE_CONSTANTS.BIRTH_FLASH_LIFE,
+        true
+      );
     }
   }
 
@@ -186,13 +199,13 @@ export class ParticleSystem {
    * Реалізація ефекту поглинання енергетичного ресурсу (харчування).
    */
   public addEatEffect(position: Vector3): void {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < PARTICLE_CONSTANTS.EAT_COUNT; i++) {
       this.emitParticle(
         position,
         COLORS.food.glow,
-        1.5,
-        2,
-        0.4,
+        PARTICLE_CONSTANTS.EAT_SPEED,
+        PARTICLE_CONSTANTS.EAT_SIZE,
+        PARTICLE_CONSTANTS.EAT_LIFE,
         true
       );
     }
@@ -203,7 +216,7 @@ export class ParticleSystem {
    */
   public addHuntEffect(predatorPos: Vector3, preyPos: Vector3): void {
     // Формування дискретної лінії траєкторії атаки
-    const steps = 5;
+    const steps = PARTICLE_CONSTANTS.HUNT_STEPS;
     for (let i = 0; i < steps; i++) {
       const t = i / steps;
       const pos = {
@@ -211,7 +224,14 @@ export class ParticleSystem {
         y: predatorPos.y + (preyPos.y - predatorPos.y) * t,
         z: predatorPos.z + (preyPos.z - predatorPos.z) * t,
       };
-      this.emitParticle(pos, COLORS.predator.glow, 0.5, 2, 0.3, false);
+      this.emitParticle(
+        pos,
+        COLORS.predator.glow,
+        PARTICLE_CONSTANTS.HUNT_SPEED,
+        PARTICLE_CONSTANTS.HUNT_SIZE,
+        PARTICLE_CONSTANTS.HUNT_LIFE,
+        false
+      );
     }
   }
 
@@ -238,17 +258,17 @@ export class ParticleSystem {
       }
 
       // Розрахунок нових просторових координат
-      p.x += p.vx * deltaTime * 60;
-      p.y += p.vy * deltaTime * 60;
-      p.z += p.vz * deltaTime * 60;
+      p.x += p.vx * deltaTime * PARTICLE_CONSTANTS.FRAME_RATE_MULTIPLIER;
+      p.y += p.vy * deltaTime * PARTICLE_CONSTANTS.FRAME_RATE_MULTIPLIER;
+      p.z += p.vz * deltaTime * PARTICLE_CONSTANTS.FRAME_RATE_MULTIPLIER;
 
-      // Модуляція динамічного опору середовища
-      p.vx *= 0.98;
-      p.vy *= 0.98;
-      p.vz *= 0.98;
+      // Застосування коефіцієнта аеродинамічного опору середовища
+      p.vx *= PARTICLE_CONSTANTS.DRAG_COEFFICIENT;
+      p.vy *= PARTICLE_CONSTANTS.DRAG_COEFFICIENT;
+      p.vz *= PARTICLE_CONSTANTS.DRAG_COEFFICIENT;
 
-      // Додавання вектора гравітаційного прискорення (мінімальний вплив)
-      p.vy -= 0.02;
+      // Інтеграція гравітаційного прискорення у вертикальній площині
+      p.vy -= PARTICLE_CONSTANTS.GRAVITY;
 
       // Регулювання прозорості у функції часу життя
       const lifeRatio = p.life / p.maxLife;
@@ -260,13 +280,13 @@ export class ParticleSystem {
       this.positions[i3 + 1] = p.y;
       this.positions[i3 + 2] = p.z;
 
-      this.sizes[writeIndex] = p.size * (0.5 + lifeRatio * 0.5);
+      this.sizes[writeIndex] = p.size * (PARTICLE_CONSTANTS.SIZE_SCALE_MIN + lifeRatio * PARTICLE_CONSTANTS.SIZE_SCALE_FACTOR);
       this.opacities[writeIndex] = p.opacity;
 
-      // Трансформація колірних значень (RGB)
-      const r = ((p.color >> 16) & 255) / 255;
-      const g = ((p.color >> 8) & 255) / 255;
-      const b = (p.color & 255) / 255;
+      // Декомпозиція колірного значення на RGB-компоненти з нормалізацією
+      const r = ((p.color >> PARTICLE_CONSTANTS.COLOR_SHIFT_R) & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
+      const g = ((p.color >> PARTICLE_CONSTANTS.COLOR_SHIFT_G) & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
+      const b = (p.color & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
       this.colors[i3] = r;
       this.colors[i3 + 1] = g;
       this.colors[i3 + 2] = b;
@@ -361,18 +381,18 @@ export class ParticleSystem {
     p.z = position.z;
 
     if (explosive) {
-      // Побудова ізотропного сферичного розподілу векторів швидкості
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = speed * (0.5 + Math.random() * 0.5);
+      // Генерація ізотропного сферичного розподілу векторів швидкості за методом Марсальї
+      const theta = Math.random() * PARTICLE_CONSTANTS.TWO_PI;
+      const phi = Math.acos(PARTICLE_CONSTANTS.SPHERE_PHI_MULTIPLIER * Math.random() - PARTICLE_CONSTANTS.SPHERE_RANDOM_OFFSET);
+      const r = speed * (PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET + Math.random() * PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET);
 
       p.vx = r * Math.sin(phi) * Math.cos(theta);
       p.vy = r * Math.sin(phi) * Math.sin(theta);
       p.vz = r * Math.cos(phi);
     } else {
-      p.vx = (Math.random() - 0.5) * speed;
-      p.vy = (Math.random() - 0.5) * speed;
-      p.vz = (Math.random() - 0.5) * speed;
+      p.vx = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * speed;
+      p.vy = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * speed;
+      p.vz = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * speed;
     }
 
     p.life = life;
@@ -454,7 +474,7 @@ export class TrailSystem {
           (position.y - lastPos.y) ** 2 +
           (position.z - lastPos.z) ** 2;
 
-        if (distSq > 2500) {
+        if (distSq > PARTICLE_CONSTANTS.TRAIL_TELEPORT_THRESHOLD_SQ) {
           trail.positions.length = 0;
           trail.alphas.length = 0;
         }
@@ -536,7 +556,7 @@ export class TrailSystem {
     const material = new THREE.LineBasicMaterial({
       vertexColors: true,
       transparent: true,
-      opacity: 0.6,
+      opacity: PARTICLE_CONSTANTS.TRAIL_OPACITY,
       blending: THREE.AdditiveBlending,
     });
 
