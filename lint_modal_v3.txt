@@ -1,0 +1,24 @@
+
+/home/pavel/repo/entropia/src/ui/components/DiagnosticsModal.tsx
+  21:66  error  Arrow function has too many lines (68). Maximum allowed is 50  max-lines-per-function
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/MemoryTab.tsx
+  18:57  error  No magic number: 2  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/PerformanceTab.tsx
+  17:62   error  Arrow function has too many lines (57). Maximum allowed is 50  max-lines-per-function
+  17:101  error  Arrow function has a complexity of 21. Maximum allowed is 10   complexity
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/Shared.tsx
+  55:44  error  Arrow function has too many lines (61). Maximum allowed is 50  max-lines-per-function
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/WorldComponents.tsx
+   17:71   error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+   37:75   error  Arrow function has too many lines (65). Maximum allowed is 50  max-lines-per-function
+   79:85   error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+   88:104  error  No magic number: 50                                            @typescript-eslint/no-magic-numbers
+   88:108  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  172:95   error  No magic number: 95                                            @typescript-eslint/no-magic-numbers
+
+✖ 11 problems (11 errors, 0 warnings)
+

@@ -8,16 +8,16 @@
  * - Модуляція поведінки залежно від параметрів екологічних зон.
  */
 
-import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
-import { EntityType } from '@/types';
-
 /**
  * Константи параметрів поведінкової динаміки.
  */
 import { PHYSICS } from '@/constants.ts';
+import type { SpatialHashGrid } from '@/simulation';
+import { EntityType } from '@/types';
+import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
+
 import type { Organism } from '../Entity';
 import { MathUtils } from '../MathUtils';
-import type { SpatialHashGrid } from '@/simulation';
 
 /**
  * Дескриптор модифікаторів поведінки в межах біома.
@@ -33,6 +33,21 @@ interface ZoneModifiers {
 export class BehaviorSystem {
   private readonly worldSize: number;
 
+  /** Кешовані акумулятори сил для уникнення алокацій на кожному тіку. */
+  private readonly forceAccumulators = {
+    separation: { x: 0, y: 0, z: 0, count: 0 },
+    seek: { x: 0, y: 0, z: 0 },
+    flee: { x: 0, y: 0, z: 0 },
+    obstacle: { x: 0, y: 0, z: 0 },
+    alignment: { x: 0, y: 0, z: 0, count: 0 },
+  };
+
+  /** Кешований ZoneModifiers для уникнення алокацій. */
+  private readonly cachedZoneModifiers: ZoneModifiers = {
+    seekMultiplier: 1,
+    dangerMultiplier: 1,
+  };
+
   constructor(
     private readonly spatialGrid: SpatialHashGrid,
     private readonly config: SimulationConfig,
@@ -40,6 +55,20 @@ export class BehaviorSystem {
     worldConfig: WorldConfig
   ) {
     this.worldSize = worldConfig.WORLD_SIZE;
+  }
+
+  /**
+   * Скидання акумуляторів сил до нульових значень.
+   */
+  private resetForces(): void {
+    const f = this.forceAccumulators;
+    f.separation.x = f.separation.y = f.separation.z = 0;
+    f.separation.count = 0;
+    f.seek.x = f.seek.y = f.seek.z = 0;
+    f.flee.x = f.flee.y = f.flee.z = 0;
+    f.obstacle.x = f.obstacle.y = f.obstacle.z = 0;
+    f.alignment.x = f.alignment.y = f.alignment.z = 0;
+    f.alignment.count = 0;
   }
 
   /**
@@ -59,14 +88,9 @@ export class BehaviorSystem {
   private applyBehaviors(org: Organism): void {
     const neighbors = this.spatialGrid.getNearby(org.position, org.genome.senseRadius);
 
-    // Акумулятори векторних сил
-    const forces = {
-      separation: { x: 0, y: 0, z: 0, count: 0 },
-      seek: { x: 0, y: 0, z: 0 },
-      flee: { x: 0, y: 0, z: 0 },
-      obstacle: { x: 0, y: 0, z: 0 },
-      alignment: { x: 0, y: 0, z: 0, count: 0 },
-    };
+    // Скидання кешованих акумуляторів
+    this.resetForces();
+    const forces = this.forceAccumulators;
 
     let closestTargetDist = Infinity;
     let targetPos: Vector3 | null = null;
@@ -201,22 +225,23 @@ export class BehaviorSystem {
    * Розрахунок агрегованих модифікаторів біома для поточної локації.
    */
   private getZoneModifier(pos: Vector3, type: EntityType): ZoneModifiers {
-    let seekMultiplier = 1;
-    let dangerMultiplier = 1;
+    const mod = this.cachedZoneModifiers;
+    mod.seekMultiplier = 1;
+    mod.dangerMultiplier = 1;
 
     this.zones.forEach(zone => {
       const distSq = MathUtils.toroidalDistanceSq(pos, zone.center, this.worldSize);
 
       if (distSq < zone.radius * zone.radius) {
-        seekMultiplier *= zone.foodMultiplier;
-        dangerMultiplier *= zone.dangerMultiplier;
+        mod.seekMultiplier *= zone.foodMultiplier;
+        mod.dangerMultiplier *= zone.dangerMultiplier;
       }
     });
 
     if (type === EntityType.PREDATOR) {
-      seekMultiplier *= dangerMultiplier;
+      mod.seekMultiplier *= mod.dangerMultiplier;
     }
 
-    return { seekMultiplier, dangerMultiplier };
+    return mod;
   }
 }

@@ -49,6 +49,12 @@ export class SpatialHashGrid {
   /** Пул масивів для повторного використання (мінімізація навантаження на Garbage Collector). */
   private readonly cellPool: InternalGridEntity[][] = [];
 
+  /** Буфер результатів для getNearby (уникнення алокацій на кожному виклику). */
+  private readonly nearbyBuffer: InternalGridEntity[] = [];
+
+  /** Буфер результатів для getNearbyExact (уникнення алокацій на кожному виклику). */
+  private readonly nearbyExactBuffer: InternalGridEntity[] = [];
+
   constructor(worldSize: number = WORLD_SIZE, cellSize: number = CELL_SIZE) {
     this.worldSize = worldSize;
     this.cellSize = cellSize;
@@ -125,7 +131,8 @@ export class SpatialHashGrid {
    * @returns Масив потенційних сусідів (кандидати з охоплених комірок).
    */
   getNearby(position: Vector3, radius: number): readonly InternalGridEntity[] {
-    const results: InternalGridEntity[] = [];
+    this.nearbyBuffer.length = 0;
+    const results = this.nearbyBuffer;
 
     // Визначення діапазону комірок для інспекції
     const cellRadius = Math.ceil(radius / this.cellSize);
@@ -167,7 +174,8 @@ export class SpatialHashGrid {
    */
   getNearbyExact(position: Vector3, radius: number): readonly InternalGridEntity[] {
     const candidates = this.getNearby(position, radius);
-    const results: InternalGridEntity[] = [];
+    this.nearbyExactBuffer.length = 0;
+    const results = this.nearbyExactBuffer;
     const radiusSq = radius * radius;
 
 

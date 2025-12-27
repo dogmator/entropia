@@ -5,9 +5,8 @@
  * для гарантованої безпеки типів на етапі компіляції.
  */
 
-import { EntityType } from '@/types';
-
 import type { Food, Obstacle,Organism } from '@/simulation';
+import { EntityType } from '@/types';
 
 /**
  * Типовий предикат для ідентифікації біологічних організмів.

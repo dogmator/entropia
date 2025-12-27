@@ -1,0 +1,29 @@
+
+ RUN  v2.1.9 /home/pavel/repo/entropia
+
+ ❯ src/simulation/__tests__/Engine.buffers.test.ts (5 tests | 1 failed) 17ms
+   × SimulationEngine — Адаптивні буфери рендерингу > повинен підтримувати детермінованість експорту/імпорту стану 6ms
+     → engine.mapVector3 is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/simulation/__tests__/Engine.buffers.test.ts > SimulationEngine — Адаптивні буфери рендерингу > повинен підтримувати детермінованість експорту/імпорту стану
+TypeError: engine.mapVector3 is not a function
+ ❯ src/simulation/services/PersistenceService.ts:54:28
+     52|             id: z.id,
+     53|             type: z.type,
+     54|             center: engine.mapVector3(z.center),
+       |                            ^
+     55|             radius: z.radius,
+     56|             foodMultiplier: z.foodMultiplier,
+ ❯ Function.exportState src/simulation/services/PersistenceService.ts:51:85
+ ❯ SimulationEngine.exportState src/simulation/Engine.ts:341:31
+ ❯ src/simulation/__tests__/Engine.buffers.test.ts:111:34
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 4 passed (5)
+   Start at  12:46:52
+   Duration  700ms (transform 149ms, setup 0ms, collect 173ms, tests 17ms, environment 240ms, prepare 65ms)
+

@@ -9,6 +9,27 @@
  * Використовує механізм Discriminated Unions для забезпечення суворої типізації при зіставленні за зразком (Pattern Matching).
  */
 
+import type { Random } from '@/core';
+
+import {
+  COLORS,
+  FOOD_ENERGY_VALUE,
+  GENETICS,
+  INITIAL_ENERGY,
+  MAX_ENERGY,
+  PREDATOR_SUBTYPES,
+} from '../constants';
+import {
+  createFoodId,
+  createGenomeId,
+  createObstacleId,
+  createOrganismId,
+  EntityType,
+  isPreyGenome,
+  OrganismState,
+  // vec3Clone, // unused
+  vec3Zero,
+} from '../types';
 import type {
   EntityId,
   FoodId,
@@ -22,27 +43,6 @@ import type {
   Vector3,
   // EntityType,
 } from '../types.ts';
-import {
-  createFoodId,
-  createGenomeId,
-  createObstacleId,
-  createOrganismId,
-  EntityType,
-  isPreyGenome,
-  OrganismState,
-  // vec3Clone, // unused
-  vec3Zero,
-} from '../types';
-
-import {
-  COLORS,
-  FOOD_ENERGY_VALUE,
-  GENETICS,
-  INITIAL_ENERGY,
-  MAX_ENERGY,
-  PREDATOR_SUBTYPES,
-} from '../constants';
-import type { Random } from '@/core';
 
 // ============================================================================
 // АБСТРАКТНА БАЗОВА СУТНІСТЬ (ENTITY)
