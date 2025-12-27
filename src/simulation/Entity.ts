@@ -13,6 +13,7 @@ import type { Random } from '@/core';
 
 import {
   COLORS,
+  ENTITY_CONSTANTS,
   FOOD_ENERGY_VALUE,
   GENETICS,
   INITIAL_ENERGY,
@@ -91,7 +92,7 @@ export class Food extends Entity {
     energyValue: number = FOOD_ENERGY_VALUE,
     spawnTime: number = Date.now()
   ) {
-    super(id, position, 2);
+    super(id, position, ENTITY_CONSTANTS.FOOD_RADIUS);
     this.energyValue = energyValue;
     this.spawnTime = spawnTime;
   }
@@ -158,9 +159,9 @@ export class Obstacle extends Entity {
       createObstacleId(`obs_${idCounter}`),
       { x, y, z },
       radius,
-      COLORS.obstacle.base + Math.floor(rand() * 0x222222),
-      0.3 + rand() * 0.5,
-      rand() > 0.7
+      COLORS.obstacle.base + Math.floor(rand() * ENTITY_CONSTANTS.OBSTACLE_COLOR_VARIANCE),
+      ENTITY_CONSTANTS.OBSTACLE_OPACITY_MIN + rand() * ENTITY_CONSTANTS.OBSTACLE_OPACITY_VARIANCE,
+      rand() > ENTITY_CONSTANTS.OBSTACLE_WIREFRAME_THRESHOLD
     );
   }
 }
@@ -221,11 +222,11 @@ export class Organism extends Entity {
 
     const rand = rng ? () => rng.next() : Math.random;
 
-    // Ініціалізація векторів фізичної взаємодії
+    // Ініціалізація кінематичних векторів фізичної взаємодії
     this.velocity = {
-      x: (rand() - 0.5) * 2,
-      y: (rand() - 0.5) * 2,
-      z: (rand() - 0.5) * 2,
+      x: (rand() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      y: (rand() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      z: (rand() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
     };
     this.acceleration = vec3Zero();
 
@@ -349,8 +350,8 @@ export class GenomeFactory {
       senseRadius: this.mutateTrait(parent.senseRadius, min.senseRadius, max.senseRadius),
       metabolism: this.mutateTrait(parent.metabolism, min.metabolism, max.metabolism),
       size: this.mutateTrait(parent.size, min.size, max.size),
-      asymmetry: this.mutateTrait(parent.asymmetry, min.asymmetry, max.asymmetry, 2),
-      spikiness: this.mutateTrait(parent.spikiness, min.spikiness, max.spikiness, 2),
+      asymmetry: this.mutateTrait(parent.asymmetry, min.asymmetry, max.asymmetry, ENTITY_CONSTANTS.TRAIT_MUTATION_FACTOR),
+      spikiness: this.mutateTrait(parent.spikiness, min.spikiness, max.spikiness, ENTITY_CONSTANTS.TRAIT_MUTATION_FACTOR),
       glowIntensity: this.mutateTrait(parent.glowIntensity, min.glowIntensity, max.glowIntensity),
     };
   }
@@ -365,14 +366,14 @@ export class GenomeFactory {
         generation: 1,
         type: EntityType.PREY,
         color: COLORS.prey.base,
-        maxSpeed: base.maxSpeed + (this.rng.next() - 0.5) * 0.5,
-        senseRadius: base.senseRadius + (this.rng.next() - 0.5) * 20,
-        metabolism: base.metabolism + (this.rng.next() - 0.5) * 0.2,
-        size: base.size + (this.rng.next() - 0.5) * 1,
-        asymmetry: this.rng.next() * 0.3,
-        spikiness: this.rng.next() * 0.2,
-        glowIntensity: 0.3 + this.rng.next() * 0.3,
-        flockingStrength: base.flockingStrength + (this.rng.next() - 0.5) * 0.2,
+        maxSpeed: base.maxSpeed + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_SPEED_VARIANCE,
+        senseRadius: base.senseRadius + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_SENSE_VARIANCE,
+        metabolism: base.metabolism + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_METABOLISM_VARIANCE,
+        size: base.size + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_SIZE_VARIANCE,
+        asymmetry: this.rng.next() * ENTITY_CONSTANTS.PREY_ASYMMETRY_MAX,
+        spikiness: this.rng.next() * ENTITY_CONSTANTS.PREY_SPIKINESS_MAX,
+        glowIntensity: ENTITY_CONSTANTS.PREY_GLOW_MIN + this.rng.next() * ENTITY_CONSTANTS.PREY_GLOW_VARIANCE,
+        flockingStrength: base.flockingStrength + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_FLOCKING_VARIANCE,
       };
     }
 
@@ -383,7 +384,7 @@ export class GenomeFactory {
       generation: parent.generation + 1,
       type: EntityType.PREY,
       color: COLORS.prey.base,
-      flockingStrength: this.mutateTrait(parent.flockingStrength, 0, 1),
+      flockingStrength: this.mutateTrait(parent.flockingStrength, ENTITY_CONSTANTS.TRAIT_MIN_BOUND, ENTITY_CONSTANTS.TRAIT_MAX_BOUND),
     };
   }
 
@@ -402,20 +403,20 @@ export class GenomeFactory {
         type: EntityType.PREDATOR,
         subtype: randomSubtype,
         color: subConfig.color,
-        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (this.rng.next() - 0.5) * 0.5,
-        senseRadius: base.senseRadius * subConfig.senseMultiplier + (this.rng.next() - 0.5) * 30,
-        metabolism: base.metabolism + (this.rng.next() - 0.5) * 0.2,
-        size: base.size + (this.rng.next() - 0.5) * 1.5,
-        asymmetry: this.rng.next() * 0.4,
-        spikiness: 0.3 + this.rng.next() * 0.4,
-        glowIntensity: 0.4 + this.rng.next() * 0.4,
+        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SPEED_VARIANCE,
+        senseRadius: base.senseRadius * subConfig.senseMultiplier + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SENSE_VARIANCE,
+        metabolism: base.metabolism + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_METABOLISM_VARIANCE,
+        size: base.size + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SIZE_VARIANCE,
+        asymmetry: this.rng.next() * ENTITY_CONSTANTS.PREDATOR_ASYMMETRY_MAX,
+        spikiness: ENTITY_CONSTANTS.PREDATOR_SPIKINESS_MIN + this.rng.next() * ENTITY_CONSTANTS.PREDATOR_SPIKINESS_VARIANCE,
+        glowIntensity: ENTITY_CONSTANTS.PREDATOR_GLOW_MIN + this.rng.next() * ENTITY_CONSTANTS.PREDATOR_GLOW_VARIANCE,
         attackPower: base.attackPower * subConfig.attackMultiplier,
-        packAffinity: base.packAffinity + (this.rng.next() - 0.5) * 0.2,
+        packAffinity: base.packAffinity + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_PACK_VARIANCE,
       };
     }
 
-    // Спадкування та можлива трансформація підтипу
-    const inheritedSubtype = this.rng.next() < 0.9 ? parent.subtype : randomSubtype;
+    // Еволюційне спадкування та вероятнісна трансформація підтипу з коефіцієнтом 90%
+    const inheritedSubtype = this.rng.next() < ENTITY_CONSTANTS.SUBTYPE_INHERITANCE_PROBABILITY ? parent.subtype : randomSubtype;
     const subConfig = PREDATOR_SUBTYPES[inheritedSubtype];
 
     return {
@@ -426,8 +427,8 @@ export class GenomeFactory {
       type: EntityType.PREDATOR,
       subtype: inheritedSubtype,
       color: subConfig.color,
-      attackPower: this.mutateTrait(parent.attackPower, 0.5, 2.0),
-      packAffinity: this.mutateTrait(parent.packAffinity, 0, 1),
+      attackPower: this.mutateTrait(parent.attackPower, ENTITY_CONSTANTS.TRAIT_MIN_ATTACK, ENTITY_CONSTANTS.TRAIT_MAX_ATTACK),
+      packAffinity: this.mutateTrait(parent.packAffinity, ENTITY_CONSTANTS.TRAIT_MIN_BOUND, ENTITY_CONSTANTS.TRAIT_MAX_BOUND),
     };
   }
 
@@ -506,8 +507,8 @@ export class OrganismFactory {
   createOffspring(parent: Organism): Organism {
     const childGenome = this.genomeFactory.createFromParent(parent.genome);
 
-    // Просторова девіація нащадка відносно локації батька
-    const offset = parent.radius * 2;
+    // Стохастичне просторове зміщення нащадка відносно локації батьківського організму
+    const offset = parent.radius * ENTITY_CONSTANTS.OFFSPRING_RADIUS_MULTIPLIER;
     const childPosition: MutableVector3 = {
       x: parent.position.x + (this.rng.next() - 0.5) * offset,
       y: parent.position.y + (this.rng.next() - 0.5) * offset,
