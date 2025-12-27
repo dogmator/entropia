@@ -1,6 +1,5 @@
 
-import type { PopulationDataPoint,SimulationStats } from '@/types';
-import React, { useEffect,useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   CartesianGrid,
   Line,
@@ -8,7 +7,11 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis} from 'recharts';
+  YAxis
+} from 'recharts';
+
+import { UI_THRESHOLDS } from '@/constants';
+import type { PopulationDataPoint, SimulationStats } from '@/types';
 
 /**
  * Програмний інтерфейс для властивостей компонента Dashboard.
@@ -26,15 +29,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
+    setTimeout(() => setIsMounted(true), 0);
   }, []);
 
   /**
    * Обчислення кольорової репрезентації ризику вимирання для візуальної сигналізації.
    */
-  const extinctionColor = stats.extinctionRisk > 0.7
+  const extinctionColor = stats.extinctionRisk > UI_THRESHOLDS.EXTINCTION_RISK.CRITICAL
     ? 'text-red-500'
-    : stats.extinctionRisk > 0.4
+    : stats.extinctionRisk > UI_THRESHOLDS.EXTINCTION_RISK.HIGH
       ? 'text-yellow-400'
       : 'text-green-400';
 
@@ -42,8 +45,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
    * Визначення колірної гами для індикатора частоти кадрів (FPS).
    */
   const fpsColor = (fps: number) => {
-    if (fps >= 55) {return 'text-emerald-400';}
-    if (fps >= 30) {return 'text-yellow-400';}
+    if (fps >= UI_THRESHOLDS.FPS.HIGH) { return 'text-emerald-400'; }
+    if (fps >= UI_THRESHOLDS.FPS.MEDIUM) { return 'text-yellow-400'; }
     return 'text-red-400';
   };
 
@@ -51,45 +54,45 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
     <div className="flex flex-col gap-6">
       {/* Моніторинг системної продуктивності (Performance Monitor) */}
       {stats.performance ? <div className="bg-white/5 rounded-xl p-3 border border-white/5 hover:bg-white/10 hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all duration-300 group">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-blue-400 transition-colors">
-              ⚡ Продуктивність
-            </span>
-            <span className={`text-lg sm:text-base font-mono font-black ${fpsColor(stats.performance.fps)} group-hover:drop-shadow-[0_0_8px_currentColor] transition-all`}>
-              {stats.performance.fps} FPS
-            </span>
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-[8px] sm:text-[7px] text-gray-500 uppercase tracking-widest font-black group-hover:text-blue-400 transition-colors">
+            ⚡ Продуктивність
+          </span>
+          <span className={`text-lg sm:text-base font-mono font-black ${fpsColor(stats.performance.fps)} group-hover:drop-shadow-[0_0_8px_currentColor] transition-all`}>
+            {stats.performance.fps} FPS
+          </span>
+        </div>
+        <div className="grid grid-cols-3 gap-2 text-[9px] sm:text-[8px]">
+          <div className="bg-black/30 rounded-lg p-1.5 text-center">
+            <div className="text-gray-500 uppercase tracking-tight mb-0.5">TPS</div>
+            <div className="text-blue-400 font-mono font-bold">{stats.performance.tps}</div>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-[9px] sm:text-[8px]">
-            <div className="bg-black/30 rounded-lg p-1.5 text-center">
-              <div className="text-gray-500 uppercase tracking-tight mb-0.5">TPS</div>
-              <div className="text-blue-400 font-mono font-bold">{stats.performance.tps}</div>
-            </div>
-            <div className="bg-black/30 rounded-lg p-1.5 text-center">
-              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Рендеринг</div>
-              <div className="text-cyan-400 font-mono font-bold">{stats.performance.frameTime.toFixed(1)}ms</div>
-            </div>
-            <div className="bg-black/30 rounded-lg p-1.5 text-center">
-              <div className="text-gray-500 uppercase tracking-tight mb-0.5">Об'єкти</div>
-              <div className="text-purple-400 font-mono font-bold">{stats.performance.entityCount}</div>
-            </div>
+          <div className="bg-black/30 rounded-lg p-1.5 text-center">
+            <div className="text-gray-500 uppercase tracking-tight mb-0.5">Рендеринг</div>
+            <div className="text-cyan-400 font-mono font-bold">{stats.performance.frameTime.toFixed(1)}ms</div>
           </div>
-        </div> : null}
+          <div className="bg-black/30 rounded-lg p-1.5 text-center">
+            <div className="text-gray-500 uppercase tracking-tight mb-0.5">Об'єкти</div>
+            <div className="text-purple-400 font-mono font-bold">{stats.performance.entityCount}</div>
+          </div>
+        </div>
+      </div> : null}
 
       {/* Верифікатор критичного ризику вимирання */}
-      {stats.extinctionRisk > 0.3 ? <div className={`bg-red-950/30 border border-red-500/30 rounded-xl p-3 ${stats.extinctionRisk > 0.7 ? 'animate-pulse' : ''}`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[9px] sm:text-[8px] text-red-400 uppercase tracking-widest font-black">Ризик вимирання</span>
-            <span className={`text-xl sm:text-lg font-mono font-black ${extinctionColor}`}>
-              {Math.round(stats.extinctionRisk * 100)}%
-            </span>
-          </div>
-          <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 transition-all duration-500"
-              style={{ width: `${stats.extinctionRisk * 100}%` }}
-            />
-          </div>
-        </div> : null}
+      {stats.extinctionRisk > UI_THRESHOLDS.EXTINCTION_RISK.WARNING ? <div className={`bg-red-950/30 border border-red-500/30 rounded-xl p-3 ${stats.extinctionRisk > UI_THRESHOLDS.EXTINCTION_RISK.CRITICAL ? 'animate-pulse' : ''}`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[9px] sm:text-[8px] text-red-400 uppercase tracking-widest font-black">Ризик вимирання</span>
+          <span className={`text-xl sm:text-lg font-mono font-black ${extinctionColor}`}>
+            {Math.round(stats.extinctionRisk * 100)}%
+          </span>
+        </div>
+        <div className="w-full h-1.5 bg-black/50 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-yellow-500 via-orange-500 to-red-500 transition-all duration-500"
+            style={{ width: `${stats.extinctionRisk * 100}%` }}
+          />
+        </div>
+      </div> : null}
 
       {/* Ієрархія основних кількісних показників */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -163,20 +166,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
       {/* Візуалізація хронологічної динаміки популяції */}
       <div className="h-32 sm:h-36 lg:h-40 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
         <div className="absolute top-2 left-4 text-[8px] sm:text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] z-10">Динаміка популяції</div>
-        {isMounted ? <ResponsiveContainer width="100%" height="100%" debounce={50}>
-            <LineChart data={history} margin={{ top: 10, right: 0, left: -30, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#111" vertical={false} />
-              <XAxis dataKey="time" hide />
-              <YAxis hide domain={['auto', 'auto']} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '12px', fontSize: '9px', color: '#fff' }}
-                itemStyle={{ padding: '0px' }}
-                labelStyle={{ display: 'none' }}
-              />
-              <Line name="Травоїдні" type="monotone" dataKey="prey" stroke="#4ade80" dot={false} strokeWidth={2.5} isAnimationActive={false} />
-              <Line name="Хижаки" type="monotone" dataKey="pred" stroke="#f87171" dot={false} strokeWidth={2.5} isAnimationActive={false} />
-            </LineChart>
-          </ResponsiveContainer> : null}
+        {isMounted ? <ResponsiveContainer width="100%" height="100%" debounce={UI_THRESHOLDS.DEBOUNCE_DELAY}>
+          <LineChart data={history} margin={{ top: 10, right: 0, left: -30, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#111" vertical={false} />
+            <XAxis dataKey="time" hide />
+            <YAxis hide domain={['auto', 'auto']} />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '12px', fontSize: '9px', color: '#fff' }}
+              itemStyle={{ padding: '0px' }}
+              labelStyle={{ display: 'none' }}
+            />
+            <Line name="Травоїдні" type="monotone" dataKey="prey" stroke="#4ade80" dot={false} strokeWidth={2.5} isAnimationActive={false} />
+            <Line name="Хижаки" type="monotone" dataKey="pred" stroke="#f87171" dot={false} strokeWidth={2.5} isAnimationActive={false} />
+          </LineChart>
+        </ResponsiveContainer> : null}
       </div>
     </div>
   );

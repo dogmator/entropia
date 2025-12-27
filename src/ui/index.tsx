@@ -7,6 +7,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { App } from './App';
+import './index.css';
 
 /** Пошук кореневого контейнера в структурі документа. */
 const rootElement = document.getElementById('root');

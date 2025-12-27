@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '0.0.0.0',
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
       watch: {
         usePolling: true,
       },
@@ -19,7 +23,19 @@ export default defineConfig(({ mode }) => {
         clientPort: 3000,
       },
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: 'configure-response-headers',
+        configureServer: (server) => {
+          server.middlewares.use((_req, res, next) => {
+            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+            next();
+          });
+        },
+      }
+    ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)

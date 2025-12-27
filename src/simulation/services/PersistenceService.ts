@@ -5,6 +5,7 @@
  * включаючи організми, генеалогічне дерево, об'єкти середовища та статистику.
  */
 
+import { Random } from '@/core';
 import type {
     GeneticTreeNode,
     SerializedEcologicalZone,
@@ -22,7 +23,6 @@ import {
     createObstacleId,
     createOrganismId} from '@/types';
 
-import { Random } from '@/core';
 import { Food, Obstacle, Organism } from '../Entity';
 
 export class PersistenceService {

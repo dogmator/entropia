@@ -1,12 +1,12 @@
 
 import type { PopulationDataPoint,SimulationStats } from '@shared/types';
+import type { CameraState } from '@ui/hooks';
 import type { PropsWithChildren } from 'react';
 import React, { createContext, useContext, useEffect, useMemo, useRef,useState } from 'react';
 
 import { UI_CONFIG } from '@/constants.ts';
-import { SimulationEngine } from '@/simulation';
 import type { Food, Obstacle,Organism } from '@/simulation';
-import type { CameraState } from '@ui/hooks';
+import { SimulationEngine } from '@/simulation';
 
 interface SimulationContextValue {
     engine: SimulationEngine;

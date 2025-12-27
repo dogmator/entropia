@@ -7,8 +7,9 @@
  * - Забезпечення детермінованості експорту/імпорту стану.
  */
 
-import { EntityType } from '@/types';
 import { beforeEach,describe, expect, it } from 'vitest';
+
+import { EntityType } from '@/types';
 
 import { SimulationEngine } from '../Engine';
 
