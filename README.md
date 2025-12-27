@@ -97,7 +97,7 @@ docker compose up -d
 - [x] **Phase 1-3**: Оптимізація пам'яті та декомпозиція ядра.
 - [x] **Phase 4**: Інфраструктура Web Workers (Transferable Buffers).
 - [/] **Phase 4.1**: Повна інтеграція UI з Worker Proxy.
-- [ ] **Phase 5**: Адаптивний UI Throttling та GPU-driven Physics.
+- [/] **Phase 5**: UI Optimization & Diagnostics Refactoring.
 
 ---
 
