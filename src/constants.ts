@@ -672,6 +672,15 @@ export const PARTICLE_CONSTANTS = {
   SPHERE_PHI_MULTIPLIER: 2,
   SPHERE_RANDOM_OFFSET: 1,
   VELOCITY_CENTER_OFFSET: 0.5,
+
+  // Particle initialization constants
+  DEFAULT_OPACITY: 1,
+  DEFAULT_MAX_LIFE: 1,
+  WHITE_COLOR: 0xffffff,
+
+  // 3D vector constants
+  VECTOR3_COMPONENTS: 3,  // x, y, z
+  VECTOR2_OFFSET: 2,      // For component calculations
 } as const;
 
 // ============================================================================
