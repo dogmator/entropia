@@ -12,7 +12,7 @@ import type { GraphicsQuality, PredatorSubtype, VisConfig, WorldConfig } from '.
 // ============================================================================
 
 /** Лінійна розмірність кубічного домену віртуального світу в абстрактних одиницях простору. */
-export const WORLD_SIZE = 400;
+export const WORLD_SIZE = 600;
 
 /** Параметр просторової дискретизації (розмір комірки хешування) для забезпечення алгоритмічної складності O(1) при пошуку сусідніх об'єктів. */
 export const CELL_SIZE = 80;
@@ -99,7 +99,7 @@ export const MIN_REPRODUCTION_AGE = 60;
 const PHYSICS_TICK_RATE = 60;
 
 /** Степінь масштабування об'єму для 3D простору. */
-const VOLUME_EXPONENT = 3;
+const VOLUME_EXPONENT_VAL = 3;
 
 export const PHYSICS = {
   /** Дискретний крок інтегрування в часовій області. */
@@ -126,11 +126,26 @@ export const PHYSICS = {
   /** Максимально допустимий модуль сили рулювання. */
   maxSteeringForce: 0.5,
 
+  /** Шаг буфера для організмів (x, y, z, vx, vy, vz, r, type, id, state, energy, age, health) */
+  ORGANISM_STRIDE: 13,
+
+  /** Шаг буфера для їжі (x, y, z, r, id) */
+  FOOD_STRIDE: 5,
+
   /** Радіус зони дії сили сепарації. */
   separationRadius: 18,
 
   /** Дистанція початку ухилення від перешкод. */
   obstacleAvoidanceDistance: 25,
+
+  /** Мала величина для запобігання діленню на нуль. */
+  EPSILON: 0.001,
+
+  /** Зміщення радіусу пошуку колізій. */
+  COLLISION_SEARCH_RADIUS_OFFSET: 20,
+
+  /** Вага сили уникнення перешкод. */
+  OBSTACLE_AVOIDANCE_WEIGHT: 12,
 } as const;
 
 // ============================================================================
@@ -351,6 +366,7 @@ export const GRAPHICS_PRESETS: Record<
 export const RENDER = {
   /** Гранична кількість екземплярів для InstancedMesh-структур. */
   maxInstances: 400,
+  foodInstanceMultiplier: 2,
 
   /** Кількісний ліміт часток у системах шлейфів. */
   maxTrailParticles: 120,
@@ -367,6 +383,43 @@ export const RENDER = {
     radius: 0.4,
     threshold: 0.2,
   },
+
+  /** Константи для геометрії та матеріалів сутностей. */
+  geometry: {
+    organism: {
+      radius: 0.8,
+      height: 2.5,
+      segments: 12,
+    },
+    food: {
+      radius: 2,
+      segments: 8,
+    },
+    velocityThreshold: 0.01,
+  },
+
+  materials: {
+    opacity: 0.92,
+    foodOpacity: 0.85,
+    shininess: {
+      prey: 30,
+      predator: 40,
+      food: 100,
+    },
+    emissiveIntensity: {
+      prey: 0.15,
+      predator: 0.2,
+      food: 0.5,
+    },
+  },
+
+  interaction: {
+    hoverInterval: 0.1,
+    foodRotationSpeed: 0.5,
+    foodRotationSecondary: 0.3,
+    foodScaleBase: 1.25,
+  },
+
   enableTracertForAllOrganisms: true,
 } as const;
 
@@ -403,6 +456,11 @@ export const COLORS = {
     warning: 0xf59e0b,
   },
 } as const;
+export const TIME = {
+  MS_IN_SECOND: 1000,
+  SECONDS_IN_MINUTE: 60,
+  MINUTES_IN_HOUR: 60,
+} as const;
 
 // ============================================================================
 // КОНФІГУРАЦІЯ UI ТА АУДІО
@@ -417,6 +475,11 @@ export const UI_CONFIG = {
 
   /** Періодичність оновлення графічних показників (через кожні N ітерацій). */
   updateFrequency: 15,
+
+  /** Брейкпоінти адаптивності. */
+  breakpoints: {
+    mobile: 768,
+  },
 } as const;
 
 export const AUDIO = {
@@ -470,7 +533,7 @@ export const DIAGNOSTICS_CONFIG = {
  * @param scale Масштабний коефіцієнт (за замовчуванням 1.0).
  */
 export function createWorldConfig(scale: number = 1.0): WorldConfig {
-  const volumeScale = Math.pow(scale, VOLUME_EXPONENT);
+  const volumeScale = Math.pow(scale, VOLUME_EXPONENT_VAL);
 
   return {
     WORLD_SIZE: WORLD_SIZE * scale,
@@ -533,6 +596,19 @@ export const ENGINE_CONSTANTS = {
   INITIAL_GENERATION: 0,
   INITIAL_MAX_GENERATION: 1,
   INITIAL_STAT_VALUE: 0,
+
+  // Параметри RNG та часу
+  SEED_LIMIT: 0xffffffff,
+
+  // Параметри ризику та популяції
+  IDEAL_PREDATOR_RATIO: 0.1,
+  RISK_SCALING_FACTOR: 0.5,
+  EXTINCTION_RISK_ZERO: 0,
+  EXTINCTION_RISK_DEAD: 1,
+  EXTINCTION_RISK_NO_PREY: 0.8,
+  EXTINCTION_RISK_NO_PREDATOR: 0.1,
+  VOLUME_EXPONENT: 3,
+  FULL_PERCENT: 100,
 } as const;
 
 // ============================================================================
@@ -679,7 +755,11 @@ export const PARTICLE_CONSTANTS = {
   WHITE_COLOR: 0xffffff,
 
   // 3D vector constants
+  SCALAR_COMPONENTS: 1,
   VECTOR3_COMPONENTS: 3,  // x, y, z
+  X_OFFSET: 0,
+  Y_OFFSET: 1,
+  Z_OFFSET: 2,
   VECTOR2_OFFSET: 2,      // For component calculations
 } as const;
 

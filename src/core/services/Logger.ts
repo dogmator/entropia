@@ -32,7 +32,7 @@ export class Logger {
   private subscribers: Set<(logs: LogEntry[]) => void> = new Set();
 
   private constructor() {
-    // Приватный конструктор для синглтона
+    // Приватний конструктор для синглтона
   }
 
   public static getInstance(): Logger {
@@ -43,28 +43,28 @@ export class Logger {
   }
 
   /**
-   * Добавление информационного сообщения
+   * Додавання інформаційного повідомлення
    */
   public info(message: string, source?: string, data?: Record<string, unknown>): void {
     this.addLog(LogLevel.INFO, message, source, data);
   }
 
   /**
-   * Добавление предупреждения
+   * Додавання попередження
    */
   public warning(message: string, source?: string, data?: Record<string, unknown>): void {
     this.addLog(LogLevel.WARNING, message, source, data);
   }
 
   /**
-   * Добавление ошибки
+   * Додавання помилки
    */
   public error(message: string, source?: string, data?: Record<string, unknown>): void {
     this.addLog(LogLevel.ERROR, message, source, data);
   }
 
   /**
-   * Добавление лога с указанным уровнем
+   * Додавання лога з вказаним рівнем
    */
   private addLog(level: LogLevel, message: string, source?: string, data?: Record<string, unknown>): void {
     if (this.isDuplicateLog(level, message, source, data)) {
@@ -133,7 +133,7 @@ export class Logger {
     const sourcePrefix = source ? ` [${source}]` : '';
     const logMessage = `[${level.toUpperCase()}]${sourcePrefix}: ${message}`;
     const consoleMethod = level === LogLevel.ERROR ? 'error' : 'warn';
-    
+
     if (data) {
       console[consoleMethod](logMessage, data);
     } else {
@@ -142,21 +142,21 @@ export class Logger {
   }
 
   /**
-   * Получение всех логов
+   * Отримання всіх логів
    */
   public getLogs(): LogEntry[] {
     return [...this.logs];
   }
 
   /**
-   * Получение логов с фильтрацией по уровню
+   * Отримання логів з фільтрацією за рівнем
    */
   public getLogsByLevel(level: LogLevel): LogEntry[] {
     return this.logs.filter(log => log.level === level);
   }
 
   /**
-   * Получение логов за последние N минут
+   * Отримання логів за останні N хвилин
    */
   public getRecentLogs(minutes: number = LOGGER_RECENT_MINUTES_DEFAULT): LogEntry[] {
     const cutoffTime = Date.now() - (minutes * MILLISECONDS_PER_MINUTE);
@@ -164,7 +164,7 @@ export class Logger {
   }
 
   /**
-   * Очистка всех логов
+   * Очищення всіх логів
    */
   public clear(): void {
     this.logs = [];
@@ -172,19 +172,19 @@ export class Logger {
   }
 
   /**
-   * Подписка на изменения логов
+   * Підписка на зміни логів
    */
   public subscribe(callback: (logs: LogEntry[]) => void): () => void {
     this.subscribers.add(callback);
 
-    // Возвращаем функцию отписки
+    // Повертаємо функцію відписки
     return () => {
       this.subscribers.delete(callback);
     };
   }
 
   /**
-   * Уведомление подписчиков об изменениях
+   * Повідомлення підписників про зміни
    */
   private notifySubscribers(): void {
     const logsCopy = [...this.logs];
@@ -198,7 +198,7 @@ export class Logger {
   }
 
   /**
-   * Логирование производительности
+   * Логування продуктивності
    */
   public logPerformance(operation: string, duration: number, source?: string): void {
     const level = duration > LOGGER_PERFORMANCE_THRESHOLD ? LogLevel.WARNING : LogLevel.INFO;
@@ -207,7 +207,7 @@ export class Logger {
   }
 
   /**
-   * Логирование ошибок симуляции
+   * Логування помилок симуляції
    */
   public logSimulationError(error: Error, context?: string): void {
     this.error(`Simulation error: ${context}`, context || 'System', {
@@ -218,14 +218,14 @@ export class Logger {
   }
 
   /**
-   * Логирование событий симуляции
+   * Логування подій симуляції
    */
   public logSimulationEvent(event: string, data?: Record<string, unknown>): void {
     this.info(`Simulation event: ${event}`, 'Simulation', data);
   }
 
   /**
-   * Получение статистики по логам
+   * Отримання статистики за логами
    */
   public getLogStats(): {
     total: number;
@@ -244,5 +244,5 @@ export class Logger {
   }
 }
 
-// Экспорт синглтона для удобного использования
+// Експорт синглтона для зручного використання
 export const logger = Logger.getInstance();

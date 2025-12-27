@@ -107,7 +107,7 @@ export class SimulationEngine {
   public worldConfig: WorldConfig;
 
   constructor(scale: number = 1.0) {
-    this.seed = (Math.random() * 0xffffffff) >>> 0;
+    this.seed = (Math.random() * ENGINE_CONSTANTS.SEED_LIMIT) >>> 0; // eslint-disable-line sonarjs/pseudo-random
     this.rng = new Random(this.seed);
     this.worldConfig = createWorldConfig(scale);
     this.config = this.createDefaultConfig();
@@ -405,7 +405,7 @@ export class SimulationEngine {
     const hasSignificantEvents = deadIds.length > 0 || newborns.length > 0;
     if (hasSignificantEvents) {
       const events: string[] = [];
-      const eventData: any = {};
+      const eventData: import('@/types').EngineEventData = {};
 
       if (deadIds.length > 0) {
         events.push(`${deadIds.length} died`);
@@ -417,7 +417,7 @@ export class SimulationEngine {
         eventData.newbornCount = newborns.length;
       }
 
-      logger.info(`Population events: ${events.join(', ')}`, 'Engine', eventData);
+      logger.info(`Population events: ${events.join(', ')}`, 'Engine', eventData as Record<string, unknown>);
     }
 
     // Актуалізація статистичних метрик
@@ -477,7 +477,7 @@ export class SimulationEngine {
     avgPredatorEnergy: 0,
     extinctionRisk: 0,
     lastUpdate: 0,
-    cacheTimeout: 1000 // 1 секунда кешу
+    cacheTimeout: ENGINE_CONSTANTS.MS_PER_SECOND // 1 секунда кешу
   };
 
   // Кеш для даних камери
@@ -600,26 +600,21 @@ export class SimulationEngine {
   /**
    * Оновлення геометричних даних світу для діагностики
    */
-  private updateWorldGeometry(cameraData?: {
-    position: { x: number; y: number; z: number };
-    target: { x: number; y: number; z: number };
-    zoom: number;
-    distance: number;
-    fov: number;
-    aspect: number;
-    near: number;
-    far: number;
-  }): void {
-    (this.stats as any).worldSize = this.worldConfig.WORLD_SIZE;
+  private updateWorldGeometry(cameraData?: import('@/types').CameraData): void {
+    const geoStats: Partial<SimulationStats> = {
+      worldSize: this.worldConfig.WORLD_SIZE,
+      foodSpawnRate: this.config.foodSpawnRate || 0,
+      obstacleCount: this.obstacles.size,
+      worldAge: Math.floor(this.tick / ENGINE_CONSTANTS.WORLD_AGE_FALLBACK_TPS),
+    };
+
+    this.stats = { ...this.stats, ...geoStats };
     this.updateCameraStats(cameraData);
     this.updateZoneStats();
     this.updateGridStats();
-    (this.stats as any).foodSpawnRate = this.config.foodSpawnRate || 0;
-    (this.stats as any).obstacleCount = this.obstacles.size;
-    (this.stats as any).worldAge = Math.floor(this.tick / ENGINE_CONSTANTS.WORLD_AGE_FALLBACK_TPS);
   }
 
-  private updateCameraStats(cameraData?: any): void {
+  private updateCameraStats(cameraData?: import('@/types').CameraData): void {
     if (cameraData) {
       this.stats = {
         ...this.stats,
@@ -645,9 +640,9 @@ export class SimulationEngine {
       cameraX: 0,
       cameraY: 0,
       cameraZ: 0,
-      targetX: this.worldConfig.WORLD_SIZE / 2,
-      targetY: this.worldConfig.WORLD_SIZE / 2,
-      targetZ: this.worldConfig.WORLD_SIZE / 2,
+      targetX: this.worldConfig.WORLD_SIZE * ENGINE_CONSTANTS.ZONE_CENTER_MULT,
+      targetY: this.worldConfig.WORLD_SIZE * ENGINE_CONSTANTS.ZONE_CENTER_MULT,
+      targetZ: this.worldConfig.WORLD_SIZE * ENGINE_CONSTANTS.ZONE_CENTER_MULT,
       zoom: ENGINE_CONSTANTS.DEFAULT_ZOOM,
       cameraDistance: 0,
       cameraFov: ENGINE_CONSTANTS.DEFAULT_CAMERA_FOV,
@@ -659,13 +654,11 @@ export class SimulationEngine {
     let oasis = 0;
     let desert = 0;
     let hunting = 0;
-    let sanctuary = 0;
 
     this.zones.forEach(z => {
       if (z.type === 'OASIS') { oasis++; }
       else if (z.type === 'DESERT') { desert++; }
       else if (z.type === 'HUNTING_GROUND') { hunting++; }
-      else if (z.type === 'SANCTUARY') { sanctuary++; }
     });
 
     this.stats = {
@@ -682,14 +675,14 @@ export class SimulationEngine {
     const cellSize = this.getCellSizeFromGrid();
     const dimensions = this.getDimensionsFromGrid();
     const occupied = this.calculateOccupiedCells();
-    const totalCells = dimensions ** 3;
+    const totalCells = dimensions ** ENGINE_CONSTANTS.VOLUME_EXPONENT;
 
     this.stats = {
       ...this.stats,
       cellSize: cellSize,
       totalCells: totalCells,
       occupiedCells: occupied,
-      avgDensity: totalCells > 0 ? (occupied / totalCells * 100) : 0,
+      avgDensity: totalCells > 0 ? (occupied / totalCells * ENGINE_CONSTANTS.FULL_PERCENT) : 0,
       maxDensity: this.calculateMaxCellDensity(),
       gridEfficiency: this.calculateGridEfficiency(),
     };
@@ -742,9 +735,6 @@ export class SimulationEngine {
    */
   private calculateMaxCellDensity(): number {
     const cellCounts = new Map<number, number>();
-    //const worldSize = this.worldConfig.WORLD_SIZE;
-    //const cellSize = this.getCellSizeFromGrid();
-    //const dimensions = this.getDimensionsFromGrid();
 
     this.organisms.forEach(org => {
       const key = this.getGridKey(org.position);
@@ -815,42 +805,33 @@ export class SimulationEngine {
    */
   private calculateExtinctionRisk(): number {
     const totalOrganisms = this.organisms.size;
-    const preyCount = Array.from(this.organisms.values()).filter(org => org.type === 'PREY').length;
-    const predatorCount = Array.from(this.organisms.values()).filter(org => org.type === 'PREDATOR').length;
+    const preyCount = Array.from(this.organisms.values()).filter(org => org.type === EntityType.PREY).length;
+    const predatorCount = Array.from(this.organisms.values()).filter(org => org.type === EntityType.PREDATOR).length;
 
     // Якщо немає організмів - ризик 100%
-    if (totalOrganisms === 0) { return 1; }
+    if (totalOrganisms === 0) { return ENGINE_CONSTANTS.EXTINCTION_RISK_DEAD; }
 
     // Якщо немає травоїдних - високий ризик
-    if (preyCount === 0) { return 0.8; }
+    if (preyCount === 0) { return ENGINE_CONSTANTS.EXTINCTION_RISK_NO_PREY; }
 
     // Якщо немає хижаків - низький ризик
-    if (predatorCount === 0) { return 0.1; }
+    if (predatorCount === 0) { return ENGINE_CONSTANTS.EXTINCTION_RISK_NO_PREDATOR; }
 
     // Розрахунок співвідношення хижаків до травоїдних
     const predatorRatio = predatorCount / preyCount;
 
     // Ідеальне співвідношення 1:10
-    const idealRatio = 0.1;
+    const idealRatio = ENGINE_CONSTANTS.IDEAL_PREDATOR_RATIO;
     const ratioDeviation = Math.abs(predatorRatio - idealRatio) / idealRatio;
 
     // Чим більше відхилення, тим вищий ризик
-    return Math.min(0.9, ratioDeviation * 0.5);
+    return Math.min(ENGINE_CONSTANTS.EXTINCTION_RISK_HIGH, ratioDeviation * ENGINE_CONSTANTS.RISK_SCALING_FACTOR);
   }
 
   /**
    * Встановлення даних камери для діагностики
    */
-  public setCameraData(cameraData: {
-    position: { x: number; y: number; z: number };
-    target: { x: number; y: number; z: number };
-    zoom: number;
-    distance: number;
-    fov: number;
-    aspect: number;
-    near: number;
-    far: number;
-  }): void {
+  public setCameraData(cameraData: import('@/types').CameraData): void {
     // Зберігаємо дані камери в кеш
     this.cameraDataCache = { ...cameraData };
 

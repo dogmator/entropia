@@ -1,19 +1,48 @@
 /**
- * Performance Monitor — система сбора и анализа метрик продуктивности приложения.
+ * Performance Monitor — система збору та аналізу метрик продуктивності додатка.
  * 
- * Предоставляет детальную информацию о:
- * - Производительности рендеринга (FPS)
- * - Производительности симуляции (TPS) 
- * - Использовании памяти
- * - Загрузке CPU
- * - Временных характеристиках различных подсистем
+ * Надає детальну інформацію про:
+ * - Продуктивність рендерингу (FPS)
+ * - Продуктивність симуляції (TPS) 
+ * - Використання пам'яті
+ * - Завантаження CPU
+ * - Часові характеристики різних підсистем
  */
 
-import type { PerformanceMetrics } from '../../types';
-import type { MemoryInfo } from '../utils/PerformanceUtils';
-import { PERFORMANCE_CONSTANTS } from '../../constants';
-import { PerformanceHelpers } from '../utils/PerformanceUtils';
+import { PERFORMANCE_CONSTANTS } from '@/constants';
+import type { PerformanceMetrics } from '@/types';
+
+import { MemoryInfo, PerformanceHelpers } from '../utils/PerformanceUtils';
 import { logger } from './Logger';
+
+export type MemoryTrend = 'increasing' | 'decreasing' | 'stable';
+
+export interface PerformanceIssue {
+  type: 'low_fps' | 'high_frame_time' | 'memory_leak' | 'slow_subsystem' | string;
+  severity: 'info' | 'warning' | 'critical';
+  message: string;
+  suggestions: string[];
+}
+
+export interface SubsystemMetrics {
+  name: string;
+  executionTime: number;
+  calls: number;
+  averageTime: number;
+  maxTime: number;
+}
+
+export interface PerformanceReport {
+  timestamp: number;
+  current: PerformanceMetrics;
+  average: PerformanceMetrics;
+  history: PerformanceMetrics[];
+  subsystemMetrics: SubsystemMetrics[];
+  memoryStats: MemoryInfo & { trend: MemoryTrend };
+  issues: PerformanceIssue[];
+  fpsHistory: number[];
+  memoryHistory: (MemoryInfo | null)[];
+}
 
 interface PerformanceEntry {
   timestamp: number;
@@ -24,14 +53,6 @@ interface PerformanceEntry {
   entityCount: number;
   drawCalls: number;
   memoryUsage?: MemoryInfo;
-}
-
-interface SubsystemMetrics {
-  name: string;
-  executionTime: number;
-  calls: number;
-  averageTime: number;
-  maxTime: number;
 }
 
 export class PerformanceMonitor {
@@ -65,12 +86,12 @@ export class PerformanceMonitor {
 
   constructor() {
     logger.info('Initializing PerformanceMonitor', 'PerformanceMonitor');
-    // Запускаем мониторинг производительности с минимальным влиянием
+    // Запускаємо моніторинг продуктивності з мінімальним впливом
     this.startOptimizedMonitoring();
   }
 
   /**
-   * Оптимизированный запуск мониторинга с минимальным влиянием
+   * Оптимізований запуск моніторингу з мінімальним впливом
    */
   private startOptimizedMonitoring(): void {
     // Оновлення FPS кожні 500мс (рідше для зменшення навантаження)
@@ -89,7 +110,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Обновление счетчика FPS (оптимизированный)
+   * Оновлення лічильника FPS (оптимізований)
    */
   private updateFPS(): void {
     const now = PerformanceHelpers.time.now();
@@ -107,7 +128,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Начало измерения кадра (минимальные операции)
+   * Початок вимірювання кадру (мінімальні операції)
    */
   public beginFrame(): void {
     if (!this.isMonitoringEnabled) { return; }
@@ -116,7 +137,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Завершение измерения кадра (оптимизированное)
+   * Завершення вимірювання кадру (оптимізоване)
    */
   public endFrame(entityCount: number, drawCalls: number = 0): void {
     if (!this.isMonitoringEnabled || !this.currentFrameStartTime) { return; }
@@ -124,7 +145,7 @@ export class PerformanceMonitor {
     const now = PerformanceHelpers.time.now();
     const frameTime = now - this.currentFrameStartTime;
 
-    // Лимитируем количество записей для уменьшения нагрузки
+    // Лімітуємо кількість записів для зменшення навантаження
     if (this.entries.length >= this.maxEntries) {
       this.entries.shift();
     }
@@ -134,7 +155,7 @@ export class PerformanceMonitor {
       fps: this.currentFPS,
       tps: this.currentTPS,
       frameTime,
-      simulationTime: 0, // Будет обновлено из Engine
+      simulationTime: 0, // Буде оновлено з Engine
       entityCount,
       drawCalls,
       memoryUsage: this.getCurrentMemoryInfo()
@@ -144,7 +165,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Регистрация тика симуляции (оптимизированная)
+   * Реєстрація тика симуляції (оптимізована)
    */
   public registerTick(simulationTime: number): void {
     if (!this.isMonitoringEnabled) {
@@ -173,7 +194,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Начало измерения производительности подсистемы (оптимизированное)
+   * Початок вимірювання продуктивності підсистеми (оптимізоване)
    */
   public startSubsystemTimer(name: string): () => void {
     if (!this.isMonitoringEnabled) {
@@ -208,7 +229,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Сбор метрик памяти (оптимизированный)
+   * Збір метрик пам'яті (оптимізований)
    */
   private collectMemoryMetrics(): void {
     if (this.isCollectingMemory) { return; }
@@ -224,14 +245,14 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение текущей информации о памяти
+   * Отримання поточної інформації про пам'ять
    */
   private getCurrentMemoryInfo(): MemoryInfo | undefined {
     return PerformanceHelpers.memory.getCurrentMemoryInfo();
   }
 
   /**
-   * Получение истории FPS (оптимизированное)
+   * Отримання історії FPS (оптимізоване)
    */
   public getFPSHistory(): number[] {
     const result: number[] = [];
@@ -246,7 +267,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение истории памяти (оптимизированное)
+   * Отримання історії пам'яті (оптимізоване)
    */
   public getMemoryHistory(): MemoryInfo[] {
     const result: MemoryInfo[] = [];
@@ -259,14 +280,14 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Включение/выключение мониторинга для минимизации влияния
+   * Ввімкнення/вимкнення моніторингу для мінімізації впливу
    */
   public setMonitoringEnabled(enabled: boolean): void {
     this.isMonitoringEnabled = enabled;
   }
 
   /**
-   * Проверка включен ли мониторинг
+   * Перевірка чи ввімкнено моніторинг
    */
   public isMonitoringActive(): boolean {
     return this.isMonitoringEnabled;
@@ -358,10 +379,10 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение текущих метрик производительности (быстрое)
+   * Отримання поточних метрик продуктивності (швидке)
    */
   public getCurrentMetrics(): PerformanceMetrics {
-    // Автоматическая настройка при каждом запросе
+    // Автоматичне налаштування при кожному запиті
     this.autoAdjustMonitoring();
 
     const lastEntry = this.entries[this.entries.length - 1];
@@ -377,7 +398,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение истории метрик
+   * Отримання історії метрик
    */
   public getPerformanceHistory(): PerformanceMetrics[] {
     return this.entries.map(entry => ({
@@ -391,7 +412,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение метрик подсистем
+   * Отримання метрик підсистем
    */
   public getSubsystemMetrics(): SubsystemMetrics[] {
     return Array.from(this.subsystemMetrics.values())
@@ -399,9 +420,9 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение статистики по памяти (оптимизированное)
+   * Отримання статистики пам'яті (оптимізоване)
    */
-  public getMemoryStats(): MemoryInfo & { trend: 'increasing' | 'decreasing' | 'stable' } {
+  public getMemoryStats(): MemoryInfo & { trend: MemoryTrend } {
     const current = this.getCurrentMemoryInfo();
     if (!current) {
       return {
@@ -412,9 +433,9 @@ export class PerformanceMonitor {
       };
     }
 
-    // Анализ тренда на основе кольцевого буфера
-    const recent = this.getMemoryHistory().slice(-10);
-    let trend: 'increasing' | 'decreasing' | 'stable' = 'stable';
+    // Аналіз тренду на основі кільцевого буфера
+    const recent = this.getMemoryHistory().slice(-PERFORMANCE_CONSTANTS.RECENT_ENTRIES_WINDOW);
+    let trend: MemoryTrend = 'stable';
 
     if (recent.length >= PERFORMANCE_CONSTANTS.MIN_TREND_SAMPLES) {
       const first = recent[0]?.usedJSHeapSize;
@@ -432,7 +453,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Получение средней производительности за период
+   * Отримання середньої продуктивності за період
    */
   public getAveragePerformance(windowMs: number = PERFORMANCE_CONSTANTS.AVG_PERFORMANCE_WINDOW): PerformanceMetrics {
     const cutoffTime = PerformanceHelpers.time.now() - windowMs;
@@ -463,14 +484,21 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Поиск проблем производительности
+   * Пошук проблем продуктивності
    */
   public detectPerformanceIssues(): PerformanceIssue[] {
     const issues: PerformanceIssue[] = [];
     const current = this.getCurrentMetrics();
-    // const avg = this.getAveragePerformance(10000); // За последние 10 секунд (unused)
 
-    // Низький FPS
+    this.detectFpsIssues(issues, current);
+    this.detectFrameTimeIssues(issues, current);
+    this.detectMemoryIssues(issues);
+    this.detectSlowSubsystems(issues);
+
+    return issues;
+  }
+
+  private detectFpsIssues(issues: PerformanceIssue[], current: PerformanceMetrics): void {
     if (current.fps < PERFORMANCE_CONSTANTS.FPS_MEDIUM) {
       issues.push({
         type: 'low_fps',
@@ -483,56 +511,59 @@ export class PerformanceMonitor {
         ]
       });
     }
+  }
 
-    // Високий час кадру
+  private detectFrameTimeIssues(issues: PerformanceIssue[], current: PerformanceMetrics): void {
     if (current.frameTime > PERFORMANCE_CONSTANTS.FRAME_TIME_WARNING) {
       issues.push({
         type: 'high_frame_time',
         severity: current.frameTime > PERFORMANCE_CONSTANTS.FRAME_TIME_CRITICAL ? 'critical' : 'warning',
         message: `Високий час кадру: ${current.frameTime.toFixed(1)}ms`,
         suggestions: [
-          'Оптимизируйте логику рендеринга',
-          'Уменьшите сложность шейдеров',
-          'Проверьте количество draw calls'
+          'Оптимізуйте логіку рендерингу',
+          'Зменшіть складність шейдерів',
+          'Перевірте кількість draw calls'
         ]
       });
     }
+  }
 
-    // Витік пам'яті
-    const memoryStats = this.getMemoryStats();
-    if (memoryStats.trend === 'increasing' && memoryStats.usedJSHeapSize > memoryStats.jsHeapSizeLimit * PERFORMANCE_CONSTANTS.MEMORY_LEAK_THRESHOLD) {
+  private detectMemoryIssues(issues: PerformanceIssue[]): void {
+    const memory = this.getMemoryStats();
+    if (memory.trend === 'increasing') {
       issues.push({
         type: 'memory_leak',
-        severity: 'critical',
-        message: 'Обнаружена возможная утечка памяти',
+        severity: 'warning',
+        message: 'Виявлено тенденцію до зростання використання пам\'яті',
         suggestions: [
-          'Перезапустите приложение',
-          'Проверьте подписки на события',
-          'Освободите неиспользуемые ресурсы'
+          'Перевірте наявність витоків пам\'яті',
+          'Очистіть невикористовувані ресурси',
+          'Зменшіть частоту створення об\'єктів'
         ]
       });
     }
+  }
 
-    // Повільна підсистема
-    const slowSubsystems = this.getSubsystemMetrics().filter(s => s.averageTime > PERFORMANCE_CONSTANTS.SUBSYSTEM_SLOW_THRESHOLD);
-    if (slowSubsystems.length > 0) {
+  private detectSlowSubsystems(issues: PerformanceIssue[]): void {
+    const subsystems = this.getSubsystemMetrics();
+    const slowOnes = subsystems.filter(s => s.averageTime > PERFORMANCE_CONSTANTS.SUBSYSTEM_SLOW_THRESHOLD);
+
+    if (slowOnes.length > 0) {
       issues.push({
         type: 'slow_subsystem',
         severity: 'warning',
-        message: `Медленные подсистемы: ${slowSubsystems.map(s => s.name).join(', ')}`,
+        message: `Повільні підсистеми: ${slowOnes.map(s => s.name).join(', ')}`,
         suggestions: [
-          'Оптимизируйте алгоритмы',
-          'Добавьте кэширование',
-          'Используйте Web Workers'
+          'Оптимізуйте логіку зазначених підсистем',
+          'Розгляньте можливість паралелізації обчислень',
+          'Перевірте складність алгоритмів'
         ]
       });
     }
-
-    return issues;
   }
 
   /**
-   * Экспорт статистики для анализа
+   * Експорт статистики для аналізу
    */
   public exportStatistics(): PerformanceReport {
     return {
@@ -549,7 +580,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Сброс статистики (оптимизированный)
+   * Скидання статистики (оптимізоване)
    */
   public reset(): void {
     // Очищення таймерів
@@ -567,23 +598,6 @@ export class PerformanceMonitor {
     this.frameCount = 0;
     this.tickCount = 0;
   }
+
 }
 
-interface PerformanceIssue {
-  type: 'low_fps' | 'high_frame_time' | 'memory_leak' | 'slow_subsystem';
-  severity: 'info' | 'warning' | 'critical';
-  message: string;
-  suggestions: string[];
-}
-
-interface PerformanceReport {
-  timestamp: number;
-  current: PerformanceMetrics;
-  average: PerformanceMetrics;
-  history: PerformanceMetrics[];
-  subsystemMetrics: SubsystemMetrics[];
-  memoryStats: MemoryInfo & { trend: 'increasing' | 'decreasing' | 'stable' };
-  issues: PerformanceIssue[];
-  fpsHistory: number[];
-  memoryHistory: MemoryInfo[];
-}
