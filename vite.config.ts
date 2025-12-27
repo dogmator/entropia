@@ -1,30 +1,56 @@
+import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
-import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   return {
-    root: 'ui',
-    publicDir: '../public',
+    root: 'src/ui',
+    publicDir: '../../public',
     envDir: '..',
     base: '/entropia/',
     server: {
       port: 3000,
       host: '0.0.0.0',
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+      },
+      watch: {
+        usePolling: true,
+      },
+      hmr: {
+        clientPort: 3000,
+      },
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: 'configure-response-headers',
+        configureServer: (server) => {
+          server.middlewares.use((_req, res, next) => {
+            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+            next();
+          });
+        },
+      }
+    ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
     },
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(__dirname, './src'),
+        '@shared': path.resolve(__dirname, './src/shared'),
+        '@core': path.resolve(__dirname, './src/core'),
+        '@simulation': path.resolve(__dirname, './src/simulation'),
+        '@ui': path.resolve(__dirname, './src/ui'),
       }
     },
     build: {
-      outDir: '../dist',
+      outDir: '../../dist',
       emptyOutDir: true,
       target: 'es2015',
       minify: 'terser',
