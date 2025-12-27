@@ -536,6 +536,55 @@ export const ENGINE_CONSTANTS = {
 } as const;
 
 // ============================================================================
+// PERFORMANCE MONITORING CONSTANTS
+// ============================================================================
+
+/**
+ * Константи для моніторингу продуктивності та налаштування порогових значень.
+ */
+export const PERFORMANCE_CONSTANTS = {
+  // Буфери та розміри історії
+  MAX_ENTRIES: 300,
+  RING_BUFFER_SIZE: 60,
+  RECENT_ENTRIES_WINDOW: 10,
+
+  // Інтервали оновлення (мс)
+  FPS_UPDATE_INTERVAL: 500,
+  MEMORY_COLLECTION_INTERVAL: 5000,
+  CLEANUP_INTERVAL: 30000,
+  UPDATE_THRESHOLD: 1000,
+  SLOW_MEMORY_INTERVAL: 10000,
+  RECOVERY_TIMEOUT: 30000,
+  QUICK_RECOVERY_TIMEOUT: 5000,
+  AVG_PERFORMANCE_WINDOW: 60000,
+  SHORT_AVG_WINDOW: 10000,
+
+  // FPS пороги
+  DEFAULT_FPS: 60,
+  DEFAULT_TPS: 60,
+  FPS_CRITICAL_LOW: 10,
+  FPS_LOW: 15,
+  FPS_MEDIUM: 30,
+  FPS_GOOD: 50,
+
+  // Часові пороги (мс)
+  FRAME_TIME_WARNING: 20,
+  FRAME_TIME_CRITICAL: 33,
+  SUBSYSTEM_SLOW_THRESHOLD: 5,
+  MIN_EXECUTION_TIME: 0.1,
+
+  // Пороги пам'яті
+  MEMORY_LEAK_THRESHOLD: 0.8,
+  MEMORY_TREND_THRESHOLD: 0.05,
+  MEMORY_TREND_NEG_THRESHOLD: -0.05,
+  MIN_TREND_SAMPLES: 3,
+
+  // Розрахунки FPS
+  FPS_MIN: 0,
+  FPS_MAX: 999,
+} as const;
+
+// ============================================================================
 // OBJECT POOL CONSTANTS
 // ============================================================================
 
