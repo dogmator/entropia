@@ -1,26 +1,90 @@
 {
   "compilerOptions": {
+    /* Мова та середовище виконання */
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
-    "module": "ESNext",
     "lib": [
       "ES2022",
       "DOM",
-      "DOM.Iterable"
+      "DOM.Iterable",
+      "WebWorker"
     ],
-    "skipLibCheck": true,
+    "module": "ESNext",
     "moduleResolution": "bundler",
-    "isolatedModules": true,
     "moduleDetection": "force",
-    "allowJs": true,
+    /* Строгість типізації (КРИТИЧНО) */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
+    /* Додаткові перевірки */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "exactOptionalPropertyTypes": false,
+    /* JSX та React */
     "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    /* Імпорти та модулі */
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    /* Шляхи (Path Aliases) */
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
+      ],
+      "@core/*": [
+        "./src/core/*"
+      ],
+      "@simulation/*": [
+        "./src/simulation/*"
+      ],
+      "@ui/*": [
+        "./src/ui/*"
+      ],
+      "@shared/types": [
+        "./src/types.ts"
+      ],
+      "@shared/config": [
+        "./src/constants.ts"
+      ],
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@renderer/*": [
+        "./src/renderer/*"
       ]
     },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    /* Вивід */
+    "noEmit": true,
+    "skipLibCheck": true,
+    /* Експериментальні можливості */
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
 }
