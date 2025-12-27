@@ -192,16 +192,22 @@ export class BufferManager {
             return new Float32Array(newCapacity);
         }
 
-        // Скорочення: лише для звичайних масивів (SAB не скорочуємо для стабільності)
-        if (!this._useSharedArrayBuffer) {
-            const shrinkThreshold = currentCapacity * BUFFER_CONSTANTS.SHRINK_THRESHOLD;
-            if (requiredSize < shrinkThreshold && currentCapacity > BUFFER_CONSTANTS.MIN_CAPACITY) {
-                const newCapacity = Math.max(
-                    Math.ceil(requiredSize * BUFFER_CONSTANTS.SHRINK_FACTOR),
-                    BUFFER_CONSTANTS.MIN_CAPACITY
-                );
-                return new Float32Array(newCapacity);
+        // Скорочення: адаптивне зменшення ємності при значному спаді популяції
+        const shrinkThreshold = currentCapacity * BUFFER_CONSTANTS.SHRINK_THRESHOLD;
+
+        if (requiredSize < shrinkThreshold && currentCapacity > BUFFER_CONSTANTS.MIN_CAPACITY) {
+            const newCapacity = Math.max(
+                Math.ceil(requiredSize * BUFFER_CONSTANTS.SHRINK_FACTOR),
+                BUFFER_CONSTANTS.MIN_CAPACITY
+            );
+
+            if (this._useSharedArrayBuffer && typeof SharedArrayBuffer !== 'undefined') {
+                const byteSize = newCapacity * Float32Array.BYTES_PER_ELEMENT;
+                this._sharedBuffer = new SharedArrayBuffer(byteSize);
+                return new Float32Array(this._sharedBuffer);
             }
+
+            return new Float32Array(newCapacity);
         }
 
         return buffer;
