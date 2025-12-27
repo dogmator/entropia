@@ -323,6 +323,17 @@ export class SimulationEngine {
     this.rng.reset(this.seed);
   }
 
+  /**
+   * Конвертує Vector3 об'єкт для серіалізації.
+   */
+  public mapVector3(vector: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
+    return {
+      x: vector.x,
+      y: vector.y,
+      z: vector.z
+    };
+  }
+
   public exportState(): SerializedSimulationStateV1 {
     return PersistenceService.exportState(this);
   }
