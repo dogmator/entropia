@@ -75,17 +75,17 @@ export class ParticleSystem {
 
 
     // Ініціалізація типізованих масивів для буферів
-    this.positions = new Float32Array(maxParticles * 3);
+    this.positions = new Float32Array(maxParticles * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
     this.sizes = new Float32Array(maxParticles);
     this.opacities = new Float32Array(maxParticles);
-    this.colors = new Float32Array(maxParticles * 3);
+    this.colors = new Float32Array(maxParticles * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     // Конструювання об'єкта буферної геометрії
     this.geometry = new THREE.BufferGeometry();
-    const posAttr = new THREE.BufferAttribute(this.positions, 3);
-    const sizeAttr = new THREE.BufferAttribute(this.sizes, 1);
-    const opacityAttr = new THREE.BufferAttribute(this.opacities, 1);
-    const colorAttr = new THREE.BufferAttribute(this.colors, 3);
+    const posAttr = new THREE.BufferAttribute(this.positions, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
+    const sizeAttr = new THREE.BufferAttribute(this.sizes, PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE);
+    const opacityAttr = new THREE.BufferAttribute(this.opacities, PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE);
+    const colorAttr = new THREE.BufferAttribute(this.colors, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     // Встановлення прапорця динамічного використання для оптимізації драйвером
     posAttr.usage = THREE.DynamicDrawUsage;
@@ -117,8 +117,8 @@ export class ParticleSystem {
       this.particles.push({
         x: 0, y: 0, z: 0,
         vx: 0, vy: 0, vz: 0,
-        life: 0, maxLife: 1,
-        size: 1, color: 0xffffff, opacity: 1,
+        life: 0, maxLife: PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE,
+        size: PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE, color: PARTICLE_CONSTANTS.WHITE_COLOR, opacity: PARTICLE_CONSTANTS.DEFAULT_OPACITY,
         active: false,
       });
     }
@@ -178,7 +178,7 @@ export class ParticleSystem {
       p.maxLife = PARTICLE_CONSTANTS.BIRTH_LIFE;
       p.size = PARTICLE_CONSTANTS.BIRTH_SIZE;
       p.color = color;
-      p.opacity = 1;
+      p.opacity = PARTICLE_CONSTANTS.DEFAULT_OPACITY;
       p.active = true;
     }
 
@@ -186,7 +186,7 @@ export class ParticleSystem {
     for (let i = 0; i < PARTICLE_CONSTANTS.BIRTH_COUNT_FLASH; i++) {
       this.emitParticle(
         position,
-        0xffffff,
+        PARTICLE_CONSTANTS.WHITE_COLOR,
         PARTICLE_CONSTANTS.BIRTH_FLASH_SPEED,
         PARTICLE_CONSTANTS.BIRTH_FLASH_SIZE,
         PARTICLE_CONSTANTS.BIRTH_FLASH_LIFE,
@@ -275,10 +275,10 @@ export class ParticleSystem {
       p.opacity = lifeRatio;
 
       // Серіалізація даних у буфери атрибутів
-      const i3 = writeIndex * 3;
+      const i3 = writeIndex * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
       this.positions[i3] = p.x;
-      this.positions[i3 + 1] = p.y;
-      this.positions[i3 + 2] = p.z;
+      this.positions[i3 + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = p.y;
+      this.positions[i3 + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = p.z;
 
       this.sizes[writeIndex] = p.size * (PARTICLE_CONSTANTS.SIZE_SCALE_MIN + lifeRatio * PARTICLE_CONSTANTS.SIZE_SCALE_FACTOR);
       this.opacities[writeIndex] = p.opacity;
@@ -288,8 +288,8 @@ export class ParticleSystem {
       const g = ((p.color >> PARTICLE_CONSTANTS.COLOR_SHIFT_G) & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
       const b = (p.color & PARTICLE_CONSTANTS.COLOR_MASK) / PARTICLE_CONSTANTS.COLOR_DIVISOR;
       this.colors[i3] = r;
-      this.colors[i3 + 1] = g;
-      this.colors[i3 + 2] = b;
+      this.colors[i3 + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = g;
+      this.colors[i3 + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = b;
 
       this.markDirty(writeIndex);
       writeIndex++;
@@ -399,7 +399,7 @@ export class ParticleSystem {
     p.maxLife = life;
     p.size = size;
     p.color = color;
-    p.opacity = 1;
+    p.opacity = PARTICLE_CONSTANTS.DEFAULT_OPACITY;
     p.active = true;
   }
 
@@ -538,12 +538,12 @@ export class TrailSystem {
    */
   private createTrail(organismId: string, color: number): Trail {
     // Алокація буферів максимальної ємності на етапі ініціалізації
-    const positionBuffer = new Float32Array(this.maxTrailLength * 3);
-    const colorBuffer = new Float32Array(this.maxTrailLength * 3);
+    const positionBuffer = new Float32Array(this.maxTrailLength * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
+    const colorBuffer = new Float32Array(this.maxTrailLength * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     const geometry = new THREE.BufferGeometry();
-    const posAttr = new THREE.BufferAttribute(positionBuffer, 3);
-    const colorAttr = new THREE.BufferAttribute(colorBuffer, 3);
+    const posAttr = new THREE.BufferAttribute(positionBuffer, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
+    const colorAttr = new THREE.BufferAttribute(colorBuffer, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     // Специфікація динамічного використання для підвищення частоти оновлення
     posAttr.usage = THREE.DynamicDrawUsage;
@@ -582,7 +582,7 @@ export class TrailSystem {
    * Оновлення вмісту атрибутів буферів (Zero GC - відсутність нових алокацій!).
    */
   private updateTrailBuffers(trail: Trail): void {
-    if (trail.positions.length < 2) { return; }
+    if (trail.positions.length < PARTICLE_CONSTANTS.VECTOR2_OFFSET) { return; }
 
     const count = trail.positions.length;
 
@@ -593,21 +593,21 @@ export class TrailSystem {
 
       if (pos === undefined || alpha === undefined) { continue; }
 
-      trail.positionBuffer[i * 3] = pos.x;
-      trail.positionBuffer[i * 3 + 1] = pos.y;
-      trail.positionBuffer[i * 3 + 2] = pos.z;
+      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS] = pos.x;
+      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = pos.y;
+      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = pos.z;
 
-      trail.colorBuffer[i * 3] = trail.color.r * alpha;
-      trail.colorBuffer[i * 3 + 1] = trail.color.g * alpha;
-      trail.colorBuffer[i * 3 + 2] = trail.color.b * alpha;
+      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS] = trail.color.r * alpha;
+      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.DEFAULT_MAX_LIFE] = trail.color.g * alpha;
+      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.VECTOR2_OFFSET] = trail.color.b * alpha;
     }
 
     const posAttr = trail.geometry.attributes['position'] as THREE.BufferAttribute;
     const colorAttr = trail.geometry.attributes['color'] as THREE.BufferAttribute;
 
     // Повідомлення GPU про необхідність оновлення лише задіяного фрагмента пам'яті
-    posAttr.addUpdateRange(0, count * 3);
-    colorAttr.addUpdateRange(0, count * 3);
+    posAttr.addUpdateRange(0, count * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
+    colorAttr.addUpdateRange(0, count * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     posAttr.needsUpdate = true;
     colorAttr.needsUpdate = true;
