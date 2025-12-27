@@ -684,6 +684,40 @@ export const PARTICLE_CONSTANTS = {
 } as const;
 
 // ============================================================================
+// COSMIC BACKGROUND CONSTANTS
+// ============================================================================
+
+/**
+ * Константи для космічного фону (зоряне поле та туманності).
+ */
+export const COSMIC_BACKGROUND_CONSTANTS = {
+  // Star field parameters
+  STAR_COUNT: 3000,
+  STAR_RADIUS: 2000,
+  STAR_RADIUS_MIN_FACTOR: 0.8,
+  STAR_RADIUS_VARIATION: 0.4,
+  STAR_SIZE_POWER: 3,
+  STAR_SIZE_MULTIPLIER: 3,
+  STAR_SIZE_BASE: 0.5,
+  STAR_BRIGHTNESS_BASE: 0.5,
+  STAR_BRIGHTNESS_VARIATION: 0.5,
+  STAR_TWINKLE_BASE: 1,
+  STAR_TWINKLE_VARIATION: 3,
+
+  // Nebula parameters
+  NEBULA_RADIUS: 1800,
+  NEBULA_SEGMENTS: 64,
+  NEBULA_ROTATION_Y: 0.01,
+  NEBULA_ROTATION_X: 0.005,
+
+  // 3D vector constants (reusing from PARTICLE_CONSTANTS)
+  VECTOR3_COMPONENTS: 3,
+  VECTOR2_MULTIPLIER: 2,
+  SINGLE_COMPONENT: 1,
+  TWO_PI: Math.PI * 2,
+} as const;
+
+// ============================================================================
 // ENTITY CONSTANTS
 // ============================================================================
 
