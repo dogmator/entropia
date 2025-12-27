@@ -1,0 +1,897 @@
+
+> entropia-biological-evolution-sandbox@2.5.0 lint /home/pavel/repo/entropia
+> eslint .
+
+
+/home/pavel/repo/entropia/src/core/ObjectPool.ts
+  41:3  error  Constructor has too many parameters (4). Maximum allowed is 3  max-params
+
+/home/pavel/repo/entropia/src/core/services/Logger.ts
+   26:33  error  No magic number: 60                                                         @typescript-eslint/no-magic-numbers
+   26:38  error  No magic number: 1000                                                       @typescript-eslint/no-magic-numbers
+   69:3   error  Method 'addLog' has too many parameters (4). Maximum allowed is 3           max-params
+   81:3   error  Method 'isDuplicateLog' has too many parameters (4). Maximum allowed is 3   max-params
+  101:3   error  Method 'createLogEntry' has too many parameters (4). Maximum allowed is 3   max-params
+  123:3   error  Method 'outputToConsole' has too many parameters (4). Maximum allowed is 3  max-params
+  205:72  error  No magic number: 2                                                          @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/core/services/PerformanceMonitor.ts
+   38:32   error  No magic number: 300                                                             @typescript-eslint/no-magic-numbers
+   41:32   error  No magic number: 60                                                              @typescript-eslint/no-magic-numbers
+   43:32   error  No magic number: 60                                                              @typescript-eslint/no-magic-numbers
+   51:47   error  No magic number: 60                                                              @typescript-eslint/no-magic-numbers
+   51:56   error  No magic number: 60                                                              @typescript-eslint/no-magic-numbers
+   53:63   error  No magic number: 60                                                              @typescript-eslint/no-magic-numbers
+   60:46   error  No magic number: 5000                                                            @typescript-eslint/no-magic-numbers
+   63:37   error  No magic number: 30000                                                           @typescript-eslint/no-magic-numbers
+   80:8    error  No magic number: 500                                                             @typescript-eslint/no-magic-numbers
+   97:18   error  No magic number: 1000                                                            @typescript-eslint/no-magic-numbers
+   98:55   error  No magic number: 1000                                                            @typescript-eslint/no-magic-numbers
+  157:18   error  No magic number: 1000                                                            @typescript-eslint/no-magic-numbers
+  158:54   error  No magic number: 1000                                                            @typescript-eslint/no-magic-numbers
+  189:27   error  No magic number: 0.1                                                             @typescript-eslint/no-magic-numbers
+  285:15   error  No magic number: 10                                                              @typescript-eslint/no-magic-numbers
+  299:10   error  No magic number: 30000                                                           @typescript-eslint/no-magic-numbers
+  300:22   error  No magic number: 15                                                              @typescript-eslint/no-magic-numbers
+  307:10   error  No magic number: 5000                                                            @typescript-eslint/no-magic-numbers
+  308:22   error  No magic number: 30                                                              @typescript-eslint/no-magic-numbers
+  316:22   error  No magic number: 50                                                              @typescript-eslint/no-magic-numbers
+  332:36   error  No magic number: 1000                                                            @typescript-eslint/no-magic-numbers
+  346:46   error  No magic number: -10                                                             @typescript-eslint/no-magic-numbers
+  354:17   error  No magic number: 1000                                                            @typescript-eslint/no-magic-numbers
+  356:39   error  No magic number: 999                                                             @typescript-eslint/no-magic-numbers
+  403:50   error  Replace this union type with a type alias                                        sonarjs/use-type-alias
+  415:50   error  No magic number: -10                                                             @typescript-eslint/no-magic-numbers
+  418:26   error  No magic number: 3                                                               @typescript-eslint/no-magic-numbers
+  425:22   error  No magic number: 0.05                                                            @typescript-eslint/no-magic-numbers
+  426:27   error  No magic number: -0.05                                                           @typescript-eslint/no-magic-numbers
+  436:51   error  No magic number: 60000                                                           @typescript-eslint/no-magic-numbers
+  467:3    error  Method 'detectPerformanceIssues' has too many lines (55). Maximum allowed is 50  max-lines-per-function
+  470:5    error  Remove this commented out code                                                   sonarjs/no-commented-code
+  473:23   error  No magic number: 30                                                              @typescript-eslint/no-magic-numbers
+  476:33   error  No magic number: 15                                                              @typescript-eslint/no-magic-numbers
+  487:29   error  No magic number: 20                                                              @typescript-eslint/no-magic-numbers
+  490:39   error  No magic number: 33                                                              @typescript-eslint/no-magic-numbers
+  502:106  error  No magic number: 0.8                                                             @typescript-eslint/no-magic-numbers
+  516:83   error  No magic number: 5                                                               @typescript-eslint/no-magic-numbers
+  562:29   error  No magic number: 60                                                              @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/core/utils/PerformanceUtils.ts
+   35:62  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+   44:44  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  124:71  error  No magic number: 100  @typescript-eslint/no-magic-numbers
+  169:44  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  175:28  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  176:30  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  186:65  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  199:54  error  No magic number: 100  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/core/utils/Random.ts
+   8:3   error  Missing accessibility modifier on method definition getState          @typescript-eslint/explicit-member-accessibility
+  12:3   error  Missing accessibility modifier on method definition setState          @typescript-eslint/explicit-member-accessibility
+  16:3   error  Missing accessibility modifier on method definition fromMath          @typescript-eslint/explicit-member-accessibility
+  17:24  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  17:40  error  No magic number: 0xffffffff                                           @typescript-eslint/no-magic-numbers
+  20:3   error  Missing accessibility modifier on method definition reset             @typescript-eslint/explicit-member-accessibility
+  24:3   error  Missing accessibility modifier on method definition next              @typescript-eslint/explicit-member-accessibility
+  25:32  error  No magic number: 0x6d2b79f5                                           @typescript-eslint/no-magic-numbers
+  27:30  error  No magic number: 15                                                   @typescript-eslint/no-magic-numbers
+  28:35  error  No magic number: 7                                                    @typescript-eslint/no-magic-numbers
+  28:43  error  No magic number: 61                                                   @typescript-eslint/no-magic-numbers
+  29:25  error  No magic number: 14                                                   @typescript-eslint/no-magic-numbers
+  29:39  error  No magic number: 4294967296                                           @typescript-eslint/no-magic-numbers
+  32:3   error  Missing accessibility modifier on method definition float             @typescript-eslint/explicit-member-accessibility
+  36:3   error  Missing accessibility modifier on method definition int               @typescript-eslint/explicit-member-accessibility
+  44:3   error  Missing accessibility modifier on method definition bool              @typescript-eslint/explicit-member-accessibility
+  44:30  error  No magic number: 0.5                                                  @typescript-eslint/no-magic-numbers
+  48:3   error  Missing accessibility modifier on method definition pick              @typescript-eslint/explicit-member-accessibility
+
+/home/pavel/repo/entropia/src/core/utils/__tests__/PerformanceMonitor.test.ts
+   12:32  error  Arrow function has too many lines (171). Maximum allowed is 50  max-lines-per-function
+   18:59  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+   33:32  error  No magic number: 60                                             @typescript-eslint/no-magic-numbers
+   34:41  error  No magic number: 16.67                                          @typescript-eslint/no-magic-numbers
+   44:42  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+   51:52  error  No magic number: 9                                              @typescript-eslint/no-magic-numbers
+   52:49  error  No magic number: 15                                             @typescript-eslint/no-magic-numbers
+   57:27  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+   64:49  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+   75:27  error  No magic number: 12                                             @typescript-eslint/no-magic-numbers
+   78:44  error  No magic number: 35                                             @typescript-eslint/no-magic-numbers
+   89:27  error  No magic number: 20                                             @typescript-eslint/no-magic-numbers
+   99:27  error  No magic number: 12                                             @typescript-eslint/no-magic-numbers
+  102:44  error  No magic number: 35                                             @typescript-eslint/no-magic-numbers
+  111:27  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+  131:17  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  139:48  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  146:27  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+  146:30  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  146:34  error  No magic number: 20                                             @typescript-eslint/no-magic-numbers
+  146:38  error  No magic number: 8                                              @typescript-eslint/no-magic-numbers
+  146:41  error  No magic number: 15                                             @typescript-eslint/no-magic-numbers
+  159:48  error  No magic number: 20                                             @typescript-eslint/no-magic-numbers
+  160:48  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+  168:27  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  168:31  error  No magic number: 25                                             @typescript-eslint/no-magic-numbers
+  168:35  error  No magic number: 30                                             @typescript-eslint/no-magic-numbers
+  168:39  error  No magic number: 15                                             @typescript-eslint/no-magic-numbers
+  168:43  error  No magic number: 20                                             @typescript-eslint/no-magic-numbers
+  181:60  error  No magic number: 2                                              @typescript-eslint/no-magic-numbers
+  195:27  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:31  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:35  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:39  error  No magic number: 50                                             @typescript-eslint/no-magic-numbers
+  195:43  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:47  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:51  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:55  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:59  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  195:63  error  No magic number: 50                                             @typescript-eslint/no-magic-numbers
+  199:39  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  203:27  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  218:17  error  No magic number: 16                                             @typescript-eslint/no-magic-numbers
+  222:27  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  241:27  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+  249:32  error  No magic number: 60                                             @typescript-eslint/no-magic-numbers
+  250:41  error  No magic number: 16.67                                          @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/Engine.ts
+  131:18  error  Make sure that using this pseudorandom number generator is safe here                  sonarjs/pseudo-random
+  131:34  error  No magic number: 0xffffffff                                                           @typescript-eslint/no-magic-numbers
+  217:25  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  217:36  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  217:47  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  218:20  error  No magic number: 0.15                                                                 @typescript-eslint/no-magic-numbers
+  232:22  error  No magic number: 0.2                                                                  @typescript-eslint/no-magic-numbers
+  241:25  error  No magic number: 0.75                                                                 @typescript-eslint/no-magic-numbers
+  241:39  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  241:50  error  No magic number: 0.25                                                                 @typescript-eslint/no-magic-numbers
+  242:20  error  No magic number: 0.12                                                                 @typescript-eslint/no-magic-numbers
+  250:25  error  No magic number: 0.25                                                                 @typescript-eslint/no-magic-numbers
+  250:39  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  250:50  error  No magic number: 0.75                                                                 @typescript-eslint/no-magic-numbers
+  251:20  error  No magic number: 0.1                                                                  @typescript-eslint/no-magic-numbers
+  263:22  error  No magic number: 12                                                                   @typescript-eslint/no-magic-numbers
+  263:45  error  No magic number: 25                                                                   @typescript-eslint/no-magic-numbers
+  416:24  error  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  621:20  error  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  625:20  error  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  626:20  error  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  627:20  error  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  630:42  error  Unexpected any. Specify a different type                                              @typescript-eslint/no-explicit-any
+  656:46  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  657:46  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  658:46  error  No magic number: 2                                                                    @typescript-eslint/no-magic-numbers
+  670:9   error  'sanctuary' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  693:38  error  No magic number: 3                                                                    @typescript-eslint/no-magic-numbers
+  700:61  error  No magic number: 100                                                                  @typescript-eslint/no-magic-numbers
+  839:35  error  No magic number: 0.8                                                                  @typescript-eslint/no-magic-numbers
+  842:39  error  No magic number: 0.1                                                                  @typescript-eslint/no-magic-numbers
+  852:21  error  No magic number: 0.9                                                                  @typescript-eslint/no-magic-numbers
+  852:43  error  No magic number: 0.5                                                                  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/EngineProxy.ts
+   55:45  error  No magic number: 60    @typescript-eslint/no-magic-numbers
+  114:39  error  No magic number: 1000  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/Entity.ts
+   88:3   error  Constructor has too many parameters (4). Maximum allowed is 3             max-params
+   94:25  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  102:3   error  Missing accessibility modifier on method definition create                @typescript-eslint/explicit-member-accessibility
+  102:3   error  Static method 'create' has too many parameters (4). Maximum allowed is 3  max-params
+  131:3   error  Constructor has too many parameters (6). Maximum allowed is 3             max-params
+  148:3   error  Missing accessibility modifier on method definition create                @typescript-eslint/explicit-member-accessibility
+  148:3   error  Static method 'create' has too many parameters (6). Maximum allowed is 3  max-params
+  161:50  error  No magic number: 0x222222                                                 @typescript-eslint/no-magic-numbers
+  162:7   error  No magic number: 0.3                                                      @typescript-eslint/no-magic-numbers
+  162:22  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  163:16  error  No magic number: 0.7                                                      @typescript-eslint/no-magic-numbers
+  210:3   error  Constructor has too many parameters (5). Maximum allowed is 3             max-params
+  226:20  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  226:27  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  227:20  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  227:27  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  228:20  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  228:27  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  237:3   error  Missing accessibility modifier on get property accessor isPrey            @typescript-eslint/explicit-member-accessibility
+  242:3   error  Missing accessibility modifier on get property accessor isPredator        @typescript-eslint/explicit-member-accessibility
+  247:3   error  Missing accessibility modifier on get property accessor normalizedEnergy  @typescript-eslint/explicit-member-accessibility
+  252:3   error  Missing accessibility modifier on get property accessor speed             @typescript-eslint/explicit-member-accessibility
+  261:3   error  Missing accessibility modifier on method definition addEnergy             @typescript-eslint/explicit-member-accessibility
+  266:3   error  Missing accessibility modifier on method definition consumeEnergy         @typescript-eslint/explicit-member-accessibility
+  274:3   error  Missing accessibility modifier on method definition die                   @typescript-eslint/explicit-member-accessibility
+  283:3   error  Missing accessibility modifier on method definition updateState           @typescript-eslint/explicit-member-accessibility
+  290:3   error  Missing accessibility modifier on method definition toRenderData          @typescript-eslint/explicit-member-accessibility
+  324:3   error  Missing accessibility modifier on method definition getIdCounter          @typescript-eslint/explicit-member-accessibility
+  328:3   error  Missing accessibility modifier on method definition setIdCounter          @typescript-eslint/explicit-member-accessibility
+  335:3   error  Method 'mutateTrait' has too many parameters (4). Maximum allowed is 3    max-params
+  337:29  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  352:83  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  353:83  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  359:3   error  Missing accessibility modifier on method definition createPreyGenome      @typescript-eslint/explicit-member-accessibility
+  368:54  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  368:61  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  369:60  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  369:67  error  No magic number: 20                                                       @typescript-eslint/no-magic-numbers
+  370:58  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  370:65  error  No magic number: 0.2                                                      @typescript-eslint/no-magic-numbers
+  371:46  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  372:38  error  No magic number: 0.3                                                      @typescript-eslint/no-magic-numbers
+  373:38  error  No magic number: 0.2                                                      @typescript-eslint/no-magic-numbers
+  374:24  error  No magic number: 0.3                                                      @typescript-eslint/no-magic-numbers
+  374:48  error  No magic number: 0.3                                                      @typescript-eslint/no-magic-numbers
+  375:70  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  375:77  error  No magic number: 0.2                                                      @typescript-eslint/no-magic-numbers
+  391:3   error  Missing accessibility modifier on method definition createPredatorGenome  @typescript-eslint/explicit-member-accessibility
+  405:82  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  405:89  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  406:88  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  406:95  error  No magic number: 30                                                       @typescript-eslint/no-magic-numbers
+  407:58  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  407:65  error  No magic number: 0.2                                                      @typescript-eslint/no-magic-numbers
+  408:46  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  408:53  error  No magic number: 1.5                                                      @typescript-eslint/no-magic-numbers
+  409:38  error  No magic number: 0.4                                                      @typescript-eslint/no-magic-numbers
+  410:20  error  No magic number: 0.3                                                      @typescript-eslint/no-magic-numbers
+  410:44  error  No magic number: 0.4                                                      @typescript-eslint/no-magic-numbers
+  411:24  error  No magic number: 0.4                                                      @typescript-eslint/no-magic-numbers
+  411:48  error  No magic number: 0.4                                                      @typescript-eslint/no-magic-numbers
+  413:62  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  413:69  error  No magic number: 0.2                                                      @typescript-eslint/no-magic-numbers
+  418:48  error  No magic number: 0.9                                                      @typescript-eslint/no-magic-numbers
+  429:57  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  429:62  error  No magic number: 2.0                                                      @typescript-eslint/no-magic-numbers
+  435:3   error  Missing accessibility modifier on method definition createFromParent      @typescript-eslint/explicit-member-accessibility
+  444:3   error  Missing accessibility modifier on method definition reset                 @typescript-eslint/explicit-member-accessibility
+  469:3   error  Missing accessibility modifier on method definition getIdCounter          @typescript-eslint/explicit-member-accessibility
+  473:3   error  Missing accessibility modifier on method definition setIdCounter          @typescript-eslint/explicit-member-accessibility
+  477:3   error  Missing accessibility modifier on method definition getGenomeIdCounter    @typescript-eslint/explicit-member-accessibility
+  481:3   error  Missing accessibility modifier on method definition setGenomeIdCounter    @typescript-eslint/explicit-member-accessibility
+  486:3   error  Missing accessibility modifier on method definition createPrey            @typescript-eslint/explicit-member-accessibility
+  494:3   error  Missing accessibility modifier on method definition createPredator        @typescript-eslint/explicit-member-accessibility
+  506:3   error  Missing accessibility modifier on method definition createOffspring       @typescript-eslint/explicit-member-accessibility
+  510:36  error  No magic number: 2                                                        @typescript-eslint/no-magic-numbers
+  512:49  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  513:49  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  514:49  error  No magic number: 0.5                                                      @typescript-eslint/no-magic-numbers
+  527:3   error  Missing accessibility modifier on method definition reset                 @typescript-eslint/explicit-member-accessibility
+
+/home/pavel/repo/entropia/src/simulation/MathUtils.ts
+   28:3   error  Missing accessibility modifier on method definition wrap                @typescript-eslint/explicit-member-accessibility
+   35:3   error  Missing accessibility modifier on method definition wrapVector          @typescript-eslint/explicit-member-accessibility
+   44:3   error  Missing accessibility modifier on method definition toroidalDistanceSq  @typescript-eslint/explicit-member-accessibility
+   49:35  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+   61:3   error  Missing accessibility modifier on method definition toroidalDistance    @typescript-eslint/explicit-member-accessibility
+   68:3   error  Missing accessibility modifier on method definition toroidalVector      @typescript-eslint/explicit-member-accessibility
+   73:35  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+   94:3   error  Missing accessibility modifier on method definition normalize           @typescript-eslint/explicit-member-accessibility
+   96:17  error  No magic number: 0.000001                                               @typescript-eslint/no-magic-numbers
+  104:3   error  Missing accessibility modifier on method definition limit               @typescript-eslint/explicit-member-accessibility
+  116:3   error  Missing accessibility modifier on method definition magnitude           @typescript-eslint/explicit-member-accessibility
+  123:3   error  Missing accessibility modifier on method definition magnitudeSq         @typescript-eslint/explicit-member-accessibility
+  130:3   error  Missing accessibility modifier on method definition dot                 @typescript-eslint/explicit-member-accessibility
+  137:3   error  Missing accessibility modifier on method definition cross               @typescript-eslint/explicit-member-accessibility
+  148:3   error  Missing accessibility modifier on method definition add                 @typescript-eslint/explicit-member-accessibility
+  155:3   error  Missing accessibility modifier on method definition sub                 @typescript-eslint/explicit-member-accessibility
+  162:3   error  Missing accessibility modifier on method definition scale               @typescript-eslint/explicit-member-accessibility
+  173:3   error  Missing accessibility modifier on method definition lerp                @typescript-eslint/explicit-member-accessibility
+  180:3   error  Missing accessibility modifier on method definition lerpVector          @typescript-eslint/explicit-member-accessibility
+  191:3   error  Missing accessibility modifier on method definition smoothstep          @typescript-eslint/explicit-member-accessibility
+  193:21  error  No magic number: 3                                                      @typescript-eslint/no-magic-numbers
+  193:25  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+  203:3   error  Missing accessibility modifier on method definition clamp               @typescript-eslint/explicit-member-accessibility
+  210:3   error  Missing accessibility modifier on method definition map                 @typescript-eslint/explicit-member-accessibility
+  210:3   error  Static method 'map' has too many parameters (5). Maximum allowed is 3   max-params
+  217:3   error  Missing accessibility modifier on method definition random              @typescript-eslint/explicit-member-accessibility
+  218:18  error  Make sure that using this pseudorandom number generator is safe here    sonarjs/pseudo-random
+  224:3   error  Missing accessibility modifier on method definition randomInSphere      @typescript-eslint/explicit-member-accessibility
+  225:15  error  Make sure that using this pseudorandom number generator is safe here    sonarjs/pseudo-random
+  226:15  error  Make sure that using this pseudorandom number generator is safe here    sonarjs/pseudo-random
+  227:19  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+  228:27  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+  229:25  error  Make sure that using this pseudorandom number generator is safe here    sonarjs/pseudo-random
+  241:3   error  Missing accessibility modifier on method definition reflect             @typescript-eslint/explicit-member-accessibility
+  244:23  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+  245:23  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+  246:23  error  No magic number: 2                                                      @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/SpatialHashGrid.ts
+   97:3   error  Missing accessibility modifier on method definition clear                            @typescript-eslint/explicit-member-accessibility
+  109:3   error  Missing accessibility modifier on method definition insert                           @typescript-eslint/explicit-member-accessibility
+  133:3   error  Missing accessibility modifier on method definition getNearby                        @typescript-eslint/explicit-member-accessibility
+  133:3   error  Refactor this function to reduce its Cognitive Complexity from 21 to the 15 allowed  sonarjs/cognitive-complexity
+  155:11  error  Blocks are nested too deeply (4). Maximum allowed is 3                               max-depth
+  157:13  error  Blocks are nested too deeply (5). Maximum allowed is 3                               max-depth
+  159:15  error  Blocks are nested too deeply (6). Maximum allowed is 3                               max-depth
+  175:3   error  Missing accessibility modifier on method definition getNearbyExact                   @typescript-eslint/explicit-member-accessibility
+  199:3   error  Missing accessibility modifier on method definition findNearest                      @typescript-eslint/explicit-member-accessibility
+  199:3   error  Method 'findNearest' has too many parameters (4). Maximum allowed is 3               max-params
+  231:3   error  Missing accessibility modifier on method definition countNearby                      @typescript-eslint/explicit-member-accessibility
+  248:3   error  Missing accessibility modifier on method definition getStats                         @typescript-eslint/explicit-member-accessibility
+
+/home/pavel/repo/entropia/src/simulation/__tests__/Engine.buffers.test.ts
+   16:60  error  Arrow function has too many lines (75). Maximum allowed is 50                               max-lines-per-function
+   26:11  error  'initialCapacity' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   26:11  error  Remove the declaration of the unused 'initialCapacity' variable                             sonarjs/no-unused-vars
+   26:11  error  Remove this useless assignment to variable "initialCapacity"                                sonarjs/no-dead-store
+   29:25  error  No magic number: 100                                                                        @typescript-eslint/no-magic-numbers
+   38:43  error  No magic number: 100                                                                        @typescript-eslint/no-magic-numbers
+   38:49  error  No magic number: 13                                                                         @typescript-eslint/no-magic-numbers
+   39:29  error  No magic number: 100                                                                        @typescript-eslint/no-magic-numbers
+   39:35  error  No magic number: 13                                                                         @typescript-eslint/no-magic-numbers
+   39:63  error  No magic number: 1.25                                                                       @typescript-eslint/no-magic-numbers
+   44:25  error  No magic number: 200                                                                        @typescript-eslint/no-magic-numbers
+   51:67  error  No magic number: 20                                                                         @typescript-eslint/no-magic-numbers
+   59:41  error  No magic number: 500                                                                        @typescript-eslint/no-magic-numbers
+   60:51  error  No magic number: 20                                                                         @typescript-eslint/no-magic-numbers
+   60:56  error  No magic number: 13                                                                         @typescript-eslint/no-magic-numbers
+   65:25  error  No magic number: 100                                                                        @typescript-eslint/no-magic-numbers
+   73:33  error  No magic number: 5                                                                          @typescript-eslint/no-magic-numbers
+   75:71  error  No magic number: 10                                                                         @typescript-eslint/no-magic-numbers
+   80:27  error  No magic number: 10                                                                         @typescript-eslint/no-magic-numbers
+   92:25  error  No magic number: 50                                                                         @typescript-eslint/no-magic-numbers
+  107:25  error  No magic number: 75                                                                         @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/services/BufferManager.ts
+  147:25  error  No magic number: 2   @typescript-eslint/no-magic-numbers
+  148:25  error  No magic number: 3   @typescript-eslint/no-magic-numbers
+  149:25  error  No magic number: 4   @typescript-eslint/no-magic-numbers
+  150:25  error  No magic number: 5   @typescript-eslint/no-magic-numbers
+  151:25  error  No magic number: 6   @typescript-eslint/no-magic-numbers
+  152:25  error  No magic number: 7   @typescript-eslint/no-magic-numbers
+  153:25  error  No magic number: 8   @typescript-eslint/no-magic-numbers
+  154:25  error  No magic number: 9   @typescript-eslint/no-magic-numbers
+  155:25  error  No magic number: 10  @typescript-eslint/no-magic-numbers
+  156:25  error  No magic number: 11  @typescript-eslint/no-magic-numbers
+  157:25  error  No magic number: 12  @typescript-eslint/no-magic-numbers
+  163:25  error  No magic number: 2   @typescript-eslint/no-magic-numbers
+  164:25  error  No magic number: 3   @typescript-eslint/no-magic-numbers
+  165:25  error  No magic number: 4   @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/services/PersistenceService.ts
+   32:5   error  Static method 'exportState' has too many lines (96). Maximum allowed is 50  max-lines-per-function
+   32:39  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   51:93  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   60:95  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   69:81  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+   78:95  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  139:5   error  Static method 'importState' has too many lines (94). Maximum allowed is 50  max-lines-per-function
+  139:39  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  141:88  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  203:27  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  255:21  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  260:35  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+
+/home/pavel/repo/entropia/src/simulation/services/SpawnService.ts
+  102:41  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  105:3   error  Constructor has too many parameters (7). Maximum allowed is 3         max-params
+  130:3   error  Missing accessibility modifier on method definition spawnOrganism     @typescript-eslint/explicit-member-accessibility
+  186:38  error  No magic number: 0.4                                                  @typescript-eslint/no-magic-numbers
+  190:34  error  No magic number: 0.4                                                  @typescript-eslint/no-magic-numbers
+  196:42  error  No magic number: 0.4                                                  @typescript-eslint/no-magic-numbers
+  200:35  error  No magic number: 0.3                                                  @typescript-eslint/no-magic-numbers
+  216:3   error  Missing accessibility modifier on method definition spawnFood         @typescript-eslint/explicit-member-accessibility
+  249:44  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  257:23  error  No magic number: 0.3                                                  @typescript-eslint/no-magic-numbers
+  261:46  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  266:40  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  281:7   error  No magic number: 50                                                   @typescript-eslint/no-magic-numbers
+  287:57  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  289:45  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  290:29  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  291:17  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  291:35  error  No magic number: 15                                                   @typescript-eslint/no-magic-numbers
+  299:37  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  304:40  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  349:35  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  353:40  error  No magic number: 5                                                    @typescript-eslint/no-magic-numbers
+  360:37  error  No magic number: 20                                                   @typescript-eslint/no-magic-numbers
+  361:45  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  362:29  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  389:60  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  402:3   error  Missing accessibility modifier on method definition resetFactory      @typescript-eslint/explicit-member-accessibility
+  409:3   error  Missing accessibility modifier on method definition getFactory        @typescript-eslint/explicit-member-accessibility
+
+/home/pavel/repo/entropia/src/simulation/services/StatisticsManager.ts
+  106:5   error  Method 'update' has too many parameters (7). Maximum allowed is 3               max-params
+  288:75  error  No magic number: 2                                                              @typescript-eslint/no-magic-numbers
+  306:5   error  Method 'updateWorldGeometry' has too many parameters (5). Maximum allowed is 3  max-params
+  358:52  error  No magic number: 2                                                              @typescript-eslint/no-magic-numbers
+  359:52  error  No magic number: 2                                                              @typescript-eslint/no-magic-numbers
+  360:52  error  No magic number: 2                                                              @typescript-eslint/no-magic-numbers
+  398:17  error  No magic number: 3                                                              @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/systems/BehaviorSystem.ts
+   51:3   error  Constructor has too many parameters (4). Maximum allowed is 3                        max-params
+   77:3   error  Missing accessibility modifier on method definition update                           @typescript-eslint/explicit-member-accessibility
+   88:3   error  Method 'applyBehaviors' has too many lines (60). Maximum allowed is 50               max-lines-per-function
+   88:3   error  Method 'applyBehaviors' has a complexity of 14. Maximum allowed is 10                complexity
+   88:11  error  Refactor this function to reduce its Cognitive Complexity from 25 to the 15 allowed  sonarjs/cognitive-complexity
+  108:18  error  No magic number: 0.001                                                               @typescript-eslint/no-magic-numbers
+  186:3   error  Method 'applySeek' has too many parameters (4). Maximum allowed is 3                 max-params
+  208:39  error  No magic number: 12                                                                  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/systems/CollisionSystem.ts
+   35:3   error  Missing accessibility modifier on method definition update                           @typescript-eslint/explicit-member-accessibility
+   60:3   error  Method 'handleOrganismCollisions' has too many parameters (5). Maximum allowed is 3  max-params
+   67:44  error  No magic number: 20                                                                  @typescript-eslint/no-magic-numbers
+  110:18  error  No magic number: 0.001                                                               @typescript-eslint/no-magic-numbers
+  120:52  error  No magic number: 2                                                                   @typescript-eslint/no-magic-numbers
+  121:52  error  No magic number: 2                                                                   @typescript-eslint/no-magic-numbers
+  122:52  error  No magic number: 2                                                                   @typescript-eslint/no-magic-numbers
+  163:3   error  Method 'handlePredationCollision' has too many parameters (4). Maximum allowed is 3  max-params
+
+/home/pavel/repo/entropia/src/simulation/systems/MetabolismSystem.ts
+   55:3   error  Missing accessibility modifier on method definition update                 @typescript-eslint/explicit-member-accessibility
+  105:3   error  Missing accessibility modifier on method definition getMetabolicBreakdown  @typescript-eslint/explicit-member-accessibility
+  115:49  error  No magic number: 0.5                                                       @typescript-eslint/no-magic-numbers
+  135:61  error  No magic number: 0.01                                                      @typescript-eslint/no-magic-numbers
+  148:3   error  Missing accessibility modifier on method definition isHungry               @typescript-eslint/explicit-member-accessibility
+  155:3   error  Missing accessibility modifier on method definition isCritical             @typescript-eslint/explicit-member-accessibility
+  162:3   error  Missing accessibility modifier on method definition estimateSurvivalTime   @typescript-eslint/explicit-member-accessibility
+  172:3   error  Missing accessibility modifier on method definition isOld                  @typescript-eslint/explicit-member-accessibility
+
+/home/pavel/repo/entropia/src/simulation/systems/PhysicsSystem.ts
+   33:3   error  Missing accessibility modifier on method definition update            @typescript-eslint/explicit-member-accessibility
+  132:3   error  Missing accessibility modifier on method definition getKineticEnergy  @typescript-eslint/explicit-member-accessibility
+  139:12  error  No magic number: 0.5                                                  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/systems/ReproductionSystem.ts
+   33:3  error  Constructor has too many parameters (6). Maximum allowed is 3                 max-params
+   45:3  error  Missing accessibility modifier on method definition setTick                   @typescript-eslint/explicit-member-accessibility
+   52:3  error  Missing accessibility modifier on method definition checkReproduction         @typescript-eslint/explicit-member-accessibility
+   95:3  error  Missing accessibility modifier on method definition createOffspring           @typescript-eslint/explicit-member-accessibility
+   95:3  error  Method 'createOffspring' has too many parameters (4). Maximum allowed is 3    max-params
+  159:3  error  Missing accessibility modifier on method definition updateGeneticTreeOnDeath  @typescript-eslint/explicit-member-accessibility
+  170:3  error  Missing accessibility modifier on method definition getGeneticTreeInfo        @typescript-eslint/explicit-member-accessibility
+  181:3  error  Missing accessibility modifier on method definition getDescendants            @typescript-eslint/explicit-member-accessibility
+  204:3  error  Missing accessibility modifier on method definition getAncestors              @typescript-eslint/explicit-member-accessibility
+  222:3  error  Missing accessibility modifier on method definition calculateFertilityRate    @typescript-eslint/explicit-member-accessibility
+
+/home/pavel/repo/entropia/src/simulation/systems/__tests__/BehaviorSystem.steering.test.ts
+  54:39  error  No magic number: 0x00ff00                                      @typescript-eslint/no-magic-numbers
+  54:50  error  No magic number: 0xff0000                                      @typescript-eslint/no-magic-numbers
+  60:49  error  Arrow function has too many lines (99). Maximum allowed is 50  max-lines-per-function
+
+/home/pavel/repo/entropia/src/simulation/systems/__tests__/BehaviorSystem.worldConfig.test.ts
+   20:53  error  Arrow function has too many lines (108). Maximum allowed is 50  max-lines-per-function
+   24:26  error  No magic number: 12345                                          @typescript-eslint/no-magic-numbers
+   61:42  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+   63:28  error  No magic number: 400                                            @typescript-eslint/no-magic-numbers
+   67:56  error  No magic number: 2.0                                            @typescript-eslint/no-magic-numbers
+   71:42  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+   73:28  error  No magic number: 800                                            @typescript-eslint/no-magic-numbers
+   77:56  error  No magic number: 1.5                                            @typescript-eslint/no-magic-numbers
+   83:25  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+   98:46  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+  116:24  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+  126:25  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+  141:52  error  Unexpected any. Specify a different type                        @typescript-eslint/no-explicit-any
+
+/home/pavel/repo/entropia/src/simulation/systems/__tests__/CollisionSystem.test.ts
+   32:39  error  No magic number: 0x00ff00                                       @typescript-eslint/no-magic-numbers
+   32:50  error  No magic number: 0xff0000                                       @typescript-eslint/no-magic-numbers
+   48:29  error  Arrow function has too many lines (115). Maximum allowed is 50  max-lines-per-function
+   93:45  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+   93:51  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+   93:57  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+  117:45  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+  117:51  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+  117:57  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+  173:49  error  No magic number: 12                                             @typescript-eslint/no-magic-numbers
+  173:53  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  173:57  error  No magic number: 10                                             @typescript-eslint/no-magic-numbers
+  173:61  error  No magic number: 3                                              @typescript-eslint/no-magic-numbers
+  185:50  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+  196:45  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+  196:51  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+  196:57  error  No magic number: 10.5                                           @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/simulation/systems/__tests__/PhysicsSystem.test.ts
+   59:27  error  Arrow function has too many lines (88). Maximum allowed is 50  max-lines-per-function
+   96:49  error  No magic number: 5                                             @typescript-eslint/no-magic-numbers
+  114:35  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  114:57  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  114:79  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  116:65  error  No magic number: 0.001                                         @typescript-eslint/no-magic-numbers
+  161:48  error  No magic number: 0.98                                          @typescript-eslint/no-magic-numbers
+  161:54  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  176:40  error  No magic number: 25                                            @typescript-eslint/no-magic-numbers
+  176:44  error  No magic number: 5                                             @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/App.tsx
+  55:30  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/pavel/repo/entropia/src/ui/Viewport.tsx
+   14:35  error  Arrow function has too many lines (171). Maximum allowed is 50                       max-lines-per-function
+   14:38  error  Refactor this function to reduce its Cognitive Complexity from 27 to the 15 allowed  sonarjs/cognitive-complexity
+   14:38  error  Arrow function has a complexity of 21. Maximum allowed is 10                         complexity
+   73:41  error  No magic number: 20                                                                  @typescript-eslint/no-magic-numbers
+   73:65  error  No magic number: 20                                                                  @typescript-eslint/no-magic-numbers
+  105:73  error  No magic number: 100                                                                 @typescript-eslint/no-magic-numbers
+  134:66  error  No magic number: 2                                                                   @typescript-eslint/no-magic-numbers
+  168:15  error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+  183:15  error  Extract this nested ternary operation into an independent statement                  sonarjs/no-nested-conditional
+
+/home/pavel/repo/entropia/src/ui/components/Dashboard.tsx
+   28:52  error  Arrow function has too many lines (142). Maximum allowed is 50       max-lines-per-function
+   40:7   error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+   75:78  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`      react/no-unescaped-entities
+   86:48  error  No magic number: 100                                                 @typescript-eslint/no-magic-numbers
+   92:55  error  No magic number: 100                                                 @typescript-eslint/no-magic-numbers
+  109:45  error  No magic number: 100                                                 @typescript-eslint/no-magic-numbers
+  126:45  error  No magic number: 100                                                 @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/DiagnosticsModal.tsx
+    1:1   error  Run autofix to sort these imports!                              simple-import-sort/imports
+   43:66  error  Arrow function has too many lines (201). Maximum allowed is 50  max-lines-per-function
+   63:58  error  Arrow function has a complexity of 12. Maximum allowed is 10    complexity
+   76:20  error  Complete the task associated to this "TODO" comment             sonarjs/todo-tag
+   82:30  error  No magic number: -60                                            @typescript-eslint/no-magic-numbers
+   92:63  error  No magic number: 1000                                           @typescript-eslint/no-magic-numbers
+  146:36  error  No magic number: -100                                           @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/Entities.tsx
+   15:50  error  Arrow function has too many lines (182). Maximum allowed is 50                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   max-lines-per-function
+   15:53  error  'engine' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          react/prop-types
+   25:44  error  No magic number: 0.8                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-magic-numbers
+   25:49  error  No magic number: 2.5                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-magic-numbers
+   25:54  error  No magic number: 12                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-magic-numbers
+   26:31  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+   31:60  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+   31:63  error  No magic number: 8                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+   31:66  error  No magic number: 8                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+   44:14  error  Arrow function has too many lines (96). Maximum allowed is 50                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    max-lines-per-function
+   44:22  error  Refactor this function to reduce its Cognitive Complexity from 24 to the 15 allowed                                                                                                                                                                                                                                                                                                                                                                                                                                                              sonarjs/cognitive-complexity
+   44:22  error  Arrow function has a complexity of 36. Maximum allowed is 10                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     complexity
+   61:24  error  'engine.update' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/prop-types
+   69:38  error  'engine.getRenderData' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            react/prop-types
+   76:46  error  No magic number: 0.1                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-magic-numbers
+   89:32  error  No magic number: 13                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-magic-numbers
+   92:37  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+   93:37  error  No magic number: 6                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+   96:13  error  Error: This value cannot be modified
+
+Modifying a value previously passed as an argument to a hook is not allowed. Consider moving the modification before calling the hook.
+
+/home/pavel/repo/entropia/src/ui/components/Entities.tsx:96:13
+  94 |
+  95 |             tmpSphere.center.set(x, y, z);
+> 96 |             tmpSphere.radius = r;
+     |             ^^^^^^^^^ `tmpSphere` cannot be modified
+  97 |             if (!frustum.intersectsSphere(tmpSphere)) {continue;}
+  98 |
+  99 |             const vx = prey[offset + 3] || 0;  react-hooks/immutability
+   99:38  error  No magic number: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  100:38  error  No magic number: 4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  101:38  error  No magic number: 5                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  104:38  error  'engine.config' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/prop-types
+  104:45  error  'engine.config.organismScale' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react/prop-types
+  108:23  error  No magic number: 0.01                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-magic-numbers
+  123:32  error  No magic number: 13                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-magic-numbers
+  126:42  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  127:42  error  No magic number: 6                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  133:43  error  No magic number: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  134:43  error  No magic number: 4                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  135:43  error  No magic number: 5                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  138:38  error  'engine.config' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/prop-types
+  138:45  error  'engine.config.organismScale' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     react/prop-types
+  142:23  error  No magic number: 0.01                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            @typescript-eslint/no-magic-numbers
+  158:32  error  No magic number: 5                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  161:37  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  162:37  error  No magic number: 3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  168:32  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  168:37  error  No magic number: 2.5                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-magic-numbers
+  168:50  error  'engine.config' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react/prop-types
+  168:57  error  'engine.config.foodScale' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react/prop-types
+  171:47  error  No magic number: 0.5                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-magic-numbers
+  171:67  error  No magic number: 0.3                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             @typescript-eslint/no-magic-numbers
+  195:31  error  'engine.getEntityByInstanceId' is missing in props validation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react/prop-types
+  211:16  error  Unknown property 'onPointerMissed' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react/no-unknown-property
+  215:17  error  Unknown property 'frustumCulled' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unknown-property
+  222:21  error  Unknown property 'emissive' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react/no-unknown-property
+  223:21  error  Unknown property 'emissiveIntensity' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react/no-unknown-property
+  224:21  error  Unknown property 'shininess' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/no-unknown-property
+  231:17  error  Unknown property 'frustumCulled' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unknown-property
+  238:21  error  Unknown property 'emissive' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react/no-unknown-property
+  239:21  error  Unknown property 'emissiveIntensity' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react/no-unknown-property
+  240:21  error  Unknown property 'shininess' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/no-unknown-property
+  246:60  error  No magic number: 2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-magic-numbers
+  247:17  error  Unknown property 'frustumCulled' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           react/no-unknown-property
+  252:21  error  Unknown property 'emissive' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react/no-unknown-property
+  253:21  error  Unknown property 'emissiveIntensity' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react/no-unknown-property
+  256:21  error  Unknown property 'shininess' found                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react/no-unknown-property
+
+/home/pavel/repo/entropia/src/ui/components/Environment.tsx
+  16:56  error  Arrow function has too many lines (66). Maximum allowed is 50  max-lines-per-function
+  30:33  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  30:41  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  30:49  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  39:96  error  No magic number: 0xffffff                                      @typescript-eslint/no-magic-numbers
+  42:57  error  No magic number: 16                                            @typescript-eslint/no-magic-numbers
+  42:61  error  No magic number: 16                                            @typescript-eslint/no-magic-numbers
+  48:25  error  Unknown property 'depthWrite' found                            react/no-unknown-property
+  69:57  error  No magic number: 2                                             @typescript-eslint/no-magic-numbers
+  74:21  error  Unknown property 'flatShading' found                           react/no-unknown-property
+  75:21  error  Unknown property 'emissive' found                              react/no-unknown-property
+  76:21  error  Unknown property 'emissiveIntensity' found                     react/no-unknown-property
+
+/home/pavel/repo/entropia/src/ui/components/ErrorBoundary.tsx
+   69:3    error  Missing accessibility modifier on method definition getDerivedStateFromError  @typescript-eslint/explicit-member-accessibility
+   76:3    error  Missing accessibility modifier on method definition componentDidCatch         @typescript-eslint/explicit-member-accessibility
+  106:54   error  No magic number: 1048576                                                      @typescript-eslint/no-magic-numbers
+  106:112  error  No magic number: 1048576                                                      @typescript-eslint/no-magic-numbers
+  131:37   error  No magic number: 1000                                                         @typescript-eslint/no-magic-numbers
+  132:42   error  No magic number: 60                                                           @typescript-eslint/no-magic-numbers
+  133:40   error  No magic number: 60                                                           @typescript-eslint/no-magic-numbers
+  136:37   error  No magic number: 60                                                           @typescript-eslint/no-magic-numbers
+  136:55   error  No magic number: 60                                                           @typescript-eslint/no-magic-numbers
+  138:40   error  No magic number: 60                                                           @typescript-eslint/no-magic-numbers
+  152:41   error  No magic number: -10                                                          @typescript-eslint/no-magic-numbers
+  217:3    error  Missing accessibility modifier on class property handleReset                  @typescript-eslint/explicit-member-accessibility
+  227:3    error  Missing accessibility modifier on method definition render                    @typescript-eslint/explicit-member-accessibility
+  227:3    error  Method 'render' has too many lines (167). Maximum allowed is 50               max-lines-per-function
+  378:26   error  Make sure not using "noopener" is safe here                                   sonarjs/link-with-target-blank
+
+/home/pavel/repo/entropia/src/ui/components/SceneContainer.tsx
+  25:58  error  No magic number: 0.5  @typescript-eslint/no-magic-numbers
+  28:61  error  No magic number: 60   @typescript-eslint/no-magic-numbers
+  67:40  error  No magic number: 1.2  @typescript-eslint/no-magic-numbers
+  67:74  error  No magic number: 1.2  @typescript-eslint/no-magic-numbers
+  71:38  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  71:53  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  71:68  error  No magic number: 2    @typescript-eslint/no-magic-numbers
+  75:42  error  No magic number: 3    @typescript-eslint/no-magic-numbers
+  83:51  error  No magic number: 1.5  @typescript-eslint/no-magic-numbers
+  88:52  error  No magic number: 0.5  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/SettingsPanel.tsx
+  22:60   error  Arrow function has too many lines (216). Maximum allowed is 50  max-lines-per-function
+  22:105  error  Arrow function has a complexity of 12. Maximum allowed is 10    complexity
+
+/home/pavel/repo/entropia/src/ui/components/SettingsSlider.tsx
+  26:48  error  No magic number: 2  @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/Sidebar.tsx
+   14:34  error  Arrow function has too many lines (141). Maximum allowed is 50   max-lines-per-function
+   14:37  error  Arrow function has a complexity of 36. Maximum allowed is 10     complexity
+   21:35  error  No magic number: 768                                             @typescript-eslint/no-magic-numbers
+   47:22  error  No magic number: 50                                              @typescript-eslint/no-magic-numbers
+   47:37  error  No magic number: 30                                              @typescript-eslint/no-magic-numbers
+  151:25  error  `'` can be escaped with `&apos;`, `&lsquo;`, `&#39;`, `&rsquo;`  react/no-unescaped-entities
+
+/home/pavel/repo/entropia/src/ui/components/SimulationControls.tsx
+  17:70  error  Arrow function has too many lines (134). Maximum allowed is 50  max-lines-per-function
+
+/home/pavel/repo/entropia/src/ui/components/Trails.tsx
+  26:17  error  Arrow function has a complexity of 13. Maximum allowed is 10  complexity
+  32:32  error  No magic number: 13                                           @typescript-eslint/no-magic-numbers
+  38:41  error  No magic number: 8                                            @typescript-eslint/no-magic-numbers
+  43:37  error  No magic number: 2                                            @typescript-eslint/no-magic-numbers
+  48:38  error  No magic number: 0x00ff00                                     @typescript-eslint/no-magic-numbers
+  55:32  error  No magic number: 13                                           @typescript-eslint/no-magic-numbers
+  56:46  error  No magic number: 8                                            @typescript-eslint/no-magic-numbers
+  61:42  error  No magic number: 2                                            @typescript-eslint/no-magic-numbers
+  66:42  error  No magic number: 0xff0000                                     @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/EntitiesTab.tsx
+   1:1    error  Run autofix to sort these imports!                                   simple-import-sort/imports
+   9:56   error  Arrow function has too many lines (83). Maximum allowed is 50        max-lines-per-function
+  50:161  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+  51:71   error  No magic number: 100                                                 @typescript-eslint/no-magic-numbers
+  87:149  error  No magic number: 100                                                 @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/LogsTab.tsx
+   1:1    error  Run autofix to sort these imports!                                   simple-import-sort/imports
+  18:135  error  Extract this nested ternary operation into an independent statement  sonarjs/no-nested-conditional
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/MemoryTab.tsx
+   1:1    error  Run autofix to sort these imports!                             simple-import-sort/imports
+  40:52   error  Arrow function has too many lines (57). Maximum allowed is 50  max-lines-per-function
+  51:149  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  58:109  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  86:58   error  No magic number: -30                                           @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/PerformanceTab.tsx
+    1:1    error  Run autofix to sort these imports!                             simple-import-sort/imports
+   39:45   error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+   47:37   error  Arrow function has too many lines (59). Maximum allowed is 50  max-lines-per-function
+   54:11   error  Unexpected any. Specify a different type                       @typescript-eslint/no-explicit-any
+  109:62   error  Arrow function has too many lines (56). Maximum allowed is 50  max-lines-per-function
+  109:101  error  Arrow function has a complexity of 21. Maximum allowed is 10   complexity
+  123:37   error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  123:100  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  130:37   error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  130:100  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  137:37   error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  137:88   error  No magic number: 1000                                          @typescript-eslint/no-magic-numbers
+  137:115  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+  151:52   error  No magic number: -30                                           @typescript-eslint/no-magic-numbers
+  159:52   error  No magic number: -30                                           @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/diagnostics/WorldTab.tsx
+    1:1    error  Run autofix to sort these imports!                              simple-import-sort/imports
+   17:31   error  No magic number: 1000                                           @typescript-eslint/no-magic-numbers
+   20:30   error  No magic number: 1000000                                        @typescript-eslint/no-magic-numbers
+   21:37   error  No magic number: 1000000                                        @typescript-eslint/no-magic-numbers
+   21:54   error  No magic number: 2                                              @typescript-eslint/no-magic-numbers
+   22:37   error  No magic number: 1000                                           @typescript-eslint/no-magic-numbers
+   23:37   error  No magic number: 1000                                           @typescript-eslint/no-magic-numbers
+   41:50   error  Arrow function has too many lines (160). Maximum allowed is 50  max-lines-per-function
+   41:69   error  Arrow function has a complexity of 17. Maximum allowed is 10    complexity
+   86:76   error  No magic number: 2                                              @typescript-eslint/no-magic-numbers
+   95:95   error  No magic number: 50                                             @typescript-eslint/no-magic-numbers
+   95:99   error  No magic number: 100                                            @typescript-eslint/no-magic-numbers
+  108:167  error  No magic number: 2                                              @typescript-eslint/no-magic-numbers
+  155:97   error  No magic number: 50                                             @typescript-eslint/no-magic-numbers
+  155:127  error  No magic number: 50                                             @typescript-eslint/no-magic-numbers
+  159:102  error  No magic number: 400                                            @typescript-eslint/no-magic-numbers
+  177:103  error  No magic number: 95                                             @typescript-eslint/no-magic-numbers
+  188:114  error  No magic number: 5                                              @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/components/skeletons/SidebarSkeleton.tsx
+  10:42  error  Arrow function has too many lines (84). Maximum allowed is 50  max-lines-per-function
+  35:22  error  No magic number: 4                                             @typescript-eslint/no-magic-numbers
+  39:47  error  No magic number: 75                                            @typescript-eslint/no-magic-numbers
+  76:22  error  No magic number: 3                                             @typescript-eslint/no-magic-numbers
+  80:47  error  No magic number: 100                                           @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/context/SimulationContext.tsx
+   23:20  error    Replace this union type with a type alias                                                                                       sonarjs/use-type-alias
+   32:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+   40:64  error    Arrow function has too many lines (192). Maximum allowed is 50                                                                  max-lines-per-function
+   64:18  error    Arrow function has a complexity of 13. Maximum allowed is 10                                                                    complexity
+  124:16  error    No magic number: 180                                                                                                            @typescript-eslint/no-magic-numbers
+  141:43  error    No magic number: 5                                                                                                              @typescript-eslint/no-magic-numbers
+  146:36  error    No magic number: 0.1                                                                                                            @typescript-eslint/no-magic-numbers
+  146:50  error    No magic number: 10                                                                                                             @typescript-eslint/no-magic-numbers
+  149:61  error    No magic number: 500                                                                                                            @typescript-eslint/no-magic-numbers
+  160:15  error    Arrow function has too many lines (72). Maximum allowed is 50                                                                   max-lines-per-function
+  172:35  error    No magic number: 1000                                                                                                           @typescript-eslint/no-magic-numbers
+  173:86  error    No magic number: 1000                                                                                                           @typescript-eslint/no-magic-numbers
+  179:35  error    No magic number: 1000                                                                                                           @typescript-eslint/no-magic-numbers
+  180:85  error    No magic number: 1000                                                                                                           @typescript-eslint/no-magic-numbers
+  195:61  error    No magic number: 2                                                                                                              @typescript-eslint/no-magic-numbers
+  196:67  error    No magic number: 1000                                                                                                           @typescript-eslint/no-magic-numbers
+  196:81  error    No magic number: 2                                                                                                              @typescript-eslint/no-magic-numbers
+  219:46  error    Arrow function has a complexity of 13. Maximum allowed is 10                                                                    complexity
+  228:26  error    No magic number: 2                                                                                                              @typescript-eslint/no-magic-numbers
+  230:26  error    No magic number: 5                                                                                                              @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/effects/CosmicBackground.ts
+  230:52  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  240:21  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  240:47  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  241:29  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  241:33  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  242:27  error  No magic number: 0.8                                                  @typescript-eslint/no-magic-numbers
+  242:33  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  242:49  error  No magic number: 0.4                                                  @typescript-eslint/no-magic-numbers
+  244:21  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  245:21  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  246:21  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  246:25  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  249:27  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  249:42  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  249:47  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  249:51  error  No magic number: 0.5                                                  @typescript-eslint/no-magic-numbers
+  252:25  error  No magic number: 0.5                                                  @typescript-eslint/no-magic-numbers
+  252:31  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  252:47  error  No magic number: 0.5                                                  @typescript-eslint/no-magic-numbers
+  255:30  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  255:46  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  256:27  error  Make sure that using this pseudorandom number generator is safe here  sonarjs/pseudo-random
+  256:53  error  No magic number: 2                                                    @typescript-eslint/no-magic-numbers
+  261:76  error  No magic number: 3                                                    @typescript-eslint/no-magic-numbers
+  288:47  error  No magic number: 1800                                                 @typescript-eslint/no-magic-numbers
+  288:53  error  No magic number: 64                                                   @typescript-eslint/no-magic-numbers
+  288:57  error  No magic number: 64                                                   @typescript-eslint/no-magic-numbers
+  291:36  error  No magic number: 0x1a0a2e                                             @typescript-eslint/no-magic-numbers
+  292:36  error  No magic number: 0x16213e                                             @typescript-eslint/no-magic-numbers
+  293:36  error  No magic number: 0x0f3460                                             @typescript-eslint/no-magic-numbers
+  334:49  error  No magic number: 0.01                                                 @typescript-eslint/no-magic-numbers
+  335:49  error  No magic number: 0.005                                                @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/effects/ParticleSystem.ts
+   78:54  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+   81:51  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+   85:63  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+   88:62  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  135:40  error  No magic number: 40                                                      @typescript-eslint/no-magic-numbers
+  135:45  error  No magic number: 25                                                      @typescript-eslint/no-magic-numbers
+  136:32  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  136:36  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  137:31  error  No magic number: 4                                                       @typescript-eslint/no-magic-numbers
+  137:35  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  145:9   error  No magic number: 0.8                                                     @typescript-eslint/no-magic-numbers
+  145:15  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  145:31  error  No magic number: 0.4                                                     @typescript-eslint/no-magic-numbers
+  159:53  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  169:15  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  169:31  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  169:38  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  180:25  error  No magic number: 10                                                      @typescript-eslint/no-magic-numbers
+  181:35  error  No magic number: 0xffffff                                                @typescript-eslint/no-magic-numbers
+  181:48  error  No magic number: 5                                                       @typescript-eslint/no-magic-numbers
+  181:51  error  No magic number: 0.3                                                     @typescript-eslint/no-magic-numbers
+  189:25  error  No magic number: 8                                                       @typescript-eslint/no-magic-numbers
+  193:9   error  No magic number: 1.5                                                     @typescript-eslint/no-magic-numbers
+  194:9   error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  195:9   error  No magic number: 0.4                                                     @typescript-eslint/no-magic-numbers
+  214:52  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  214:57  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  214:60  error  No magic number: 0.3                                                     @typescript-eslint/no-magic-numbers
+  221:3   error  Method 'update' has too many lines (55). Maximum allowed is 50           max-lines-per-function
+  241:33  error  No magic number: 60                                                      @typescript-eslint/no-magic-numbers
+  242:33  error  No magic number: 60                                                      @typescript-eslint/no-magic-numbers
+  243:33  error  No magic number: 60                                                      @typescript-eslint/no-magic-numbers
+  258:31  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  261:27  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  263:42  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  263:60  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  267:30  error  No magic number: 16                                                      @typescript-eslint/no-magic-numbers
+  267:36  error  No magic number: 255                                                     @typescript-eslint/no-magic-numbers
+  267:43  error  No magic number: 255                                                     @typescript-eslint/no-magic-numbers
+  268:30  error  No magic number: 8                                                       @typescript-eslint/no-magic-numbers
+  268:35  error  No magic number: 255                                                     @typescript-eslint/no-magic-numbers
+  268:42  error  No magic number: 255                                                     @typescript-eslint/no-magic-numbers
+  269:28  error  No magic number: 255                                                     @typescript-eslint/no-magic-numbers
+  269:35  error  No magic number: 255                                                     @typescript-eslint/no-magic-numbers
+  272:24  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  285:46  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  285:87  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  288:48  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  288:89  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  348:3   error  Method 'emitParticle' has too many parameters (6). Maximum allowed is 3  max-params
+  365:21  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  365:47  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  366:29  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  366:33  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  367:26  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  367:32  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  367:48  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  373:15  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  373:31  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  374:15  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  374:31  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  375:15  error  Make sure that using this pseudorandom number generator is safe here     sonarjs/pseudo-random
+  375:31  error  No magic number: 0.5                                                     @typescript-eslint/no-magic-numbers
+  430:3   error  Method 'updateTrail' has too many parameters (4). Maximum allowed is 3   max-params
+  453:39  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  454:39  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  455:39  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  457:22  error  No magic number: 2500                                                    @typescript-eslint/no-magic-numbers
+  521:67  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  522:64  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  525:63  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  526:62  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  565:34  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  576:32  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  577:32  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  578:32  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  578:36  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  580:29  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  581:29  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  582:29  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  582:33  error  No magic number: 2                                                       @typescript-eslint/no-magic-numbers
+  589:39  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+  590:41  error  No magic number: 3                                                       @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/index.tsx
+  6:1  error  Run autofix to sort these imports!  simple-import-sort/imports
+
+/home/pavel/repo/entropia/src/ui/utils/__tests__/EntityTypeGuards.test.ts
+  13:30  error  Arrow function has too many lines (73). Maximum allowed is 50  max-lines-per-function
+  44:25  error  No magic number: 123                                           @typescript-eslint/no-magic-numbers
+  74:21  error  No magic number: 42                                            @typescript-eslint/no-magic-numbers
+
+/home/pavel/repo/entropia/src/ui/utils/__tests__/OrganismStateFormatters.test.ts
+  17:37  error  Arrow function has too many lines (100). Maximum allowed is 50  max-lines-per-function
+
+/home/pavel/repo/entropia/vite.config.ts
+  5:29  error  Arrow function has too many lines (77). Maximum allowed is 50  max-lines-per-function
+
+✖ 775 problems (774 errors, 1 warning)
+  7 errors and 0 warnings potentially fixable with the `--fix` option.
+
+ ELIFECYCLE  Command failed with exit code 1.
