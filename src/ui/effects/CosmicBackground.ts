@@ -11,6 +11,8 @@
 
 import * as THREE from 'three';
 
+import { COSMIC_BACKGROUND_CONSTANTS } from '@/constants';
+
 // ============================================================================
 // ОПИС ШЕЙДЕРНИХ ПРОГРАМ ДЛЯ ВІЗУАЛІЗАЦІЇ ЗІРОК
 // ============================================================================
@@ -224,45 +226,45 @@ export class CosmicBackground {
    * Створення та конфігурація зоряного поля.
    */
   private createStarField(): void {
-    const starCount = 3000;
+    const starCount = COSMIC_BACKGROUND_CONSTANTS.STAR_COUNT;
 
     // Ініціалізація типізованих буферів даних
-    const positions = new Float32Array(starCount * 3);
+    const positions = new Float32Array(starCount * COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS);
     const sizes = new Float32Array(starCount);
     const brightnesses = new Float32Array(starCount);
     const twinkleSpeeds = new Float32Array(starCount);
     const twinkleOffsets = new Float32Array(starCount);
 
     // Процедурна генерація просторового розміщення зірок у сферичному домені
-    const radius = 2000;
+    const radius = COSMIC_BACKGROUND_CONSTANTS.STAR_RADIUS;
     for (let i = 0; i < starCount; i++) {
       // Побудова рівномірного розподілу на сфері з використанням полярних координат
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = radius * (0.8 + Math.random() * 0.4);
+      const theta = Math.random() * COSMIC_BACKGROUND_CONSTANTS.TWO_PI;
+      const phi = Math.acos(COSMIC_BACKGROUND_CONSTANTS.VECTOR2_MULTIPLIER * Math.random() - COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT);
+      const r = radius * (COSMIC_BACKGROUND_CONSTANTS.STAR_RADIUS_MIN_FACTOR + Math.random() * COSMIC_BACKGROUND_CONSTANTS.STAR_RADIUS_VARIATION);
 
-      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = r * Math.cos(phi);
+      positions[i * COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS + COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS + COSMIC_BACKGROUND_CONSTANTS.VECTOR2_MULTIPLIER] = r * Math.cos(phi);
 
       // Визначення масштабу: експоненціальний розподіл (домінування малих об'єктів)
-      sizes[i] = Math.pow(Math.random(), 3) * 3 + 0.5;
+      sizes[i] = Math.pow(Math.random(), COSMIC_BACKGROUND_CONSTANTS.STAR_SIZE_POWER) * COSMIC_BACKGROUND_CONSTANTS.STAR_SIZE_MULTIPLIER + COSMIC_BACKGROUND_CONSTANTS.STAR_SIZE_BASE;
 
       // Встановлення базової фотометричної яскравості
-      brightnesses[i] = 0.5 + Math.random() * 0.5;
+      brightnesses[i] = COSMIC_BACKGROUND_CONSTANTS.STAR_BRIGHTNESS_BASE + Math.random() * COSMIC_BACKGROUND_CONSTANTS.STAR_BRIGHTNESS_VARIATION;
 
       // Параметризація характеристик мерехтіння
-      twinkleSpeeds[i] = 1 + Math.random() * 3;
-      twinkleOffsets[i] = Math.random() * Math.PI * 2;
+      twinkleSpeeds[i] = COSMIC_BACKGROUND_CONSTANTS.STAR_TWINKLE_BASE + Math.random() * COSMIC_BACKGROUND_CONSTANTS.STAR_TWINKLE_VARIATION;
+      twinkleOffsets[i] = Math.random() * COSMIC_BACKGROUND_CONSTANTS.TWO_PI;
     }
 
     // Формування буферної геометрії
     const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
-    geometry.setAttribute('brightness', new THREE.BufferAttribute(brightnesses, 1));
-    geometry.setAttribute('twinkleSpeed', new THREE.BufferAttribute(twinkleSpeeds, 1));
-    geometry.setAttribute('twinkleOffset', new THREE.BufferAttribute(twinkleOffsets, 1));
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS));
+    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT));
+    geometry.setAttribute('brightness', new THREE.BufferAttribute(brightnesses, COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT));
+    geometry.setAttribute('twinkleSpeed', new THREE.BufferAttribute(twinkleSpeeds, COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT));
+    geometry.setAttribute('twinkleOffset', new THREE.BufferAttribute(twinkleOffsets, COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT));
 
     // Конфігурація шейдерного матеріалу
     this.starMaterial = new THREE.ShaderMaterial({
@@ -285,7 +287,7 @@ export class CosmicBackground {
    */
   private createNebula(): void {
     // Ініціалізація сферичного домену великого радіуса для проекції туманності
-    const geometry = new THREE.SphereGeometry(1800, 64, 64);
+    const geometry = new THREE.SphereGeometry(COSMIC_BACKGROUND_CONSTANTS.NEBULA_RADIUS, COSMIC_BACKGROUND_CONSTANTS.NEBULA_SEGMENTS, COSMIC_BACKGROUND_CONSTANTS.NEBULA_SEGMENTS);
 
     // Визначення спектральної палітри туманності
     const color1 = new THREE.Color(0x1a0a2e); // Спектральний фіолетовий
@@ -331,8 +333,8 @@ export class CosmicBackground {
 
     // Модуляція кутового зміщення туманності (повільна ротація)
     if (this.nebulaMesh) {
-      this.nebulaMesh.rotation.y += deltaTime * 0.01;
-      this.nebulaMesh.rotation.x += deltaTime * 0.005;
+      this.nebulaMesh.rotation.y += deltaTime * COSMIC_BACKGROUND_CONSTANTS.NEBULA_ROTATION_Y;
+      this.nebulaMesh.rotation.x += deltaTime * COSMIC_BACKGROUND_CONSTANTS.NEBULA_ROTATION_X;
     }
   }
 
