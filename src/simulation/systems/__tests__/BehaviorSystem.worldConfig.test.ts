@@ -9,7 +9,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { createWorldConfig } from '../../../constants';
+import { createWorldConfig } from '../../../config';
 import { Random } from '../../../core/utils/Random';
 import type { EcologicalZone, SimulationConfig, WorldConfig } from '../../../types';
 import { EntityType } from '../../../types';

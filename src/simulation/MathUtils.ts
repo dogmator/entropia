@@ -9,7 +9,7 @@
 
 import type { MutableVector3, Vector3 } from '@/types';
 
-import { WORLD_SIZE } from '../constants';
+import { WORLD_SIZE } from '../config';
 
 /**
  * Статичний клас-контейнер для математичних утиліт.

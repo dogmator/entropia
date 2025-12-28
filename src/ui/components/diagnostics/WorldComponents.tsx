@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { ENGINE_CONSTANTS, WORLD_SIZE } from '@/constants';
+import { ENGINE_CONSTANTS, WORLD_SIZE } from '@/config';
 import type { SimulationStats } from '@/types';
 
 const SQUARED_UNIT_THRESHOLD_M = 1_000_000;

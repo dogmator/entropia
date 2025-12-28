@@ -9,7 +9,7 @@
  * - Хронометрія біологічного старіння.
  */
 
-import { METABOLIC_CONSTANTS, METABOLIC_THRESHOLDS } from '../../constants';
+import { METABOLIC_CONSTANTS, METABOLIC_THRESHOLDS } from '../../config';
 import type { Organism } from '../Entity';
 
 /**

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 
-import { DIAGNOSTICS_CONFIG } from '@/constants';
+import { DIAGNOSTICS_CONFIG } from '@/config';
 import { PerformanceHelpers } from '@/core/utils/PerformanceUtils';
 import type { MemoryStats, SystemMetrics } from '@/types';
 

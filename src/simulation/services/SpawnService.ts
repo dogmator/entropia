@@ -8,7 +8,7 @@
  * - Реалізація гнучких стратегій розселення видів.
  */
 
-import { WORLD_SIZE } from '@/constants.ts'; // We might still need this as default if optional, or remove if fully injected.
+import { WORLD_SIZE } from '@/config'; // We might still need this as default if optional, or remove if fully injected.
 import type { EventBus } from '@/core/EventBus.ts';
 import { Random } from '@/core/utils/Random';
 import type {

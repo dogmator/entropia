@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { DIAGNOSTICS_CONFIG } from '@/constants';
+import { DIAGNOSTICS_CONFIG } from '@/config';
 import type { LogEntry } from '@/core/services/Logger';
 import { logger } from '@/core/services/Logger';
 import type { MemoryStats, PerformanceMetrics, SimulationStats, SystemMetrics } from '@/types';

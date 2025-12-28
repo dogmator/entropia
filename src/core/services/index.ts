@@ -4,5 +4,5 @@
  * @module core/services
  */
 
-export { Logger,logger } from './Logger';
-export { PerformanceMonitor } from './PerformanceMonitor';
+export * from './Logger';
+export * from './PerformanceMonitor';
