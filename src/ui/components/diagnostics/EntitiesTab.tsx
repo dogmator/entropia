@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { UI_THRESHOLDS } from '@/constants';
+import { UI_THRESHOLDS } from '@/config';
 import type { SimulationStats } from '@/types';
 
 import { MAX_PERCENTAGE, MetricCard } from './Shared';

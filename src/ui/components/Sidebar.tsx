@@ -6,7 +6,7 @@ import { DiagnosticsModal } from './DiagnosticsModal';
 import { SettingsPanel } from './SettingsPanel';
 import { SimulationControls } from './SimulationControls';
 import { Icons } from './shared/Icons';
-import { UI_CONFIG } from '../../constants';
+import { UI_CONFIG } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
 import { SimulationEngine } from '@/simulation';
@@ -195,7 +195,7 @@ interface SidebarContentProps {
   onOpenDiagnostics: () => void;
 }
 
-/* eslint-disable react/prop-types */
+ 
 const SidebarContent: React.FC<SidebarContentProps> = ({
   isOpen, stats, history, onReset, speed, setSpeed, engine, worldScale, setWorldScale, onOpenDiagnostics
 }) => (

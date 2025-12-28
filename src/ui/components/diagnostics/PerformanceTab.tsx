@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { DIAGNOSTICS_CONFIG, RENDER } from '@/constants';
+import { DIAGNOSTICS_CONFIG, RENDER } from '@/config';
 import { PerformanceHelpers } from '@/core/utils/PerformanceUtils';
 import type { PerformanceMetrics, SimulationStats } from '@/types';
 

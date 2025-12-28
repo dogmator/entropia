@@ -45,19 +45,28 @@ import {
   PHYSICS,
   REPRODUCTION_ENERGY_THRESHOLD,
   ZONE_DEFAULTS,
-} from '../constants';
+} from '../config';
 import { Food, Obstacle, Organism } from './Entity';
+import { EntityManager, GridManager } from './managers';
+import { CameraDataProvider } from './providers';
 import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
+import { StatisticsManager } from './services/StatisticsManager';
 import { SpatialHashGrid } from './SpatialHashGrid';
 
 // ENGINE_CONSTANTS тепер імпортується з constants.ts
 
 export class SimulationEngine {
-  // Дескриптори колекцій віртуальних сутностей
-  public readonly organisms: Map<string, Organism> = new Map();
-  public readonly food: Map<string, Food> = new Map();
-  public readonly obstacles: Map<string, Obstacle> = new Map();
+  // Менеджер управління сутностями
+  private readonly entityManager: EntityManager;
+  private readonly gridManager: GridManager;
+  private readonly cameraDataProvider: CameraDataProvider;
+
+  // Дескриптори колекцій віртуальних сутностей (геттери для обратної совместимости)
+  public get organisms(): Map<string, Organism> { return this.entityManager.organisms; }
+  public get food(): Map<string, Food> { return this.entityManager.food; }
+  public get obstacles(): Map<string, Obstacle> { return this.entityManager.obstacles; }
+
   public readonly zones: Map<string, EcologicalZone> = new Map();
 
   // Структури збереження філогенетичних зв'язків
@@ -77,6 +86,7 @@ export class SimulationEngine {
   private readonly spawnService: SpawnService;
   private readonly performanceMonitor: PerformanceMonitor;
   private readonly bufferManager: BufferManager;
+  private readonly statisticsManager: StatisticsManager;
 
   // Системні лічильники та часова дискретизація
   private foodIdCounter: number = 0;
@@ -85,22 +95,6 @@ export class SimulationEngine {
 
   private readonly rng: Random;
   private seed: number;
-
-  // Метрики статистичного аналізу
-  private stats: SimulationStats = {
-    preyCount: 0,
-    predatorCount: 0,
-    foodCount: 0,
-    avgEnergy: 0,
-    avgPreyEnergy: 0,
-    avgPredatorEnergy: 0,
-    generation: 0,
-    maxGeneration: 1,
-    maxAge: 0,
-    totalDeaths: 0,
-    totalBirths: 0,
-    extinctionRisk: 0,
-  };
 
   // Реєстр конфігураційних параметрів
   public config: SimulationConfig;
@@ -121,6 +115,12 @@ export class SimulationEngine {
     // Комплексна ініціалізація системних компонентів
     this.eventBus = new EventBus();
     this.spatialGrid = new SpatialHashGrid(this.worldConfig.WORLD_SIZE);
+
+    // Ініціалізація менеджерів
+    this.entityManager = new EntityManager(this.spatialGrid);
+    this.gridManager = new GridManager(this.spatialGrid);
+    this.cameraDataProvider = new CameraDataProvider();
+
     this.physicsSystem = new PhysicsSystem(this.config, this.worldConfig);
     this.metabolismSystem = new MetabolismSystem();
     this.collisionSystem = new CollisionSystem(this.spatialGrid, this.eventBus);
@@ -144,7 +144,8 @@ export class SimulationEngine {
     // Ініціалізація монітора продуктивності та менеджера буферів
     this.performanceMonitor = new PerformanceMonitor();
     this.bufferManager = new BufferManager(true);
-    logger.info('PerformanceMonitor and BufferManager initialized', 'Engine');
+    this.statisticsManager = new StatisticsManager(this.worldConfig);
+    logger.info('PerformanceMonitor, BufferManager, and StatisticsManager initialized', 'Engine');
 
     // Налаштування системи репродукції з інтеграцією фабрики об'єктів
     this.reproductionSystem = new ReproductionSystem(
@@ -250,7 +251,7 @@ export class SimulationEngine {
         radius,
         this.rng
       );
-      this.obstacles.set(obstacle.id, obstacle);
+      this.entityManager.addObstacle(obstacle);
     }
   }
 
@@ -266,7 +267,7 @@ export class SimulationEngine {
     for (let i = 0; i < count; i++) {
       const organism = this.spawnService.spawnOrganism(type);
       if (organism) {
-        this.organisms.set(organism.id, organism);
+        this.entityManager.addOrganism(organism);
         this.reproductionSystem['addToGeneticTree'](organism, undefined);
       }
     }
@@ -280,31 +281,16 @@ export class SimulationEngine {
    * Повна реініціалізація стану симуляції.
    */
   public reset(): void {
-    this.organisms.clear();
-    this.food.clear();
-    this.obstacles.clear();
+    this.entityManager.clear();
     this.zones.clear();
     this.geneticTree.clear();
     this.geneticRoots.length = 0;
-    this.spatialGrid.clear();
+    this.gridManager.clear();
 
     this.foodIdCounter = 0;
     this.obstacleIdCounter = 0;
     this.tick = 0;
-    this.stats = {
-      preyCount: 0,
-      predatorCount: 0,
-      foodCount: 0,
-      avgEnergy: 0,
-      avgPreyEnergy: 0,
-      avgPredatorEnergy: 0,
-      generation: ENGINE_CONSTANTS.INITIAL_GENERATION,
-      maxGeneration: ENGINE_CONSTANTS.INITIAL_MAX_GENERATION,
-      maxAge: ENGINE_CONSTANTS.INITIAL_STAT_VALUE,
-      totalDeaths: ENGINE_CONSTANTS.INITIAL_STAT_VALUE,
-      totalBirths: ENGINE_CONSTANTS.INITIAL_STAT_VALUE,
-      extinctionRisk: 0,
-    };
+    this.statisticsManager.reset();
 
     this.spawnService.resetFactory();
     this.bufferManager.reset();
@@ -376,7 +362,12 @@ export class SimulationEngine {
     this.spawnFood();
 
     // Корекція просторової дискретизації
-    this.rebuildGrid();
+    this.gridManager.rebuild(
+      this.entityManager.organisms,
+      this.entityManager.food,
+      this.entityManager.obstacles,
+      this.config.showObstacles
+    );
 
     // Циклічне застосування функціональних систем до реєстру організмів
     const endBehavior = this.performanceMonitor.startSubsystemTimer('BehaviorSystem');
@@ -421,10 +412,18 @@ export class SimulationEngine {
     }
 
     // Актуалізація статистичних метрик
-    this.updateStats();
+    this.statisticsManager.update(
+      this.entityManager.organisms,
+      this.entityManager.food.size,
+      this.entityManager.obstacles.size,
+      this.tick,
+      this.zones,
+      this.spatialGrid,
+      this.config
+    );
 
     // Формування нових популяційних одиниць
-    this.reproductionSystem.createOffspring(newborns, this.organisms, this.config.maxOrganisms, this.stats);
+    this.reproductionSystem.createOffspring(newborns, this.organisms, this.config.maxOrganisms, this.statisticsManager.getStats());
 
     // Елімінація об'єктів з термінальним статусом (смерть)
     this.processDeaths(deadIds);
@@ -433,7 +432,7 @@ export class SimulationEngine {
     this.eventBus.emit({
       type: 'TickUpdated',
       tick: this.tick,
-      stats: this.stats,
+      stats: this.statisticsManager.getStats(),
       deltaTime: 1 / ENGINE_CONSTANTS.TICK_RATE,
     });
 
@@ -461,382 +460,24 @@ export class SimulationEngine {
     if (this.rng.next() < this.config.foodSpawnRate) {
       const food = this.spawnService.spawnFood(++this.foodIdCounter);
       if (food) {
-        this.food.set(food.id, food);
+        this.entityManager.addFood(food);
       }
     }
   }
 
   // ============================================================================
-  // ДОПОМІЖНІ ОБЧИСЛЮВАЛЬНІ МЕТОДИ
+  // УПРАВЛІННЯ ДАНИМИ КАМЕРИ ТА СТАТИСТИКОЮ
   // ============================================================================
-
-  // Кеш для дорогих обчислень
-  private statsCache = {
-    avgEnergy: 0,
-    avgPreyEnergy: 0,
-    avgPredatorEnergy: 0,
-    extinctionRisk: 0,
-    lastUpdate: 0,
-    cacheTimeout: ENGINE_CONSTANTS.MS_PER_SECOND // 1 секунда кешу
-  };
-
-  // Кеш для даних камери
-  private cameraDataCache: {
-    position: { x: number; y: number; z: number };
-    target: { x: number; y: number; z: number };
-    zoom: number;
-    distance: number;
-    fov: number;
-    aspect: number;
-    near: number;
-    far: number;
-  } | null = null;
-
-  /**
-   * Перевірка чи потрібно оновити кеш
-   */
-  private shouldUpdateCache(): boolean {
-    return Date.now() - this.statsCache.lastUpdate > this.statsCache.cacheTimeout;
-  }
-
-  /**
-   * Актуалізація інтегральних статистичних показників популяції з оптимізацією
-   */
-  private updateStats(): void {
-    const baseStats = this.calculateBasicPopStats();
-    const maxStats = this.calculateMaxStats();
-    const cachedStats = this.getOrUpdateCachedStats();
-
-    const newStats = {
-      ...baseStats,
-      ...maxStats,
-      ...cachedStats,
-      generation: this.tick,
-      totalDeaths: this.stats.totalDeaths,
-      totalBirths: this.stats.totalBirths,
-    };
-
-    if (this.hasStatsChanged(newStats)) {
-      this.stats = newStats;
-    }
-
-    this.updateWorldGeometry();
-  }
-
-  private calculateBasicPopStats(): Pick<SimulationStats, 'preyCount' | 'predatorCount' | 'foodCount'> {
-    let preyCount = 0;
-    let predatorCount = 0;
-
-    this.organisms.forEach(org => {
-      if (org.type === 'PREY') {
-        preyCount++;
-      } else {
-        predatorCount++;
-      }
-    });
-
-    return {
-      preyCount,
-      predatorCount,
-      foodCount: this.food.size,
-    };
-  }
-
-  private calculateMaxStats(): Pick<SimulationStats, 'maxAge' | 'maxGeneration'> {
-    let maxAge = this.stats.maxAge;
-    let maxGeneration = this.stats.maxGeneration;
-
-    this.organisms.forEach(org => {
-      if (org.age > maxAge) {
-        maxAge = org.age;
-      }
-      if (org.genome.generation > maxGeneration) {
-        maxGeneration = org.genome.generation;
-      }
-    });
-
-    return { maxAge, maxGeneration };
-  }
-
-  private getOrUpdateCachedStats(): Pick<SimulationStats, 'avgEnergy' | 'avgPreyEnergy' | 'avgPredatorEnergy' | 'extinctionRisk'> {
-    if (!this.shouldUpdateCache()) {
-      return {
-        avgEnergy: this.statsCache.avgEnergy,
-        avgPreyEnergy: this.statsCache.avgPreyEnergy,
-        avgPredatorEnergy: this.statsCache.avgPredatorEnergy,
-        extinctionRisk: this.statsCache.extinctionRisk,
-      };
-    }
-
-    const avgEnergy = this.calculateAverageEnergy();
-    const avgPreyEnergy = this.calculateAverageEnergyByType(EntityType.PREY);
-    const avgPredatorEnergy = this.calculateAverageEnergyByType(EntityType.PREDATOR);
-    const extinctionRisk = this.calculateExtinctionRisk();
-
-    this.statsCache = {
-      avgEnergy,
-      avgPreyEnergy,
-      avgPredatorEnergy,
-      extinctionRisk,
-      lastUpdate: Date.now(),
-      cacheTimeout: ENGINE_CONSTANTS.MS_PER_SECOND
-    };
-
-    return { avgEnergy, avgPreyEnergy, avgPredatorEnergy, extinctionRisk };
-  }
-
-  private hasStatsChanged(newStats: SimulationStats): boolean {
-    return (
-      this.stats.preyCount !== newStats.preyCount ||
-      this.stats.predatorCount !== newStats.predatorCount ||
-      this.stats.foodCount !== newStats.foodCount ||
-      this.stats.avgEnergy !== newStats.avgEnergy ||
-      this.stats.extinctionRisk !== newStats.extinctionRisk ||
-      this.stats.generation !== newStats.generation ||
-      this.stats.maxAge !== newStats.maxAge
-    );
-  }
-
-  /**
-   * Оновлення геометричних даних світу для діагностики
-   */
-  private updateWorldGeometry(cameraData?: import('@/types').CameraData): void {
-    const geoStats: Partial<SimulationStats> = {
-      worldSize: this.worldConfig.WORLD_SIZE,
-      foodSpawnRate: this.config.foodSpawnRate || 0,
-      obstacleCount: this.obstacles.size,
-      worldAge: Math.floor(this.tick / ENGINE_CONSTANTS.WORLD_AGE_FALLBACK_TPS),
-    };
-
-    this.stats = { ...this.stats, ...geoStats };
-    this.updateCameraStats(cameraData);
-    this.updateZoneStats();
-    this.updateGridStats();
-  }
-
-  private updateCameraStats(cameraData?: import('@/types').CameraData): void {
-    if (cameraData) {
-      this.stats = {
-        ...this.stats,
-        cameraX: cameraData.position.x,
-        cameraY: cameraData.position.y,
-        cameraZ: cameraData.position.z,
-        targetX: cameraData.target.x,
-        targetY: cameraData.target.y,
-        targetZ: cameraData.target.z,
-        zoom: cameraData.zoom,
-        cameraDistance: cameraData.distance,
-        cameraFov: cameraData.fov,
-        cameraAspect: cameraData.aspect,
-      };
-    } else {
-      this.resetCameraStats();
-    }
-  }
-
-  private resetCameraStats(): void {
-    this.stats = {
-      ...this.stats,
-      cameraX: 0,
-      cameraY: 0,
-      cameraZ: 0,
-      targetX: this.worldConfig.WORLD_SIZE * ENGINE_CONSTANTS.ZONE_CENTER_MULT,
-      targetY: this.worldConfig.WORLD_SIZE * ENGINE_CONSTANTS.ZONE_CENTER_MULT,
-      targetZ: this.worldConfig.WORLD_SIZE * ENGINE_CONSTANTS.ZONE_CENTER_MULT,
-      zoom: ENGINE_CONSTANTS.DEFAULT_ZOOM,
-      cameraDistance: 0,
-      cameraFov: ENGINE_CONSTANTS.DEFAULT_CAMERA_FOV,
-      cameraAspect: 1,
-    };
-  }
-
-  private updateZoneStats(): void {
-    let oasis = 0;
-    let desert = 0;
-    let hunting = 0;
-
-    this.zones.forEach(z => {
-      if (z.type === 'OASIS') { oasis++; }
-      else if (z.type === 'DESERT') { desert++; }
-      else if (z.type === 'HUNTING_GROUND') { hunting++; }
-    });
-
-    this.stats = {
-      ...this.stats,
-      growthZones: oasis,
-      neutralZones: desert,
-      dangerZones: hunting,
-      totalZones: this.zones.size,
-      activeZones: this.zones.size,
-    };
-  }
-
-  private updateGridStats(): void {
-    const cellSize = this.getCellSizeFromGrid();
-    const dimensions = this.getDimensionsFromGrid();
-    const occupied = this.calculateOccupiedCells();
-    const totalCells = dimensions ** ENGINE_CONSTANTS.VOLUME_EXPONENT;
-
-    this.stats = {
-      ...this.stats,
-      cellSize: cellSize,
-      totalCells: totalCells,
-      occupiedCells: occupied,
-      avgDensity: totalCells > 0 ? (occupied / totalCells * ENGINE_CONSTANTS.FULL_PERCENT) : 0,
-      maxDensity: this.calculateMaxCellDensity(),
-      gridEfficiency: this.calculateGridEfficiency(),
-    };
-  }
-
-  /**
-   * Отримання розміру комірки з сітки
-   */
-  private getCellSizeFromGrid(): number {
-    return ENGINE_CONSTANTS.MAX_CELL_SIZE;
-  }
-
-  /**
-   * Отримання розмірів сітки
-   */
-  private getDimensionsFromGrid(): number {
-    return Math.ceil(this.worldConfig.WORLD_SIZE / this.getCellSizeFromGrid());
-  }
-
-  /**
-   * Розрахунок кількості зайнятих комірок
-   */
-  private calculateOccupiedCells(): number {
-    const occupiedCells = new Set<number>();
-
-    this.organisms.forEach(org => {
-      occupiedCells.add(this.getGridKey(org.position));
-    });
-
-    this.food.forEach(food => {
-      occupiedCells.add(this.getGridKey(food.position));
-    });
-
-    return occupiedCells.size;
-  }
-
-  private getGridKey(pos: { x: number; y: number; z: number }): number {
-    const worldSize = this.worldConfig.WORLD_SIZE;
-    const cellSize = this.getCellSizeFromGrid();
-    const dimensions = this.getDimensionsFromGrid();
-
-    const gx = Math.floor(((pos.x % worldSize) + worldSize) % worldSize / cellSize);
-    const gy = Math.floor(((pos.y % worldSize) + worldSize) % worldSize / cellSize);
-    const gz = Math.floor(((pos.z % worldSize) + worldSize) % worldSize / cellSize);
-    return gx + gy * dimensions + gz * dimensions * dimensions;
-  }
-
-  /**
-   * Розрахунок максимальної щільності комірки
-   */
-  private calculateMaxCellDensity(): number {
-    const cellCounts = new Map<number, number>();
-
-    this.organisms.forEach(org => {
-      const key = this.getGridKey(org.position);
-      cellCounts.set(key, (cellCounts.get(key) || 0) + 1);
-    });
-
-    this.food.forEach(food => {
-      const key = this.getGridKey(food.position);
-      cellCounts.set(key, (cellCounts.get(key) || 0) + 1);
-    });
-
-    let maxCount = 0;
-    cellCounts.forEach(count => {
-      if (count > maxCount) { maxCount = count; }
-    });
-
-    return maxCount;
-  }
-
-  /**
-   * Розрахунок ефективності просторової сітки
-   */
-  private calculateGridEfficiency(): number {
-    const totalEntities = this.organisms.size + this.food.size;
-    const occupiedCells = this.calculateOccupiedCells();
-
-    const FULL_PERCENT = 100;
-    if (totalEntities === 0 || occupiedCells === 0) { return FULL_PERCENT; }
-
-    // Ідеальна ситуація: кожна сутність в окремій комірці
-    const idealCells = totalEntities;
-    const efficiency = Math.min(FULL_PERCENT, (idealCells / occupiedCells) * FULL_PERCENT);
-
-    return Math.round(efficiency);
-  }
-
-  /**
-   * Розрахунок середньої енергії всіх організмів
-   */
-  private calculateAverageEnergy(): number {
-    if (this.organisms.size === 0) { return 0; }
-
-    let totalEnergy = 0;
-    this.organisms.forEach(org => {
-      totalEnergy += org.energy;
-    });
-
-    return totalEnergy / this.organisms.size;
-  }
-
-  /**
-   * Розрахунок середньої енергії за типом
-   */
-  private calculateAverageEnergyByType(type: 'PREY' | 'PREDATOR'): number {
-    const organisms = Array.from(this.organisms.values()).filter(org => org.type === type);
-    if (organisms.length === 0) { return 0; }
-
-    let totalEnergy = 0;
-    organisms.forEach(org => {
-      totalEnergy += org.energy;
-    });
-
-    return totalEnergy / organisms.length;
-  }
-
-  /**
-   * Розрахунок ризику вимирання
-   */
-  private calculateExtinctionRisk(): number {
-    const totalOrganisms = this.organisms.size;
-    const preyCount = Array.from(this.organisms.values()).filter(org => org.type === EntityType.PREY).length;
-    const predatorCount = Array.from(this.organisms.values()).filter(org => org.type === EntityType.PREDATOR).length;
-
-    // Якщо немає організмів - ризик 100%
-    if (totalOrganisms === 0) { return ENGINE_CONSTANTS.EXTINCTION_RISK_DEAD; }
-
-    // Якщо немає травоїдних - високий ризик
-    if (preyCount === 0) { return ENGINE_CONSTANTS.EXTINCTION_RISK_NO_PREY; }
-
-    // Якщо немає хижаків - низький ризик
-    if (predatorCount === 0) { return ENGINE_CONSTANTS.EXTINCTION_RISK_NO_PREDATOR; }
-
-    // Розрахунок співвідношення хижаків до травоїдних
-    const predatorRatio = predatorCount / preyCount;
-
-    // Ідеальне співвідношення 1:10
-    const idealRatio = ENGINE_CONSTANTS.IDEAL_PREDATOR_RATIO;
-    const ratioDeviation = Math.abs(predatorRatio - idealRatio) / idealRatio;
-
-    // Чим більше відхилення, тим вищий ризик
-    return Math.min(ENGINE_CONSTANTS.EXTINCTION_RISK_HIGH, ratioDeviation * ENGINE_CONSTANTS.RISK_SCALING_FACTOR);
-  }
 
   /**
    * Встановлення даних камери для діагностики
    */
   public setCameraData(cameraData: import('@/types').CameraData): void {
-    // Зберігаємо дані камери в кеш
-    this.cameraDataCache = { ...cameraData };
+    // Зберігаємо дані камери через провайдер
+    this.cameraDataProvider.setCameraData(cameraData);
 
-    // Оновлюємо геометричні дані світу з даними камери
-    this.updateWorldGeometry(cameraData);
+    // Оновлюємо дані камери в статистиці
+    this.statisticsManager.setCameraData(cameraData);
   }
 
   /**
@@ -863,12 +504,9 @@ export class SimulationEngine {
       }
     }
 
-    // Оновлюємо статистику створюючи новий об'єкт
+    // Оновлюємо статистику
     if (newDeaths > 0) {
-      this.stats = {
-        ...this.stats,
-        totalDeaths: this.stats.totalDeaths + newDeaths,
-      };
+      this.statisticsManager.incrementDeaths(newDeaths);
     }
   }
 
@@ -876,45 +514,17 @@ export class SimulationEngine {
    * Отримання поточної статистики симуляції
    */
   public getStats(): SimulationStats {
-    return { ...this.stats };
+    return this.statisticsManager.getStats();
   }
 
   /**
    * Отримання поточної статистики з геометричними даними
    */
   public getStatsWithWorldData(): SimulationStats {
-    // Оновлюємо геометричні дані перед поверненням, використовуючи кешовані дані камери
-    this.updateWorldGeometry(this.cameraDataCache ?? undefined);
-    return { ...this.stats };
+    // Геометричні дані оновлюються автоматично в statisticsManager.update()
+    return this.statisticsManager.getStats();
   }
 
-  /**
-   * Перебудова просторової сітки
-   */
-  private rebuildGrid(): void {
-    this.spatialGrid.clear();
-
-    const insertEntity = (e: import('../types').GridEntity) => {
-      this.spatialGrid.insert({
-        id: e.id,
-        position: e.position,
-        type: e.type,
-        radius: e.radius,
-      });
-    };
-
-    this.organisms.forEach(o => {
-      if (!o.isDead) { insertEntity(o); }
-    });
-
-    this.food.forEach(f => {
-      if (!f.consumed) { insertEntity(f); }
-    });
-
-    if (this.config.showObstacles) {
-      this.obstacles.forEach(insertEntity);
-    }
-  }
 
 
   /**
@@ -971,117 +581,20 @@ export class SimulationEngine {
    * Використовується для інтерактивності (тултипи, селекція).
    */
   public findEntityAt(pos: { x: number; y: number; z: number }, tolerance: number): Organism | null {
-    const candidates = this.getEntityCandidates(pos, tolerance);
-    return this.findClosestOrganism(candidates, pos, tolerance);
-  }
-
-  private getEntityCandidates(pos: { x: number; y: number; z: number }, tolerance: number): string[] {
-    try {
-      if (this.spatialGrid) {
-        const neighbors = this.spatialGrid.getNearby(pos, tolerance * ENGINE_CONSTANTS.GRID_FALLBACK_MULT);
-        return neighbors.map(n => n.id);
-      }
-    } catch {
-      // Fallback to full list search
-    }
-    return Array.from(this.organisms.keys());
-  }
-
-  private findClosestOrganism(ids: string[], pos: { x: number; y: number; z: number }, tolerance: number): Organism | null {
-    let closest: Organism | null = null;
-    let minDistSq = tolerance * tolerance;
-
-    for (const id of ids) {
-      const org = this.organisms.get(id);
-      if (!org || org.isDead) { continue; }
-
-      const distSq = this.calculateDistanceSq(org.position, pos);
-      const hitRadius = Math.max(tolerance, org.radius * ENGINE_CONSTANTS.HIT_RADIUS_MULT_ORG);
-
-      if (distSq < hitRadius * hitRadius && distSq < minDistSq) {
-        minDistSq = distSq;
-        closest = org;
-      }
-    }
-
-    return closest || this.findClosestOrganismFallback(pos, tolerance);
-  }
-
-  private findClosestOrganismFallback(pos: { x: number; y: number; z: number }, tolerance: number): Organism | null {
-    let closest: Organism | null = null;
-    let minDistSq = tolerance * tolerance;
-
-    for (const org of this.organisms.values()) {
-      if (org.isDead) { continue; }
-      const distSq = this.calculateDistanceSq(org.position, pos);
-      const hitRadius = Math.max(tolerance, org.radius * ENGINE_CONSTANTS.HIT_RADIUS_MULT_ORG_FALLBACK);
-
-      if (distSq < hitRadius * hitRadius && distSq < minDistSq) {
-        minDistSq = distSq;
-        closest = org;
-      }
-    }
-    return closest;
-  }
-
-  private calculateDistanceSq(p1: { x: number; y: number; z: number }, p2: { x: number; y: number; z: number }): number {
-    const dx = p1.x - p2.x;
-    const dy = p1.y - p2.y;
-    const dz = p1.z - p2.z;
-    return dx * dx + dy * dy + dz * dz;
+    return this.entityManager.findEntityAt(pos, tolerance);
   }
 
   /**
    * Пошук їжі за заданими координатами.
    */
   public findFoodAt(pos: { x: number; y: number; z: number }, tolerance: number): Food | null {
-    let closest: Food | null = null;
-    let minDistSq = tolerance * tolerance;
-
-    for (const food of this.food.values()) {
-      if (food.consumed) { continue; }
-
-      const distSq = this.calculateDistanceSq(food.position, pos);
-      const hitRadius = Math.max(tolerance, food.radius * ENGINE_CONSTANTS.HIT_RADIUS_MULT_FOOD);
-
-      if (distSq < hitRadius * hitRadius && distSq < minDistSq) {
-        minDistSq = distSq;
-        closest = food;
-      }
-    }
-    return closest;
+    return this.entityManager.findFoodAt(pos, tolerance);
   }
 
   /**
    * Пошук сутності за індексом рендерингу (Instance ID).
    */
   public getEntityByInstanceId(type: 'prey' | 'predator' | 'food', index: number): Organism | Food | null {
-    if (type === 'food') {
-      return this.getFoodByInstanceId(index);
-    }
-    return this.getOrganismByInstanceId(type, index);
-  }
-
-  private getFoodByInstanceId(index: number): Food | null {
-    let currentIdx = 0;
-    for (const food of this.food.values()) {
-      if (!food.consumed) {
-        if (currentIdx === index) { return food; }
-        currentIdx++;
-      }
-    }
-    return null;
-  }
-
-  private getOrganismByInstanceId(type: 'prey' | 'predator', index: number): Organism | null {
-    const targetType = type === 'prey' ? EntityType.PREY : EntityType.PREDATOR;
-    let currentIdx = 0;
-    for (const org of this.organisms.values()) {
-      if (!org.isDead && org.type === targetType) {
-        if (currentIdx === index) { return org; }
-        currentIdx++;
-      }
-    }
-    return null;
+    return this.entityManager.getEntityByInstanceId(type, index);
   }
 }

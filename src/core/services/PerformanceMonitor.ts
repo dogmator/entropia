@@ -9,7 +9,7 @@
  * - Часові характеристики різних підсистем
  */
 
-import { PERFORMANCE_CONSTANTS } from '@/constants';
+import { PERFORMANCE_CONSTANTS } from '@/config';
 import type { PerformanceMetrics } from '@/types';
 
 import { MemoryInfo, PerformanceHelpers } from '../utils/PerformanceUtils';

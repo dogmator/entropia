@@ -17,7 +17,7 @@
 
 import type { EntityType, GridEntity, Vector3 } from '@/types';
 
-import { CELL_SIZE, WORLD_SIZE } from '../constants';
+import { CELL_SIZE, WORLD_SIZE } from '../config';
 import { MathUtils } from './MathUtils';
 
 /**

@@ -11,7 +11,7 @@ import {
     YAxis
 } from 'recharts';
 
-import { DIAGNOSTICS_CONFIG } from '@/constants';
+import { DIAGNOSTICS_CONFIG } from '@/config';
 import type { PerformanceMetrics } from '@/types';
 
 export const MAX_PERCENTAGE = 100;
