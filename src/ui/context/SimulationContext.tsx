@@ -1,12 +1,13 @@
 
-import type { PopulationDataPoint,SimulationStats } from '@shared/types';
+import type { PopulationDataPoint, SimulationStats } from '@shared/types';
 import type { CameraState } from '@ui/hooks';
 import type { PropsWithChildren } from 'react';
-import React, { createContext, useContext, useEffect, useMemo, useRef,useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { UI_CONFIG } from '@/constants.ts';
-import type { Food, Obstacle,Organism } from '@/simulation';
-import { SimulationEngine } from '@/simulation';
+import { UI_CONFIG } from '@/config';
+import { logger } from '@/core';
+import type { Food, Obstacle, Organism } from '@/simulation';
+import { isFood, SimulationEngine } from '@/simulation';
 
 interface SimulationContextValue {
     engine: SimulationEngine;
@@ -28,6 +29,27 @@ interface SimulationContextValue {
 }
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
+
+/**
+ * Утиліта для логування подій наведення на сутності.
+ * Винесена для чистоти компонента.
+ */
+const logHoverEvent = (entity: Organism | Food | Obstacle, previousEntity: Organism | Food | Obstacle | null) => {
+    if (entity === previousEntity) return;
+
+    const isFoodItem = isFood(entity);
+    const source = isFoodItem ? 'Hover:Food' : 'Hover:Entity';
+
+    // Debug hint для консолі браузера
+    console.debug(`[Hover] ${entity.type} ID: ${entity.id}`);
+
+    logger.info(`Hovered over ${entity.type} (ID: ${entity.id})`, source, {
+        id: entity.id,
+        type: entity.type,
+        position: entity.position,
+        isFood: isFoodItem
+    });
+};
 
 export const useSimulation = () => {
     const context = useContext(SimulationContext);
@@ -106,9 +128,17 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(true);
 
     /** Стан наведення на сутності. */
-    const [hoveredEntity, setHoveredEntity] = useState<Organism | Food | Obstacle | null>(null);
+    const [hoveredEntity, setHoveredEntityState] = useState<Organism | Food | Obstacle | null>(null);
     const [tooltipVisible, setTooltipVisible] = useState(false);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+    /** Обгортка для логування подій наведення. */
+    const setHoveredEntity = (entity: Organism | Food | Obstacle | null) => {
+        if (entity) {
+            logHoverEvent(entity, hoveredEntity);
+        }
+        setHoveredEntityState(entity);
+    };
 
     /** Референс для зберігання історії без тригера рендерингу. */
     const historyRef = useRef<PopulationDataPoint[]>([]);
@@ -176,9 +206,12 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
 
                 /** Формування розширеного об'єкта статистики з метриками продуктивності та геометричними даними. */
                 const engineStats = engine.getStatsWithWorldData();
+
+                // Використовуємо метрики продуктивності безпосередньо з двигуна, 
+                // якщо вони там є, або збагачуємо їх на стороні клієнта.
                 const statsWithPerformance: SimulationStats = {
                     ...engineStats,
-                    performance: {
+                    performance: engineStats.performance || {
                         fps: fpsCounter.current.fps,
                         tps: tpsCounter.current.tps,
                         frameTime: Number(frameTime.toFixed(2)),

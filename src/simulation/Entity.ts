@@ -19,7 +19,7 @@ import {
   INITIAL_ENERGY,
   MAX_ENERGY,
   PREDATOR_SUBTYPES,
-} from '../constants';
+} from '../config';
 import {
   createFoodId,
   createGenomeId,

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 
-import { COLORS, WORLD_SIZE,ZONE_DEFAULTS } from '../../constants';
+import { COLORS, WORLD_SIZE,ZONE_DEFAULTS } from '../../config';
 // Import Engine type (assuming it is exported from Engine.ts or we use a partial interface if circular deps exist)
 // Better to define a minimal interface here or import from types if available.
 // Since Engine.ts is a class, we can just use 'any' temporarily? NO, strict rules!

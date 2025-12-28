@@ -1,4 +1,4 @@
-/* eslint-disable simple-import-sort/imports */
+ 
 import React, { useState } from 'react';
 
 import type { LogEntry } from '@/core/services/Logger';
@@ -52,7 +52,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
   );
 };
 
-/* eslint-disable react/prop-types */
+ 
 
 const DiagnosticsHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">

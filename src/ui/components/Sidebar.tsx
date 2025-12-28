@@ -6,7 +6,7 @@ import { DiagnosticsModal } from './DiagnosticsModal';
 import { SettingsPanel } from './SettingsPanel';
 import { SimulationControls } from './SimulationControls';
 import { Icons } from './shared/Icons';
-import { UI_CONFIG } from '../../constants';
+import { UI_CONFIG } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
 import { SimulationEngine } from '@/simulation';
@@ -165,7 +165,7 @@ const SidebarOverlay: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ is
 const SidebarMobileClose: React.FC<{ isOpen: boolean, onClose: () => void }> = ({ isOpen, onClose }) => (
   isOpen ? <button
     onClick={onClose}
-    className="absolute top-4 left-4 w-10 h-10 md:hidden bg-black/80 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center text-emerald-400 hover:text-white transition-colors z-50 touch-manipulation shadow-lg"
+    className="absolute top-4 left-4 w-10 h-10 md:hidden bg-black/80 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center text-emerald-400 hover:text-white transition-colors z-50 touch-manipulation shadow-lg pointer-events-auto"
     aria-label="Закрити інтерактивну панель"
   >
     <Icons.Close strokeWidth={2.5} />
@@ -195,7 +195,7 @@ interface SidebarContentProps {
   onOpenDiagnostics: () => void;
 }
 
-/* eslint-disable react/prop-types */
+
 const SidebarContent: React.FC<SidebarContentProps> = ({
   isOpen, stats, history, onReset, speed, setSpeed, engine, worldScale, setWorldScale, onOpenDiagnostics
 }) => (
@@ -206,7 +206,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
     </div>
 
     <div className="space-y-6">
-      <Dashboard stats={stats} history={history} />
+      <Dashboard stats={stats} history={history} visible={isOpen} />
 
       <SimulationControls
         onReset={onReset}
