@@ -429,10 +429,16 @@ export class SimulationEngine {
     this.processDeaths(deadIds);
 
     // Диспетчеризація оновленого стану через шину подій
+    const stats = this.statisticsManager.getStats();
+    const performanceMetrics = this.performanceMonitor.getCurrentMetrics();
+
     this.eventBus.emit({
       type: 'TickUpdated',
       tick: this.tick,
-      stats: this.statisticsManager.getStats(),
+      stats: {
+        ...stats,
+        performance: performanceMetrics
+      },
       deltaTime: 1 / ENGINE_CONSTANTS.TICK_RATE,
     });
 

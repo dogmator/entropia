@@ -19,13 +19,14 @@ import type { PopulationDataPoint, SimulationStats } from '@/types';
 interface DashboardProps {
   stats: SimulationStats;
   history: PopulationDataPoint[];
+  visible?: boolean;
 }
 
 /**
  * Компонент Dashboard — панель моніторингу та візуалізації метрик симуляції.
  * Забезпечує рендеринг основних кількісних показників та динаміку популяції.
  */
-export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ stats, history, visible = true }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ stats, history }) => {
       {/* Візуалізація хронологічної динаміки популяції */}
       <div className="h-32 sm:h-36 lg:h-40 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
         <div className="absolute top-2 left-4 text-[8px] sm:text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] z-10">Динаміка популяції</div>
-        {isMounted ? <ResponsiveContainer width="100%" height="100%" debounce={UI_THRESHOLDS.DEBOUNCE_DELAY}>
+        {isMounted && visible ? <ResponsiveContainer width="100%" height="100%" debounce={UI_THRESHOLDS.DEBOUNCE_DELAY}>
           <LineChart data={history} margin={{ top: 10, right: 0, left: -30, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#111" vertical={false} />
             <XAxis dataKey="time" hide />

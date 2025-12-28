@@ -8,24 +8,17 @@
  * - Управління даними камери для діагностики.
  */
 
-import type { EcologicalZone, SimulationConfig, SimulationStats, WorldConfig } from '@/types';
+import type {
+    EcologicalZone,
+    SimulationConfig,
+    SimulationStats,
+    WorldConfig,
+} from '@/types';
+import { ZoneType } from '@/types';
 
+import { STATS_CONSTANTS } from '../../config';
 import type { Organism } from '../Entity';
 import type { SpatialHashGrid } from '../SpatialHashGrid';
-
-const STATS_CONSTANTS = {
-    MS_PER_SECOND: 1000,
-    CACHE_TIMEOUT: 1000,
-    DEFAULT_CAMERA_FOV: 60,
-    DEFAULT_ZOOM: 1,
-    WORLD_AGE_FALLBACK_TPS: 60,
-    EXTINCTION_THRESHOLD_LOW: 5,
-    EXTINCTION_RISK_HIGH: 0.9,
-    EXTINCTION_RISK_MEDIUM: 0.5,
-    RISK_FACTOR_OFFSET: 0.1,
-    MAX_CELL_SIZE: 80,
-    GRID_FALLBACK_MULT: 2,
-};
 
 /**
  * Структура кешованих статистичних даних.
@@ -310,23 +303,17 @@ export class StatisticsManager {
         config: SimulationConfig,
         obstacleSize: number
     ): void {
-        const extendedStats = this.stats as SimulationStats & {
-            worldSize?: number;
-            foodSpawnRate?: number;
-            obstacleCount?: number;
-            worldAge?: number;
+        this.stats = {
+            ...this.stats,
+            worldSize: this.worldConfig.WORLD_SIZE,
+            foodSpawnRate: config.foodSpawnRate || 0,
+            obstacleCount: obstacleSize,
+            worldAge: Math.floor(tick / STATS_CONSTANTS.WORLD_AGE_FALLBACK_TPS),
         };
-
-        extendedStats.worldSize = this.worldConfig.WORLD_SIZE;
-        extendedStats.foodSpawnRate = config.foodSpawnRate || 0;
-        extendedStats.obstacleCount = obstacleSize;
-        extendedStats.worldAge = Math.floor(tick / STATS_CONSTANTS.WORLD_AGE_FALLBACK_TPS);
 
         this.updateCameraStats(this.cameraDataCache ?? undefined);
         this.updateZoneStats(zones);
         this.updateGridStats(spatialGrid);
-
-        this.stats = extendedStats;
     }
 
     private updateCameraStats(cameraData?: CameraData): void {
@@ -369,11 +356,15 @@ export class StatisticsManager {
         let oasis = 0;
         let desert = 0;
         let hunting = 0;
+        let sanctuary = 0;
 
         zones.forEach(z => {
-            if (z.type === 'OASIS') { oasis++; }
-            else if (z.type === 'DESERT') { desert++; }
-            else if (z.type === 'HUNTING_GROUND') { hunting++; }
+            switch (z.type) {
+                case ZoneType.OASIS: oasis++; break;
+                case ZoneType.DESERT: desert++; break;
+                case ZoneType.HUNTING_GROUND: hunting++; break;
+                case ZoneType.SANCTUARY: sanctuary++; break;
+            }
         });
 
         this.stats = {
