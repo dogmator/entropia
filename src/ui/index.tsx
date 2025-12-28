@@ -8,7 +8,12 @@ import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 
+import { logger } from '@/core';
+
 import { App } from './App';
+
+// Активація віддаленого логування для відладки (працює тільки в DEV режимі)
+logger.setRemoteLogging(true);
 
 /** Пошук кореневого контейнера в структурі документа. */
 const rootElement = document.getElementById('root');

@@ -1,7 +1,4 @@
-/**
- * Logger - система логування для діагностики додатку
- * Збирає системні події та помилки для відображення в діагностичному UI
- */
+import { DEBUG_CONFIG } from '@/config';
 
 export enum LogLevel {
   INFO = 'info',
@@ -30,6 +27,10 @@ export class Logger {
   private logs: LogEntry[] = [];
   private maxLogs: number = LOGGER_MAX_LOGS;
   private subscribers: Set<(logs: LogEntry[]) => void> = new Set();
+  private remoteLoggingEnabled: boolean = DEBUG_CONFIG.remoteLoggingEnabled;
+  private socket: WebSocket | null = null;
+  private messageQueue: LogEntry[] = [];
+  private isConnecting: boolean = false;
 
   private constructor() {
     // Приватний конструктор для синглтона
@@ -76,6 +77,7 @@ export class Logger {
     this.cleanupOldLogs();
     this.notifySubscribers();
     this.outputToConsole(level, message, source, data);
+    this.maybeSendToRemote(entry);
   }
 
   private isDuplicateLog(
@@ -138,6 +140,89 @@ export class Logger {
       console[consoleMethod](logMessage, data);
     } else {
       console[consoleMethod](logMessage);
+    }
+  }
+
+  /**
+   * Налаштування віддаленого логування
+   */
+  public setRemoteLogging(enabled: boolean): void {
+    this.remoteLoggingEnabled = enabled;
+    if (enabled) {
+      this.initWebSocket();
+    } else if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+  }
+
+  /**
+   * Ініціалізація WebSocket з'єднання
+   */
+  private initWebSocket(): void {
+    if (this.socket || this.isConnecting || !this.isDevelopment() || !this.remoteLoggingEnabled) {
+      return;
+    }
+
+    this.isConnecting = true;
+
+    try {
+      this.socket = new WebSocket(DEBUG_CONFIG.remoteWsEndpoint);
+
+      this.socket.onopen = () => {
+        this.isConnecting = false;
+        console.debug('[\x1b[36mLogger\x1b[0m] WebSocket connected');
+        this.flushQueue();
+      };
+
+      this.socket.onclose = () => {
+        this.isConnecting = false;
+        this.socket = null;
+        if (this.remoteLoggingEnabled) {
+          // Авто-перепідключення через 3 секунди
+          setTimeout(() => this.initWebSocket(), 3000);
+        }
+      };
+
+      this.socket.onerror = () => {
+        this.isConnecting = false;
+      };
+    } catch (error) {
+      this.isConnecting = false;
+      console.warn('Failed to init WebSocket:', error);
+    }
+  }
+
+  /**
+   * Очищення черги повідомлень після відновлення зв'язку
+   */
+  private flushQueue(): void {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+
+    while (this.messageQueue.length > 0) {
+      const entry = this.messageQueue.shift();
+      if (entry) this.socket.send(JSON.stringify(entry));
+    }
+  }
+
+  /**
+   * Відправка лога на сервер
+   */
+  private async maybeSendToRemote(entry: LogEntry): Promise<void> {
+    if (!this.remoteLoggingEnabled || !this.isDevelopment()) {
+      return;
+    }
+
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      this.messageQueue.push(entry);
+      this.initWebSocket();
+      return;
+    }
+
+    try {
+      this.socket.send(JSON.stringify(entry));
+    } catch (error) {
+      this.messageQueue.push(entry);
     }
   }
 
@@ -241,6 +326,27 @@ export class Logger {
     const recent = this.getRecentLogs(LOGGER_RECENT_MINUTES_STATS).length;
 
     return { total, info, warning, error, recent };
+  }
+
+  /**
+   * Перевірка чи середовище є режимом розробки
+   */
+  private isDevelopment(): boolean {
+    try {
+      // Перевірка для Vite (import.meta.env.DEV)
+      // @ts-ignore
+      if (typeof import.meta !== 'undefined' && import.meta.env) {
+        // @ts-ignore
+        return !!import.meta.env.DEV;
+      }
+      // Перевірка для Node.js або поліфілів (process.env.NODE_ENV)
+      if (typeof process !== 'undefined' && process.env) {
+        return process.env['NODE_ENV'] === 'development';
+      }
+    } catch (e) {
+      // Ігноруємо помилки доступу до середовища
+    }
+    return false;
   }
 }
 
