@@ -38,5 +38,11 @@ export * from './engine.constants';
 // Performance and optimization
 export * from './performance.constants';
 
+// Debug and logging
+export * from './debug.constants';
+
+// Statistics and metrics
+export * from './statistics.constants';
+
 // World configuration function
 export * from './world.config';
