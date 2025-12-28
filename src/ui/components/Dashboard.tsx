@@ -10,7 +10,7 @@ import {
   YAxis
 } from 'recharts';
 
-import { UI_THRESHOLDS } from '@/constants';
+import { UI_THRESHOLDS } from '@/config';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
 
 /**

@@ -4,7 +4,7 @@ import type { CameraState } from '@ui/hooks';
 import type { PropsWithChildren } from 'react';
 import React, { createContext, useContext, useEffect, useMemo, useRef,useState } from 'react';
 
-import { UI_CONFIG } from '@/constants.ts';
+import { UI_CONFIG } from '@/config';
 import type { Food, Obstacle,Organism } from '@/simulation';
 import { SimulationEngine } from '@/simulation';
 

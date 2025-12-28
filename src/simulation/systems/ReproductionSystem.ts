@@ -8,7 +8,7 @@
  * - Формування та актуалізація філогенетичного дерева популяції.
  */
 
-import { MIN_REPRODUCTION_AGE, REPRODUCTION } from '@/constants.ts';
+import { MIN_REPRODUCTION_AGE, REPRODUCTION } from '@/config';
 import type { EventBus } from '@/core';
 import type { GeneticTreeNode, GenomeId, OrganismId, SimulationConfig } from '@/types';
 

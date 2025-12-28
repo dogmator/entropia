@@ -8,4 +8,4 @@
 export * from '../types';
 
 // Конфігурація
-export * from '../constants';
+export * from '../config';

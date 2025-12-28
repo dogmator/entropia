@@ -36,7 +36,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
   );
 };
 
-/* eslint-disable react/prop-types */
+ 
 
 const SpeedHeader: React.FC<{ speed: number }> = ({ speed }) => (
   <div className="flex items-center justify-between">

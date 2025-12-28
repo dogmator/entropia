@@ -4,7 +4,7 @@ import React from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
-import { WORLD_SIZE } from '../../constants';
+import { WORLD_SIZE } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
 
 const CameraTracker: React.FC = () => {
