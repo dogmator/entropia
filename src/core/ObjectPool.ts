@@ -163,7 +163,8 @@ export interface PoolStats {
 // ============================================================================
 
 import type { MutableVector3 } from '@/types';
-import { POOL_CONSTANTS } from '../constants';
+
+import { POOL_CONSTANTS } from '../config';
 
 /**
  * Пул для об'єктів тривимірних векторів.

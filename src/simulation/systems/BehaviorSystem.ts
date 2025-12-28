@@ -11,7 +11,7 @@
 /**
  * Константи параметрів поведінкової динаміки.
  */
-import { PHYSICS } from '@/constants.ts';
+import { PHYSICS } from '@/config';
 import { Vector3Pool } from '@/core/ObjectPool';
 import type { SpatialHashGrid } from '@/simulation';
 import { EntityType } from '@/types';
