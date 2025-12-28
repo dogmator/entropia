@@ -1,0 +1,16 @@
+/**
+ * Statistics and diagnostic constants.
+ */
+export const STATS_CONSTANTS = {
+    MS_PER_SECOND: 1000,
+    CACHE_TIMEOUT: 1000,
+    DEFAULT_CAMERA_FOV: 60,
+    DEFAULT_ZOOM: 1,
+    WORLD_AGE_FALLBACK_TPS: 60,
+    EXTINCTION_THRESHOLD_LOW: 5,
+    EXTINCTION_RISK_HIGH: 0.9,
+    EXTINCTION_RISK_MEDIUM: 0.5,
+    RISK_FACTOR_OFFSET: 0.1,
+    MAX_CELL_SIZE: 80,
+    GRID_FALLBACK_MULT: 2,
+} as const;
