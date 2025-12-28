@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import type React from 'react';
 import { useEffect, useMemo } from 'react';
 
-import { COLORS, RENDER } from '../../constants';
+import { COLORS, RENDER } from '../../config';
 import type { SimulationEngine } from '../../simulation/Engine';
 import { TrailSystem } from '../effects/ParticleSystem';
 

@@ -116,10 +116,10 @@ export class PersistenceService {
                 genomeIdCounter: factory.getGenomeIdCounter(),
             },
             stats: {
-                totalDeaths: engine.stats.totalDeaths,
-                totalBirths: engine.stats.totalBirths,
-                maxAge: engine.stats.maxAge,
-                maxGeneration: engine.stats.maxGeneration,
+                totalDeaths: engine.getStats().totalDeaths,
+                totalBirths: engine.getStats().totalBirths,
+                maxAge: engine.getStats().maxAge,
+                maxGeneration: engine.getStats().maxGeneration,
             },
             config: { ...(engine.config as unknown as SimulationConfig) },
             zones,
@@ -243,8 +243,7 @@ export class PersistenceService {
             engine.geneticTree.set(node.id, node);
         }
 
-        // Початкове оновлення статистики
-        engine.updateStats();
+        // Статистика буде оновлена автоматично при наступному виклику engine.update()
     }
 
     /**

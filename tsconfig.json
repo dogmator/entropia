@@ -59,7 +59,7 @@
         "./src/types.ts"
       ],
       "@shared/config": [
-        "./src/constants.ts"
+        "./src/config/index.ts"
       ],
       "@shared/*": [
         "./src/shared/*"
