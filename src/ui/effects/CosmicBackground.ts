@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 
-import { COSMIC_BACKGROUND_CONSTANTS } from '@/constants';
+import { COSMIC_BACKGROUND_CONSTANTS } from '@/config';
 
 // ============================================================================
 // ОПИС ШЕЙДЕРНИХ ПРОГРАМ ДЛЯ ВІЗУАЛІЗАЦІЇ ЗІРОК

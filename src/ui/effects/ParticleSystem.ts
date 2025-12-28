@@ -14,7 +14,7 @@
 import { ParticlePool, type PooledParticle } from '@core/ObjectPool.ts';
 import * as THREE from 'three';
 
-import { COLORS, PARTICLE_CONSTANTS, RENDER } from '@/constants.ts';
+import { COLORS, PARTICLE_CONSTANTS, RENDER } from '@/config';
 import type { Vector3 } from '@/types';
 
 import {

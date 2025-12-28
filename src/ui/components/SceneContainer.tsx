@@ -1,18 +1,19 @@
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { Canvas, useFrame,useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import React from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
-import { WORLD_SIZE } from '../../constants';
+import { WORLD_SIZE } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
+import { SimulationDriver } from './SimulationDriver';
 
 const CameraTracker: React.FC = () => {
     const { camera, controls } = useThree();
     const { setCameraState } = useSimulation();
 
     useFrame(() => {
-        if (!controls) {return;}
+        if (!controls) { return; }
 
         const orbitControls = controls as unknown as OrbitControlsImpl;
         const target = orbitControls.target;
@@ -34,6 +35,7 @@ const CameraTracker: React.FC = () => {
 
     return null;
 };
+
 
 interface SceneContainerProps {
     worldSize?: number;
@@ -76,6 +78,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
             />
 
             <CameraTracker />
+            <SimulationDriver />
 
             <ambientLight intensity={0.35} />
 

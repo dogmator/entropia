@@ -11,7 +11,7 @@
 /**
  * Константи фізичних параметрів колізій.
  */
-import { INTERACTION, PHYSICS } from '@/constants.ts';
+import { INTERACTION, PHYSICS } from '@/config';
 import type { EventBus } from '@/core';
 import { Vector3Pool } from '@/core/ObjectPool';
 import type { SpatialHashGrid } from '@/simulation';
