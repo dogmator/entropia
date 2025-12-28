@@ -202,11 +202,36 @@ interface AnimationHookParams {
 }
 
 /**
+ * Хук для оновлення bounding volumes (сфери та бокси) для коректного Raycasting.
+ * Оскільки InstancedMesh змінює матриці в кожному кадрі, Raycaster'у потрібні актуальні межі.
+ */
+const useBoundingVolumesUpdate = (refs: { prey: React.RefObject<THREE.InstancedMesh>, pred: React.RefObject<THREE.InstancedMesh>, food: React.RefObject<THREE.InstancedMesh> }) => {
+    const lastHoverTimeRef = useRef(0);
+
+    useFrame((state) => {
+        const now = state.clock.getElapsedTime();
+        if (now - lastHoverTimeRef.current > RENDER.interaction.hoverInterval) {
+            lastHoverTimeRef.current = now;
+            const { prey: preyRef, pred: predRef, food: foodRef } = refs;
+
+            if (preyRef.current && preyRef.current.count > 0) {
+                preyRef.current.computeBoundingSphere();
+            }
+            if (predRef.current && predRef.current.count > 0) {
+                predRef.current.computeBoundingSphere();
+            }
+            if (foodRef.current && foodRef.current.count > 0) {
+                foodRef.current.computeBoundingSphere();
+            }
+        }
+    });
+};
+
+/**
  * Хук для керування анімацією та оновленням буферів сутностей
  */
 const useEntitiesAnimation = (params: AnimationHookParams) => {
     const { refs, engine, speed, isLoading } = params;
-    const lastHoverTimeRef = useRef(0);
 
     useFrame((state) => {
         const { prey: preyRef, pred: predRef, food: foodRef } = refs;
@@ -244,13 +269,6 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
             scaleMultiplier: engine.config.foodScale,
             rotationTime: now
         });
-
-        if (now - lastHoverTimeRef.current > RENDER.interaction.hoverInterval) {
-            lastHoverTimeRef.current = now;
-            if (foodRef.current.geometry.boundingSphere === null) {
-                foodRef.current.geometry.computeBoundingSphere();
-            }
-        }
     });
 };
 
@@ -301,6 +319,7 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
     ), []);
 
     useEntitiesAnimation({ refs: { prey: preyRef, pred: predRef, food: foodRef }, engine, speed, isLoading });
+    useBoundingVolumesUpdate({ prey: preyRef, pred: predRef, food: foodRef });
     const { handlePointerMove, handlePointerOut, handlePointerMiss } = useEntityInteraction(engine);
 
     return (
