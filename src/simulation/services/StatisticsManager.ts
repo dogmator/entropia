@@ -18,7 +18,7 @@ import { ZoneType } from '@/types';
 
 import { STATS_CONSTANTS } from '../../config';
 import type { Organism } from '../Entity';
-import type { SpatialHashGrid } from '../SpatialHashGrid';
+import type { GridManager } from '../managers/GridManager';
 
 /**
  * Структура кешованих статистичних даних.
@@ -102,7 +102,7 @@ export class StatisticsManager {
         obstacleSize: number,
         tick: number,
         zones: Map<string, EcologicalZone>,
-        spatialGrid: SpatialHashGrid,
+        gridManager: GridManager,
         config: SimulationConfig
     ): void {
         const baseStats = this.calculateBasicPopStats(organisms, foodSize);
@@ -122,7 +122,7 @@ export class StatisticsManager {
             this.stats = newStats;
         }
 
-        this.updateWorldGeometry(tick, zones, spatialGrid, config, obstacleSize);
+        this.updateWorldGeometry(tick, zones, gridManager, config, obstacleSize);
     }
 
     /**
@@ -299,7 +299,7 @@ export class StatisticsManager {
     private updateWorldGeometry(
         tick: number,
         zones: Map<string, EcologicalZone>,
-        spatialGrid: SpatialHashGrid,
+        gridManager: GridManager,
         config: SimulationConfig,
         obstacleSize: number
     ): void {
@@ -313,7 +313,7 @@ export class StatisticsManager {
 
         this.updateCameraStats(this.cameraDataCache ?? undefined);
         this.updateZoneStats(zones);
-        this.updateGridStats(spatialGrid);
+        this.updateGridStats(gridManager);
     }
 
     private updateCameraStats(cameraData?: CameraData): void {
@@ -377,8 +377,8 @@ export class StatisticsManager {
         };
     }
 
-    private updateGridStats(spatialGrid: SpatialHashGrid): void {
-        const gridStats = spatialGrid.getStats();
+    private updateGridStats(gridManager: GridManager): void {
+        const gridStats = gridManager.getStats();
 
         this.stats = {
             ...this.stats,

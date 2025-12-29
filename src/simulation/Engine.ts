@@ -17,6 +17,7 @@ import { MetabolismSystem } from '@simulation/systems';
 import { PhysicsSystem } from '@simulation/systems';
 import { ReproductionSystem } from '@simulation/systems';
 
+import { MAX_DEAD_BODIES } from '@/config/population.constants';
 import { EventBus } from '@/core';
 import { logger } from '@/core';
 import { PerformanceMonitor } from '@/core';
@@ -33,6 +34,7 @@ import type {
   WorldConfig
 } from '@/types';
 import {
+  EngineState,
   EntityType,
   ZoneType,
 } from '@/types';
@@ -52,11 +54,13 @@ import { CameraDataProvider } from './providers';
 import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
 import { StatisticsManager } from './services/StatisticsManager';
-import { SpatialHashGrid } from './SpatialHashGrid';
 
 // ENGINE_CONSTANTS тепер імпортується з constants.ts
 
 export class SimulationEngine {
+  // Життєвий цикл
+  public state: EngineState = EngineState.INITIALIZING;
+
   // Менеджер управління сутностями
   private readonly entityManager: EntityManager;
   private readonly gridManager: GridManager;
@@ -68,6 +72,7 @@ export class SimulationEngine {
   public get obstacles(): Map<string, Obstacle> { return this.entityManager.obstacles; }
 
   public readonly zones: Map<string, EcologicalZone> = new Map();
+  public readonly deadOrganisms: Map<string, Organism> = new Map();
 
   // Структури збереження філогенетичних зв'язків
   public readonly geneticTree: Map<GenomeId, GeneticTreeNode> = new Map();
@@ -75,7 +80,6 @@ export class SimulationEngine {
 
   // Ініціалізація функціональних підсистем
   private readonly eventBus: EventBus;
-  private readonly spatialGrid: SpatialHashGrid;
   private readonly physicsSystem: PhysicsSystem;
   private readonly metabolismSystem: MetabolismSystem;
   private readonly collisionSystem: CollisionSystem;
@@ -114,31 +118,35 @@ export class SimulationEngine {
 
     // Комплексна ініціалізація системних компонентів
     this.eventBus = new EventBus();
-    this.spatialGrid = new SpatialHashGrid(this.worldConfig.WORLD_SIZE);
 
     // Ініціалізація менеджерів
-    this.entityManager = new EntityManager(this.spatialGrid);
-    this.gridManager = new GridManager(this.spatialGrid);
+    this.gridManager = new GridManager(
+      this.worldConfig.WORLD_SIZE,
+      ENGINE_CONSTANTS.SPATIAL_GRID_CELL_SIZE
+    );
+    this.entityManager = new EntityManager(this.gridManager);
     this.cameraDataProvider = new CameraDataProvider();
 
     this.physicsSystem = new PhysicsSystem(this.config, this.worldConfig);
     this.metabolismSystem = new MetabolismSystem();
-    this.collisionSystem = new CollisionSystem(this.spatialGrid, this.eventBus);
-    this.behaviorSystem = new BehaviorSystem(this.spatialGrid, this.config, this.zones, this.worldConfig);
+    this.collisionSystem = new CollisionSystem(this.gridManager, this.eventBus, this.worldConfig);
+    this.behaviorSystem = new BehaviorSystem(this.gridManager, this.config, this.zones, this.worldConfig);
 
     // Попереднє формування середовищних параметрів
     this.createZones();
     this.createObstacles();
+    // Initialize static grid with obstacles once they are created
+    this.gridManager.initializeStatic(this.entityManager.obstacles);
 
     // Агрегація сервісних модулів
     this.spawnService = new SpawnService(
       this.eventBus,
-      this.spatialGrid,
+      this.gridManager,
       this.zones,
       this.obstacles,
       this.rng,
       {},
-      this.worldConfig // Passed WorldConfig
+      this.worldConfig // Передана конфігурація світу
     );
 
     // Ініціалізація монітора продуктивності та менеджера буферів
@@ -159,6 +167,50 @@ export class SimulationEngine {
 
     // Генерація початкових популяційних масивів
     this.createInitialPopulation();
+
+    // Завершення ініціалізації
+    this.state = EngineState.READY;
+    logger.info('SimulationEngine READY', 'Engine');
+  }
+
+  // ============================================================================
+  // ПУБЛІЧНИЙ API (LIFECYCLE)
+  // ============================================================================
+
+  /**
+   * Запуск симуляції (перехід в RUNNING).
+   */
+  public start(): void {
+    if (this.state === EngineState.RUNNING) {
+      return;
+    }
+    if (this.state !== EngineState.READY && this.state !== EngineState.PAUSED) {
+      logger.warn(`Cannot start engine from state ${this.state}`, 'Engine');
+      return;
+    }
+
+    this.state = EngineState.RUNNING;
+    this.performanceMonitor.setMonitoringEnabled(true);
+    logger.info('SimulationEngine STARTED', 'Engine');
+  }
+
+  /**
+   * Призупинка симуляції.
+   */
+  public stop(): void {
+    if (this.state === EngineState.RUNNING) {
+      this.state = EngineState.PAUSED;
+      this.performanceMonitor.setMonitoringEnabled(false);
+      logger.info('SimulationEngine PAUSED', 'Engine');
+    }
+  }
+
+  public updateWorldScale(scale: number): void {
+    logger.warning('Direct SimulationEngine updateWorldScale not fully supported in-place. Please re-create Engine instance.', 'Engine');
+    // Minimal partial update or throw
+    this.worldConfig = createWorldConfig(scale);
+    // Note: SpatialGrid and other size-dependent components need re-creation.
+    // Since this class is mostly used via Worker which re-creates it, this is a placeholder.
   }
 
   // ============================================================================
@@ -264,13 +316,16 @@ export class SimulationEngine {
   }
 
   private spawnInitialGroup(type: EntityType, count: number): void {
+    let spawned = 0;
     for (let i = 0; i < count; i++) {
       const organism = this.spawnService.spawnOrganism(type);
       if (organism) {
         this.entityManager.addOrganism(organism);
         this.reproductionSystem['addToGeneticTree'](organism, undefined);
+        spawned++;
       }
     }
+    logger.info(`Spawned ${spawned}/${count} entities of type ${type}`, 'Engine');
   }
 
   // ============================================================================
@@ -331,7 +386,7 @@ export class SimulationEngine {
   // Внутрішні буфери тепер управляються BufferManager
 
   public getRenderData(): import('../types').RenderBuffers {
-    return this.bufferManager.getRenderData(this.organisms, this.food);
+    return this.bufferManager.getRenderData(this.organisms, this.deadOrganisms, this.food);
   }
 
   // Методи для рендерингу тепер виконуються через BufferManager
@@ -355,6 +410,22 @@ export class SimulationEngine {
     // Початок вимірювання продуктивності кадру
     this.performanceMonitor.beginFrame();
 
+    // Lifecycle Check
+    if (this.state !== EngineState.RUNNING) {
+      return;
+    }
+
+    // Critical safety check
+    if (!this.organisms || !this.food || !this.obstacles) {
+      logger.error('CRITICAL: Entity collections are undefined in Engine.update', 'Engine', {
+        organisms: !!this.organisms,
+        food: !!this.food,
+        obstacles: !!this.obstacles,
+        entityManager: !!this.entityManager
+      });
+      return;
+    }
+
     this.tick++;
     this.reproductionSystem.setTick(this.tick);
 
@@ -364,12 +435,16 @@ export class SimulationEngine {
     // Корекція просторової дискретизації
     this.gridManager.rebuild(
       this.entityManager.organisms,
-      this.entityManager.food,
-      this.entityManager.obstacles,
-      this.config.showObstacles
+      this.entityManager.food
     );
 
     // Циклічне застосування функціональних систем до реєстру організмів
+    if (this.organisms.size === 0 && this.tick % 60 === 0) {
+      logger.warn(`Critical population drop: 0 organisms at tick ${this.tick}. Check spawning or death logic.`, 'Engine');
+    } else if (this.tick % 300 === 0) {
+      logger.info(`Engine tick ${this.tick}: ${this.organisms.size} organisms, ${this.food.size} food`, 'Engine');
+    }
+
     const endBehavior = this.performanceMonitor.startSubsystemTimer('BehaviorSystem');
     this.behaviorSystem.update(this.organisms);
     endBehavior();
@@ -387,20 +462,45 @@ export class SimulationEngine {
     const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles);
     endCollision();
 
-    // Верифікація можливості репродуктивних актів
+    // Veрифікація можливості репродуктивних актів
     const endReproduction = this.performanceMonitor.startSubsystemTimer('ReproductionSystem');
     const newborns = this.reproductionSystem.checkReproduction(this.organisms, this.config.maxOrganisms);
     endReproduction();
 
+    // ------------------------------------------------------------------
+    // "Reaper" Loop: Ідентифікація метаболічних та вікових смертей
+    // ------------------------------------------------------------------
+    // Оскільки MetabolismSystem лише виставляє прапорці (або вимагає перевірки віку),
+    // необхідно явно зібрати ці "тихі" смерті для коректної обробки.
+    const metabolicDeadIds: string[] = [];
+    // Тимчасово фіксований ліміт віку (todo: винести в конфіг)
+    const MAX_AGE = 5000;
+
+    this.organisms.forEach(org => {
+      // Перевірка на досягнення граничного віку
+      if (!org.isDead && this.metabolismSystem.isOld(org, MAX_AGE)) {
+        org.die('old_age');
+      }
+
+      // Акумуляція всіх мертвих організмів
+      if (org.isDead) {
+        metabolicDeadIds.push(org.id);
+      }
+    });
+
+    // Об'єднання списків (Колізії + Метаболізм)
+    // Використання Set для усунення можливих дублікатів
+    const allDeadIds = Array.from(new Set([...deadIds, ...metabolicDeadIds]));
+
     // Логування важливих подій (об'єднано для оптимізації)
-    const hasSignificantEvents = deadIds.length > 0 || newborns.length > 0;
+    const hasSignificantEvents = allDeadIds.length > 0 || newborns.length > 0;
     if (hasSignificantEvents) {
       const events: string[] = [];
       const eventData: import('@/types').EngineEventData = {};
 
-      if (deadIds.length > 0) {
-        events.push(`${deadIds.length} died`);
-        eventData.deadCount = deadIds.length;
+      if (allDeadIds.length > 0) {
+        events.push(`${allDeadIds.length} died`);
+        eventData.deadCount = allDeadIds.length;
       }
 
       if (newborns.length > 0) {
@@ -408,7 +508,16 @@ export class SimulationEngine {
         eventData.newbornCount = newborns.length;
       }
 
-      logger.info(`Population events: ${events.join(', ')}`, 'Engine', eventData as Record<string, unknown>);
+      const currentStats = this.statisticsManager.getStats();
+      const statsSummary = `[Prey: ${currentStats.preyCount}, Pred: ${currentStats.predatorCount}, Food: ${currentStats.foodCount}]`;
+      logger.info(`Population events: ${events.join(', ')} ${statsSummary}`, 'Engine', {
+        ...eventData,
+        currentStats: {
+          prey: currentStats.preyCount,
+          predators: currentStats.predatorCount,
+          food: currentStats.foodCount
+        }
+      });
     }
 
     // Актуалізація статистичних метрик
@@ -418,7 +527,7 @@ export class SimulationEngine {
       this.entityManager.obstacles.size,
       this.tick,
       this.zones,
-      this.spatialGrid,
+      this.gridManager,
       this.config
     );
 
@@ -426,7 +535,7 @@ export class SimulationEngine {
     this.reproductionSystem.createOffspring(newborns, this.organisms, this.config.maxOrganisms, this.statisticsManager.getStats());
 
     // Елімінація об'єктів з термінальним статусом (смерть)
-    this.processDeaths(deadIds);
+    this.processDeaths(allDeadIds);
 
     // Диспетчеризація оновленого стану через шину подій
     const stats = this.statisticsManager.getStats();
@@ -497,18 +606,41 @@ export class SimulationEngine {
       if (org) {
         newDeaths++;
 
-        // Модифікація філогенетичної структури при видаленні агента
+        // Модифікація генетичного дерева
         this.reproductionSystem.updateGeneticTreeOnDeath(org);
+
+        // Видалення з менеджера задля уникнення "зомбі"-сутностей
+        this.entityManager.organisms.delete(id);
+
+        // Переміщення до списку мертвих (Persistent Dead Bodies)
+        if (org) {
+          this.deadOrganisms.set(id, org);
+
+          // Контроль кількості мертвих тіл (FIFO)
+          if (this.deadOrganisms.size > MAX_DEAD_BODIES) {
+            const oldestDeadId = this.deadOrganisms.keys().next().value;
+            if (oldestDeadId) {
+              this.deadOrganisms.delete(oldestDeadId);
+            }
+          }
+        }
 
         this.eventBus.emit({
           type: 'EntityDied',
           entityType: org.type,
           id: id as EntityId,
           position: org.position,
-          causeOfDeath: 'old_age'
+          causeOfDeath: (org.causeOfDeath as any) || 'old_age'
         });
       }
     }
+
+    // Analyze causes for detailed logging (Diagnostic)
+    // Аналіз причин смерті для детальної діагностики (якщо потрібно)
+    // В ідеалі це має бути частиною блоку 'hasSignificantEvents', але причина фіналізується лише тут.
+    // Наразі довіряємо агрегованому логу або додамо debug log тут, якщо потрібно.
+    // Оскільки запит "Diagnostics", логуємо деталізацію.
+    // Але processDeaths - VOID. Ми можемо логувати всередині циклу або агрегувати.
 
     // Оновлюємо статистику
     if (newDeaths > 0) {
@@ -573,7 +705,7 @@ export class SimulationEngine {
   /**
    * Отримання інформаційної структури генетичного дерева для потреб візуалізації.
    */
-  public getGeneticTree() {
+  public async getGeneticTree() {
     return this.reproductionSystem.getGeneticTreeInfo();
   }
 
@@ -586,7 +718,7 @@ export class SimulationEngine {
    * Пошук організму за заданими координатами з урахуванням допуску.
    * Використовується для інтерактивності (тултипи, селекція).
    */
-  public findEntityAt(pos: { x: number; y: number; z: number }, tolerance: number): Organism | null {
+  public async findEntityAt(pos: { x: number; y: number; z: number }, tolerance: number): Promise<Organism | null> {
     return this.entityManager.findEntityAt(pos, tolerance);
   }
 
@@ -600,7 +732,36 @@ export class SimulationEngine {
   /**
    * Пошук сутності за індексом рендерингу (Instance ID).
    */
-  public getEntityByInstanceId(type: 'prey' | 'predator' | 'food', index: number): Organism | Food | null {
+  public async getEntityByInstanceId(
+    type: 'prey' | 'predator' | 'food',
+    index: number,
+    isDead: boolean = false
+  ): Promise<Organism | Food | null> {
+    if (isDead && type !== 'food') {
+      const isPrey = type === 'prey';
+      let currentIdx = 0;
+      for (const org of this.deadOrganisms.values()) {
+        if (org.isPrey === isPrey) {
+          if (currentIdx === index) {
+            return org;
+          }
+          currentIdx++;
+        }
+      }
+      return null;
+    }
     return this.entityManager.getEntityByInstanceId(type, index);
+  }
+
+  public getZones(): Map<string, import('../types').EcologicalZone> {
+    return this.zones;
+  }
+
+  public async getGeneticNode(genomeId: import('../types').GenomeId): Promise<unknown> {
+    return this.geneticTree.get(genomeId);
+  }
+
+  public async getGeneticRoots(): Promise<import('../types').GenomeId[]> {
+    return this.geneticRoots;
   }
 }
