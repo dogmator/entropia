@@ -1,48 +1,48 @@
-# Remote Logging & Observability
+# Віддалене логування та спостереження
 
-Entropia 3D includes a robust remote logging system designed for high-performance debugging and ecosystem monitoring.
+Entropia 3D включає надійну систему віддаленого логування, розроблену для високопродуктивного налагодження та моніторингу екосистеми.
 
-## 🚀 Quick Start
+## 🚀 Швидкий старт
 
-1.  **Install dependencies** (handled automatically by `pnpm install`):
-    ```bash
-    pnpm install
-    ```
+1. **Встановлення залежностей** (виконується автоматично через `pnpm install`):
+   ```bash
+   pnpm install
+   ```
 
-2.  **Start development environment**:
-    ```bash
-    pnpm dev
-    ```
-    *This automatically launches both the Vite application and the diagnostic WebSocket server.*
+2. **Запуск середовища розробки**:
+   ```bash
+   pnpm dev
+   ```
+   *Ця команда одночасно запускає Vite‑додаток та сервер WebSocket для діагностики.*
 
-3.  **Observe logs**: Open `remote_debug.log` in your editor or watch the terminal output (prefixed with `[dev:logs]`).
+3. **Перегляд логів**: відкрийте файл `remote_debug.log` у вашому редакторі або спостерігайте вивід у терміналі (префікс `[dev:logs]`).
 
-## 🏗️ Architecture
+## 🏗️ Архітектура
 
-The system uses a **WebSocket-based** transport layer for minimal overhead and persistent connectivity.
+Система використовує **WebSocket‑транспорт** для мінімального навантаження та постійного з’єднання.
 
-### Components
+### Компоненти
 
-- **Logger Service (`src/core/services/logger`)**: 
-    - A modular singleton orchestrating logging.
-    - Uses a `WebSocketTransport` to queue and send logs.
-    - Automatically reconnects if the server goes offline.
-- **Log Server (`scripts/log-server.ts`)**:
-    - A high-performance **TypeScript** server running via `tsx`.
-    - Automatically launched by the `dev` script via `concurrently`.
-    - Writes incoming logs to `remote_debug.log`.
-    - Provides color-coded real-time feedback in the terminal.
+- **Сервіс логера (`src/core/services/logger`)**:
+  - Модульний синглтон, який оркеструє логування.
+  - Використовує `WebSocketTransport` для черги та надсилання логів.
+  - Автоматично перепідключається, якщо сервер недоступний.
+- **Сервер логів (`scripts/log-server.ts`)**:
+  - Високопродуктивний **TypeScript**‑сервер, що працює через `tsx`.
+  - Запускається автоматично скриптом `dev` за допомогою `concurrently`.
+  - Записує вхідні логи у `remote_debug.log`.
+  - Додає кольорове реальне відображення в терміналі.
 
-## 🛠️ Configuration
+## 🛠️ Налаштування
 
-Configuration is centralized in `src/config/debug.constants.ts`:
+Конфігурація централізована у файлі `src/config/debug.constants.ts`:
 
-- `remoteLoggingEnabled`: Master toggle.
-- `remotePort`: Default is `3011`.
-- `remoteHost`: Default is `localhost`.
+- `remoteLoggingEnabled`: головний перемикач.
+- `remotePort`: за замовчуванням `3011`.
+- `remoteHost`: за замовчуванням `localhost`.
 
-## 📊 Features
+## 📊 Функціональність
 
-- **Entity Hover Tracking**: Every time you hover over an entity (organism, food, obstacle), a detailed event is sent to the remote log.
-- **Message Queuing**: If the server is unreachable, the logger buffers messages and flushes them once the connection is restored.
-- **Dev-Only**: Remote logging is strictly disabled in production builds.
+- **Відстеження наведених сутностей**: кожен раз, коли ви наведіть курсор на сутність (організм, їжа, перешкода), надсилається докладна подія у віддалений лог.
+- **Черга повідомлень**: якщо сервер недоступний, логер буферизує повідомлення та відправляє їх після відновлення з’єднання.
+- **Тільки для розробки**: віддалене логування суворо вимкнено у продакшн‑збірках.

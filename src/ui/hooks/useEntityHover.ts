@@ -1,4 +1,5 @@
 import type { IEntityInfo } from '@/simulation/interfaces/ISimulationEngine';
+
 import { useSimulation } from '../context/SimulationContext';
 
 export interface EntityHoverHook {

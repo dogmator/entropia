@@ -21,21 +21,11 @@ import { CELL_SIZE, WORLD_SIZE } from '../config';
 import { MathUtils } from './MathUtils';
 
 /**
- * Внутрішня структура даних для інкапсуляції атрибутів сутності в межах сітки.
- */
-interface InternalGridEntity {
-  readonly id: string;
-  readonly position: Vector3;
-  readonly type: EntityType;
-  readonly radius: number;
-}
-
-/**
  * Реалізація просторової хеш-сітки для ефективної просторової агрегації.
  */
 export class SpatialHashGrid {
   /** Сховище комірок, індексоване за хеш-ключами. */
-  private readonly cells: Map<number, InternalGridEntity[]> = new Map();
+  private readonly cells: Map<number, GridEntity[]> = new Map();
 
   /** Лінійний розмір ребра кубічної комірки. */
   private readonly cellSize: number;
@@ -47,13 +37,13 @@ export class SpatialHashGrid {
   private readonly worldSize: number;
 
   /** Пул масивів для повторного використання (мінімізація навантаження на Garbage Collector). */
-  private readonly cellPool: InternalGridEntity[][] = [];
+  private readonly cellPool: GridEntity[][] = [];
 
   /** Буфер результатів для getNearby (уникнення алокацій на кожному виклику). */
-  private readonly nearbyBuffer: InternalGridEntity[] = [];
+  private readonly nearbyBuffer: GridEntity[] = [];
 
   /** Буфер результатів для getNearbyExact (уникнення алокацій на кожному виклику). */
-  private readonly nearbyExactBuffer: InternalGridEntity[] = [];
+  private readonly nearbyExactBuffer: GridEntity[] = [];
 
   constructor(worldSize: number = WORLD_SIZE, cellSize: number = CELL_SIZE) {
     this.worldSize = worldSize;
@@ -120,7 +110,7 @@ export class SpatialHashGrid {
       this.cells.set(key, cell);
     }
 
-    cell.push(entity as InternalGridEntity);
+    cell.push(entity as GridEntity);
   }
 
   /**
@@ -130,7 +120,7 @@ export class SpatialHashGrid {
    * @param radius Радіус сфери пошуку.
    * @returns Масив потенційних сусідів (кандидати з охоплених комірок).
    */
-  getNearby(position: Vector3, radius: number): readonly InternalGridEntity[] {
+  getNearby(position: Vector3, radius: number): readonly GridEntity[] {
     this.nearbyBuffer.length = 0;
     const results = this.nearbyBuffer;
 
@@ -172,7 +162,7 @@ export class SpatialHashGrid {
    * Пошук сусідів з прецизійною перевіркою відстані.
    * Враховує тороїдальну метрику простору.
    */
-  getNearbyExact(position: Vector3, radius: number): readonly InternalGridEntity[] {
+  getNearbyExact(position: Vector3, radius: number): readonly GridEntity[] {
     const candidates = this.getNearby(position, radius);
     this.nearbyExactBuffer.length = 0;
     const results = this.nearbyExactBuffer;
@@ -201,9 +191,9 @@ export class SpatialHashGrid {
     radius: number,
     type: EntityType,
     excludeId?: string
-  ): InternalGridEntity | null {
+  ): GridEntity | null {
     const candidates = this.getNearby(position, radius);
-    let nearest: InternalGridEntity | null = null;
+    let nearest: GridEntity | null = null;
     let nearestDistSq = Infinity;
 
 

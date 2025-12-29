@@ -9,8 +9,7 @@
  * Використовує механізм Discriminated Unions для забезпечення суворої типізації при зіставленні за зразком (Pattern Matching).
  */
 
-import type { Random } from '@/core';
-
+import { Random } from '@/core/utils/Random';
 import {
   COLORS,
   ENTITY_CONSTANTS,
@@ -19,13 +18,18 @@ import {
   INITIAL_ENERGY,
   MAX_ENERGY,
   PREDATOR_SUBTYPES,
-} from '../config';
+} from '@/config';
 import {
   createFoodId,
-  createGenomeId,
   createObstacleId,
-  createOrganismId,
   EntityType,
+  GenomeId,
+  OrganismId,
+  PredatorSubtype,
+} from '@/types';
+import {
+  createGenomeId,
+  createOrganismId,
   isPreyGenome,
   OrganismState,
   // vec3Clone, // unused
@@ -35,12 +39,10 @@ import type {
   EntityId,
   FoodId,
   Genome,
-  GenomeId,
   MutableVector3,
   ObstacleId,
-  OrganismId,
   PredatorGenome,
-  PredatorSubtype, PreyGenome,
+  PreyGenome,
   Vector3,
   // EntityType,
 } from '../types.ts';
@@ -54,14 +56,14 @@ import type {
  */
 export abstract class Entity {
   public abstract readonly type: EntityType;
+  public radius: number; // Added radius property to Entity
 
   constructor(
     public readonly id: EntityId,
-    public position: MutableVector3,
-    public radius: number
-  ) { }
-
-
+    public position: MutableVector3
+  ) {
+    this.radius = 0; // Initialize radius, will be set by derived classes
+  }
 }
 
 // ============================================================================
@@ -92,7 +94,8 @@ export class Food extends Entity {
     energyValue: number = FOOD_ENERGY_VALUE,
     spawnTime: number = Date.now()
   ) {
-    super(id, position, ENTITY_CONSTANTS.FOOD_RADIUS);
+    super(id, position);
+    this.radius = ENTITY_CONSTANTS.FOOD_RADIUS; // Set radius in derived class
     this.energyValue = energyValue;
     this.spawnTime = spawnTime;
   }
@@ -137,7 +140,8 @@ export class Obstacle extends Entity {
     opacity: number,
     isWireframe: boolean = false
   ) {
-    super(id, position, radius);
+    super(id, position);
+    this.radius = radius; // Set radius in derived class
     this.color = color;
     this.opacity = opacity;
     this.isWireframe = isWireframe;
@@ -146,15 +150,14 @@ export class Obstacle extends Entity {
   /**
    * Статичний фабричний метод для генерації об'єктів просторових аномалій.
    */
-  static create(
+  public static create(
     idCounter: number,
     x: number,
     y: number,
     z: number,
-    radius: number,
-    rng?: Random
+    radius: number
   ): Obstacle {
-    const rand = rng ? () => rng.next() : Math.random;
+    const rand = () => Random.next();
     return new Obstacle(
       createObstacleId(`obs_${idCounter}`),
       { x, y, z },
@@ -195,6 +198,9 @@ export class Organism extends Entity {
 
   // Візуальні атрибути
   public trailEnabled: boolean = false;
+  public color: number; // Added color property to Organism
+  public mass: number; // Added mass property to Organism
+  public targetPosition: MutableVector3; // Added targetPosition property to Organism
 
   // Генетичний дескриптор
   public readonly genome: Genome;
@@ -208,31 +214,26 @@ export class Organism extends Entity {
   /** Часова відмітка останньої активності для оптимізації оновлень. */
   public lastActiveAt: number = 0;
 
-  constructor(
-    id: OrganismId,
-    position: MutableVector3,
-    genome: Genome,
-    parentOrganismId: OrganismId | null = null,
-    rng?: Random,
-    energy?: number
-  ) {
-    super(id, position, genome.size);
+  constructor(id: OrganismId, position: { x: number, y: number, z: number }, genome: Genome, parentId: OrganismId | null = null, energy?: number) {
+    super(id, position);
     this.genome = genome;
     this.type = genome.type as typeof EntityType.PREY | typeof EntityType.PREDATOR;
-    this.parentOrganismId = parentOrganismId;
-
-    const rand = rng ? () => rng.next() : Math.random;
+    this.parentOrganismId = parentId;
+    this.energy = energy ?? INITIAL_ENERGY;
+    this.radius = genome.size;
+    this.mass = genome.size;
+    this.velocity = { x: 0, y: 0, z: 0 };
+    this.acceleration = { x: 0, y: 0, z: 0 };
+    this.targetPosition = { ...position };
+    this.color = genome.color;
 
     // Ініціалізація кінематичних векторів фізичної взаємодії
     this.velocity = {
-      x: (rand() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
-      y: (rand() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
-      z: (rand() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      x: (Random.next() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      y: (Random.next() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      z: (Random.next() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
     };
     this.acceleration = vec3Zero();
-
-    // Встановлення початкового енергетичного потенціалу
-    this.energy = energy ?? INITIAL_ENERGY;
   }
 
   /** Перевірка приналежності до трофічного рівня продуцентів/травоїдних. */
@@ -278,6 +279,11 @@ export class Organism extends Entity {
       this.isDead = true;
       this.causeOfDeath = cause;
       this.state = OrganismState.DYING;
+      // Отримання випадкового зміщення для візуалізації смерті
+      // Fixed: Use this.rng.next() instead of static Random.next()
+      this.position.x += (Random.next() - 0.5) * 2;
+      this.position.y += (Random.next() - 0.5) * 2;
+      this.position.z += (Random.next() - 0.5) * 2;
     }
   }
 
@@ -316,7 +322,7 @@ export class Organism extends Entity {
 export class GenomeFactory {
   private idCounter: number = 0;
 
-  constructor(private readonly rng: Random) { }
+  constructor() { }
 
   /** Генерація унікального дескриптора геному. */
   private nextId(): GenomeId {
@@ -336,7 +342,7 @@ export class GenomeFactory {
    */
   private mutateTrait(value: number, min: number, max: number, customFactor: number = 1): number {
     const mf = GENETICS.mutationFactor * customFactor;
-    const factor = 1 - mf / 2 + this.rng.next() * mf;
+    const factor = 1 - mf / 2 + Random.next() * mf;
     return Math.max(min, Math.min(max, value * factor));
   }
 
@@ -367,32 +373,33 @@ export class GenomeFactory {
         generation: 1,
         type: EntityType.PREY,
         color: COLORS.prey.base,
-        maxSpeed: base.maxSpeed + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_SPEED_VARIANCE,
-        senseRadius: base.senseRadius + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_SENSE_VARIANCE,
-        metabolism: base.metabolism + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_METABOLISM_VARIANCE,
-        size: base.size + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_SIZE_VARIANCE,
-        asymmetry: this.rng.next() * ENTITY_CONSTANTS.PREY_ASYMMETRY_MAX,
-        spikiness: this.rng.next() * ENTITY_CONSTANTS.PREY_SPIKINESS_MAX,
-        glowIntensity: ENTITY_CONSTANTS.PREY_GLOW_MIN + this.rng.next() * ENTITY_CONSTANTS.PREY_GLOW_VARIANCE,
-        flockingStrength: base.flockingStrength + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREY_FLOCKING_VARIANCE,
+        maxSpeed: base.maxSpeed + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREY_SPEED_VARIANCE,
+        senseRadius: base.senseRadius + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREY_SENSE_VARIANCE,
+        metabolism: base.metabolism + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREY_METABOLISM_VARIANCE,
+        size: base.size + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREY_SIZE_VARIANCE,
+        asymmetry: Random.next() * ENTITY_CONSTANTS.PREY_ASYMMETRY_MAX,
+        spikiness: Random.next() * ENTITY_CONSTANTS.PREY_SPIKINESS_MAX,
+        glowIntensity: ENTITY_CONSTANTS.PREY_GLOW_MIN + Random.next() * ENTITY_CONSTANTS.PREY_GLOW_VARIANCE,
+        flockingStrength: base.flockingStrength + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREY_FLOCKING_VARIANCE,
       };
     }
 
-    return {
+    const genome: PreyGenome = {
       ...this.mutateCommonTraits(parent),
+      type: EntityType.PREY,
       id: this.nextId(),
       parentId: parent.id,
       generation: parent.generation + 1,
-      type: EntityType.PREY,
       color: COLORS.prey.base,
-      flockingStrength: this.mutateTrait(parent.flockingStrength, ENTITY_CONSTANTS.TRAIT_MIN_BOUND, ENTITY_CONSTANTS.TRAIT_MAX_BOUND),
+      flockingStrength: this.mutateTrait(parent.flockingStrength || 0.5, ENTITY_CONSTANTS.TRAIT_MIN_BOUND, ENTITY_CONSTANTS.TRAIT_MAX_BOUND),
     };
+    return genome;
   }
 
   /** Формування геному для трофічного рівня хижаків. */
   createPredatorGenome(parent: PredatorGenome | null = null): PredatorGenome {
     const subtypes: PredatorSubtype[] = ['HUNTER', 'AMBUSHER', 'PACK'];
-    const randomSubtype = subtypes[Math.floor(this.rng.next() * subtypes.length)]!;
+    const randomSubtype = subtypes[Math.floor(Random.next() * subtypes.length)]!;
 
     if (!parent) {
       const base = GENETICS.predatorBase;
@@ -404,23 +411,23 @@ export class GenomeFactory {
         type: EntityType.PREDATOR,
         subtype: randomSubtype,
         color: subConfig.color,
-        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SPEED_VARIANCE,
-        senseRadius: base.senseRadius * subConfig.senseMultiplier + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SENSE_VARIANCE,
-        metabolism: base.metabolism + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_METABOLISM_VARIANCE,
-        size: base.size + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SIZE_VARIANCE,
-        asymmetry: this.rng.next() * ENTITY_CONSTANTS.PREDATOR_ASYMMETRY_MAX,
-        spikiness: ENTITY_CONSTANTS.PREDATOR_SPIKINESS_MIN + this.rng.next() * ENTITY_CONSTANTS.PREDATOR_SPIKINESS_VARIANCE,
-        glowIntensity: ENTITY_CONSTANTS.PREDATOR_GLOW_MIN + this.rng.next() * ENTITY_CONSTANTS.PREDATOR_GLOW_VARIANCE,
+        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SPEED_VARIANCE,
+        senseRadius: base.senseRadius * subConfig.senseMultiplier + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SENSE_VARIANCE,
+        metabolism: base.metabolism + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_METABOLISM_VARIANCE,
+        size: base.size + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_SIZE_VARIANCE,
+        asymmetry: Random.next() * ENTITY_CONSTANTS.PREDATOR_ASYMMETRY_MAX,
+        spikiness: ENTITY_CONSTANTS.PREDATOR_SPIKINESS_MIN + Random.next() * ENTITY_CONSTANTS.PREDATOR_SPIKINESS_VARIANCE,
+        glowIntensity: ENTITY_CONSTANTS.PREDATOR_GLOW_MIN + Random.next() * ENTITY_CONSTANTS.PREDATOR_GLOW_VARIANCE,
         attackPower: base.attackPower * subConfig.attackMultiplier,
-        packAffinity: base.packAffinity + (this.rng.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_PACK_VARIANCE,
+        packAffinity: base.packAffinity + (Random.next() - 0.5) * ENTITY_CONSTANTS.PREDATOR_PACK_VARIANCE,
       };
     }
 
     // Еволюційне спадкування та вероятнісна трансформація підтипу з коефіцієнтом 90%
-    const inheritedSubtype = this.rng.next() < ENTITY_CONSTANTS.SUBTYPE_INHERITANCE_PROBABILITY ? parent.subtype : randomSubtype;
+    const inheritedSubtype = Random.next() < ENTITY_CONSTANTS.SUBTYPE_INHERITANCE_PROBABILITY ? parent.subtype : randomSubtype;
     const subConfig = PREDATOR_SUBTYPES[inheritedSubtype];
 
-    return {
+    const genome: PredatorGenome = {
       ...this.mutateCommonTraits(parent),
       id: this.nextId(),
       parentId: parent.id,
@@ -431,6 +438,7 @@ export class GenomeFactory {
       attackPower: this.mutateTrait(parent.attackPower, ENTITY_CONSTANTS.TRAIT_MIN_ATTACK, ENTITY_CONSTANTS.TRAIT_MAX_ATTACK),
       packAffinity: this.mutateTrait(parent.packAffinity, ENTITY_CONSTANTS.TRAIT_MIN_BOUND, ENTITY_CONSTANTS.TRAIT_MAX_BOUND),
     };
+    return genome;
   }
 
   /** Генерація нового геному на підставі існуючого предка. */
@@ -459,8 +467,8 @@ export class OrganismFactory {
   private idCounter: number = 0;
   private genomeFactory: GenomeFactory;
 
-  constructor(private readonly rng: Random) {
-    this.genomeFactory = new GenomeFactory(rng);
+  constructor() {
+    this.genomeFactory = new GenomeFactory();
   }
 
   /** Генерація унікального системного ідентифікатора агента. */
@@ -501,7 +509,7 @@ export class OrganismFactory {
   }
 
   private createOrganism(genome: Genome, position: { x: number, y: number, z: number }, energy?: number): Organism {
-    return new Organism(this.nextId(), position, genome, null, this.rng, energy);
+    return new Organism(this.nextId(), position, genome, null, energy);
   }
 
   /** Ініціалізація створення нащадка з наслідуванням та зміщенням координат. */
@@ -511,9 +519,9 @@ export class OrganismFactory {
     // Стохастичне просторове зміщення нащадка відносно локації батьківського організму
     const offset = parent.radius * ENTITY_CONSTANTS.OFFSPRING_RADIUS_MULTIPLIER;
     const childPosition: MutableVector3 = {
-      x: parent.position.x + (this.rng.next() - 0.5) * offset,
-      y: parent.position.y + (this.rng.next() - 0.5) * offset,
-      z: parent.position.z + (this.rng.next() - 0.5) * offset,
+      x: parent.position.x + (Random.next() - 0.5) * offset,
+      y: parent.position.y + (Random.next() - 0.5) * offset,
+      z: parent.position.z + (Random.next() - 0.5) * offset,
     };
 
     return new Organism(
@@ -521,7 +529,6 @@ export class OrganismFactory {
       childPosition,
       childGenome,
       parent.id as OrganismId,
-      this.rng,
       energy
     );
   }

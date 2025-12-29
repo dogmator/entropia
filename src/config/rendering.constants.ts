@@ -144,6 +144,44 @@ export const RENDER = {
   enableTracertForAllOrganisms: true,
 } as const;
 
+export const ENVIRONMENT_RENDERING = {
+  BOX_OPACITY: 0.08,
+  ZONE_OPACITY: 0.05,
+  ZONE_SEGMENTS: 16,
+  OBSTACLE_SEGMENTS: 2,
+  OBSTACLE_EMISSIVE_INTENSITY: 0.1,
+  DEFAULT_ZONE_COLOR: 0xffffff,
+  CENTER_DIVIDER: 2,
+} as const;
+
+export const BUFFER_LAYOUT = {
+  STRIDE: 13,
+  FOOD_STRIDE: 5,
+  OFFSETS: {
+    X: 0,
+    Y: 1,
+    Z: 2,
+    VX: 3,
+    VY: 4,
+    VZ: 5,
+    RADIUS: 6,
+    IS_DEAD: 7,
+    ID: 8,
+    TYPE: 9,
+    STATE: 10,
+    AGE: 11,
+    MAX_ENERGY: 12,
+  },
+  FOOD_OFFSETS: {
+    X: 0,
+    Y: 1,
+    Z: 2,
+    RADIUS: 3,
+    ID: 4,
+  },
+  DEAD_THRESHOLD: 0.5,
+} as const;
+
 export const CAMERA = {
   INITIAL_STATE: {
     position: { x: 0, y: 0, z: 0 },

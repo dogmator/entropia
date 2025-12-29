@@ -93,13 +93,13 @@ export class GridManager {
     const staticEntities = this.staticGrid.getNearby(position, radius);
     for (let i = 0; i < staticEntities.length; i++) {
       const e = staticEntities[i];
-      if (e) result.push(e as any);
+      if (e) result.push(e);
     }
 
     const dynamicEntities = this.dynamicGrid.getNearby(position, radius);
     for (let i = 0; i < dynamicEntities.length; i++) {
       const e = dynamicEntities[i];
-      if (e) result.push(e as any);
+      if (e) result.push(e);
     }
   }
 

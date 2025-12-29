@@ -10,8 +10,8 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { EcologicalZone, Genome, SimulationConfig, WorldConfig } from '@/types';
-import { EntityType, ZoneType, createOrganismId } from '@/types';
+import type { EcologicalZone, Genome, SimulationConfig, WorldConfig, PreyGenome, PredatorGenome } from '../../../types';
+import { createOrganismId, EntityType, ZoneType, createGenomeId, PredatorSubtype } from '../../../types';
 
 import { Organism } from '../../Entity';
 import { GridManager } from '../../managers/GridManager';
@@ -21,18 +21,34 @@ import { BehaviorSystem } from '../BehaviorSystem';
  * Мінімальна конфігурація для тестування.
  */
 const createTestConfig = (): SimulationConfig => ({
-    tickRate: 60,
     drag: 0.98,
     separationWeight: 1.5,
     cohesionWeight: 1.0,
     alignmentWeight: 1.0,
     seekWeight: 2.0,
     avoidWeight: 3.0,
+    foodSpawnRate: 0.1,
+    maxFood: 100,
+    maxOrganisms: 500,
+    showObstacles: true,
+    mutationFactor: 0.1,
+    reproductionThreshold: 100,
+    organismOpacity: 1,
+    foodOpacity: 1,
+    organismScale: 1,
+    foodScale: 1,
+    bloomIntensity: 1,
+    showGrid: true,
+    gridOpacity: 0.5,
+    trailLength: 10,
+    showEnergyGlow: true,
+    showTrails: true,
+    showParticles: true,
+    graphicsQuality: 'HIGH',
 });
 
 const createWorldConfig = (): WorldConfig => ({
     WORLD_SIZE: 100,
-    HALF_WORLD_SIZE: 50,
     MAX_TOTAL_ORGANISMS: 500,
     INITIAL_PREY: 10,
     INITIAL_PREDATOR: 5,
@@ -43,19 +59,37 @@ const createWorldConfig = (): WorldConfig => ({
 /**
  * Мінімальний геном для тестування.
  */
-const createTestGenome = (type: EntityType = EntityType.PREY): Genome => ({
-    id: 'test-genome',
-    type,
-    subtype: 'default',
-    size: 1,
-    maxSpeed: 5,
-    senseRadius: 30,
-    metabolism: 1,
-    color: type === EntityType.PREY ? 0x00ff00 : 0xff0000,
-    mutationRate: 0.05,
-    reproductionEnergy: 50,
-    parentGenomeId: null,
-});
+const createTestGenome = (type: EntityType = EntityType.PREY): Genome => {
+    const base = {
+        id: createGenomeId('test-genome'),
+        generation: 1,
+        color: type === EntityType.PREY ? 0x00ff00 : 0xff0000,
+        maxSpeed: 5,
+        senseRadius: 30,
+        metabolism: 1,
+        size: 1,
+        asymmetry: 0,
+        spikiness: 0,
+        glowIntensity: 0.5,
+        parentId: null,
+    };
+
+    if (type === EntityType.PREDATOR) {
+        return {
+            ...base,
+            type: EntityType.PREDATOR,
+            subtype: PredatorSubtype.HUNTER,
+            attackPower: 10,
+            packAffinity: 0.5,
+        } as PredatorGenome;
+    }
+
+    return {
+        ...base,
+        type: EntityType.PREY,
+        flockingStrength: 0.5,
+    } as PreyGenome;
+};
 
 describe('BehaviorSystem — Steering Behaviors', () => {
     let behavior: BehaviorSystem;
@@ -148,8 +182,8 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('повинен застосовувати модифікатори зони на поведінку', () => {
             // Створюємо зону з високим foodMultiplier
             const fertileZone: EcologicalZone = {
-                id: 'fertile-zone',
-                type: ZoneType.FERTILE,
+                id: 'test_oasis',
+                type: ZoneType.OASIS,
                 center: { x: 50, y: 50, z: 50 },
                 radius: 30,
                 foodMultiplier: 2.0,

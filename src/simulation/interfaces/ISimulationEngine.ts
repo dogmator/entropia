@@ -9,6 +9,7 @@
  * - Testability (mock engine)
  */
 
+import type { Obstacle } from '@/simulation';
 import type {
   EcologicalZone,
   EntityId,
@@ -23,7 +24,6 @@ import type {
   Vector3,
   WorldConfig,
 } from '@/types';
-import type { Obstacle } from '@/simulation';
 
 /**
  * Camera data for rendering.
@@ -64,6 +64,12 @@ export interface ISimulationEngine {
 
   /** Static obstacles */
   readonly obstacles: Map<string, Obstacle>;
+
+  /**
+   * Initialize engine.
+   * @param scale - Initial world scale
+   */
+  init(scale?: number): Promise<void>;
 
   /**
    * Advance simulation by one tick.
@@ -166,4 +172,14 @@ export interface ISimulationEngine {
    * @returns Unsubscribe function
    */
   addEventListener(callback: (event: import('@/types').SimulationEvent) => void): () => void;
+
+  /**
+   * Pause simulation.
+   */
+  pause(): void;
+
+  /**
+   * Resume simulation.
+   */
+  resume(): void;
 }
