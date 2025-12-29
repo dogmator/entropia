@@ -144,18 +144,38 @@ export const RENDER = {
   enableTracertForAllOrganisms: true,
 } as const;
 
+export const CAMERA = {
+  INITIAL_STATE: {
+    position: { x: 0, y: 0, z: 0 },
+    target: { x: 0, y: 0, z: 0 },
+    zoom: 1,
+    distance: 0,
+    fov: 60,
+    aspect: 1,
+    near: 0.1,
+    far: 5000,
+  },
+  AUTO_ROTATE: {
+    ENABLED: true,
+    SPEED: 2.0,
+    SPEED_MIN: 0.1,
+    SPEED_MAX: 20,
+  },
+} as const;
+
 /** Color palette. */
 export const COLORS = {
   prey: {
     base: 0x44ff88,
     glow: 0x88ffaa,
-    death: 0x88ff88,
+    // дужче зменьшити яркость при загибели
+    death: 0x44ff44,
     trail: 0x66ff99,
   },
   predator: {
     base: 0xff4466,
     glow: 0xff6688,
-    death: 0xff8888,
+    death: 0xff4444,
     trail: 0xff6688,
   },
   food: {

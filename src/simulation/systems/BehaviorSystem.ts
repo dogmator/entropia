@@ -12,13 +12,15 @@
  * Константи параметрів поведінкової динаміки.
  */
 import { PHYSICS } from '@/config';
-import { Vector3Pool } from '@/core/ObjectPool';
-import type { SpatialHashGrid } from '@/simulation';
+import type { GridManager } from '../managers/GridManager';
 import { EntityType } from '@/types';
 import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
 
 import type { Organism } from '../Entity';
 import { MathUtils } from '../MathUtils';
+
+const _diff = { x: 0, y: 0, z: 0 };
+const _nav = { x: 0, y: 0, z: 0 };
 
 /**
  * Дескриптор модифікаторів поведінки в межах біома.
@@ -50,7 +52,7 @@ export class BehaviorSystem {
   };
 
   constructor(
-    private readonly spatialGrid: SpatialHashGrid,
+    private readonly gridManager: GridManager,
     private readonly config: SimulationConfig,
     private readonly zones: Map<string, EcologicalZone>,
     worldConfig: WorldConfig
@@ -87,7 +89,7 @@ export class BehaviorSystem {
    * Розрахунок та застосування сумарних сил впливу на конкретний організм.
    */
   private applyBehaviors(org: Organism): void {
-    const neighbors = this.spatialGrid.getNearby(org.position, org.genome.senseRadius);
+    const neighbors = this.gridManager.getNearby(org.position, org.genome.senseRadius);
 
     // Скидання кешованих акумуляторів
     this.resetForces();
@@ -97,22 +99,23 @@ export class BehaviorSystem {
     let targetPos: Vector3 | null = null;
     let newState: OrganismState = 'IDLE';
 
-    const diff = Vector3Pool.acquire();
+
 
     // Аналіз об'єктів у радіусі сенсорного сприйняття
     for (const n of neighbors) {
       if (n.id === org.id) { continue; }
 
-      MathUtils.toroidalVector(org.position, n.position, this.worldSize, diff);
+      // Use scratch vector _diff
+      MathUtils.toroidalVector(org.position, n.position, this.worldSize, _diff);
 
-      const distSq = MathUtils.magnitudeSq(diff);
+      const distSq = MathUtils.magnitudeSq(_diff);
       const dist = Math.sqrt(distSq);
 
       if (dist < PHYSICS.EPSILON) { continue; }
 
-      const ndx = diff.x;
-      const ndy = diff.y;
-      const ndz = diff.z;
+      const ndx = _diff.x;
+      const ndy = _diff.y;
+      const ndz = _diff.z;
       // In toroidalVector: to - from.
       // So ndx is vector FROM org TO n.
 
@@ -161,8 +164,6 @@ export class BehaviorSystem {
       }
     }
 
-    Vector3Pool.release(diff);
-
     // Отримання екологічних коефіцієнтів поточної локації
     const zoneModifier = this.getZoneModifier(org.position, org.type);
 
@@ -191,14 +192,13 @@ export class BehaviorSystem {
   private applySeek(org: Organism, seek: { x: number; y: number; z: number }, target: Vector3 | null, mod: ZoneModifiers): void {
     if (!target) { return; }
 
-    const nav = Vector3Pool.acquire();
-    MathUtils.toroidalVector(org.position, target, this.worldSize, nav);
-    seek.x = nav.x;
-    seek.y = nav.y;
-    seek.z = nav.z;
+    // Use scratch vector _nav
+    MathUtils.toroidalVector(org.position, target, this.worldSize, _nav);
+    seek.x = _nav.x;
+    seek.y = _nav.y;
+    seek.z = _nav.z;
 
     this.applySteeringForce(org, seek, this.config.seekWeight * mod.seekMultiplier);
-    Vector3Pool.release(nav);
   }
 
   /**

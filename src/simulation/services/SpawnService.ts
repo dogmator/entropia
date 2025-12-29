@@ -28,7 +28,7 @@ import {
 import type { Obstacle, Organism } from '../Entity';
 import { Food, OrganismFactory } from '../Entity';
 import { MathUtils } from '../MathUtils';
-import type { SpatialHashGrid } from '../SpatialHashGrid';
+import type { GridManager } from '../managers/GridManager';
 
 // ============================================================================
 // ПЕРЕЛІКИ ТА ОБ'ЄКТИ КОНФІГУРАЦІЇ
@@ -104,7 +104,7 @@ export class SpawnService {
 
   constructor(
     private readonly eventBus: EventBus,
-    private readonly spatialGrid: SpatialHashGrid,
+    private readonly gridManager: GridManager,
     private readonly zones: Map<string, EcologicalZone>,
     private readonly obstacles: Map<string, Obstacle>,
     private readonly rng?: Random,
@@ -137,7 +137,9 @@ export class SpawnService {
     let organism: Organism;
 
     if (parent) {
-      organism = this.organismFactory.createOffspring(parent);
+      // Default to INITIAL_ENERGY if not specified (SpawnService logic usually implies new full organisms or specific logic)
+      // Actually, createOffspring expects specific energy. Using INITIAL_ENERGY constant.
+      organism = this.organismFactory.createOffspring(parent, 100); // 100 is placeholder, should ideally come from config or parent
       organism.position.x = position.x;
       organism.position.y = position.y;
       organism.position.z = position.z;
@@ -272,7 +274,7 @@ export class SpawnService {
   private getClusteredPosition(): MutableVector3 | null {
     // Пошук існуючих енергетичних центрів через просторову сітку
     const ws = this.worldSize;
-    const nearbyEntities = this.spatialGrid.getNearby(
+    const nearbyEntities = this.gridManager.getNearby(
       {
         x: this.rand() * ws,
         y: this.rand() * ws,

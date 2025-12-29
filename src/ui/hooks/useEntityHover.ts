@@ -1,8 +1,8 @@
-import type { Food, Obstacle,Organism } from '../../simulation/Entity';
+import type { IEntityInfo } from '@/simulation/interfaces/ISimulationEngine';
 import { useSimulation } from '../context/SimulationContext';
 
 export interface EntityHoverHook {
-  hoveredEntity: Organism | Food | Obstacle | null;
+  hoveredEntity: IEntityInfo | null;
   tooltipVisible: boolean;
   tooltipPos: { x: number; y: number };
 }
