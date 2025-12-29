@@ -11,10 +11,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { EcologicalZone, Genome, SimulationConfig, WorldConfig } from '@/types';
-import { EntityType, ZoneType } from '@/types';
+import { EntityType, ZoneType, createOrganismId } from '@/types';
 
 import { Organism } from '../../Entity';
-import { SpatialHashGrid } from '../../SpatialHashGrid';
+import { GridManager } from '../../managers/GridManager';
 import { BehaviorSystem } from '../BehaviorSystem';
 
 /**
@@ -59,7 +59,7 @@ const createTestGenome = (type: EntityType = EntityType.PREY): Genome => ({
 
 describe('BehaviorSystem — Steering Behaviors', () => {
     let behavior: BehaviorSystem;
-    let spatialGrid: SpatialHashGrid;
+    let gridManager: GridManager;
     let config: SimulationConfig;
     let worldConfig: WorldConfig;
     let zones: Map<string, EcologicalZone>;
@@ -67,9 +67,9 @@ describe('BehaviorSystem — Steering Behaviors', () => {
     beforeEach(() => {
         config = createTestConfig();
         worldConfig = createWorldConfig();
-        spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE);
+        gridManager = new GridManager(worldConfig.WORLD_SIZE, 50);
         zones = new Map();
-        behavior = new BehaviorSystem(spatialGrid, config, zones, worldConfig);
+        behavior = new BehaviorSystem(gridManager, config, zones, worldConfig);
     });
 
     describe('separation force', () => {
@@ -77,14 +77,16 @@ describe('BehaviorSystem — Steering Behaviors', () => {
             const organisms = new Map<string, Organism>();
 
             // Два організми дуже близько один до одного
-            const org1 = new Organism('org-1', { x: 50, y: 50, z: 50 }, createTestGenome());
-            const org2 = new Organism('org-2', { x: 51, y: 50, z: 50 }, createTestGenome());
+            const org1 = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, createTestGenome());
+            const org2 = new Organism(createOrganismId('org-2'), { x: 51, y: 50, z: 50 }, createTestGenome());
 
             organisms.set(org1.id, org1);
             organisms.set(org2.id, org2);
 
-            spatialGrid.insert(org1);
-            spatialGrid.insert(org2);
+            gridManager.rebuild(organisms, new Map());
+            // Static grid should be initialized if needed, but here we only have organisms
+            gridManager.initializeStatic(new Map());
+            gridManager.rebuild(organisms, new Map());
 
             behavior.update(organisms);
 
@@ -99,7 +101,7 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('травоїдний повинен рухатись до їжі', () => {
             const organisms = new Map<string, Organism>();
 
-            const prey = new Organism('prey-1', { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
             organisms.set(prey.id, prey);
 
             // Їжа справа від prey
@@ -110,8 +112,10 @@ describe('BehaviorSystem — Steering Behaviors', () => {
                 radius: 1,
             };
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(food);
+            const foodMap = new Map();
+            foodMap.set(food.id, food);
+            gridManager.initializeStatic(new Map());
+            gridManager.rebuild(organisms, foodMap);
 
             behavior.update(organisms);
 
@@ -124,14 +128,14 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('жертва повинна тікати від хижака', () => {
             const organisms = new Map<string, Organism>();
 
-            const prey = new Organism('prey-1', { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
-            const predator = new Organism('pred-1', { x: 55, y: 50, z: 50 }, createTestGenome(EntityType.PREDATOR));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 55, y: 50, z: 50 }, createTestGenome(EntityType.PREDATOR));
 
             organisms.set(prey.id, prey);
             organisms.set(predator.id, predator);
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(predator);
+            gridManager.initializeStatic(new Map());
+            gridManager.rebuild(organisms, new Map());
 
             behavior.update(organisms);
 
@@ -155,10 +159,10 @@ describe('BehaviorSystem — Steering Behaviors', () => {
             zones.set(fertileZone.id, fertileZone);
 
             // Новий behavior з зоною
-            behavior = new BehaviorSystem(spatialGrid, config, zones, worldConfig);
+            behavior = new BehaviorSystem(gridManager, config, zones, worldConfig);
 
             const organisms = new Map<string, Organism>();
-            const prey = new Organism('prey-1', { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
             organisms.set(prey.id, prey);
 
             // Їжа в зоні
@@ -169,8 +173,10 @@ describe('BehaviorSystem — Steering Behaviors', () => {
                 radius: 1,
             };
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(food);
+            const foodMap = new Map();
+            foodMap.set(food.id, food);
+            gridManager.initializeStatic(new Map());
+            gridManager.rebuild(organisms, foodMap);
 
             behavior.update(organisms);
 
@@ -185,11 +191,11 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('не повинен обробляти мертві організми', () => {
             const organisms = new Map<string, Organism>();
 
-            const deadOrg = new Organism('dead-1', { x: 50, y: 50, z: 50 }, createTestGenome());
+            const deadOrg = new Organism(createOrganismId('dead-1'), { x: 50, y: 50, z: 50 }, createTestGenome());
             deadOrg.die('starvation');
 
             organisms.set(deadOrg.id, deadOrg);
-            spatialGrid.insert(deadOrg);
+            gridManager.rebuild(organisms, new Map());
 
             behavior.update(organisms);
 

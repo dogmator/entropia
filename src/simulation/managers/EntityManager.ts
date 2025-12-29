@@ -13,6 +13,7 @@
  */
 
 import { ENGINE_CONSTANTS } from '@/config';
+import type { GridEntity } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
 import type { GridManager } from './GridManager';
@@ -146,17 +147,21 @@ export class EntityManager {
     this.obstacles.clear();
   }
 
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
+
   private getEntityCandidates(
     pos: { x: number; y: number; z: number },
     tolerance: number
   ): string[] {
     try {
       if (this.gridManager) {
-        const neighbors = this.gridManager.getNearby(
+        this.gridManager.getNearby(
           pos,
-          tolerance * ENGINE_CONSTANTS.GRID_FALLBACK_MULT
+          tolerance * ENGINE_CONSTANTS.GRID_FALLBACK_MULT,
+          this.nearbyBuffer
         );
-        return neighbors.map((n) => n.id);
+        return this.nearbyBuffer.map((n) => n.id);
       }
     } catch {
       // Fallback to full list search
