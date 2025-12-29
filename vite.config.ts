@@ -1,6 +1,7 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
+import checker from 'vite-plugin-checker';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -25,6 +26,16 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      mode === 'development' && checker({
+        typescript: {
+          root: path.resolve(__dirname, './'),
+          tsconfigPath: 'tsconfig.json',
+        },
+        eslint: {
+          lintCommand: `eslint "${path.resolve(__dirname, './src')}/**/*.{ts,tsx}"`,
+          useFlatConfig: true,
+        },
+      }),
       {
         name: 'configure-response-headers',
         configureServer: (server) => {
@@ -35,7 +46,7 @@ export default defineConfig(({ mode }) => {
           });
         },
       }
-    ],
+    ].filter(Boolean),
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
