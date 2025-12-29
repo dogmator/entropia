@@ -13,7 +13,7 @@
  */
 import { PHYSICS } from '@/config';
 import type { GridManager } from '../managers/GridManager';
-import { EntityType } from '@/types';
+import { EntityType, type GridEntity } from '@/types';
 import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
 
 import type { Organism } from '../Entity';
@@ -50,6 +50,9 @@ export class BehaviorSystem {
     seekMultiplier: 1,
     dangerMultiplier: 1,
   };
+
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
 
   constructor(
     private readonly gridManager: GridManager,
@@ -89,7 +92,8 @@ export class BehaviorSystem {
    * Розрахунок та застосування сумарних сил впливу на конкретний організм.
    */
   private applyBehaviors(org: Organism): void {
-    const neighbors = this.gridManager.getNearby(org.position, org.genome.senseRadius);
+    this.gridManager.getNearby(org.position, org.genome.senseRadius, this.nearbyBuffer);
+    const neighbors = this.nearbyBuffer;
 
     // Скидання кешованих акумуляторів
     this.resetForces();
@@ -98,8 +102,6 @@ export class BehaviorSystem {
     let closestTargetDist = Infinity;
     let targetPos: Vector3 | null = null;
     let newState: OrganismState = 'IDLE';
-
-
 
     // Аналіз об'єктів у радіусі сенсорного сприйняття
     for (const n of neighbors) {

@@ -127,7 +127,7 @@ export class SimulationEngine {
     this.entityManager = new EntityManager(this.gridManager);
     this.cameraDataProvider = new CameraDataProvider();
 
-    this.physicsSystem = new PhysicsSystem(this.config, this.worldConfig);
+    this.physicsSystem = new PhysicsSystem(this.worldConfig);
     this.metabolismSystem = new MetabolismSystem();
     this.collisionSystem = new CollisionSystem(this.gridManager, this.eventBus, this.worldConfig);
     this.behaviorSystem = new BehaviorSystem(this.gridManager, this.config, this.zones, this.worldConfig);

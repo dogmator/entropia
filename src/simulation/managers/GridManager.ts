@@ -86,13 +86,21 @@ export class GridManager {
 
   // Proxy methods to query BOTH grids
 
-  public getNearby(position: any, radius: number): readonly GridEntity[] {
-    const staticEntities = this.staticGrid.getNearby(position, radius);
-    const dynamicEntities = this.dynamicGrid.getNearby(position, radius);
+  public getNearby(position: any, radius: number, result: GridEntity[]): void {
+    // Очищуємо буфер перед використанням, як запитував користувач
+    result.length = 0;
 
-    // Performance: Avoid allocation if possible? 
-    // For now, simple concat is safer than specialized iterators
-    return [...staticEntities, ...dynamicEntities] as any;
+    const staticEntities = this.staticGrid.getNearby(position, radius);
+    for (let i = 0; i < staticEntities.length; i++) {
+      const e = staticEntities[i];
+      if (e) result.push(e as any);
+    }
+
+    const dynamicEntities = this.dynamicGrid.getNearby(position, radius);
+    for (let i = 0; i < dynamicEntities.length; i++) {
+      const e = dynamicEntities[i];
+      if (e) result.push(e as any);
+    }
   }
 
   public getSpatialGrid(): SpatialHashGrid {

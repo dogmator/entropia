@@ -26,6 +26,9 @@ import { MathUtils } from '../MathUtils';
  * Клас, що реалізує фізику просторових взаємодій.
  */
 export class CollisionSystem {
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
+
   constructor(
     private readonly gridManager: GridManager,
     private readonly eventBus: EventBus,
@@ -68,7 +71,10 @@ export class CollisionSystem {
     deadIds: string[]
   ): void {
     const searchRadius = organism.radius + PHYSICS.COLLISION_SEARCH_RADIUS_OFFSET;
-    const neighbors = this.gridManager.getNearby(organism.position, searchRadius);
+
+    // Використання кешованого буфера
+    this.gridManager.getNearby(organism.position, searchRadius, this.nearbyBuffer);
+    const neighbors = this.nearbyBuffer;
 
     for (const neighbor of neighbors) {
       // Виключення самоперетину
