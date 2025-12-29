@@ -12,11 +12,11 @@
  * Константи параметрів поведінкової динаміки.
  */
 import { PHYSICS } from '@/config';
-import type { GridManager } from '../managers/GridManager';
 import { EntityType, type GridEntity } from '@/types';
 import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
 
 import type { Organism } from '../Entity';
+import type { GridManager } from '../managers/GridManager';
 import { MathUtils } from '../MathUtils';
 
 const _diff = { x: 0, y: 0, z: 0 };

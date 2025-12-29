@@ -1,7 +1,7 @@
 import { DEBUG_CONFIG } from '@/config';
 
 import { WebSocketTransport } from './transports/WebSocketTransport';
-import { LogEntry, LoggerStats,LogLevel } from './types';
+import { LogEntry, LoggerStats, LogLevel } from './types';
 
 // Константи Logger
 const LOGGER_MAX_LOGS = 1000;
@@ -162,15 +162,17 @@ export class Logger {
 
     private isDevelopment(): boolean {
         try {
-            // @ts-ignore
+            // @ts-expect-error: import.meta is available in Vite but not during pure Node.js execution
             if (typeof import.meta !== 'undefined' && import.meta.env) {
-                // @ts-ignore
+                // @ts-expect-error: import.meta.env is Vite specific
                 return !!import.meta.env.DEV;
             }
             if (typeof process !== 'undefined' && process.env) {
                 return process.env['NODE_ENV'] === 'development';
             }
-        } catch (e) { }
+        } catch (e) {
+            console.warn('[Logger] Failed to determine environment:', e);
+        }
         return false;
     }
 }

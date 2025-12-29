@@ -1,4 +1,4 @@
- 
+
 import React, { useState } from 'react';
 
 import type { LogEntry } from '@/core/services/Logger';
@@ -29,7 +29,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
   memoryStats
 }) => {
   const [activeTab, setActiveTab] = useState<TabKey>('performance');
-  const systemMetrics = useSystemMetrics(isOpen, performanceHistory, memoryStats, currentStats);
+  const systemMetrics = useSystemMetrics({ isOpen, performanceHistory, memoryStats, currentStats });
   const detailedLogs = useDetailedLogs(isOpen);
 
   if (!isOpen) { return null; }
@@ -52,7 +52,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
   );
 };
 
- 
+
 
 const DiagnosticsHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">

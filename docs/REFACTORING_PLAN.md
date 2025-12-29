@@ -1,436 +1,186 @@
-# Comprehensive Refactoring Plan - Entropia Game Engine
+# Всеосяжний план рефакторингу – Entropia Game Engine
 
-## ✅ COMPLETED WORK
+## ✅ ВИКОНАНА РОБОТА
 
-### Phase 1: Abstractions ✓
-- ✅ Created `ISystem`, `IEntity`, `ISimulationEngine` interfaces
-- ✅ Created `IEntityRepository`, `ISimulationContext` interfaces
-- ✅ All interfaces in `src/simulation/interfaces/`
+### Фаза 1: Абстракції ✓
+- ✅ Створено інтерфейси `ISystem`, `IEntity`, `ISimulationEngine`
+- ✅ Додано інтерфейси `IEntityRepository`, `ISimulationContext`
+- ✅ Всі інтерфейси розміщено у `src/simulation/interfaces/`
 
-### Phase 5: Split Constants ✓
-- ✅ Split `constants.ts` (853 lines) into 13 modular files
-- ✅ Created `src/config/` directory structure
-- ✅ Updated all imports across codebase
-- ✅ Reduction: 853 → 867 lines (better organization)
+### Фаза 5: Розбиття констант ✓
+- ✅ `constants.ts` (853 рядки) розділено на 13 модульних файлів
+- ✅ Створено каталог `src/config/`
+- ✅ Оновлено всі імпорти у кодовій базі
+- ✅ Розмір файлів: 853 → 867 рядків (краща організація)
 
-### Phase 2: Break Down Engine.ts ✓
-- ✅ Extracted **EntityManager** (246 lines)
-- ✅ Extracted **GridManager** (58 lines)
-- ✅ Extracted **CameraDataProvider** (30 lines)
-- ✅ Integrated **StatisticsManager** (removed 487 duplicate lines!)
-- ✅ **Engine.ts: 1088 → 600 lines (45% reduction)**
+### Фаза 2: Розбиття `Engine.ts` ✓
+- ✅ Виділено **EntityManager** (246 рядків)
+- ✅ Виділено **GridManager** (58 рядків)
+- ✅ Виділено **CameraDataProvider** (30 рядків)
+- ✅ Інтегровано **StatisticsManager** (видалено 487 дубльованих рядків!)
+- ✅ `Engine.ts`: 1088 → 600 рядків (зменшення на 45 %)
 
-### Test Coverage ✓
-- ✅ All 72 tests passing
-- ✅ 8 test files
-- ✅ TypeScript compilation: 0 errors
-
----
-
-## 🚧 REMAINING WORK
-
-### Phase 3: Decouple UI from Simulation (HIGH PRIORITY)
-- ❌ Use EngineProxy in SimulationContext (currently uses Engine directly)
-- ❌ Move update loop from Entities.tsx to Worker
-- ❌ Create DTOs for UI/Simulation communication
-- ❌ Remove direct entity imports in UI (Organism, Food, Obstacle)
-
-### Phase 4: Eliminate DRY Violations
-- ❌ Consolidate performance monitoring (remove duplication in SimulationContext)
-- ❌ Consolidate type guards (remove duplication in Viewport.tsx)
-
-### Phase 6: Increase Test Coverage
-- ❌ Add tests for EntityManager
-- ❌ Add tests for GridManager
-- ❌ Add tests for CameraDataProvider
-- ❌ Target: 70%+ coverage
-
-### Phase 7: Infrastructure
-- ❌ Add lint-staged
-- ❌ Fix 417 ESLint errors (magic numbers, max-lines-per-function, etc.)
-- ❌ Add CI/CD pipeline
-- ❌ Configure coverage thresholds
+### Покриття тестами ✓
+- ✅ Усі 72 тести проходять
+- ✅ 8 тестових файлів
+- ✅ Компіляція TypeScript без помилок
 
 ---
 
-## Analysis Summary
+## 🚧 НЕЗАВЕРШЕНА РОБОТА
 
-Based on deep codebase analysis, identified critical architectural issues:
+### Фаза 3: Відокремлення UI від симуляції (ВИСОКИЙ ПРІОРИТЕТ)
+- ❌ Використати `EngineProxy` у `SimulationContext` (зараз використовується `Engine` напряму)
+- ❌ Перенести цикл оновлення з `Entities.tsx` у Worker
+- ❌ Створити DTO для взаємодії UI/симуляція
+- ❌ Прибрати прямі імпорти сутностей у UI (Organism, Food, Obstacle)
 
-### Critical Issues (🔴)
-1. **SimulationContext bypasses Worker architecture** - uses Engine directly instead of EngineProxy
-2. **Engine.ts is God Object** - 1087 lines, 10+ responsibilities
-3. **StatisticsManager unused** - logic duplicated in Engine
-4. **Tight UI-Simulation coupling** - UI directly calls engine.update()
+### Фаза 4: Усунення дублювання (DRY)
+- ❌ Консолідувати моніторинг продуктивності (видалити дублікати у `SimulationContext`)
+- ❌ Консолідувати типові захисники (type guards) (видалити дублікати у `Viewport.tsx`)
 
-### Important Issues (🟡)
-5. **No abstractions** - missing ISystem, IEntity, ISimulationEngine interfaces
-6. **DRY violations** - duplicated caching, type guards, constants
-7. **Low test coverage** - ~10% (8 test files for 77 source files)
-8. **Monolithic constants.ts** - 853 lines
+### Фаза 6: Збільшення покриття тестами
+- ❌ Додати тести для `EntityManager`
+- ❌ Додати тести для `GridManager`
+- ❌ Додати тести для `CameraDataProvider`
+- ❌ Досягти покриття 70 %+
 
----
-
-## Refactoring Strategy
-
-### Phase 1: Abstractions & Interfaces ✨
-**Goal:** Create abstraction layer for SOLID compliance
-
-#### 1.1 Create Core Interfaces
-- [ ] `src/simulation/interfaces/ISystem.ts` - unified system interface
-- [ ] `src/simulation/interfaces/IEntity.ts` - base entity contract
-- [ ] `src/simulation/interfaces/ISimulationEngine.ts` - engine contract
-- [ ] `src/simulation/interfaces/IEntityRepository.ts` - storage abstraction
-- [ ] `src/simulation/interfaces/IRenderData.ts` - rendering abstraction
-
-#### 1.2 Update Existing Systems
-- [ ] BehaviorSystem implements ISystem
-- [ ] PhysicsSystem implements ISystem
-- [ ] MetabolismSystem implements ISystem
-- [ ] ReproductionSystem implements ISystem
-- [ ] CollisionSystem implements ISystem
-
-#### 1.3 Update Entities
-- [ ] Organism implements IEntity
-- [ ] Food implements IEntity
-- [ ] Obstacle implements IEntity
-
-**Benefits:**
-- Testability (easy mocking)
-- Extensibility (add new systems/entities without modifying core)
-- Type safety
+### Фаза 7: Інфраструктура
+- ❌ Додати `lint-staged`
+- ❌ Виправити 417 ESLint‑помилок (magic numbers, max‑lines‑per‑function тощо)
+- ❌ Додати CI/CD конвеєр
+- ❌ Налаштувати пороги покриття
 
 ---
 
-### Phase 2: Break Down God Object (Engine.ts) 🔨
-**Goal:** Single Responsibility Principle
+## Аналіз
 
-#### 2.1 Extract EntityManager
-**Responsibilities:**
-- Manage organisms/food/obstacles collections
-- findEntityAt, findFoodAt, getEntityByInstanceId
-- Entity lifecycle (add/remove)
+### Критичні проблеми (🔴)
+1. `SimulationContext` обходить архітектуру Worker – використовує `Engine` напряму замість `EngineProxy`
+2. `Engine.ts` – «God Object» (1087 рядків, >10 відповідальностей)
+3. `StatisticsManager` не використовується – логіка дублюється в `Engine`
+4. Тісна зв'язка UI‑симуляція – UI безпосередньо викликає `engine.update()`
 
-**File:** `src/simulation/managers/EntityManager.ts`
-
-#### 2.2 Extract EngineOrchestrator
-**Responsibilities:**
-- Coordinate systems execution
-- Manage update loop
-- System registration/lifecycle
-
-**File:** `src/simulation/core/EngineOrchestrator.ts`
-
-#### 2.3 Use StatisticsManager (already exists!)
-**Remove from Engine:**
-- statsCache
-- updateStats()
-- calculateAverageEnergy()
-- All statistics computation
-
-**Integrate:** Use existing StatisticsManager instead
-
-#### 2.4 Extract GridManager
-**Responsibilities:**
-- rebuildGrid()
-- calculateGridEfficiency()
-- Spatial indexing
-
-**File:** `src/simulation/managers/GridManager.ts`
-
-#### 2.5 Extract CameraDataProvider
-**Responsibilities:**
-- setCameraData()
-- getCameraData()
-- cameraDataCache
-
-**File:** `src/simulation/providers/CameraDataProvider.ts`
-
-#### 2.6 Refactored Engine.ts
-**Remaining responsibilities:**
-- Delegate to managers
-- Coordinate orchestrator
-- Public API facade
-
-**Target:** <200 lines
+### Важливі проблеми (🟡)
+5. Відсутність абстракцій – не створено інтерфейси `ISystem`, `IEntity`, `ISimulationEngine`
+6. Порушення DRY – дублювання кешування, type guards, констант
+7. Низьке покриття тестами – ~10 % (8 тестових файлів на 77 вихідних)
+8. Монолітний `constants.ts` – 853 рядки
 
 ---
 
-### Phase 3: Decouple UI from Simulation 🔓
-**Goal:** UI should not know about simulation internals
+## Стратегія рефакторингу
 
-#### 3.1 Use EngineProxy in SimulationContext
-**Current:**
-```typescript
-const engine = useMemo(() => new SimulationEngine(worldScale), [worldScale]);
-```
+### Фаза 1: Абстракції та інтерфейси ✨
+**Мета:** Створити шар абстракцій для дотримання SOLID
+- Створити інтерфейси `ISystem`, `IEntity`, `ISimulationEngine`, `IEntityRepository`, `IRenderData`
+- Оновити системи (Behavior, Physics, Metabolism, Reproduction, Collision) – реалізувати `ISystem`
+- Оновити сутності (Organism, Food, Obstacle) – реалізувати `IEntity`
 
-**Refactored:**
-```typescript
-const engine = useMemo(() => new EngineProxy(worldScale), [worldScale]);
-```
+### Фаза 2: Розбиття `Engine.ts` 🔨
+- Виділити `EntityManager` (керування колекціями сутностей)
+- Виділити `EngineOrchestrator` (координація систем, цикл оновлення)
+- Використати існуючий `StatisticsManager`
+- Виділити `GridManager`
+- Виділити `CameraDataProvider`
+- Після рефакторингу `Engine.ts` < 200 рядків
 
-#### 3.2 Move Update Loop from Entities.tsx
-**Problem:** UI component controls simulation loop
-```typescript
-// Entities.tsx:217
-for (let s = 0; s < steps; s++) {
-    engine.update();
-}
-```
+### Фаза 3: Відокремлення UI від симуляції 🔓
+- Замінити `SimulationEngine` на `EngineProxy` у `SimulationContext`
+- Перенести цикл оновлення у Worker
+- Створити DTO: `RenderableEntity`, `EntityInfo`, `StatisticsSnapshot`
+- Додати фасад `SimulationFacade` з публічним API
 
-**Solution:** Move to EngineProxy/Worker, UI only receives updates
+### Фаза 4: Усунення дублювання 🧹
+- Консолідувати кешування камери у `CameraDataProvider`
+- Консолідувати моніторинг продуктивності через `PerformanceMonitor`
+- Консолідувати type guards у `EntityTypeGuards`
+- Консолідувати константи буферів у нових модулях `config`
 
-#### 3.3 Create DTOs (Data Transfer Objects)
-**Replace direct entity exposure with:**
-- `RenderableEntity` DTO (only position, rotation, color)
-- `EntityInfo` DTO (for selection panel)
-- `StatisticsSnapshot` DTO
+### Фаза 5: Розбиття констант 📦
+- Перетворити `constants.ts` у набір файлів у `src/config/`
+- Оновити всі імпорти у коді
 
-**Benefits:**
-- UI doesn't import Organism/Food/Obstacle classes
-- Clear data contracts
-- Easier to serialize for Worker communication
+### Фаза 6: Збільшення покриття тестами 🧪
+- Додати юніт‑тести для нових менеджерів та фасадів
+- Додати інтеграційні тести для `Engine` та `EngineProxy`
+- Додати тестування UI‑компонентів
+- Налаштувати `vitest.config.ts` з порогами 70 % для рядків, функцій, гілок, операторів
 
-#### 3.4 Create Simulation Facade
-**File:** `src/simulation/SimulationFacade.ts`
-
-Public API for UI:
-```typescript
-interface ISimulationFacade {
-  start(): void;
-  stop(): void;
-  getRenderData(): RenderData;
-  getStatistics(): StatisticsSnapshot;
-  selectEntity(id: string): EntityInfo | null;
-  // etc.
-}
-```
+### Фаза 7: Інфраструктурні покращення 🏗️
+- Додати `lint-staged` у `package.json`
+- Оновити `.husky/pre-commit` для запуску lint‑стадії та тестів
+- Додати CI/CD конвеєр у `.github/workflows/ci.yml`
+- Оновити документацію (`ARCHITECTURE.md`, `API.md`, `CONTRIBUTING.md`, `README.md`)
 
 ---
 
-### Phase 4: Eliminate DRY Violations 🧹
-**Goal:** Don't Repeat Yourself
+## Порядок виконання
 
-#### 4.1 Consolidate Camera Caching
-**Remove from:**
-- Engine.ts (cameraDataCache)
-- StatisticsManager.ts (duplicate)
+### Пріоритет 1 (основа)
+1. Фаза 1 – створення інтерфейсів
+2. Фаза 5 – розбиття констант
+3. Фаза 2 – розбиття `Engine.ts`
 
-**Create:**
-- `src/simulation/providers/CameraDataProvider.ts` (single source of truth)
+### Пріоритет 2 (архітектура)
+4. Фаза 3 – відокремлення UI
+5. Фаза 4 – усунення дублювання
 
-#### 4.2 Consolidate Performance Monitoring
-**Remove from SimulationContext:**
-- fpsCounter, tpsCounter, frameTimestamp calculation
-
-**Use:** Existing PerformanceMonitor service
-
-#### 4.3 Consolidate Type Guards
-**Remove from Viewport.tsx:**
-- isOrganism, isObstacle, isFood
-
-**Use:** Existing EntityTypeGuards utility
-
-#### 4.4 Consolidate Buffer Constants
-**Problem:** Constants spread across:
-- constants.ts (PHYSICS.ORGANISM_STRIDE)
-- BufferManager.ts (BUFFER_CONSTANTS)
-
-**Solution:** Single source in split constants (see Phase 5)
+### Пріоритет 3 (якість)
+6. Фаза 6 – збільшення покриття тестами
+7. Фаза 7 – інфраструктурні покращення
 
 ---
 
-### Phase 5: Split Monolithic Constants 📦
-**Goal:** Modular, discoverable constants
+## Критерії успішності
 
-**Current:** `constants.ts` (853 lines)
+### Архітектурні
+- ✅ UI не імпортує жодних конкретних класів симуляції
+- ✅ `Engine.ts` < 200 рядків
+- ✅ Всі системи реалізують `ISystem`
+- ✅ `SimulationContext` використовує `EngineProxy`
 
-**Refactor to:**
-```
-src/config/
-├── physics.constants.ts      # Physics simulation
-├── rendering.constants.ts    # Rendering & buffers
-├── ui.constants.ts           # UI/UX settings
-├── performance.constants.ts  # Performance tuning
-├── gameplay.constants.ts     # Game mechanics
-└── index.ts                  # Re-exports
-```
+### Якість коду
+- ✅ Відсутність дублювання (DRY)
+- ✅ Усі правила ESLint проходять
+- ✅ Жоден файл не перевищує 300 рядків
+- ✅ Максимальна складність функцій ≤ 10
 
-**Update imports:**
-```typescript
-// Before
-import { PHYSICS, UI, RENDERING } from '@shared/config';
+### Тестування
+- ✅ Покриття ≥ 70 %
+- ✅ Тести критичних шляхів проходять
+- ✅ Інтеграційні тести для `Engine`
+- ✅ Тести UI‑компонентів
 
-// After
-import { PHYSICS } from '@/config/physics.constants';
-import { UI } from '@/config/ui.constants';
-```
-
----
-
-### Phase 6: Increase Test Coverage 🧪
-**Goal:** 70%+ coverage for critical paths
-
-**Current:** ~10% (8 test files)
-
-#### 6.1 Add Unit Tests
-- [ ] EntityManager.test.ts
-- [ ] EngineOrchestrator.test.ts
-- [ ] StatisticsManager.test.ts (use it properly first!)
-- [ ] BufferManager.test.ts
-- [ ] SpawnService.test.ts
-- [ ] GridManager.test.ts
-- [ ] SimulationFacade.test.ts
-
-#### 6.2 Add Integration Tests
-- [ ] Engine.integration.test.ts (full update cycle)
-- [ ] EngineProxy.test.ts (Worker communication)
-
-#### 6.3 Add UI Component Tests
-- [ ] SimulationContext.test.tsx
-- [ ] Entities.test.tsx
-- [ ] Viewport.test.tsx
-
-#### 6.4 Configure Coverage Threshold
-**vitest.config.ts:**
-```typescript
-test: {
-  coverage: {
-    provider: 'v8',
-    reporter: ['text', 'html', 'lcov'],
-    thresholds: {
-      lines: 70,
-      functions: 70,
-      branches: 70,
-      statements: 70
-    },
-    exclude: [
-      '**/*.test.ts',
-      '**/*.config.ts',
-      '**/types.ts'
-    ]
-  }
-}
-```
+### Документація
+- ✅ `ARCHITECTURE.md` оновлено
+- ✅ Створено `API.md`
+- ✅ Оновлено `README.md`
 
 ---
 
-### Phase 7: Infrastructure Improvements 🏗️
-
-#### 7.1 Add lint-staged
-**package.json:**
-```json
-{
-  "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ]
-  }
-}
-```
-
-**.husky/pre-commit:**
-```bash
-pnpm lint-staged
-pnpm test --run
-```
-
-#### 7.2 Add CI/CD Pipeline
-**.github/workflows/ci.yml:**
-- Run tests on PR
-- Check coverage threshold
-- Run linter
-- Type check
-- Build verification
-
-#### 7.3 Update Documentation
-- [ ] ARCHITECTURE.md - reflect new structure
-- [ ] API.md - document public interfaces
-- [ ] CONTRIBUTING.md - development workflow
-- [ ] README.md - update setup instructions
+## Управління ризиками
+1. **Ризик порушення сумісності** – працюємо у окремій гілці, атомарні коміти, тестування після кожної фази.
+2. **Регресія продуктивності** – бенчмарки до/після, використання `PerformanceMonitor`.
+3. **Неповна міграція** – завершувати кожну фазу повністю перед переходом до наступної, оновлювати тести.
 
 ---
 
-## Execution Order
+## Оцінка часу
+- Фаза 1: ~2 години
+- Фаза 2: ~3 години
+- Фаза 3: ~2 години
+- Фаза 4: ~1 година
+- Фаза 5: ~1 година
+- Фаза 6: ~4 години
+- Фаза 7: ~1 година
 
-### Priority 1 (Foundation)
-1. Phase 1: Create abstractions (interfaces)
-2. Phase 5: Split constants.ts
-3. Phase 2: Break down Engine.ts
-
-### Priority 2 (Architecture)
-4. Phase 3: Decouple UI from Simulation
-5. Phase 4: Eliminate DRY violations
-
-### Priority 3 (Quality)
-6. Phase 6: Increase test coverage
-7. Phase 7: Infrastructure improvements
+**Разом:** ~14 годин інтенсивного рефакторингу.
 
 ---
 
-## Success Criteria
-
-### Architectural
-- ✅ UI imports ZERO concrete simulation classes
-- ✅ Engine.ts < 200 lines
-- ✅ All systems implement ISystem
-- ✅ SimulationContext uses EngineProxy (Worker-based)
-
-### Code Quality
-- ✅ Zero DRY violations
-- ✅ All ESLint rules pass
-- ✅ No files > 300 lines
-- ✅ Max complexity: 10
-
-### Testing
-- ✅ Coverage ≥ 70%
-- ✅ All critical paths tested
-- ✅ Integration tests for Engine
-- ✅ UI component tests
-
-### Documentation
-- ✅ ARCHITECTURE.md updated
-- ✅ API.md created
-- ✅ All public APIs documented
-
----
-
-## Risk Mitigation
-
-1. **Breaking Changes**
-   - Create feature branch (already on `claude/comprehensive-refactor-qgOpq`)
-   - Run tests after each phase
-   - Keep commits atomic
-
-2. **Performance Regression**
-   - Benchmark before/after
-   - Use PerformanceMonitor throughout
-
-3. **Incomplete Migration**
-   - Complete one phase fully before next
-   - Update tests immediately after refactor
-
----
-
-## Timeline Estimate
-
-- Phase 1: ~2 hours
-- Phase 2: ~3 hours
-- Phase 3: ~2 hours
-- Phase 4: ~1 hour
-- Phase 5: ~1 hour
-- Phase 6: ~4 hours
-- Phase 7: ~1 hour
-
-**Total:** ~14 hours of focused refactoring
-
----
-
-## Notes
-
-- **eslint.config.js** - MUST NOT modify (per user requirement)
-- **Lint rules** - Can only strengthen, not weaken
-- **Principles** - Strict adherence to DRY/SOLID/KISS
-- **Simulation/UI separation** - Critical requirement
+## Примітки
+- **eslint.config.js** – НЕ змінювати (згідно вимог користувача).
+- **Правила lint** – можна лише посилювати, не ослаблювати.
+- **Принципи** – суворе дотримання DRY/SOLID/KISS.
+- **Відокремлення UI/симуляції** – критично важливо.

@@ -75,8 +75,9 @@ export class WebSocketTransport implements RemoteTransport {
                 }
             };
 
-            this.socket.onerror = () => {
+            this.socket.onerror = (error) => {
                 this.isConnecting = false;
+                console.warn('[\x1b[31mLogger:WS\x1b[0m] WebSocket error:', error);
             };
         } catch (error) {
             this.isConnecting = false;

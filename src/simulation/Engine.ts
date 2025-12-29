@@ -27,11 +27,11 @@ import type {
   EntityId,
   GeneticTreeNode,
   GenomeId,
-  SerializedSimulationStateV1,
   SimulationConfig,
   SimulationEvent,
   SimulationStats,
-  WorldConfig
+  WorldConfig,
+  SerializedSimulationStateV1
 } from '@/types';
 import {
   EngineState,
@@ -55,16 +55,18 @@ import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
 import { StatisticsManager } from './services/StatisticsManager';
 
+import type { IPersistableEngine } from './interfaces/IPersistableEngine';
+
 // ENGINE_CONSTANTS тепер імпортується з constants.ts
 
-export class SimulationEngine {
+export class SimulationEngine implements IPersistableEngine {
   // Життєвий цикл
   public state: EngineState = EngineState.INITIALIZING;
 
   // Менеджер управління сутностями
-  private readonly entityManager: EntityManager;
-  private readonly gridManager: GridManager;
-  private readonly cameraDataProvider: CameraDataProvider;
+  public readonly entityManager: EntityManager;
+  public readonly gridManager: GridManager;
+  public readonly cameraDataProvider: CameraDataProvider;
 
   // Дескриптори колекцій віртуальних сутностей (геттери для обратної совместимости)
   public get organisms(): Map<string, Organism> { return this.entityManager.organisms; }
@@ -79,26 +81,25 @@ export class SimulationEngine {
   public readonly geneticRoots: GenomeId[] = [];
 
   // Ініціалізація функціональних підсистем
-  private readonly eventBus: EventBus;
-  private readonly physicsSystem: PhysicsSystem;
-  private readonly metabolismSystem: MetabolismSystem;
-  private readonly collisionSystem: CollisionSystem;
-  private readonly behaviorSystem: BehaviorSystem;
-  private readonly reproductionSystem: ReproductionSystem;
+  public readonly eventBus: EventBus;
+  public readonly physicsSystem: PhysicsSystem;
+  public readonly metabolismSystem: MetabolismSystem;
+  public readonly collisionSystem: CollisionSystem;
+  public readonly behaviorSystem: BehaviorSystem;
+  public readonly reproductionSystem: ReproductionSystem;
 
   // Модулі сервісної підтримки
-  private readonly spawnService: SpawnService;
-  private readonly performanceMonitor: PerformanceMonitor;
-  private readonly bufferManager: BufferManager;
-  private readonly statisticsManager: StatisticsManager;
+  public readonly spawnService: SpawnService;
+  public readonly performanceMonitor: PerformanceMonitor;
+  public readonly bufferManager: BufferManager;
+  public readonly statisticsManager: StatisticsManager;
 
   // Системні лічильники та часова дискретизація
-  private foodIdCounter: number = 0;
-  private obstacleIdCounter: number = 0;
-  private tick: number = 0;
+  public foodIdCounter: number = 0;
+  public obstacleIdCounter: number = 0;
+  public tick: number = 0;
 
-  private readonly rng: Random;
-  private seed: number;
+  public seed: number;
 
   // Реєстр конфігураційних параметрів
   public config: SimulationConfig;
@@ -106,7 +107,6 @@ export class SimulationEngine {
 
   constructor(scale: number = 1.0) {
     this.seed = (Math.random() * ENGINE_CONSTANTS.SEED_LIMIT) >>> 0; // eslint-disable-line sonarjs/pseudo-random
-    this.rng = new Random(this.seed);
     this.worldConfig = createWorldConfig(scale);
     this.config = this.createDefaultConfig();
 
@@ -144,7 +144,6 @@ export class SimulationEngine {
       this.gridManager,
       this.zones,
       this.obstacles,
-      this.rng,
       {},
       this.worldConfig // Передана конфігурація світу
     );
@@ -294,14 +293,13 @@ export class SimulationEngine {
   private createObstacles(): void {
     const count = ENGINE_CONSTANTS.OBSTACLE_COUNT;
     for (let i = 0; i < count; i++) {
-      const radius = ENGINE_CONSTANTS.OBSTACLE_MIN_RADIUS + this.rng.next() * ENGINE_CONSTANTS.OBSTACLE_RADIUS_RANGE;
+      const radius = ENGINE_CONSTANTS.OBSTACLE_MIN_RADIUS + Random.next() * ENGINE_CONSTANTS.OBSTACLE_RADIUS_RANGE;
       const obstacle = Obstacle.create(
         ++this.obstacleIdCounter,
-        this.rng.next() * this.worldConfig.WORLD_SIZE,
-        this.rng.next() * this.worldConfig.WORLD_SIZE,
-        this.rng.next() * this.worldConfig.WORLD_SIZE,
-        radius,
-        this.rng
+        Random.next() * this.worldConfig.WORLD_SIZE,
+        Random.next() * this.worldConfig.WORLD_SIZE,
+        Random.next() * this.worldConfig.WORLD_SIZE,
+        radius
       );
       this.entityManager.addObstacle(obstacle);
     }
@@ -361,7 +359,7 @@ export class SimulationEngine {
 
   public setSeed(seed: number): void {
     this.seed = seed >>> 0;
-    this.rng.reset(this.seed);
+    Random.reset(this.seed);
   }
 
   /**
@@ -572,7 +570,7 @@ export class SimulationEngine {
   private spawnFood(): void {
     if (this.food.size >= this.config.maxFood) { return; }
 
-    if (this.rng.next() < this.config.foodSpawnRate) {
+    if (Random.next() < this.config.foodSpawnRate) {
       const food = this.spawnService.spawnFood(++this.foodIdCounter);
       if (food) {
         this.entityManager.addFood(food);
@@ -613,15 +611,13 @@ export class SimulationEngine {
         this.entityManager.organisms.delete(id);
 
         // Переміщення до списку мертвих (Persistent Dead Bodies)
-        if (org) {
-          this.deadOrganisms.set(id, org);
+        this.deadOrganisms.set(id, org);
 
-          // Контроль кількості мертвих тіл (FIFO)
-          if (this.deadOrganisms.size > MAX_DEAD_BODIES) {
-            const oldestDeadId = this.deadOrganisms.keys().next().value;
-            if (oldestDeadId) {
-              this.deadOrganisms.delete(oldestDeadId);
-            }
+        // Контроль кількості мертвих тіл (FIFO)
+        if (this.deadOrganisms.size > MAX_DEAD_BODIES) {
+          const oldestDeadId = this.deadOrganisms.keys().next().value;
+          if (oldestDeadId) {
+            this.deadOrganisms.delete(oldestDeadId);
           }
         }
 
@@ -630,7 +626,7 @@ export class SimulationEngine {
           entityType: org.type,
           id: id as EntityId,
           position: org.position,
-          causeOfDeath: (org.causeOfDeath as any) || 'old_age'
+          causeOfDeath: org.causeOfDeath || 'old_age'
         });
       }
     }
