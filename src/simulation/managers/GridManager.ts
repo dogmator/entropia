@@ -6,14 +6,39 @@
 import type { GridEntity } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
-import type { SpatialHashGrid } from '../SpatialHashGrid';
+import { SpatialHashGrid } from '../SpatialHashGrid';
 
 /**
  * Менеджер пространственной сетки для оптимизации поиска соседей.
  * Отвечает за обновление и очистку spatial hash grid.
  */
 export class GridManager {
-  constructor(private readonly spatialGrid: SpatialHashGrid) {}
+  private readonly staticGrid: SpatialHashGrid;
+  private readonly dynamicGrid: SpatialHashGrid;
+
+
+  constructor(
+    worldSize: number,
+    cellSize: number
+  ) {
+    this.staticGrid = new SpatialHashGrid(worldSize, cellSize);
+    this.dynamicGrid = new SpatialHashGrid(worldSize, cellSize);
+  }
+
+  /**
+   * Initialize static grid with obstacles. Should be called once or when obstacles change.
+   */
+  public initializeStatic(obstacles: Map<string, Obstacle>): void {
+    this.staticGrid.clear();
+    obstacles.forEach(o => {
+      this.staticGrid.insert({
+        id: o.id,
+        position: o.position,
+        type: o.type,
+        radius: o.radius,
+      });
+    });
+  }
 
   /**
    * Перестроить spatial grid с текущим состоянием мира.
@@ -22,13 +47,15 @@ export class GridManager {
   rebuild(
     organisms: Map<string, Organism>,
     food: Map<string, Food>,
-    obstacles: Map<string, Obstacle>,
-    showObstacles: boolean
   ): void {
-    this.spatialGrid.clear();
+    if (!organisms || !food) {
+      console.warn('GridManager.rebuild skipped: One or more collections are undefined.');
+      return;
+    }
+    this.dynamicGrid.clear();
 
     const insertEntity = (e: GridEntity) => {
-      this.spatialGrid.insert({
+      this.dynamicGrid.insert({
         id: e.id,
         position: e.position,
         type: e.type,
@@ -47,16 +74,42 @@ export class GridManager {
         insertEntity(f);
       }
     });
-
-    if (showObstacles) {
-      obstacles.forEach(insertEntity);
-    }
   }
 
   /**
-   * Очистить spatial grid.
+   * Clears ONLY the dynamic grid.
    */
   clear(): void {
-    this.spatialGrid.clear();
+    this.dynamicGrid.clear();
+    // Do NOT clear static grid here
+  }
+
+  // Proxy methods to query BOTH grids
+
+  public getNearby(position: any, radius: number): readonly GridEntity[] {
+    const staticEntities = this.staticGrid.getNearby(position, radius);
+    const dynamicEntities = this.dynamicGrid.getNearby(position, radius);
+
+    // Performance: Avoid allocation if possible? 
+    // For now, simple concat is safer than specialized iterators
+    return [...staticEntities, ...dynamicEntities] as any;
+  }
+
+  public getSpatialGrid(): SpatialHashGrid {
+    // Return dynamic for cases where only dynamic is needed, 
+    // OR throw error because systems should use GridManager directly now?
+    // For backward compatibility, return dynamic. But this is dangerous if systems expect obstacles.
+    return this.dynamicGrid;
+  }
+
+  public getStats() {
+    const s = this.staticGrid.getStats();
+    const d = this.dynamicGrid.getStats();
+    return {
+      totalCells: s.totalCells + d.totalCells,
+      totalEntities: s.totalEntities + d.totalEntities,
+      avgEntitiesPerCell: (s.avgEntitiesPerCell + d.avgEntitiesPerCell) / 2, // approximate
+      maxEntitiesInCell: Math.max(s.maxEntitiesInCell, d.maxEntitiesInCell)
+    }
   }
 }

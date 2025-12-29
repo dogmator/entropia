@@ -4,12 +4,12 @@ import { useCallback, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 import { COLORS, PHYSICS, RENDER } from '../../config';
-import type { SimulationEngine } from '../../simulation/Engine';
+import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { useSimulation } from '../context/SimulationContext';
 
 /* eslint-disable react/prop-types */
 interface EntitiesProps {
-    engine: SimulationEngine;
+    engine: ISimulationEngine;
 }
 
 // Позакомпонентні об'єкти для уникнення алокацій у кожному кадрі
@@ -22,6 +22,14 @@ const FRUSTUM = new THREE.Frustum();
 
 interface UpdateMeshParams {
     mesh: THREE.InstancedMesh;
+    data: Float32Array;
+    count: number;
+    scaleMultiplier: number;
+}
+
+interface UpdateMeshesParams {
+    aliveMesh: THREE.InstancedMesh;
+    deadMesh: THREE.InstancedMesh;
     data: Float32Array;
     count: number;
     scaleMultiplier: number;
@@ -115,11 +123,12 @@ const setOrganismTransform = (params: OrganismTransformParams): void => {
 };
 
 /**
- * Оновлення InstancedMesh для організмів (хижаки/жертви)
+ * Оновлення InstancedMesh для організмів (хижаки/жертви) з розділенням на живих та мертвих
  */
-const updateOrganismMesh = (params: UpdateMeshParams): void => {
-    const { mesh, data, count, scaleMultiplier } = params;
-    let idx = 0;
+const updateOrganismMeshes = (params: UpdateMeshesParams): void => {
+    const { aliveMesh, deadMesh, data, count, scaleMultiplier } = params;
+    let aliveIdx = 0;
+    let deadIdx = 0;
 
     for (let i = 0; i < count; i++) {
         const offset = i * PHYSICS.ORGANISM_STRIDE;
@@ -128,6 +137,7 @@ const updateOrganismMesh = (params: UpdateMeshParams): void => {
         const y = data[offset + 1] ?? 0;
         const z = data[offset + 2] ?? 0;
         const r = data[offset + 6] ?? 0;
+        const isDead = (data[offset + 7] ?? 0) > 0.5; // Считуємо прапор смерті
         /* eslint-enable @typescript-eslint/no-magic-numbers */
 
         TMP_SPHERE.center.set(x, y, z);
@@ -141,18 +151,27 @@ const updateOrganismMesh = (params: UpdateMeshParams): void => {
             /* eslint-enable @typescript-eslint/no-magic-numbers */
 
             setOrganismTransform({
-                mesh,
-                idx: idx++,
+                mesh: isDead ? deadMesh : aliveMesh,
+                idx: isDead ? deadIdx : aliveIdx,
                 pos: TMP_SPHERE.center,
                 vel: TMP_POS.set(vx, vy, vz),
                 radius: r,
                 scaleMultiplier
             });
+
+            if (isDead) {
+                deadIdx++;
+            } else {
+                aliveIdx++;
+            }
         }
     }
 
-    mesh.count = idx;
-    mesh.instanceMatrix.needsUpdate = true;
+    aliveMesh.count = aliveIdx;
+    aliveMesh.instanceMatrix.needsUpdate = true;
+
+    deadMesh.count = deadIdx;
+    deadMesh.instanceMatrix.needsUpdate = true;
 };
 
 /**
@@ -195,8 +214,14 @@ const updateFoodMesh = (params: UpdateMeshParams & { rotationTime: number }): vo
  * Параметри для анімації
  */
 interface AnimationHookParams {
-    refs: { prey: React.RefObject<THREE.InstancedMesh>, pred: React.RefObject<THREE.InstancedMesh>, food: React.RefObject<THREE.InstancedMesh> };
-    engine: SimulationEngine;
+    refs: {
+        prey: React.RefObject<THREE.InstancedMesh>,
+        deadPrey: React.RefObject<THREE.InstancedMesh>,
+        pred: React.RefObject<THREE.InstancedMesh>,
+        deadPred: React.RefObject<THREE.InstancedMesh>,
+        food: React.RefObject<THREE.InstancedMesh>
+    };
+    engine: ISimulationEngine;
     speed: number;
     isLoading: boolean;
 }
@@ -205,7 +230,13 @@ interface AnimationHookParams {
  * Хук для оновлення bounding volumes (сфери та бокси) для коректного Raycasting.
  * Оскільки InstancedMesh змінює матриці в кожному кадрі, Raycaster'у потрібні актуальні межі.
  */
-const useBoundingVolumesUpdate = (refs: { prey: React.RefObject<THREE.InstancedMesh>, pred: React.RefObject<THREE.InstancedMesh>, food: React.RefObject<THREE.InstancedMesh> }) => {
+const useBoundingVolumesUpdate = (refs: {
+    prey: React.RefObject<THREE.InstancedMesh>,
+    deadPrey: React.RefObject<THREE.InstancedMesh>,
+    pred: React.RefObject<THREE.InstancedMesh>,
+    deadPred: React.RefObject<THREE.InstancedMesh>,
+    food: React.RefObject<THREE.InstancedMesh>
+}) => {
     const lastHoverTimeRef = useRef(0);
 
     useFrame((state) => {
@@ -223,6 +254,13 @@ const useBoundingVolumesUpdate = (refs: { prey: React.RefObject<THREE.InstancedM
             if (foodRef.current && foodRef.current.count > 0) {
                 foodRef.current.computeBoundingSphere();
             }
+            // Мертві тіла також потребують bounding sphere - enable it!
+            if (refs.deadPrey.current && refs.deadPrey.current.count > 0) {
+                refs.deadPrey.current.computeBoundingSphere();
+            }
+            if (refs.deadPred.current && refs.deadPred.current.count > 0) {
+                refs.deadPred.current.computeBoundingSphere();
+            }
         }
     });
 };
@@ -234,8 +272,8 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
     const { refs, engine, speed, isLoading } = params;
 
     useFrame((state) => {
-        const { prey: preyRef, pred: predRef, food: foodRef } = refs;
-        if (!preyRef.current || !predRef.current || !foodRef.current) { return; }
+        const { prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef } = refs;
+        if (!preyRef.current || !deadPreyRef.current || !predRef.current || !deadPredRef.current || !foodRef.current) { return; }
 
         if (speed > 0 && !isLoading) {
             const steps = Math.floor(speed >= 1 ? speed : 1);
@@ -248,15 +286,17 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
         const renderBuffers = engine.getRenderData();
         const now = state.clock.getElapsedTime();
 
-        updateOrganismMesh({
-            mesh: preyRef.current,
+        updateOrganismMeshes({
+            aliveMesh: preyRef.current,
+            deadMesh: deadPreyRef.current,
             data: renderBuffers.prey,
             count: renderBuffers.preyCount,
             scaleMultiplier: engine.config.organismScale
         });
 
-        updateOrganismMesh({
-            mesh: predRef.current,
+        updateOrganismMeshes({
+            aliveMesh: predRef.current,
+            deadMesh: deadPredRef.current,
             data: renderBuffers.predators,
             count: renderBuffers.predatorCount,
             scaleMultiplier: engine.config.organismScale
@@ -269,20 +309,33 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
             scaleMultiplier: engine.config.foodScale,
             rotationTime: now
         });
+
+        // Dynamic update of emissive intensity based on config
+        const showGlow = engine.config.showEnergyGlow;
+
+        if (preyRef.current && preyRef.current.material) {
+            const mat = preyRef.current.material as THREE.MeshPhongMaterial;
+            mat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.prey : 0;
+        }
+
+        if (predRef.current && predRef.current.material) {
+            const mat = predRef.current.material as THREE.MeshPhongMaterial;
+            mat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.predator : 0;
+        }
     });
 };
 
 /**
  * Хук для обробки взаємодії з сутностями
  */
-const useEntityInteraction = (engine: SimulationEngine) => {
+const useEntityInteraction = (engine: ISimulationEngine) => {
     const { setHoveredEntity, setTooltipPos } = useSimulation();
 
-    const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>, type: 'prey' | 'predator' | 'food') => {
+    const handlePointerMove = useCallback(async (e: ThreeEvent<PointerEvent>, type: 'prey' | 'predator' | 'food', isDead: boolean = false) => {
         e.stopPropagation();
         if (e.instanceId === undefined) { return; }
 
-        const entity = engine.getEntityByInstanceId(type, e.instanceId);
+        const entity = await engine.getEntityByInstanceId(type, e.instanceId, isDead);
         if (entity) {
             setHoveredEntity(entity);
             setTooltipPos({ x: e.clientX, y: e.clientY });
@@ -297,7 +350,9 @@ const useEntityInteraction = (engine: SimulationEngine) => {
 
 export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
     const preyRef = useRef<THREE.InstancedMesh>(null!);
+    const deadPreyRef = useRef<THREE.InstancedMesh>(null!);
     const predRef = useRef<THREE.InstancedMesh>(null!);
+    const deadPredRef = useRef<THREE.InstancedMesh>(null!);
     const foodRef = useRef<THREE.InstancedMesh>(null!);
 
     const { speed, isLoading } = useSimulation();
@@ -318,8 +373,11 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
         RENDER.geometry.food.segments
     ), []);
 
-    useEntitiesAnimation({ refs: { prey: preyRef, pred: predRef, food: foodRef }, engine, speed, isLoading });
-    useBoundingVolumesUpdate({ prey: preyRef, pred: predRef, food: foodRef });
+    useEntitiesAnimation({
+        refs: { prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef },
+        engine, speed, isLoading
+    });
+    useBoundingVolumesUpdate({ prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef });
     const { handlePointerMove, handlePointerOut, handlePointerMiss } = useEntityInteraction(engine);
 
     return (
@@ -334,12 +392,30 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
                 onPointerOut={handlePointerOut}
             />
             <OrganismMesh
+                meshRef={deadPreyRef}
+                geo={orgGeo}
+                color={COLORS.prey.death}
+                emissiveIntensity={0}
+                shininess={0}
+                onPointerMove={(e) => handlePointerMove(e, 'prey', true)}
+                onPointerOut={handlePointerOut}
+            />
+            <OrganismMesh
                 meshRef={predRef}
                 geo={orgGeo}
                 color={COLORS.predator.base}
                 emissiveIntensity={RENDER.materials.emissiveIntensity.predator}
                 shininess={RENDER.materials.shininess.predator}
-                onPointerMove={(e) => handlePointerMove(e, 'predator')}
+                onPointerMove={(e) => handlePointerMove(e, 'predator', false)}
+                onPointerOut={handlePointerOut}
+            />
+            <OrganismMesh
+                meshRef={deadPredRef}
+                geo={orgGeo}
+                color={COLORS.predator.death}
+                emissiveIntensity={0}
+                shininess={0}
+                onPointerMove={(e) => handlePointerMove(e, 'predator', true)}
                 onPointerOut={handlePointerOut}
             />
             <FoodMesh

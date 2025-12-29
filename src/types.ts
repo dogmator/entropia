@@ -69,6 +69,17 @@ export const GraphicsQuality = {
 
 export type GraphicsQuality = typeof GraphicsQuality[keyof typeof GraphicsQuality];
 
+/** Стани життєвого циклу рушія симуляції. */
+export const EngineState = {
+  INITIALIZING: 'INITIALIZING',
+  READY: 'READY',
+  RUNNING: 'RUNNING',
+  PAUSED: 'PAUSED',
+  STOPPED: 'STOPPED',
+} as const;
+
+export type EngineState = typeof EngineState[keyof typeof EngineState];
+
 // ============================================================================
 // ОБ'ЄКТИ ВЕКТОРНОГО АНАЛІЗУ
 // ============================================================================

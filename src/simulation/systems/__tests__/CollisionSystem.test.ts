@@ -11,11 +11,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventBus } from '@/core';
-import type { Genome, WorldConfig } from '@/types';
-import { EntityType } from '@/types';
+import type { Genome, WorldConfig, OrganismId } from '@/types';
+import { EntityType, createOrganismId } from '@/types';
 
 import { Food, Obstacle, Organism } from '../../Entity';
-import { SpatialHashGrid } from '../../SpatialHashGrid';
+import { GridManager } from '../../managers/GridManager';
 import { CollisionSystem } from '../CollisionSystem';
 
 /**
@@ -47,15 +47,15 @@ const createWorldConfig = (): WorldConfig => ({
 
 describe('CollisionSystem', () => {
     let collisionSystem: CollisionSystem;
-    let spatialGrid: SpatialHashGrid;
+    let gridManager: GridManager;
     let eventBus: EventBus;
     let worldConfig: WorldConfig;
 
     beforeEach(() => {
         worldConfig = createWorldConfig();
-        spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE);
+        gridManager = new GridManager(worldConfig.WORLD_SIZE, 50);
         eventBus = new EventBus();
-        collisionSystem = new CollisionSystem(spatialGrid, eventBus);
+        collisionSystem = new CollisionSystem(gridManager, eventBus, worldConfig);
     });
 
     describe('isColliding', () => {
@@ -89,14 +89,15 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const prey = new Organism('prey-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5); // Дуже близько до prey
 
             organisms.set(prey.id, prey);
             food.set(foodItem.id, foodItem);
 
-            // Реєструємо їжу в spatial grid
-            spatialGrid.insert(foodItem);
+            // Реєструємо їжу через GridManager
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const initialEnergy = prey.energy;
 
@@ -113,14 +114,14 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const predator = new Organism('pred-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(predator.id, predator);
             food.set(foodItem.id, foodItem);
 
-            spatialGrid.insert(predator);
-            spatialGrid.insert(foodItem);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const initialEnergy = predator.energy;
 
@@ -139,14 +140,14 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const predator = new Organism('pred-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
-            const prey = new Organism('prey-1', { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
 
             organisms.set(predator.id, predator);
             organisms.set(prey.id, prey);
 
-            spatialGrid.insert(predator);
-            spatialGrid.insert(prey);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const predatorInitialEnergy = predator.energy;
 
@@ -167,7 +168,7 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const prey = new Organism('prey-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             prey.velocity = { x: 5, y: 0, z: 0 }; // Рухається в напрямку перешкоди
 
             const obstacle = Obstacle.create(1, 12, 10, 10, 3); // Близько до prey
@@ -175,8 +176,8 @@ describe('CollisionSystem', () => {
             organisms.set(prey.id, prey);
             obstacles.set(obstacle.id, obstacle);
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(obstacle);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             collisionSystem.update(organisms, food, obstacles);
 
@@ -192,14 +193,14 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const prey = new Organism('prey-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(prey.id, prey);
             food.set(foodItem.id, foodItem);
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(foodItem);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const eventHandler = vi.fn();
             eventBus.on('EntityDied', eventHandler);

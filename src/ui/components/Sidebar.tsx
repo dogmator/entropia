@@ -9,7 +9,7 @@ import { Icons } from './shared/Icons';
 import { UI_CONFIG } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
-import { SimulationEngine } from '@/simulation';
+import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 
 const GESTURE = {
   THRESHOLD_X: 50,
@@ -127,7 +127,7 @@ const SidebarDiagnostics: React.FC<{
   isOpen: boolean;
   onClose: () => void;
   stats: SimulationStats;
-  engine: SimulationEngine;
+  engine: ISimulationEngine;
 }> = ({ isOpen, onClose, stats, engine }) => {
   const monitor = engine?.getPerformanceMonitor();
   if (!monitor) return null;
@@ -189,7 +189,7 @@ interface SidebarContentProps {
   onReset: () => void;
   speed: number;
   setSpeed: (v: number) => void;
-  engine: SimulationEngine;
+  engine: ISimulationEngine;
   worldScale: number;
   setWorldScale: (v: number) => void;
   onOpenDiagnostics: () => void;

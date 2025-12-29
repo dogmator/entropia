@@ -15,14 +15,14 @@
 import { ENGINE_CONSTANTS } from '@/config';
 
 import type { Food, Obstacle, Organism } from '../Entity';
-import type { SpatialHashGrid } from '../SpatialHashGrid';
+import type { GridManager } from './GridManager';
 
 export class EntityManager {
   public readonly organisms: Map<string, Organism> = new Map();
   public readonly food: Map<string, Food> = new Map();
   public readonly obstacles: Map<string, Obstacle> = new Map();
 
-  constructor(private readonly spatialGrid: SpatialHashGrid) {}
+  constructor(private readonly gridManager: GridManager) { }
 
   /**
    * Find organism at given position.
@@ -151,8 +151,8 @@ export class EntityManager {
     tolerance: number
   ): string[] {
     try {
-      if (this.spatialGrid) {
-        const neighbors = this.spatialGrid.getNearby(
+      if (this.gridManager) {
+        const neighbors = this.gridManager.getNearby(
           pos,
           tolerance * ENGINE_CONSTANTS.GRID_FALLBACK_MULT
         );

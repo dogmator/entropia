@@ -1,16 +1,17 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 
-import { COLORS, WORLD_SIZE,ZONE_DEFAULTS } from '../../config';
+import { COLORS, WORLD_SIZE, ZONE_DEFAULTS } from '../../config';
 // Import Engine type (assuming it is exported from Engine.ts or we use a partial interface if circular deps exist)
 // Better to define a minimal interface here or import from types if available.
 // Since Engine.ts is a class, we can just use 'any' temporarily? NO, strict rules!
 // Let's import the class as a type.
-import type { SimulationEngine } from '../../simulation/Engine';
+// Let's import the class as a type.
+import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { useSimulation } from '../context/SimulationContext';
 
 interface EnvironmentProps {
-    engine: SimulationEngine;
+    engine: ISimulationEngine;
 }
 
 export const Environment: React.FC<EnvironmentProps> = ({ engine }) => {

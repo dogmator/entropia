@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 
 import { GRAPHICS_PRESETS } from '@/config';
-import type { SimulationEngine } from '@/simulation';
+import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 import type { GraphicsQuality } from '@/types';
+import { useSimulation } from '../context/SimulationContext';
 
 import { SettingsSlider } from './SettingsSlider';
 
@@ -10,7 +11,7 @@ import { SettingsSlider } from './SettingsSlider';
  * Програмний інтерфейс для властивостей компонента SettingsPanel.
  */
 interface SettingsPanelProps {
-  engine: SimulationEngine;
+  engine: ISimulationEngine;
   worldScale: number;
   onWorldScaleChange: (val: number) => void;
 }
@@ -20,6 +21,17 @@ interface SettingsPanelProps {
  * Забезпечує динамічне оновлення стану Engine через кастомізовані контролери (слайдери, перемикачі).
  */
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale, onWorldScaleChange }) => {
+  const { autoRotate, setAutoRotate, autoRotateSpeed, setAutoRotateSpeed, isLoading } = useSimulation();
+
+  // Guard against uninitialized engine config
+  if (isLoading) {
+    return (
+      <div className="bg-white/5 rounded-2xl border border-white/5 p-4 flex items-center justify-center animate-pulse">
+        <div className="text-gray-400 text-xs font-mono uppercase tracking-widest">Initialization...</div>
+      </div>
+    );
+  }
+
   const [config, setConfig] = useState(engine.config);
   const [collapsed, setCollapsed] = useState(false);
 
@@ -30,7 +42,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale
     const newConfig = { ...config, [key]: val, graphicsQuality: 'CUSTOM' as const };
     setConfig(newConfig);
     // Детерміноване оновлення конфігурації об'єкта engine
-    Object.assign(engine.config, { [key]: val, graphicsQuality: 'CUSTOM' });
+    engine.updateConfig({ [key]: val, graphicsQuality: 'CUSTOM' });
   };
 
   /**
@@ -42,7 +54,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale
       const newVal = !currentVal;
       const newConfig = { ...config, [key]: newVal, graphicsQuality: 'CUSTOM' as const };
       setConfig(newConfig);
-      Object.assign(engine.config, { [key]: newVal, graphicsQuality: 'CUSTOM' });
+      engine.updateConfig({ [key]: newVal, graphicsQuality: 'CUSTOM' });
     }
   };
 
@@ -59,7 +71,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale
       graphicsQuality: quality,
     };
     setConfig(newConfig);
-    Object.assign(engine.config, newConfig);
+    engine.updateConfig(newConfig);
   };
 
 
@@ -138,7 +150,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale
                   const newVal = !config.showObstacles;
                   const newConfig = { ...config, showObstacles: newVal };
                   setConfig(newConfig);
-                  Object.assign(engine.config, { showObstacles: newVal });
+                  engine.updateConfig({ showObstacles: newVal });
                 }}
                 className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${config.showObstacles ? 'bg-emerald-500' : 'bg-white/10'}`}
               >
@@ -251,6 +263,33 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ engine, worldScale
                   <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${config.showEnergyGlow ? 'translate-x-6' : 'translate-x-0'}`} />
                 </button>
               </div>
+
+              {/* Перемикач авто-ротації */}
+              <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">Авто-ротація</span>
+                  <span className="text-[8px] sm:text-[7px] text-gray-600">Кінематографічне обертання камери</span>
+                </div>
+                <button
+                  onClick={() => setAutoRotate(!autoRotate)}
+                  className={`w-12 h-6 rounded-full transition-all duration-300 flex items-center px-1 ${autoRotate ? 'bg-purple-500' : 'bg-white/10'}`}
+                >
+                  <div className={`w-4 h-4 bg-white rounded-full transition-transform duration-300 shadow-lg ${autoRotate ? 'translate-x-6' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              {autoRotate && (
+                <SettingsSlider
+                  label="Швидкість обертання"
+                  param="autoRotateSpeed"
+                  value={autoRotateSpeed}
+                  min={0.1}
+                  max={10.0}
+                  step={0.1}
+                  colorClass="accent-purple-500"
+                  onChange={(_param, val) => setAutoRotateSpeed(val)}
+                />
+              )}
             </div>
           </section>
 

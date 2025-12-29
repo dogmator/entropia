@@ -46,6 +46,8 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
     worldSize = WORLD_SIZE,
     children
 }) => {
+    const { autoRotate, autoRotateSpeed } = useSimulation();
+
     return (
         <Canvas
             shadows
@@ -75,6 +77,8 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
                 dampingFactor={0.05}
                 minDistance={100}
                 maxDistance={worldSize * 3}
+                autoRotate={autoRotate}
+                autoRotateSpeed={autoRotateSpeed}
             />
 
             <CameraTracker />

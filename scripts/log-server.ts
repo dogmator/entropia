@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { WebSocket,WebSocketServer } from 'ws';
+import { WebSocket, WebSocketServer } from 'ws';
 
 /**
  * Entropia 3D — TypeScript WebSocket Server for Remote Logging.
@@ -63,6 +63,35 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('error', (error: Error) => {
         console.error(`\x1b[31m[Socket Error]\x1b[0m ${error.message}`);
     });
+});
+
+/**
+ * Broadcast command to all connected clients
+ */
+const broadcast = (command: object) => {
+    const payload = JSON.stringify(command);
+    wss.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(payload);
+        }
+    });
+};
+
+/**
+ * Handle Terminal Input (stdin)
+ */
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (data) => {
+    const input = data.toString().trim();
+
+    if (input === 'reload') {
+        console.log('\x1b[35m[Command]\x1b[0m Broadcasting RELOAD signal...');
+        broadcast({ type: 'COMMAND', action: 'RELOAD' });
+    } else if (input === 'clear') {
+        console.clear();
+    } else if (input) {
+        console.log(`\x1b[90mUnknown command: ${input}\x1b[0m`);
+    }
 });
 
 /**

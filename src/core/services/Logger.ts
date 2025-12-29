@@ -31,6 +31,21 @@ export class Logger {
   private socket: WebSocket | null = null;
   private messageQueue: LogEntry[] = [];
   private isConnecting: boolean = false;
+  private context: string = typeof self !== 'undefined' && typeof window === 'undefined' ? 'Worker' : 'Main';
+  private commandSubscribers: Set<(command: any) => void> = new Set();
+  private originalConsole: {
+    log: (...args: any[]) => void;
+    warn: (...args: any[]) => void;
+    error: (...args: any[]) => void;
+    info: (...args: any[]) => void;
+    debug: (...args: any[]) => void;
+  } = {
+      log: console.log.bind(console),
+      warn: console.warn.bind(console),
+      error: console.error.bind(console),
+      info: console.info.bind(console),
+      debug: console.debug.bind(console),
+    };
 
   private constructor() {
     // Приватний конструктор для синглтона
@@ -39,8 +54,54 @@ export class Logger {
   public static getInstance(): Logger {
     if (!Logger.instance) {
       Logger.instance = new Logger();
+      Logger.instance.interceptConsole();
     }
     return Logger.instance;
+  }
+
+  /**
+   * Перехоплення стандартних методів консолі для захоплення всіх логів
+   */
+  private interceptConsole(): void {
+    if (this.context === 'Worker') return;
+
+    // Перевизначення методів консолі
+    console.log = (...args) => {
+      this.addLog(LogLevel.INFO, args.map(a => this.formatArg(a)).join(' '), 'Console', undefined, true);
+      this.originalConsole.log(...args);
+    };
+
+    console.info = (...args) => {
+      this.addLog(LogLevel.INFO, args.map(a => this.formatArg(a)).join(' '), 'Console', undefined, true);
+      this.originalConsole.info(...args);
+    };
+
+    console.warn = (...args) => {
+      this.addLog(LogLevel.WARNING, args.map(a => this.formatArg(a)).join(' '), 'Console', undefined, true);
+      this.originalConsole.warn(...args);
+    };
+
+    console.error = (...args) => {
+      this.addLog(LogLevel.ERROR, args.map(a => this.formatArg(a)).join(' '), 'Console', undefined, true);
+      this.originalConsole.error(...args);
+    };
+
+    console.debug = (...args) => {
+      // Опціонально захоплюємо debug, зазвичай як INFO
+      this.addLog(LogLevel.INFO, args.map(a => this.formatArg(a)).join(' '), 'Console (Debug)', undefined, true);
+      this.originalConsole.debug(...args);
+    };
+  }
+
+  private formatArg(arg: any): string {
+    if (typeof arg === 'object') {
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    }
+    return String(arg);
   }
 
   /**
@@ -58,6 +119,13 @@ export class Logger {
   }
 
   /**
+   * Alias for warning
+   */
+  public warn(message: string, source?: string, data?: Record<string, unknown>): void {
+    this.addLog(LogLevel.WARNING, message, source, data);
+  }
+
+  /**
    * Додавання помилки
    */
   public error(message: string, source?: string, data?: Record<string, unknown>): void {
@@ -67,7 +135,13 @@ export class Logger {
   /**
    * Додавання лога з вказаним рівнем
    */
-  private addLog(level: LogLevel, message: string, source?: string, data?: Record<string, unknown>): void {
+  private addLog(
+    level: LogLevel,
+    message: string,
+    source?: string,
+    data?: Record<string, unknown>,
+    skipConsole: boolean = false
+  ): void {
     if (this.isDuplicateLog(level, message, source, data)) {
       return;
     }
@@ -76,7 +150,11 @@ export class Logger {
     this.logs.push(entry);
     this.cleanupOldLogs();
     this.notifySubscribers();
-    this.outputToConsole(level, message, source, data);
+
+    if (!skipConsole) {
+      this.outputToConsole(level, message, source, data);
+    }
+
     this.maybeSendToRemote(entry);
   }
 
@@ -137,9 +215,9 @@ export class Logger {
     const consoleMethod = level === LogLevel.ERROR ? 'error' : 'warn';
 
     if (data) {
-      console[consoleMethod](logMessage, data);
+      this.originalConsole[consoleMethod](logMessage, data);
     } else {
-      console[consoleMethod](logMessage);
+      this.originalConsole[consoleMethod](logMessage);
     }
   }
 
@@ -160,7 +238,8 @@ export class Logger {
    * Ініціалізація WebSocket з'єднання
    */
   private initWebSocket(): void {
-    if (this.socket || this.isConnecting || !this.isDevelopment() || !this.remoteLoggingEnabled) {
+    // Послаблена перевірка: Дозволяємо з'єднання, якщо remoteLoggingEnabled = true, навіть якщо isDevelopment() false/undefined у Worker
+    if (this.socket || this.isConnecting || !this.remoteLoggingEnabled) {
       return;
     }
 
@@ -171,7 +250,7 @@ export class Logger {
 
       this.socket.onopen = () => {
         this.isConnecting = false;
-        console.debug('[\x1b[36mLogger\x1b[0m] WebSocket connected');
+        console.debug(`[\x1b[36mLogger\x1b[0m] WebSocket connected (${this.context})`);
         this.flushQueue();
       };
 
@@ -187,9 +266,20 @@ export class Logger {
       this.socket.onerror = () => {
         this.isConnecting = false;
       };
+
+      this.socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'COMMAND') {
+            this.notifyCommandSubscribers(data);
+          }
+        } catch (e) {
+          console.warn('[Logger] Failed to parse incoming message:', e);
+        }
+      };
     } catch (error) {
       this.isConnecting = false;
-      console.warn('Failed to init WebSocket:', error);
+      console.warn(`[Logger] Failed to init WebSocket (${this.context}):`, error);
     }
   }
 
@@ -209,8 +299,15 @@ export class Logger {
    * Відправка лога на сервер
    */
   private async maybeSendToRemote(entry: LogEntry): Promise<void> {
-    if (!this.remoteLoggingEnabled || !this.isDevelopment()) {
+    if (!this.remoteLoggingEnabled) {
       return;
+    }
+
+    // Додаємо контекст до джерела, якщо він відсутній
+    if (entry.source && !entry.source.includes(this.context)) {
+      entry.source = `${this.context}:${entry.source}`;
+    } else if (!entry.source) {
+      entry.source = this.context;
     }
 
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
@@ -329,24 +426,23 @@ export class Logger {
   }
 
   /**
-   * Перевірка чи середовище є режимом розробки
+   * Підписка на віддалені команди
    */
-  private isDevelopment(): boolean {
-    try {
-      // Перевірка для Vite (import.meta.env.DEV)
-      // @ts-ignore
-      if (typeof import.meta !== 'undefined' && import.meta.env) {
-        // @ts-ignore
-        return !!import.meta.env.DEV;
+  public subscribeToCommands(callback: (command: any) => void): () => void {
+    this.commandSubscribers.add(callback);
+    return () => {
+      this.commandSubscribers.delete(callback);
+    };
+  }
+
+  private notifyCommandSubscribers(command: any): void {
+    this.commandSubscribers.forEach(callback => {
+      try {
+        callback(command);
+      } catch (error) {
+        console.error('[Logger] Command subscriber error:', error);
       }
-      // Перевірка для Node.js або поліфілів (process.env.NODE_ENV)
-      if (typeof process !== 'undefined' && process.env) {
-        return process.env['NODE_ENV'] === 'development';
-      }
-    } catch (e) {
-      // Ігноруємо помилки доступу до середовища
-    }
-    return false;
+    });
   }
 }
 
