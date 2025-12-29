@@ -5,6 +5,8 @@
  * Hosts SimulationEngine і обробляє команди від main thread.
  */
 
+import { logger } from '@/core';
+
 import { SimulationEngine } from './Engine';
 import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
@@ -50,13 +52,21 @@ function handleInit(scale: number): void {
     try {
         engine = new SimulationEngine(scale);
         const stats = engine.getStats();
+        const config = engine.config;
         const worldConfig = engine.worldConfig;
 
         sendResponse({
             type: 'initialized',
             stats,
+            config,
             worldConfig,
+            zones: engine.getZones(),
+            obstacles: engine.obstacles,
         });
+
+        if (isRunning) {
+            engine.start();
+        }
     } catch (error) {
         sendResponse({
             type: 'error',
@@ -146,6 +156,38 @@ function handleGetStats(): void {
 }
 
 /**
+ * Generic handler for async commands.
+ */
+async function handleAsyncCommand(
+    command: (engine: SimulationEngine) => Promise<unknown>,
+    requestId: string
+): Promise<void> {
+    if (!engine) {
+        sendResponse({
+            type: 'commandResponse', // Fix: respond with commandResponse even on error for correlation? Or error?
+            requestId,
+            result: null, // Returning null/undefined as result on engine missing
+        });
+        return;
+    }
+
+    try {
+        const result = await command(engine);
+        sendResponse({
+            type: 'commandResponse',
+            requestId,
+            result,
+        });
+    } catch (error) {
+        sendResponse({
+            type: 'error',
+            message: error instanceof Error ? error.message : 'Command failed',
+            stack: error instanceof Error ? error.stack : undefined,
+        });
+    }
+}
+
+/**
  * Оновлення конфігурації.
  */
 function handleSetConfig(config: Partial<SimulationEngine['config']>): void {
@@ -171,6 +213,8 @@ function handleSetConfig(config: Partial<SimulationEngine['config']>): void {
 function startAutoUpdate(): void {
     if (isRunning) { return; }
     isRunning = true;
+
+    engine?.start(); // Ensure engine is in RUNNING state
 
     const tick = (): void => {
         if (!isRunning || !engine) { return; }
@@ -207,6 +251,7 @@ self.onmessage = (event: MessageEvent): void => {
 
     switch (data.type) {
         case 'init':
+            logger.info(`Worker: Received init command (scale: ${data.scale})`, 'SimulationWorker');
             handleInit(data.scale);
             break;
 
@@ -232,6 +277,24 @@ self.onmessage = (event: MessageEvent): void => {
 
         case 'resume':
             startAutoUpdate();
+            break;
+
+        case 'findEntityAt':
+            logger.info(`Worker: Processing findEntityAt (req: ${data.requestId})`, 'SimulationWorker');
+            handleAsyncCommand(e => e.findEntityAt(data.position, data.tolerance), data.requestId);
+            break;
+
+        case 'getEntityByInstanceId':
+            logger.info(`Worker: Processing getEntityByInstanceId (req: ${data.requestId})`, 'SimulationWorker');
+            handleAsyncCommand(e => e.getEntityByInstanceId(data.entityType, data.instanceId, data.isDead), data.requestId);
+            break;
+
+        case 'getGeneticNode':
+            handleAsyncCommand(e => e.getGeneticNode(data.genomeId as import('@/types').GenomeId), data.requestId);
+            break;
+
+        case 'getGeneticRoots':
+            handleAsyncCommand(e => e.getGeneticRoots(), data.requestId);
             break;
 
         default:

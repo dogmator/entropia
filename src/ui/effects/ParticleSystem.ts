@@ -429,6 +429,7 @@ interface Trail {
   line: THREE.Line;
   maxLength: number;
   needsRebuild: boolean;
+  lastFrameId: number;
 }
 
 /**
@@ -438,6 +439,7 @@ export class TrailSystem {
   private readonly scene: THREE.Scene;
   private readonly trails: Map<string, Trail> = new Map();
   private readonly maxTrailLength: number;
+  private currentFrameId: number = 0;
 
   constructor(scene: THREE.Scene, maxTrailLength: number = RENDER.maxTrailParticles) {
     this.scene = scene;
@@ -481,6 +483,8 @@ export class TrailSystem {
       }
     }
 
+    trail.lastFrameId = this.currentFrameId;
+
     // Реєстрація нового положення в ланцюгу трасування
     trail.positions.push(new THREE.Vector3(position.x, position.y, position.z));
     trail.alphas.push(1.0);
@@ -520,6 +524,27 @@ export class TrailSystem {
     this.trails.forEach((_trail, id) => {
       this.removeTrail(id);
     });
+  }
+
+  /**
+   * Маркування початку кадру для механізму очищення старіх слідів.
+   */
+  public beginFrame(): void {
+    this.currentFrameId++;
+  }
+
+  /**
+   * Видалення слідів, які не були оновлені в поточному кадрі.
+   */
+  public prune(): void {
+    const idsToRemove: string[] = [];
+    this.trails.forEach((trail, id) => {
+      if (trail.lastFrameId !== this.currentFrameId) {
+        idsToRemove.push(id);
+      }
+    });
+
+    idsToRemove.forEach(id => this.removeTrail(id));
   }
 
   /**
@@ -575,6 +600,7 @@ export class TrailSystem {
       line,
       maxLength: this.maxTrailLength,
       needsRebuild: true,
+      lastFrameId: this.currentFrameId,
     };
   }
 

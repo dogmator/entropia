@@ -12,14 +12,18 @@
 import type {
   EcologicalZone,
   EntityId,
+  EntityType,
   GenomeId,
+  MemoryStats,
   RenderBuffers,
   SerializedSimulationStateV1,
   SimulationConfig,
   SimulationStats,
+  SystemMetrics,
   Vector3,
   WorldConfig,
 } from '@/types';
+import type { Obstacle } from '@/simulation';
 
 /**
  * Camera data for rendering.
@@ -34,10 +38,14 @@ export interface ICameraData {
  */
 export interface IEntityInfo {
   id: EntityId;
-  type: string;
+  type: EntityType;
   position: Vector3;
-  // Additional fields added dynamically based on entity type
-  [key: string]: unknown;
+  radius: number;
+}
+
+export interface IPerformanceMonitor {
+  getMemoryStats(): MemoryStats | null;
+  getPerformanceHistory(): SystemMetrics[];
 }
 
 /**
@@ -48,7 +56,14 @@ export interface ISimulationEngine {
   readonly config: SimulationConfig;
 
   /** World configuration (size, scale) */
+  /** World configuration (size, scale) */
   readonly worldConfig: WorldConfig;
+
+  /** Ecological zones */
+  readonly zones: Map<string, EcologicalZone>;
+
+  /** Static obstacles */
+  readonly obstacles: Map<string, Obstacle>;
 
   /**
    * Advance simulation by one tick.
@@ -68,6 +83,17 @@ export interface ISimulationEngine {
   getStats(): SimulationStats;
 
   /**
+   * Get current simulation statistics with world data.
+   * @returns Stats snapshot
+   */
+  getStatsWithWorldData(): SimulationStats;
+
+  /**
+   * Reset simulation to initial state.
+   */
+  reset(): void;
+
+  /**
    * Update camera data for rendering optimizations.
    * @param position - Camera position
    * @param target - Camera look-at target
@@ -78,30 +104,33 @@ export interface ISimulationEngine {
    * Find entity at world position.
    * @param worldPosition - 3D coordinates
    * @param maxDistance - Search radius
+   * @param maxDistance - Search radius
    * @returns Entity info or null
    */
-  findEntityAt(worldPosition: Vector3, maxDistance: number): IEntityInfo | null;
+  findEntityAt(worldPosition: Vector3, maxDistance: number): Promise<IEntityInfo | null>;
 
   /**
    * Get entity by instance ID from render buffer.
    * @param entityType - Type of entity
    * @param instanceId - Instance ID from buffer
+   * @param isDead - Whether to search in dead organisms
    * @returns Entity info or null
    */
-  getEntityByInstanceId(entityType: string, instanceId: number): IEntityInfo | null;
+  getEntityByInstanceId(entityType: string, instanceId: number, isDead?: boolean): Promise<IEntityInfo | null>;
 
   /**
    * Get genetic tree node by genome ID.
    * @param genomeId - Genome identifier
+   * @param genomeId - Genome identifier
    * @returns Tree node or undefined
    */
-  getGeneticNode(genomeId: GenomeId): unknown;
+  getGeneticNode(genomeId: GenomeId): Promise<unknown>;
 
   /**
    * Get all genetic tree roots.
    * @returns Array of root genome IDs
    */
-  getGeneticRoots(): GenomeId[];
+  getGeneticRoots(): Promise<GenomeId[]>;
 
   /**
    * Export current simulation state.
@@ -110,25 +139,31 @@ export interface ISimulationEngine {
   exportState(): SerializedSimulationStateV1;
 
   /**
-   * Import and restore simulation state.
-   * @param state - Serialized state
-   */
-  importState(state: SerializedSimulationStateV1): void;
-
-  /**
    * Update simulation configuration.
    * @param newConfig - New configuration
    */
   updateConfig(newConfig: Partial<SimulationConfig>): void;
 
   /**
-   * Get all ecological zones.
-   * @returns Map of zones
+   * Update world scale and re-initialize world.
+   * @param scale - New world scale
    */
-  getZones(): Map<string, EcologicalZone>;
+  updateWorldScale(scale: number): void;
+
+  /**
+   * Get performance monitor.
+   */
+  getPerformanceMonitor(): IPerformanceMonitor;
 
   /**
    * Cleanup and destroy engine.
    */
   destroy?(): void;
+
+  /**
+   * Subscribe to simulation events.
+   * @param callback - Event handler
+   * @returns Unsubscribe function
+   */
+  addEventListener(callback: (event: import('@/types').SimulationEvent) => void): () => void;
 }

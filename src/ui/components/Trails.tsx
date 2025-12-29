@@ -3,11 +3,11 @@ import type React from 'react';
 import { useEffect, useMemo } from 'react';
 
 import { COLORS, RENDER } from '../../config';
-import type { SimulationEngine } from '../../simulation/Engine';
+import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { TrailSystem } from '../effects/ParticleSystem';
 
 interface TrailsProps {
-    engine: SimulationEngine;
+    engine: ISimulationEngine;
 }
 
 export const Trails: React.FC<TrailsProps> = ({ engine }) => {
@@ -24,17 +24,19 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
     }, [trailSystem]);
 
     useFrame(() => {
+        if (!engine.config.showTrails) {
+            trailSystem.clear(); // Ensure trails are gone if disabled
+            return;
+        }
+
+        trailSystem.beginFrame();
+
         const renderBuffers = engine.getRenderData();
         const { prey, predators, preyCount, predatorCount } = renderBuffers;
 
         // Update Prey Trails
         for (let i = 0; i < preyCount; i++) {
             const offset = i * 13;
-            // id is at offset + 8? Need to verify buffer layout in Engine.ts
-            // Engine.ts: buffer[offset + 8] = numId;
-            // But TrailSystem expects string ID.
-            // We need to reconstruct ID or use numId if unique.
-            // Engine.ts: id = `type_${numId}` (e.g. prey_1)
             const numId = prey[offset + 8] || 0;
             const id = `prey_${numId}`;
 
@@ -65,6 +67,8 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
                 enabled: true
             });
         }
+
+        trailSystem.prune();
     });
 
     return null;

@@ -45,11 +45,12 @@ export class BufferManager {
      */
     public getRenderData(
         organisms: Map<string, Organism>,
+        deadOrganisms: Map<string, Organism>,
         food: Map<string, Food>
     ): RenderBuffers {
-        const counts = this.countActiveEntities(organisms, food);
+        const counts = this.countEntities(organisms, deadOrganisms, food);
         this.updateBufferCapacities(counts);
-        this.fillRenderBuffers(organisms, food);
+        this.fillRenderBuffers(organisms, deadOrganisms, food);
 
         return {
             prey: this._preyBuffer,
@@ -75,17 +76,27 @@ export class BufferManager {
     // ПРИВАТНІ МЕТОДИ
     // ============================================================================
 
-    private countActiveEntities(
+    private countEntities(
         organisms: Map<string, Organism>,
+        deadOrganisms: Map<string, Organism>,
         food: Map<string, Food>
     ): { prey: number; pred: number; food: number } {
         let prey = 0;
         let pred = 0;
+
+        // Живі організми
         organisms.forEach(o => {
             if (!o.isDead) {
                 if (o.isPrey) { prey++; } else { pred++; }
             }
         });
+
+        // Мертві організми
+        if (deadOrganisms) {
+            deadOrganisms.forEach(o => {
+                if (o.isPrey) { prey++; } else { pred++; }
+            });
+        }
 
         let foodCount = 0;
         food.forEach(f => {
@@ -112,26 +123,38 @@ export class BufferManager {
 
     private fillRenderBuffers(
         organisms: Map<string, Organism>,
+        deadOrganisms: Map<string, Organism>,
         food: Map<string, Food>
     ): void {
         let preyOffset = 0;
         let predOffset = 0;
 
-        organisms.forEach(o => {
-            if (o.isDead) { return; }
-
+        const writeOrganism = (o: Organism, isDead: boolean) => {
             const isPrey = o.isPrey;
             const buffer = isPrey ? this._preyBuffer : this._predBuffer;
             const offset = isPrey ? preyOffset : predOffset;
 
-            this.writeOrganismToBuffer(o, buffer, offset);
+            this.writeOrganismToBuffer(o, buffer, offset, isDead);
 
             if (isPrey) {
                 preyOffset += BufferManager.PREY_STRIDE;
             } else {
                 predOffset += BufferManager.PRED_STRIDE;
             }
+        };
+
+        // Записуємо живих
+        organisms.forEach(o => {
+            if (o.isDead) { return; } // Живі не повинні бути мертвими (хоча Engine це гарантує)
+            writeOrganism(o, false);
         });
+
+        // Записуємо мертвих
+        if (deadOrganisms) {
+            deadOrganisms.forEach(o => {
+                writeOrganism(o, true);
+            });
+        }
 
         let foodOffset = 0;
         food.forEach(f => {
@@ -142,7 +165,7 @@ export class BufferManager {
     }
 
     /* eslint-disable @typescript-eslint/no-magic-numbers */
-    private writeOrganismToBuffer(o: Organism, buffer: Float32Array, offset: number): void {
+    private writeOrganismToBuffer(o: Organism, buffer: Float32Array, offset: number, isDead: boolean): void {
         buffer[offset + 0] = o.position.x;
         buffer[offset + 1] = o.position.y;
         buffer[offset + 2] = o.position.z;
@@ -150,7 +173,7 @@ export class BufferManager {
         buffer[offset + 4] = o.velocity.y;
         buffer[offset + 5] = o.velocity.z;
         buffer[offset + 6] = o.radius;
-        buffer[offset + 7] = 0;
+        buffer[offset + 7] = isDead ? 1.0 : 0.0; // Прапор смерті
         buffer[offset + 8] = parseInt(o.id.split('_')[1] || '0', 10);
         buffer[offset + 9] = 0;
         buffer[offset + 10] = 0;

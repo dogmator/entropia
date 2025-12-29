@@ -42,7 +42,7 @@ export { ReproductionSystem } from './systems/ReproductionSystem';
 export { SpawnService } from './services/SpawnService';
 
 // Web Worker інтерфейс
-export { EngineProxy, type EngineProxyCallbacks, type EngineProxyOptions } from './EngineProxy';
+export { EngineProxy } from './EngineProxy';
 export type {
   InitCommand,
   ResetCommand,

@@ -62,3 +62,24 @@ export const DIAGNOSTICS_CONFIG = {
     SCROLL_THRESHOLD: 50,
   },
 } as const;
+
+export const UI_CONTROLS = {
+  SPEED: {
+    DEFAULT: 1,
+    MIN: 0,
+    MAX: 5,
+    STORAGE_KEY: 'entropia-speed',
+  },
+  WORLD_SCALE: {
+    DEFAULT: 1.0,
+    MIN: 0.1,
+    MAX: 10,
+    STORAGE_KEY: 'entropia-scale',
+  },
+  AUTO_ROTATE: {
+    STORAGE_KEY_ENABLED: 'entropia-autorotate',
+    STORAGE_KEY_SPEED: 'entropia-rotationspeed',
+  },
+  LOADING_DELAY: 500,
+  SERVER_LOG_INTERVAL: 60,
+} as const;

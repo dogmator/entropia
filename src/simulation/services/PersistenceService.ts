@@ -21,7 +21,8 @@ import {
     createFoodId,
     createGenomeId,
     createObstacleId,
-    createOrganismId} from '@/types';
+    createOrganismId
+} from '@/types';
 
 import { Food, Obstacle, Organism } from '../Entity';
 
@@ -148,7 +149,7 @@ export class PersistenceService {
         engine.zones.clear();
         engine.geneticTree.clear();
         engine.geneticRoots.length = 0;
-        engine.spatialGrid.clear();
+        engine.gridManager.clear();
 
         engine.seed = state.seed >>> 0;
         engine.rng.reset(engine.seed);

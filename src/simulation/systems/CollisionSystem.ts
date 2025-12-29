@@ -14,11 +14,12 @@
 import { INTERACTION, PHYSICS } from '@/config';
 import type { EventBus } from '@/core';
 import { Vector3Pool } from '@/core/ObjectPool';
-import type { SpatialHashGrid } from '@/simulation';
 import type { EntityId, GridEntity, Vector3 } from '@/types';
+import type { WorldConfig } from '@/types';
 import { EntityType } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
+import type { GridManager } from '../managers/GridManager';
 import { MathUtils } from '../MathUtils';
 
 /**
@@ -26,14 +27,15 @@ import { MathUtils } from '../MathUtils';
  */
 export class CollisionSystem {
   constructor(
-    private readonly spatialGrid: SpatialHashGrid,
-    private readonly eventBus: EventBus
+    private readonly gridManager: GridManager,
+    private readonly eventBus: EventBus,
+    private readonly worldConfig: WorldConfig
   ) { }
 
   /**
    * Запуск циклу ідентифікації та вирішення колізій для всієї системи.
    */
-  update(
+  public update(
     organisms: Map<string, Organism>,
     food: Map<string, Food>,
     obstacles: Map<string, Obstacle>
@@ -66,7 +68,7 @@ export class CollisionSystem {
     deadIds: string[]
   ): void {
     const searchRadius = organism.radius + PHYSICS.COLLISION_SEARCH_RADIUS_OFFSET;
-    const neighbors = this.spatialGrid.getNearby(organism.position, searchRadius);
+    const neighbors = this.gridManager.getNearby(organism.position, searchRadius);
 
     for (const neighbor of neighbors) {
       // Виключення самоперетину
@@ -112,7 +114,7 @@ export class CollisionSystem {
 
       // Розрахунок нормувального вектора зіткнення
       const diff = Vector3Pool.acquire();
-      MathUtils.toroidalVector(organism.position, neighborEntity.position, undefined, diff);
+      MathUtils.toroidalVector(organism.position, neighborEntity.position, this.worldConfig.WORLD_SIZE, diff);
       const nx = diff.x / dist;
       const ny = diff.y / dist;
       const nz = diff.z / dist;

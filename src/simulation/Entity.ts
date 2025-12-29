@@ -213,7 +213,8 @@ export class Organism extends Entity {
     position: MutableVector3,
     genome: Genome,
     parentOrganismId: OrganismId | null = null,
-    rng?: Random
+    rng?: Random,
+    energy?: number
   ) {
     super(id, position, genome.size);
     this.genome = genome;
@@ -231,7 +232,7 @@ export class Organism extends Entity {
     this.acceleration = vec3Zero();
 
     // Встановлення початкового енергетичного потенціалу
-    this.energy = INITIAL_ENERGY;
+    this.energy = energy ?? INITIAL_ENERGY;
   }
 
   /** Перевірка приналежності до трофічного рівня продуцентів/травоїдних. */
@@ -499,12 +500,12 @@ export class OrganismFactory {
     );
   }
 
-  private createOrganism(genome: Genome, position: { x: number, y: number, z: number }): Organism {
-    return new Organism(this.nextId(), position, genome, null, this.rng);
+  private createOrganism(genome: Genome, position: { x: number, y: number, z: number }, energy?: number): Organism {
+    return new Organism(this.nextId(), position, genome, null, this.rng, energy);
   }
 
   /** Ініціалізація створення нащадка з наслідуванням та зміщенням координат. */
-  createOffspring(parent: Organism): Organism {
+  createOffspring(parent: Organism, energy: number): Organism {
     const childGenome = this.genomeFactory.createFromParent(parent.genome);
 
     // Стохастичне просторове зміщення нащадка відносно локації батьківського організму
@@ -520,7 +521,8 @@ export class OrganismFactory {
       childPosition,
       childGenome,
       parent.id as OrganismId,
-      this.rng
+      this.rng,
+      energy
     );
   }
 
