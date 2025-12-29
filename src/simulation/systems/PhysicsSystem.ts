@@ -8,7 +8,7 @@
  * - Моделювання сил гідродинамічного опору (Drag forces).
  */
 
-import type { SimulationConfig, WorldConfig } from '@/types';
+import type { WorldConfig } from '@/types';
 
 import type { Organism } from '../Entity';
 import { MathUtils } from '../MathUtils';
@@ -23,7 +23,6 @@ const MAX_STEERING_FORCE = 50;
  */
 export class PhysicsSystem {
   constructor(
-    private readonly config: SimulationConfig,
     private readonly worldConfig: WorldConfig
   ) { }
 
@@ -41,6 +40,9 @@ export class PhysicsSystem {
   /**
    * Виконання ітерації числового інтегрування для одного об'єкта.
    */
+  /**
+   * Виконання ітерації числового інтегрування для одного об'єкта.
+   */
   private integrate(org: Organism): void {
     // 1. Обмеження результуючої сили прискорення
     this.limitAcceleration(org);
@@ -48,8 +50,16 @@ export class PhysicsSystem {
     // 2. Інкрементальне оновлення вектора швидкості
     this.updateVelocity(org);
 
-    // 3. Нормалізація швидкості згідно з генетичними лімітами
+    // 3. Нормалізація швидкості згідно з генетичним потенціалом
     this.limitVelocity(org);
+
+    // Validation: Check for NaN velocity
+    if (Number.isNaN(org.velocity.x) || Number.isNaN(org.velocity.y) || Number.isNaN(org.velocity.z)) {
+      console.error(`PhysicsSystem: NaN velocity detected for organism ${org.id}`);
+      org.velocity.x = 0;
+      org.velocity.y = 0;
+      org.velocity.z = 0;
+    }
 
     // 4. Трансляція позиції у тороїдальному просторі
     this.updatePosition(org);
@@ -81,7 +91,9 @@ export class PhysicsSystem {
    * Регулювання швидкості згідно з індивідуальними характеристиками організму.
    */
   private limitVelocity(org: Organism): void {
-    this.limitVector(org.velocity, org.genome.maxSpeed);
+    // Hard cap max speed to 3.0 effectively as requested
+    const effectiveMaxSpeed = Math.min(org.genome.maxSpeed, 3.0);
+    this.limitVector(org.velocity, effectiveMaxSpeed);
   }
 
   /**
@@ -111,10 +123,10 @@ export class PhysicsSystem {
    * Застосування константи лінійного тертя середовища.
    */
   private applyDrag(org: Organism): void {
-    const drag = this.config.drag;
-    org.velocity.x *= drag;
-    org.velocity.y *= drag;
-    org.velocity.z *= drag;
+    const DRAG_COEFFICIENT = 0.96;
+    org.velocity.x *= DRAG_COEFFICIENT;
+    org.velocity.y *= DRAG_COEFFICIENT;
+    org.velocity.z *= DRAG_COEFFICIENT;
   }
 
   /**

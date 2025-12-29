@@ -18,7 +18,8 @@ import type {
   MutableVector3,
   OrganismId,
   Vector3,
-  WorldConfig
+  WorldConfig,
+  GridEntity
 } from '@/types.ts';
 import {
   EntityType,
@@ -268,22 +269,26 @@ export class SpawnService {
     return this.getRandomValidPosition(5);
   }
 
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
+
   /**
    * Створення нових ресурсів поблизу вже існуючих (кластерний ефект).
    */
   private getClusteredPosition(): MutableVector3 | null {
     // Пошук існуючих енергетичних центрів через просторову сітку
     const ws = this.worldSize;
-    const nearbyEntities = this.gridManager.getNearby(
+    this.gridManager.getNearby(
       {
         x: this.rand() * ws,
         y: this.rand() * ws,
         z: this.rand() * ws,
       },
-      50
+      50,
+      this.nearbyBuffer
     );
 
-    const foodEntities = Array.from(nearbyEntities).filter(e => e.type === EntityType.FOOD);
+    const foodEntities = this.nearbyBuffer.filter(e => e.type === EntityType.FOOD);
     if (foodEntities.length > 0) {
       const target = foodEntities[Math.floor(this.rand() * foodEntities.length)];
       if (!target) { return this.getRandomValidPosition(5); }

@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { Genome, SimulationConfig, WorldConfig } from '@/types';
-import { EntityType } from '@/types';
+import { EntityType, createOrganismId } from '@/types';
 
 import { Organism } from '../../Entity';
 import { PhysicsSystem } from '../PhysicsSystem';
@@ -62,17 +62,16 @@ describe('PhysicsSystem', () => {
     let worldConfig: WorldConfig;
 
     beforeEach(() => {
-        config = createTestConfig();
         worldConfig = createWorldConfig();
-        physics = new PhysicsSystem(config, worldConfig);
+        physics = new PhysicsSystem(worldConfig);
     });
 
     describe('update', () => {
         it('повинен обробляти всі живі організми', () => {
             const organisms = new Map<string, Organism>();
-            const org1 = new Organism('org-1', { x: 10, y: 10, z: 10 }, createTestGenome());
-            const org2 = new Organism('org-2', { x: 20, y: 20, z: 20 }, createTestGenome());
-            const deadOrg = new Organism('org-dead', { x: 30, y: 30, z: 30 }, createTestGenome());
+            const org1 = new Organism(createOrganismId('org-1'), { x: 10, y: 10, z: 10 }, createTestGenome());
+            const org2 = new Organism(createOrganismId('org-2'), { x: 20, y: 20, z: 20 }, createTestGenome());
+            const deadOrg = new Organism(createOrganismId('org-dead'), { x: 30, y: 30, z: 30 }, createTestGenome());
             deadOrg.die('starvation');
 
             organisms.set(org1.id, org1);
@@ -103,7 +102,7 @@ describe('PhysicsSystem', () => {
             const genome = createTestGenome();
             genome.maxSpeed = 2;
 
-            const org = new Organism('org-1', { x: 50, y: 50, z: 50 }, genome);
+            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
             org.acceleration = { x: 100, y: 100, z: 100 }; // Дуже велике прискорення
 
             organisms.set(org.id, org);
@@ -120,7 +119,7 @@ describe('PhysicsSystem', () => {
     describe('toroidal wrapping', () => {
         it('повинен обгортати позицію при виході за межі світу', () => {
             const organisms = new Map<string, Organism>();
-            const org = new Organism('org-1', { x: 99, y: 99, z: 99 }, createTestGenome());
+            const org = new Organism(createOrganismId('org-1'), { x: 99, y: 99, z: 99 }, createTestGenome());
             org.velocity = { x: 5, y: 5, z: 5 }; // Виведе за межі 100
 
             organisms.set(org.id, org);
@@ -135,7 +134,7 @@ describe('PhysicsSystem', () => {
 
         it('повинен обгортати негативні координати', () => {
             const organisms = new Map<string, Organism>();
-            const org = new Organism('org-1', { x: 2, y: 2, z: 2 }, createTestGenome());
+            const org = new Organism(createOrganismId('org-1'), { x: 2, y: 2, z: 2 }, createTestGenome());
             org.velocity = { x: -5, y: -5, z: -5 }; // Виведе в негативну область
 
             organisms.set(org.id, org);
@@ -150,15 +149,15 @@ describe('PhysicsSystem', () => {
     describe('drag application', () => {
         it('повинен зменшувати швидкість на коефіцієнт drag', () => {
             const organisms = new Map<string, Organism>();
-            const org = new Organism('org-1', { x: 50, y: 50, z: 50 }, createTestGenome());
+            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, createTestGenome());
             org.velocity = { x: 1, y: 0, z: 0 };
 
             organisms.set(org.id, org);
             physics.update(organisms);
 
-            // Швидкість повинна зменшитися на drag (0.98)
+            // Швидкість повинна зменшитися на drag (0.96)
             expect(org.velocity.x).toBeLessThan(1);
-            expect(org.velocity.x).toBeCloseTo(0.98, 2);
+            expect(org.velocity.x).toBeCloseTo(0.96, 2);
         });
     });
 
@@ -167,7 +166,7 @@ describe('PhysicsSystem', () => {
             const genome = createTestGenome();
             genome.size = 2;
 
-            const org = new Organism('org-1', { x: 50, y: 50, z: 50 }, genome);
+            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
             org.velocity = { x: 3, y: 4, z: 0 }; // speed = 5
 
             const energy = physics.getKineticEnergy(org);
