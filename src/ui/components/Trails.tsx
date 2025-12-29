@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import type React from 'react';
 import { useEffect, useMemo } from 'react';
 
-import { COLORS, RENDER } from '../../config';
+import { BUFFER_LAYOUT, COLORS, RENDER } from '../../config';
 import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { TrailSystem } from '../effects/ParticleSystem';
 
@@ -36,13 +36,13 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
 
         // Update Prey Trails
         for (let i = 0; i < preyCount; i++) {
-            const offset = i * 13;
-            const numId = prey[offset + 8] || 0;
+            const offset = i * BUFFER_LAYOUT.STRIDE;
+            const numId = prey[offset + BUFFER_LAYOUT.OFFSETS.ID] || 0;
             const id = `prey_${numId}`;
 
-            const x = prey[offset + 0] || 0;
-            const y = prey[offset + 1] || 0;
-            const z = prey[offset + 2] || 0;
+            const x = prey[offset + BUFFER_LAYOUT.OFFSETS.X] || 0;
+            const y = prey[offset + BUFFER_LAYOUT.OFFSETS.Y] || 0;
+            const z = prey[offset + BUFFER_LAYOUT.OFFSETS.Z] || 0;
 
             trailSystem.updateTrail(id, {
                 position: { x, y, z },
@@ -53,13 +53,13 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
 
         // Update Predator Trails
         for (let i = 0; i < predatorCount; i++) {
-            const offset = i * 13;
-            const numId = predators[offset + 8] || 0;
+            const offset = i * BUFFER_LAYOUT.STRIDE;
+            const numId = predators[offset + BUFFER_LAYOUT.OFFSETS.ID] || 0;
             const id = `predator_${numId}`;
 
-            const x = predators[offset + 0] || 0;
-            const y = predators[offset + 1] || 0;
-            const z = predators[offset + 2] || 0;
+            const x = predators[offset + BUFFER_LAYOUT.OFFSETS.X] || 0;
+            const y = predators[offset + BUFFER_LAYOUT.OFFSETS.Y] || 0;
+            const z = predators[offset + BUFFER_LAYOUT.OFFSETS.Z] || 0;
 
             trailSystem.updateTrail(id, {
                 position: { x, y, z },

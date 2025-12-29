@@ -10,8 +10,8 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { Genome, SimulationConfig, WorldConfig } from '@/types';
-import { EntityType, createOrganismId } from '@/types';
+import type { Genome, SimulationConfig, WorldConfig } from '../../../types';
+import { createOrganismId, EntityType, createGenomeId } from '../../../types';
 
 import { Organism } from '../../Entity';
 import { PhysicsSystem } from '../PhysicsSystem';
@@ -20,18 +20,34 @@ import { PhysicsSystem } from '../PhysicsSystem';
  * Мінімальна конфігурація для тестування.
  */
 const createTestConfig = (): SimulationConfig => ({
-    tickRate: 60,
     drag: 0.98,
     separationWeight: 1.5,
     cohesionWeight: 1.0,
     alignmentWeight: 1.0,
     seekWeight: 2.0,
     avoidWeight: 3.0,
+    foodSpawnRate: 0.1,
+    maxFood: 100,
+    maxOrganisms: 500,
+    showObstacles: true,
+    mutationFactor: 0.1,
+    reproductionThreshold: 100,
+    organismOpacity: 1,
+    foodOpacity: 1,
+    organismScale: 1,
+    foodScale: 1,
+    bloomIntensity: 1,
+    showGrid: true,
+    gridOpacity: 0.5,
+    trailLength: 10,
+    showEnergyGlow: true,
+    showTrails: true,
+    showParticles: true,
+    graphicsQuality: 'HIGH',
 });
 
 const createWorldConfig = (): WorldConfig => ({
     WORLD_SIZE: 100,
-    HALF_WORLD_SIZE: 50,
     MAX_TOTAL_ORGANISMS: 500,
     INITIAL_PREY: 10,
     INITIAL_PREDATOR: 5,
@@ -43,17 +59,19 @@ const createWorldConfig = (): WorldConfig => ({
  * Мінімальний геном для тестування.
  */
 const createTestGenome = (): Genome => ({
-    id: 'test-genome',
+    id: createGenomeId('test-genome'),
     type: EntityType.PREY,
-    subtype: 'default',
     size: 1,
     maxSpeed: 5,
     senseRadius: 30,
     metabolism: 1,
     color: 0x00ff00,
-    mutationRate: 0.05,
-    reproductionEnergy: 50,
-    parentGenomeId: null,
+    parentId: null,
+    generation: 1,
+    asymmetry: 0,
+    spikiness: 0,
+    glowIntensity: 0.5,
+    flockingStrength: 0.5,
 });
 
 describe('PhysicsSystem', () => {
@@ -97,22 +115,34 @@ describe('PhysicsSystem', () => {
     });
 
     describe('velocity limiting', () => {
-        it('повинен обмежувати швидкість до maxSpeed генома', () => {
+        it('повинен обмежувати швидкість згідно з maxSpeed геному', () => {
             const organisms = new Map<string, Organism>();
             const genome = createTestGenome();
-            genome.maxSpeed = 2;
+            (genome as { maxSpeed: number }).maxSpeed = 2;
 
-            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
-            org.acceleration = { x: 100, y: 100, z: 100 }; // Дуже велике прискорення
+            const organism = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
+            organisms.set(organism.id, organism);
 
-            organisms.set(org.id, org);
+            const highSpeedVector = { x: 10, y: 0, z: 0 };
+            organism.velocity.x = highSpeedVector.x;
+            organism.velocity.y = highSpeedVector.y;
+            organism.velocity.z = highSpeedVector.z;
+
+            // maxSpeed is read-only, use unknown cast for test override
+            (organism as unknown as { genome: { maxSpeed: number } }).genome.maxSpeed = 2;
+
+            // PhysicsSystem сам не обробляє колізії, але він повинен коректно 
+            // працювати з сутностями будь-якого радіусу
+            (organism as unknown as { radius: number }).radius = 10;
+
             physics.update(organisms);
 
-            // Швидкість повинна бути обмежена до maxSpeed
             const speed = Math.sqrt(
-                org.velocity.x ** 2 + org.velocity.y ** 2 + org.velocity.z ** 2
+                organism.velocity.x ** 2 +
+                organism.velocity.y ** 2 +
+                organism.velocity.z ** 2
             );
-            expect(speed).toBeLessThanOrEqual(genome.maxSpeed + 0.001);
+            expect(speed).toBeLessThanOrEqual(genome.maxSpeed + 0.0001);
         });
     });
 
@@ -164,7 +194,7 @@ describe('PhysicsSystem', () => {
     describe('getKineticEnergy', () => {
         it('повинен розраховувати кінетичну енергію на основі швидкості та розміру', () => {
             const genome = createTestGenome();
-            genome.size = 2;
+            (genome as { size: number }).size = 2;
 
             const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
             org.velocity = { x: 3, y: 4, z: 0 }; // speed = 5

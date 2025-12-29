@@ -3,11 +3,10 @@ import { useFrame } from '@react-three/fiber';
 import { useCallback, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
-import { COLORS, PHYSICS, RENDER } from '../../config';
+import { BUFFER_LAYOUT, COLORS, RENDER } from '../../config';
 import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { useSimulation } from '../context/SimulationContext';
 
-/* eslint-disable react/prop-types */
 interface EntitiesProps {
     engine: ISimulationEngine;
 }
@@ -125,51 +124,75 @@ const setOrganismTransform = (params: OrganismTransformParams): void => {
 /**
  * Оновлення InstancedMesh для організмів (хижаки/жертви) з розділенням на живих та мертвих
  */
+/**
+ * Logic for a single organism update
+ */
+const processOrganism = (
+    data: Float32Array,
+    offset: number,
+    aliveMesh: THREE.InstancedMesh,
+    deadMesh: THREE.InstancedMesh,
+    aliveIdx: number,
+    deadIdx: number,
+    scaleMultiplier: number
+): { alive: number; dead: number } => {
+    const x = data[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
+    const y = data[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
+    const z = data[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
+    const r = data[offset + BUFFER_LAYOUT.OFFSETS.RADIUS] ?? 0;
+    const isDead = (data[offset + BUFFER_LAYOUT.OFFSETS.IS_DEAD] ?? 0) > BUFFER_LAYOUT.DEAD_THRESHOLD;
+
+    TMP_SPHERE.center.set(x, y, z);
+    TMP_SPHERE.radius = r;
+
+    let newAliveIdx = aliveIdx;
+    let newDeadIdx = deadIdx;
+
+    if (FRUSTUM.intersectsSphere(TMP_SPHERE)) {
+        const vx = data[offset + BUFFER_LAYOUT.OFFSETS.VX] ?? 0;
+        const vy = data[offset + BUFFER_LAYOUT.OFFSETS.VY] ?? 0;
+        const vz = data[offset + BUFFER_LAYOUT.OFFSETS.VZ] ?? 0;
+
+        setOrganismTransform({
+            mesh: isDead ? deadMesh : aliveMesh,
+            idx: isDead ? deadIdx : aliveIdx,
+            pos: TMP_SPHERE.center,
+            vel: TMP_POS.set(vx, vy, vz),
+            radius: r,
+            scaleMultiplier
+        });
+
+        if (isDead) {
+            newDeadIdx++;
+        } else {
+            newAliveIdx++;
+        }
+    }
+
+    return { alive: newAliveIdx, dead: newDeadIdx };
+};
+
 const updateOrganismMeshes = (params: UpdateMeshesParams): void => {
     const { aliveMesh, deadMesh, data, count, scaleMultiplier } = params;
     let aliveIdx = 0;
     let deadIdx = 0;
 
     for (let i = 0; i < count; i++) {
-        const offset = i * PHYSICS.ORGANISM_STRIDE;
-        /* eslint-disable @typescript-eslint/no-magic-numbers */
-        const x = data[offset + 0] ?? 0;
-        const y = data[offset + 1] ?? 0;
-        const z = data[offset + 2] ?? 0;
-        const r = data[offset + 6] ?? 0;
-        const isDead = (data[offset + 7] ?? 0) > 0.5; // Считуємо прапор смерті
-        /* eslint-enable @typescript-eslint/no-magic-numbers */
-
-        TMP_SPHERE.center.set(x, y, z);
-        TMP_SPHERE.radius = r;
-
-        if (FRUSTUM.intersectsSphere(TMP_SPHERE)) {
-            /* eslint-disable @typescript-eslint/no-magic-numbers */
-            const vx = data[offset + 3] ?? 0;
-            const vy = data[offset + 4] ?? 0;
-            const vz = data[offset + 5] ?? 0;
-            /* eslint-enable @typescript-eslint/no-magic-numbers */
-
-            setOrganismTransform({
-                mesh: isDead ? deadMesh : aliveMesh,
-                idx: isDead ? deadIdx : aliveIdx,
-                pos: TMP_SPHERE.center,
-                vel: TMP_POS.set(vx, vy, vz),
-                radius: r,
-                scaleMultiplier
-            });
-
-            if (isDead) {
-                deadIdx++;
-            } else {
-                aliveIdx++;
-            }
-        }
+        const result = processOrganism(
+            data,
+            i * BUFFER_LAYOUT.STRIDE,
+            aliveMesh,
+            deadMesh,
+            aliveIdx,
+            deadIdx,
+            scaleMultiplier
+        );
+        aliveIdx = result.alive;
+        deadIdx = result.dead;
     }
 
     aliveMesh.count = aliveIdx;
     aliveMesh.instanceMatrix.needsUpdate = true;
-
     deadMesh.count = deadIdx;
     deadMesh.instanceMatrix.needsUpdate = true;
 };
@@ -182,13 +205,11 @@ const updateFoodMesh = (params: UpdateMeshParams & { rotationTime: number }): vo
     let idx = 0;
 
     for (let i = 0; i < count; i++) {
-        const offset = i * PHYSICS.FOOD_STRIDE;
-        /* eslint-disable @typescript-eslint/no-magic-numbers */
-        const x = data[offset + 0] || 0;
-        const y = data[offset + 1] || 0;
-        const z = data[offset + 2] || 0;
-        const r = data[offset + 3] || 0;
-        /* eslint-enable @typescript-eslint/no-magic-numbers */
+        const offset = i * BUFFER_LAYOUT.FOOD_STRIDE;
+        const x = data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.X] || 0;
+        const y = data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.Y] || 0;
+        const z = data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.Z] || 0;
+        const r = data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.RADIUS] || 0;
 
         TMP_SPHERE.center.set(x, y, z);
         TMP_SPHERE.radius = r;
@@ -241,27 +262,16 @@ const useBoundingVolumesUpdate = (refs: {
 
     useFrame((state) => {
         const now = state.clock.getElapsedTime();
-        if (now - lastHoverTimeRef.current > RENDER.interaction.hoverInterval) {
-            lastHoverTimeRef.current = now;
-            const { prey: preyRef, pred: predRef, food: foodRef } = refs;
+        if (now - lastHoverTimeRef.current <= RENDER.interaction.hoverInterval) return;
 
-            if (preyRef.current && preyRef.current.count > 0) {
-                preyRef.current.computeBoundingSphere();
+        lastHoverTimeRef.current = now;
+        const { prey, deadPrey, pred, deadPred, food } = refs;
+
+        [prey, pred, food, deadPrey, deadPred].forEach(ref => {
+            if (ref.current && ref.current.count > 0) {
+                ref.current.computeBoundingSphere();
             }
-            if (predRef.current && predRef.current.count > 0) {
-                predRef.current.computeBoundingSphere();
-            }
-            if (foodRef.current && foodRef.current.count > 0) {
-                foodRef.current.computeBoundingSphere();
-            }
-            // Мертві тіла також потребують bounding sphere - enable it!
-            if (refs.deadPrey.current && refs.deadPrey.current.count > 0) {
-                refs.deadPrey.current.computeBoundingSphere();
-            }
-            if (refs.deadPred.current && refs.deadPred.current.count > 0) {
-                refs.deadPred.current.computeBoundingSphere();
-            }
-        }
+        });
     });
 };
 
@@ -273,11 +283,11 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
 
     useFrame((state) => {
         const { prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef } = refs;
-        if (!preyRef.current || !deadPreyRef.current || !predRef.current || !deadPredRef.current || !foodRef.current) { return; }
+        if (!preyRef.current || !deadPreyRef.current || !predRef.current || !deadPredRef.current || !foodRef.current) return;
 
         if (speed > 0 && !isLoading) {
             const steps = Math.floor(speed >= 1 ? speed : 1);
-            for (let s = 0; s < steps; s++) { engine.update(); }
+            for (let s = 0; s < steps; s++) engine.update();
         }
 
         PROJ_SCREEN_MATRIX.multiplyMatrices(state.camera.projectionMatrix, state.camera.matrixWorldInverse);
@@ -286,42 +296,16 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
         const renderBuffers = engine.getRenderData();
         const now = state.clock.getElapsedTime();
 
-        updateOrganismMeshes({
-            aliveMesh: preyRef.current,
-            deadMesh: deadPreyRef.current,
-            data: renderBuffers.prey,
-            count: renderBuffers.preyCount,
-            scaleMultiplier: engine.config.organismScale
-        });
+        updateOrganismMeshes({ aliveMesh: preyRef.current, deadMesh: deadPreyRef.current, data: renderBuffers.prey, count: renderBuffers.preyCount, scaleMultiplier: engine.config.organismScale });
+        updateOrganismMeshes({ aliveMesh: predRef.current, deadMesh: deadPredRef.current, data: renderBuffers.predators, count: renderBuffers.predatorCount, scaleMultiplier: engine.config.organismScale });
+        updateFoodMesh({ mesh: foodRef.current, data: renderBuffers.food, count: renderBuffers.foodCount, scaleMultiplier: engine.config.foodScale, rotationTime: now });
 
-        updateOrganismMeshes({
-            aliveMesh: predRef.current,
-            deadMesh: deadPredRef.current,
-            data: renderBuffers.predators,
-            count: renderBuffers.predatorCount,
-            scaleMultiplier: engine.config.organismScale
-        });
-
-        updateFoodMesh({
-            mesh: foodRef.current,
-            data: renderBuffers.food,
-            count: renderBuffers.foodCount,
-            scaleMultiplier: engine.config.foodScale,
-            rotationTime: now
-        });
-
-        // Dynamic update of emissive intensity based on config
         const showGlow = engine.config.showEnergyGlow;
+        const preyMat = preyRef.current.material as THREE.MeshPhongMaterial;
+        const predMat = predRef.current.material as THREE.MeshPhongMaterial;
 
-        if (preyRef.current && preyRef.current.material) {
-            const mat = preyRef.current.material as THREE.MeshPhongMaterial;
-            mat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.prey : 0;
-        }
-
-        if (predRef.current && predRef.current.material) {
-            const mat = predRef.current.material as THREE.MeshPhongMaterial;
-            mat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.predator : 0;
-        }
+        if (preyMat) preyMat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.prey : 0;
+        if (predMat) predMat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.predator : 0;
     });
 };
 

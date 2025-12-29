@@ -1,114 +1,28 @@
-/**
- * Entropia 3D — Сервіс збереження та завантаження стану симуляції.
- *
- * Відповідає за серіалізацію та десеріалізацію всього світу Entropia,
- * включаючи організми, генеалогічне дерево, об'єкти середовища та статистику.
- */
-
-import { Random } from '@/core';
-import type {
-    GeneticTreeNode,
-    SerializedEcologicalZone,
-    SerializedFood,
-    SerializedGeneticTreeNode,
-    SerializedGenome,
-    SerializedObstacle,
-    SerializedOrganism,
-    SerializedSimulationStateV1,
-    SimulationConfig,
-} from '@/types';
+import { Random } from '@/core/utils/Random';
 import {
     createFoodId,
-    createGenomeId,
     createObstacleId,
-    createOrganismId
 } from '@/types';
-
+import type {
+    GeneticTreeNode,
+    Genome,
+    GenomeId,
+    OrganismId,
+    SerializedGenome,
+    SerializedSimulationStateV1,
+} from '@/types';
+import { isPreyGenome, isPredatorGenome } from '@/types';
 import { Food, Obstacle, Organism } from '../Entity';
+import { IPersistableEngine } from '../interfaces/IPersistableEngine';
 
 export class PersistenceService {
-    /**
-     * Експортує поточний стан симуляції у серіалізований формат (V1).
-     */
-    public static exportState(engine: any): SerializedSimulationStateV1 {
-        const geneticNodes: SerializedGeneticTreeNode[] = [];
-        engine.geneticTree.forEach((node: GeneticTreeNode) => {
-            geneticNodes.push({
-                id: String(node.id),
-                parentId: node.parentId ? String(node.parentId) : null,
-                children: Array.from(node.children as unknown as string[]).map(String),
-                generation: node.generation,
-                born: node.born,
-                died: node.died,
-                type: node.type,
-                traits: {
-                    speed: node.traits.speed,
-                    sense: node.traits.sense,
-                    size: node.traits.size,
-                },
-            });
-        });
-
-        const zones: SerializedEcologicalZone[] = Array.from(engine.zones.values()).map((z: any) => ({
-            id: z.id,
-            type: z.type,
-            center: engine.mapVector3(z.center),
-            radius: z.radius,
-            foodMultiplier: z.foodMultiplier,
-            dangerMultiplier: z.dangerMultiplier,
-        }));
-
-        const obstacles: SerializedObstacle[] = Array.from(engine.obstacles.values()).map((o: any) => ({
-            id: String(o.id),
-            position: engine.mapVector3(o.position),
-            radius: o.radius,
-            color: o.color,
-            opacity: o.opacity,
-            isWireframe: o.isWireframe,
-        }));
-
-        const food: SerializedFood[] = Array.from(engine.food.values()).map((f: any) => ({
-            id: String(f.id),
-            position: engine.mapVector3(f.position),
-            radius: f.radius,
-            energyValue: f.energyValue,
-            spawnTime: f.spawnTime,
-            consumed: f.consumed,
-        }));
-
-        const organisms: SerializedOrganism[] = Array.from(engine.organisms.values()).map((o: any) => {
-            const genome: SerializedGenome = {
-                ...(o.genome as unknown as SerializedGenome),
-                id: String(o.genome.id),
-                parentId: o.genome.parentId ? String(o.genome.parentId) : null,
-            };
-
-            return {
-                id: String(o.id),
-                type: o.type,
-                position: engine.mapVector3(o.position),
-                velocity: engine.mapVector3(o.velocity),
-                acceleration: engine.mapVector3(o.acceleration),
-                radius: o.radius,
-                energy: o.energy,
-                age: o.age,
-                state: o.state,
-                isDead: o.isDead,
-                causeOfDeath: o.causeOfDeath,
-                trailEnabled: o.trailEnabled,
-                parentOrganismId: o.parentOrganismId ? String(o.parentOrganismId) : null,
-                huntSuccessCount: o.huntSuccessCount,
-                lastActiveAt: o.lastActiveAt,
-                genome,
-            };
-        });
-
+    public static exportState(engine: IPersistableEngine): SerializedSimulationStateV1 {
         const factory = engine.spawnService.getFactory();
 
-        return {
+        const state: SerializedSimulationStateV1 = {
             version: 1,
             seed: engine.seed,
-            rngState: engine.rng.getState(),
+            rngState: Random.getState(),
             tick: engine.tick,
             counters: {
                 foodIdCounter: engine.foodIdCounter,
@@ -122,145 +36,173 @@ export class PersistenceService {
                 maxAge: engine.getStats().maxAge,
                 maxGeneration: engine.getStats().maxGeneration,
             },
-            config: { ...(engine.config as unknown as SimulationConfig) },
-            zones,
-            obstacles,
-            food,
-            organisms,
+            config: engine.config,
+            zones: Array.from(engine.zones.values()).map(z => ({
+                id: z.id,
+                type: z.type,
+                center: engine.mapVector3(z.center),
+                radius: z.radius,
+                foodMultiplier: z.foodMultiplier,
+                dangerMultiplier: z.dangerMultiplier,
+            })),
+            obstacles: Array.from(engine.obstacles.values()).map(o => ({
+                id: o.id,
+                position: engine.mapVector3(o.position),
+                radius: o.radius,
+                color: o.color,
+                opacity: o.opacity,
+                isWireframe: o.isWireframe,
+            })),
+            food: Array.from(engine.food.values()).map(f => ({
+                id: f.id,
+                position: engine.mapVector3(f.position),
+                radius: f.radius,
+                energyValue: f.energyValue,
+                spawnTime: f.spawnTime,
+                consumed: f.consumed,
+            })),
+            organisms: Array.from(engine.organisms.values()).map(o => ({
+                id: o.id,
+                type: o.type as 'PREY' | 'PREDATOR',
+                position: engine.mapVector3(o.position),
+                velocity: engine.mapVector3(o.velocity),
+                acceleration: engine.mapVector3(o.acceleration),
+                radius: o.radius,
+                energy: o.energy,
+                age: o.age,
+                state: o.state,
+                isDead: o.isDead,
+                causeOfDeath: (o as any).causeOfDeath || null,
+                trailEnabled: o.trailEnabled,
+                parentOrganismId: o.parentOrganismId,
+                huntSuccessCount: (o as any).huntSuccessCount || 0,
+                lastActiveAt: o.lastActiveAt,
+                genome: {
+                    id: o.genome.id,
+                    parentId: o.genome.parentId,
+                    generation: o.genome.generation,
+                    type: o.genome.type,
+                    color: o.genome.color,
+                    maxSpeed: o.genome.maxSpeed,
+                    senseRadius: o.genome.senseRadius,
+                    metabolism: o.genome.metabolism,
+                    size: o.genome.size,
+                    asymmetry: o.genome.asymmetry,
+                    spikiness: o.genome.spikiness,
+                    glowIntensity: o.genome.glowIntensity,
+                    ...(isPreyGenome(o.genome) ? { flockingStrength: o.genome.flockingStrength } : {}),
+                    ...(isPredatorGenome(o.genome) ? {
+                        subtype: o.genome.subtype,
+                        attackPower: o.genome.attackPower,
+                        packAffinity: o.genome.packAffinity
+                    } : {}),
+                } as SerializedGenome
+            })),
             geneticTree: {
-                roots: engine.geneticRoots.map(String),
-                nodes: geneticNodes,
+                roots: engine.geneticRoots.map(id => String(id)),
+                nodes: Array.from(engine.geneticTree.values()).map(node => ({
+                    id: String(node.id),
+                    parentId: node.parentId ? String(node.parentId) : null,
+                    children: node.children.map(c => String(c)),
+                    generation: node.generation,
+                    born: node.born,
+                    died: node.died,
+                    type: node.type,
+                    traits: { ...node.traits }
+                })),
             },
         };
+
+        return state;
     }
 
-    /**
-     * Імпортує стан симуляції, відновлюючи всі структури даних.
-     */
-    public static importState(engine: any, state: SerializedSimulationStateV1): void {
-        if (state.version !== 1) {
-            throw new Error(`Непідтримувана версія стану симуляції: ${String((state as any).version)}`);
-        }
+    public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
+        const factory = engine.spawnService.getFactory();
+
+        // Скидання систем перед завантаженням стану
+        (engine as { seed: number }).seed = state.seed >>> 0;
+        Random.reset(engine.seed);
+        (engine as { tick: number }).tick = state.tick;
+        (engine as { foodIdCounter: number }).foodIdCounter = state.counters.foodIdCounter;
+        (engine as { obstacleIdCounter: number }).obstacleIdCounter = state.counters.obstacleIdCounter;
+
+        factory.setIdCounter(state.counters.organismIdCounter);
+        factory.setGenomeIdCounter(state.counters.genomeIdCounter);
 
         engine.eventBus.clearHistory();
-        engine.organisms.clear();
-        engine.food.clear();
-        engine.obstacles.clear();
-        engine.zones.clear();
-        engine.geneticTree.clear();
-        engine.geneticRoots.length = 0;
         engine.gridManager.clear();
 
-        engine.seed = state.seed >>> 0;
-        engine.rng.reset(engine.seed);
-        engine.tick = state.tick;
-        engine.foodIdCounter = state.counters.foodIdCounter;
-        engine.obstacleIdCounter = state.counters.obstacleIdCounter;
+        engine.geneticRoots.length = 0;
+        engine.geneticRoots.push(...state.geneticTree.roots.map(id => id as GenomeId));
 
-        Object.assign(engine.config, state.config);
+        engine.geneticTree.clear();
+        state.geneticTree.nodes.forEach(node => {
+            engine.geneticTree.set(node.id as GenomeId, {
+                id: node.id as GenomeId,
+                parentId: node.parentId as GenomeId | null,
+                children: node.children.map(c => c as GenomeId),
+                generation: node.generation,
+                born: node.born,
+                died: node.died,
+                type: node.type,
+                traits: { ...node.traits }
+            } as GeneticTreeNode);
+        });
 
-        // Відновлення колекцій
-        this.restoreCollection(state.zones, engine.zones, z => ({
-            id: z.id,
-            type: z.type,
-            center: engine.mapVector3(z.center),
-            radius: z.radius,
-            foodMultiplier: z.foodMultiplier,
-            dangerMultiplier: z.dangerMultiplier,
-        }));
+        engine.zones.clear();
+        state.zones.forEach(z => {
+            engine.zones.set(z.id, {
+                id: z.id,
+                type: z.type,
+                center: { ...z.center },
+                radius: z.radius,
+                foodMultiplier: z.foodMultiplier,
+                dangerMultiplier: z.dangerMultiplier,
+            });
+        });
 
-        this.restoreCollection(state.obstacles, engine.obstacles, o => new Obstacle(
-            createObstacleId(o.id),
-            engine.mapVector3(o.position),
-            o.radius,
-            o.color,
-            o.opacity,
-            o.isWireframe
-        ));
+        engine.obstacles.clear();
+        state.obstacles.forEach(o => {
+            const obstacle = new Obstacle(
+                createObstacleId(o.id),
+                { ...o.position },
+                o.radius,
+                o.color,
+                o.opacity,
+                o.isWireframe
+            );
+            engine.obstacles.set(o.id, obstacle);
+        });
 
-        this.restoreCollection(state.food, engine.food, f => {
+        engine.food.clear();
+        state.food.forEach(f => {
             const food = new Food(
                 createFoodId(f.id),
-                engine.mapVector3(f.position),
+                { ...f.position },
                 f.energyValue,
                 f.spawnTime
             );
-            food.consumed = f.consumed;
-            food.radius = f.radius;
-            return food;
+            engine.food.set(f.id, food);
         });
 
-        const tmpRng = new Random(0);
-        this.restoreCollection(state.organisms, engine.organisms, (o: SerializedOrganism) => {
-            const genome = {
-                ...o.genome,
-                id: createGenomeId(o.genome.id),
-                parentId: o.genome.parentId ? createGenomeId(o.genome.parentId) : null,
-            };
-
+        engine.organisms.clear();
+        state.organisms.forEach(o => {
             const organism = new Organism(
-                createOrganismId(o.id),
-                engine.mapVector3(o.position),
-                genome as any,
-                o.parentOrganismId ? createOrganismId(o.parentOrganismId) : null,
-                tmpRng
+                o.id as OrganismId,
+                { ...o.position },
+                o.genome as unknown as Genome,
+                o.parentOrganismId ? o.parentOrganismId as OrganismId : null,
+                o.energy
             );
 
-            organism.velocity = engine.mapVector3(o.velocity);
-            organism.acceleration = engine.mapVector3(o.acceleration);
-            organism.radius = o.radius;
-            organism.energy = o.energy;
+            organism.velocity = { ...o.velocity };
+            organism.acceleration = { ...o.acceleration };
             organism.age = o.age;
             organism.state = o.state;
-            organism.isDead = o.isDead;
-            organism.causeOfDeath = o.causeOfDeath;
             organism.trailEnabled = o.trailEnabled;
-            organism.huntSuccessCount = o.huntSuccessCount;
             organism.lastActiveAt = o.lastActiveAt;
 
-            return organism;
+            engine.organisms.set(o.id, organism);
         });
-
-        // Відновлення генеалогічного дерева
-        for (const root of state.geneticTree.roots) {
-            engine.geneticRoots.push(createGenomeId(root));
-        }
-
-        for (const n of state.geneticTree.nodes) {
-            const node: GeneticTreeNode = {
-                id: createGenomeId(n.id),
-                parentId: n.parentId ? createGenomeId(n.parentId) : null,
-                children: n.children.map(id => createGenomeId(id)),
-                generation: n.generation,
-                born: n.born,
-                died: n.died,
-                type: n.type,
-                traits: {
-                    speed: n.traits.speed,
-                    sense: n.traits.sense,
-                    size: n.traits.size,
-                },
-            };
-            engine.geneticTree.set(node.id, node);
-        }
-
-        // Статистика буде оновлена автоматично при наступному виклику engine.update()
-    }
-
-    /**
-     * Допоміжний метод для відновлення Map-колекцій.
-     */
-    private static restoreCollection<S, T>(
-        source: S[],
-        target: Map<any, T>,
-        mapper: (s: S) => T
-    ): void {
-        for (const item of source) {
-            const entity = mapper(item);
-            const id = (entity as any).id;
-            if (id !== undefined) {
-                target.set(id, entity);
-            }
-        }
     }
 }

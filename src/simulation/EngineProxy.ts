@@ -5,6 +5,8 @@
  * але делегує виконання до воркера через postMessage.
  */
 
+import { logger } from '@/core';
+import type { Obstacle } from '@/simulation';
 import type {
     EcologicalZone,
     GenomeId,
@@ -18,17 +20,12 @@ import type {
     WorldConfig
 } from '@/types';
 
-import type { Obstacle } from '@/simulation';
-import { logger } from '@/core';
-
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from './interfaces/ISimulationEngine';
-
 import type {
+    CommandResponse,
     UpdatedResponse,
     WorkerCommand,
-    WorkerResponse,
-    CommandResponse
-} from './WorkerMessages';
+    WorkerResponse} from './WorkerMessages';
 import { isWorkerResponse } from './WorkerMessages';
 
 // ============================================================================

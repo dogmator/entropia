@@ -11,8 +11,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventBus } from '@/core';
-import type { Genome, WorldConfig, OrganismId } from '@/types';
-import { EntityType, createOrganismId } from '@/types';
+import type { Genome, OrganismId,WorldConfig } from '@/types';
+import { createOrganismId,EntityType } from '@/types';
 
 import { Food, Obstacle, Organism } from '../../Entity';
 import { GridManager } from '../../managers/GridManager';
