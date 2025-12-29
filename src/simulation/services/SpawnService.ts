@@ -15,11 +15,11 @@ import type {
   EcologicalZone,
   EntitySpawnedEvent,
   FoodId,
+  GridEntity,
   MutableVector3,
   OrganismId,
   Vector3,
-  WorldConfig,
-  GridEntity
+  WorldConfig
 } from '@/types.ts';
 import {
   EntityType,
@@ -28,8 +28,8 @@ import {
 
 import type { Obstacle, Organism } from '../Entity';
 import { Food, OrganismFactory } from '../Entity';
-import { MathUtils } from '../MathUtils';
 import type { GridManager } from '../managers/GridManager';
+import { MathUtils } from '../MathUtils';
 
 // ============================================================================
 // ПЕРЕЛІКИ ТА ОБ'ЄКТИ КОНФІГУРАЦІЇ
@@ -100,7 +100,7 @@ export class SpawnService {
   private readonly organismFactory: OrganismFactory;
 
   private rand(): number {
-    return this.rng ? this.rng.next() : Math.random();
+    return Random.next();
   }
 
   constructor(
@@ -108,12 +108,11 @@ export class SpawnService {
     private readonly gridManager: GridManager,
     private readonly zones: Map<string, EcologicalZone>,
     private readonly obstacles: Map<string, Obstacle>,
-    private readonly rng?: Random,
     config?: Partial<SpawnConfig>,
     private readonly worldConfig?: WorldConfig // Added optional for now to avoid breaking tests if any
   ) {
     this.config = { ...DEFAULT_SPAWN_CONFIG, ...config };
-    this.organismFactory = new OrganismFactory(this.rng ?? Random.fromMath());
+    this.organismFactory = new OrganismFactory();
   }
 
   // ============================================================================

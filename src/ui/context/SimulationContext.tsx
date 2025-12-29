@@ -10,7 +10,7 @@
 import type { PopulationDataPoint, SimulationStats } from '@shared/types';
 import type { CameraState } from '@ui/hooks';
 import type { PropsWithChildren } from 'react';
-import React, { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
     CAMERA,
@@ -22,6 +22,48 @@ import {
 import { logger } from '@/core';
 import { EngineProxy, isFood } from '@/simulation';
 import type { IEntityInfo, ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
+
+// ============================================================================
+// CONSTANTS & TYPES
+// ============================================================================
+
+const MS_PER_SEC = 1000;
+const INITIAL_DRAW_CALLS = 5;
+const FIXED_PRECISION = 2;
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Utility to log hover events.
+ */
+const logHoverEvent = (entity: IEntityInfo, previousEntity: IEntityInfo | null) => {
+    if (entity === previousEntity) return;
+
+    const isFoodItem = isFood(entity);
+    // Explicitly check for dead status if available on the object runtime
+    const isDead = 'isDead' in entity && (entity as { isDead?: boolean }).isDead === true;
+
+    let source: string;
+    if (isFoodItem) {
+        source = 'Hover:Food';
+    } else if (isDead) {
+        source = 'Hover:DeadEntity';
+    } else {
+        source = 'Hover:Entity';
+    }
+
+    console.debug(`[Hover] ${entity.type} ID: ${entity.id} (Dead: ${isDead})`);
+
+    logger.info(`Hovered over ${entity.type} (ID: ${entity.id})`, source, {
+        id: entity.id,
+        type: entity.type,
+        position: entity.position,
+        isFood: isFoodItem,
+        isDead
+    });
+};
 
 interface SimulationContextValue {
     engine: ISimulationEngine;
@@ -48,28 +90,6 @@ interface SimulationContextValue {
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
 
-/**
- * Utility to log hover events.
- */
-const logHoverEvent = (entity: IEntityInfo, previousEntity: IEntityInfo | null) => {
-    if (entity === previousEntity) return;
-
-    const isFoodItem = isFood(entity);
-    // Explicitly check for dead status if available on the object runtime
-    const isDead = (entity as any).isDead === true;
-    const source = isFoodItem ? 'Hover:Food' : (isDead ? 'Hover:DeadEntity' : 'Hover:Entity');
-
-    console.debug(`[Hover] ${entity.type} ID: ${entity.id} (Dead: ${isDead})`);
-
-    logger.info(`Hovered over ${entity.type} (ID: ${entity.id})`, source, {
-        id: entity.id,
-        type: entity.type,
-        position: entity.position,
-        isFood: isFoodItem,
-        isDead
-    });
-};
-
 export const useSimulation = () => {
     const context = useContext(SimulationContext);
     if (!context) {
@@ -78,172 +98,66 @@ export const useSimulation = () => {
     return context;
 };
 
-export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) => {
-    /** World scale coefficient (0.5x - 10.0x). */
-    const [worldScale, setWorldScaleState] = useState<number>(UI_CONTROLS.WORLD_SCALE.DEFAULT);
+const isCameraDiff = (last: CameraState, curr: CameraState) => {
+    const isP = last.position.x !== curr.position.x || last.position.y !== curr.position.y || last.position.z !== curr.position.z;
+    const isT = last.target.x !== curr.target.x || last.target.y !== curr.target.y || last.target.z !== curr.target.z;
+    const isO = last.zoom !== curr.zoom || last.distance !== curr.distance || last.fov !== curr.fov || last.aspect !== curr.aspect;
+    return isP || isT || isO;
+};
 
-    const setWorldScale = (val: number) => {
-        logger.info(`UI: Set World Scale to ${val}`, 'SimulationContext');
+// ============================================================================
+// CUSTOM HOOKS
+// ============================================================================
+
+/**
+ * Hook for managing simulation settings and their persistence.
+ */
+const useSimulationSettings = (engine: ISimulationEngine) => {
+    const [worldScale, setWorldScaleState] = useState<number>(() => {
+        const saved = localStorage.getItem(UI_CONTROLS.WORLD_SCALE.STORAGE_KEY);
+        if (saved) {
+            const parsed = parseFloat(saved);
+            return Math.max(UI_CONTROLS.WORLD_SCALE.MIN, Math.min(UI_CONTROLS.WORLD_SCALE.MAX, parsed));
+        }
+        return UI_CONTROLS.WORLD_SCALE.DEFAULT;
+    });
+
+    const [speed, setSpeedState] = useState<number>(() => {
+        const saved = localStorage.getItem(UI_CONTROLS.SPEED.STORAGE_KEY);
+        if (saved) {
+            const parsed = parseFloat(saved);
+            return Math.max(UI_CONTROLS.SPEED.MIN, Math.min(UI_CONTROLS.SPEED.MAX, parsed));
+        }
+        return UI_CONTROLS.SPEED.DEFAULT;
+    });
+
+    const [autoRotate, setAutoRotateState] = useState<boolean>(() => {
+        const saved = localStorage.getItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_ENABLED);
+        return saved ? saved === 'true' : CAMERA.AUTO_ROTATE.ENABLED;
+    });
+
+    const [autoRotateSpeed, setAutoRotateSpeedState] = useState<number>(() => {
+        const saved = localStorage.getItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED);
+        if (saved) {
+            const parsed = parseFloat(saved);
+            return Math.max(CAMERA.AUTO_ROTATE.SPEED_MIN, Math.min(CAMERA.AUTO_ROTATE.SPEED_MAX, parsed));
+        }
+        return CAMERA.AUTO_ROTATE.SPEED;
+    });
+
+    const setWorldScale = useCallback((val: number) => {
         setWorldScaleState(val);
         engine.updateWorldScale(val);
-    };
-
-    /** Initialize and memoize engine proxy. */
-    const engine = useMemo(() => new EngineProxy({ tickRate: ENGINE_CONSTANTS.TICK_RATE }), []);
-
-    // Async worker initialization
-    useEffect(() => {
-        setIsLoading(true);
-        engine.init(worldScale).then(() => {
-            setIsLoading(false);
-        }).catch(err => {
-            console.error('Failed to init engine proxy', err);
-            setIsLoading(false);
-        });
-
-        return () => {
-            console.log('[SimulationContext] Cleaning up engine proxy');
-            engine.destroy?.();
-        };
     }, [engine]);
 
-    /** Temporal simulation speed (0x - 5x). */
-    /** Temporal simulation speed (0x - 5x). */
-    /** Temporal simulation speed (0x - 5x). */
-    const [speed, setSpeedState] = useState<number>(UI_CONTROLS.SPEED.DEFAULT);
-
-    const setSpeed = (val: number | ((prev: number) => number)) => {
-        setSpeedState(prev => {
-            const newValue = typeof val === 'function' ? val(prev) : val;
-            logger.info(`UI: Set Speed to ${newValue}`, 'SimulationContext');
-            return newValue;
-        });
-    };
-
-    /** Sync speed to engine (Pause/Resume). */
-    useEffect(() => {
-        if (speed === 0) {
-            engine.pause();
-            logger.info('Synced Speed: Pausing engine', 'SimulationContext');
-        } else {
-            engine.resume();
-            logger.info(`Synced Speed: Resuming engine (speed ${speed})`, 'SimulationContext');
-        }
-    }, [speed, engine]);
-
-    /** Camera Auto-rotation. */
-    const [autoRotate, setAutoRotateState] = useState<boolean>(CAMERA.AUTO_ROTATE.ENABLED);
-    const [autoRotateSpeed, setAutoRotateSpeedState] = useState<number>(CAMERA.AUTO_ROTATE.SPEED);
-
-    const setAutoRotate = useCallback((val: boolean) => {
-        logger.info(`UI: Set Auto Rotate to ${val}`, 'SimulationContext');
-        setAutoRotateState(val);
+    const setSpeed = useCallback((val: number | ((prev: number) => number)) => {
+        setSpeedState(prev => (typeof val === 'function' ? val(prev) : val));
     }, []);
 
-    const setAutoRotateSpeed = useCallback((val: number) => {
-        logger.info(`UI: Set Auto Rotate Speed to ${val}`, 'SimulationContext');
-        setAutoRotateSpeedState(val);
-    }, []);
+    const setAutoRotate = useCallback((val: boolean) => setAutoRotateState(val), []);
+    const setAutoRotateSpeed = useCallback((val: number) => setAutoRotateSpeedState(val), []);
 
-    /** Real-time Camera State. */
-    const [cameraState, setCameraState] = useState<CameraState>({ ...CAMERA.INITIAL_STATE });
-
-    // 1. Subscribe to remote commands (e.g. reload)
-    useEffect(() => {
-        const unsubscribe = logger.subscribeToCommands((cmd) => {
-            if (cmd.action === 'RELOAD') {
-                logger.info('Remote reload command received', 'System');
-                window.location.reload();
-            }
-        });
-        return () => unsubscribe();
-    }, []);
-
-    // Sync camera state to engine
-    const lastCameraStateRef = useRef<CameraState | null>(null);
-    useEffect(() => {
-        if (cameraState) {
-            const lastState = lastCameraStateRef.current;
-            const hasChanges = !lastState ||
-                lastState.position.x !== cameraState.position.x ||
-                lastState.position.y !== cameraState.position.y ||
-                lastState.position.z !== cameraState.position.z ||
-                lastState.target.x !== cameraState.target.x ||
-                lastState.target.y !== cameraState.target.y ||
-                lastState.target.z !== cameraState.target.z ||
-                lastState.zoom !== cameraState.zoom ||
-                lastState.distance !== cameraState.distance ||
-                lastState.fov !== cameraState.fov ||
-                lastState.aspect !== cameraState.aspect;
-
-            if (hasChanges) {
-                lastCameraStateRef.current = cameraState;
-                engine.setCameraData(cameraState.position, cameraState.target);
-            }
-        }
-    }, [cameraState, engine]);
-
-    /** Aggregated simulation stats. */
-    const [stats, setStats] = useState<SimulationStats>({ ...INITIAL_SIMULATION_STATS });
-
-    /** Population history for charts. */
-    const [history, setHistory] = useState<PopulationDataPoint[]>([]);
-
-    const [isLoading, setIsLoading] = useState(true);
-
-    /** Hover state. */
-    const [hoveredEntity, setHoveredEntityState] = useState<IEntityInfo | null>(null);
-    const [tooltipVisible, setTooltipVisible] = useState(false);
-    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-
-    /** Wrapper for hover logging. */
-    const setHoveredEntity = (entity: IEntityInfo | null) => {
-        if (entity) {
-            logHoverEvent(entity, hoveredEntity);
-        }
-        setHoveredEntityState(entity);
-    };
-
-    /** History ref to avoid re-renders. */
-    const historyRef = useRef<PopulationDataPoint[]>([]);
-
-    useEffect(() => {
-        setTooltipVisible(!!hoveredEntity);
-    }, [hoveredEntity]);
-
-    /** Performance metrics. */
-    const fpsCounter = useRef<{ frames: number; lastTime: number; fps: number }>({ frames: 0, lastTime: performance.now(), fps: ENGINE_CONSTANTS.TICK_RATE });
-    const tpsCounter = useRef<{ ticks: number; lastTime: number; tps: number }>({ ticks: 0, lastTime: performance.now(), tps: ENGINE_CONSTANTS.TICK_RATE });
-    const frameTimestampRef = useRef(performance.now());
-
-    /** Deserialize User Settings from LocalStorage. */
-    useEffect(() => {
-        const savedSpeed = localStorage.getItem(UI_CONTROLS.SPEED.STORAGE_KEY);
-        if (savedSpeed) {
-            const parsedSpeed = parseFloat(savedSpeed);
-            setSpeed(Math.max(UI_CONTROLS.SPEED.MIN, Math.min(UI_CONTROLS.SPEED.MAX, parsedSpeed)));
-        }
-        const savedScale = localStorage.getItem(UI_CONTROLS.WORLD_SCALE.STORAGE_KEY);
-        if (savedScale) {
-            const parsedScale = parseFloat(savedScale);
-            setWorldScale(Math.max(UI_CONTROLS.WORLD_SCALE.MIN, Math.min(UI_CONTROLS.WORLD_SCALE.MAX, parsedScale)));
-        }
-        const savedAutoRotate = localStorage.getItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_ENABLED);
-        if (savedAutoRotate) {
-            setAutoRotate(savedAutoRotate === 'true');
-        }
-        const savedRotateSpeed = localStorage.getItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED);
-        if (savedRotateSpeed) {
-            const parsedRotateSpeed = parseFloat(savedRotateSpeed);
-            setAutoRotateSpeed(Math.max(CAMERA.AUTO_ROTATE.SPEED_MIN, Math.min(CAMERA.AUTO_ROTATE.SPEED_MAX, parsedRotateSpeed)));
-        }
-
-        // Simulate loader latency
-        const timer = setTimeout(() => setIsLoading(false), UI_CONTROLS.LOADING_DELAY);
-        return () => clearTimeout(timer);
-    }, []);
-
-    /** Persist Settings. */
+    // Persistence
     useEffect(() => {
         localStorage.setItem(UI_CONTROLS.SPEED.STORAGE_KEY, speed.toString());
         localStorage.setItem(UI_CONTROLS.WORLD_SCALE.STORAGE_KEY, worldScale.toString());
@@ -251,93 +165,201 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
         localStorage.setItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED, autoRotateSpeed.toString());
     }, [speed, worldScale, autoRotate, autoRotateSpeed]);
 
-    /** Subscribe to engine events. */
+    return {
+        worldScale, setWorldScale, speed, setSpeed,
+        autoRotate, setAutoRotate, autoRotateSpeed, setAutoRotateSpeed
+    };
+};
+
+/**
+ * Hook for managing engine lifecycle and state synchronization.
+ */
+const useEngineSync = (engine: ISimulationEngine, speed: number, worldScale: number) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [cameraState, setCameraState] = useState<CameraState>({ ...CAMERA.INITIAL_STATE });
+    const lastCameraStateRef = useRef<CameraState | null>(null);
+
+    // Engine Init
+    useEffect(() => {
+        engine.init(worldScale)
+            .then(() => setIsLoading(false))
+            .catch((err: unknown) => {
+                logger.error('Failed to init engine', 'SimulationContext', { err });
+                setIsLoading(false);
+            });
+
+        return () => engine.destroy?.();
+    }, [engine, worldScale]);
+
+    // Speed Sync
+    useEffect(() => {
+        if (speed === 0) {
+            engine.pause();
+        } else {
+            engine.resume();
+        }
+    }, [speed, engine]);
+
+    // Camera Sync
+    useEffect(() => {
+        if (!cameraState) return;
+        const last = lastCameraStateRef.current;
+        if (!last || isCameraDiff(last, cameraState)) {
+            lastCameraStateRef.current = cameraState;
+            engine.setCameraData(cameraState.position, cameraState.target);
+        }
+    }, [cameraState, engine]);
+
+    // Remote Commands
+    useEffect(() => {
+        const unsubscribe = logger.subscribeToCommands((cmd) => {
+            if (cmd.action === 'RELOAD') {
+                window.location.reload();
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    return { isLoading, setIsLoading, cameraState, setCameraState };
+};
+
+interface CounterRef {
+    frames: number;
+    ticks: number;
+    lastTime: number;
+    fps: number;
+    tps: number;
+}
+
+const updateCounters = (fpsRef: React.RefObject<CounterRef>, tpsRef: React.RefObject<CounterRef>) => {
+    if (!fpsRef.current || !tpsRef.current) return;
+    const now = performance.now();
+    fpsRef.current.frames++;
+    tpsRef.current.ticks++;
+
+    if (now - fpsRef.current.lastTime >= MS_PER_SEC) {
+        fpsRef.current.fps = Math.round((fpsRef.current.frames * MS_PER_SEC) / (now - fpsRef.current.lastTime));
+        fpsRef.current.frames = 0;
+        fpsRef.current.lastTime = now;
+    }
+
+    if (now - tpsRef.current.lastTime >= MS_PER_SEC) {
+        tpsRef.current.tps = Math.round((tpsRef.current.ticks * MS_PER_SEC) / (now - tpsRef.current.lastTime));
+        tpsRef.current.ticks = 0;
+        tpsRef.current.lastTime = now;
+    }
+};
+
+/**
+ * Hook for managing simulation stats and history.
+ */
+const useSimulationStats = (engine: ISimulationEngine, speed: number) => {
+    const [stats, setStats] = useState<SimulationStats>({ ...INITIAL_SIMULATION_STATS });
+    const [history, setHistory] = useState<PopulationDataPoint[]>([]);
+    const historyRef = useRef<PopulationDataPoint[]>([]);
+
+    const fpsCounter = useRef<CounterRef>({ frames: 0, ticks: 0, lastTime: performance.now(), fps: ENGINE_CONSTANTS.TICK_RATE, tps: 0 });
+    const tpsCounter = useRef<CounterRef>({ frames: 0, ticks: 0, lastTime: performance.now(), fps: 0, tps: ENGINE_CONSTANTS.TICK_RATE });
+    const frameTimestampRef = useRef(performance.now());
+
     useEffect(() => {
         let tickCounter = 0;
         const unsubscribe = engine.addEventListener((event) => {
-            if (event.type === 'TickUpdated') {
-                const now = performance.now();
-                fpsCounter.current.frames++;
-                tpsCounter.current.ticks++;
+            if (event.type !== 'TickUpdated') return;
+            updateCounters(fpsCounter, tpsCounter);
 
-                const elapsedFps = now - fpsCounter.current.lastTime;
-                const elapsedTps = now - tpsCounter.current.lastTime;
+            const now = performance.now();
+            const frameTime = now - frameTimestampRef.current;
+            frameTimestampRef.current = now;
 
-                // FPS Calc
-                if (elapsedFps >= 1000) {
-                    fpsCounter.current.fps = Math.round((fpsCounter.current.frames * 1000) / elapsedFps);
-                    fpsCounter.current.frames = 0;
-                    fpsCounter.current.lastTime = now;
+            const engineStats = engine.getStatsWithWorldData();
+            const statsWithPerf: SimulationStats = {
+                ...engineStats,
+                performance: engineStats.performance || {
+                    fps: fpsCounter.current.fps,
+                    tps: tpsCounter.current.tps,
+                    frameTime: Number(frameTime.toFixed(FIXED_PRECISION)),
+                    simulationTime: Number((event.deltaTime * MS_PER_SEC).toFixed(FIXED_PRECISION)),
+                    entityCount: event.stats.preyCount + event.stats.predatorCount + event.stats.foodCount,
+                    drawCalls: INITIAL_DRAW_CALLS,
                 }
+            };
 
-                // TPS Calc
-                if (elapsedTps >= 1000) {
-                    tpsCounter.current.tps = Math.round((tpsCounter.current.ticks * 1000) / elapsedTps);
-                    tpsCounter.current.ticks = 0;
-                    tpsCounter.current.lastTime = now;
-                }
+            setStats(statsWithPerf);
+            tickCounter++;
 
-                const frameTime = now - frameTimestampRef.current;
-                frameTimestampRef.current = now;
+            const updateFreq = Math.max(1, Math.floor(UI_CONFIG.updateFrequency / (speed > 1 ? speed : 1)));
+            if (tickCounter % updateFreq === 0) {
+                const newData = { time: tickCounter, prey: event.stats.preyCount, pred: event.stats.predatorCount };
+                historyRef.current = [...historyRef.current, newData].slice(-UI_CONFIG.historyLength);
+                setHistory([...historyRef.current]);
+            }
 
-                const engineStats = engine.getStatsWithWorldData();
-
-                const statsWithPerformance: SimulationStats = {
-                    ...engineStats,
-                    performance: engineStats.performance || {
-                        fps: fpsCounter.current.fps,
-                        tps: tpsCounter.current.tps,
-                        frameTime: Number(frameTime.toFixed(2)),
-                        simulationTime: Number((event.deltaTime * 1000).toFixed(2)),
-                        entityCount: event.stats.preyCount + event.stats.predatorCount + event.stats.foodCount,
-                        drawCalls: 5,
-                    }
-                };
-
-                setStats(statsWithPerformance);
-
-                tickCounter++;
-                // Update History
-                if (tickCounter % Math.max(1, Math.floor(UI_CONFIG.updateFrequency / (speed > 1 ? speed : 1))) === 0) {
-                    const newData: PopulationDataPoint = {
-                        time: tickCounter,
-                        prey: event.stats.preyCount,
-                        pred: event.stats.predatorCount
-                    };
-                    historyRef.current = [...historyRef.current, newData].slice(-UI_CONFIG.historyLength);
-                    setHistory([...historyRef.current]);
-                }
-
-                // Log statistical events
-                if (tickCounter % UI_CONTROLS.SERVER_LOG_INTERVAL === 0) {
-                    logger.info('Simulation Stats', 'Engine', {
-                        tick: tickCounter,
-                        entities: {
-                            prey: event.stats.preyCount,
-                            predator: event.stats.predatorCount,
-                            food: event.stats.foodCount
-                        },
-                        performance: {
-                            fps: fpsCounter.current.fps,
-                            tps: tpsCounter.current.tps
-                        }
-                    });
-                }
+            if (tickCounter % UI_CONTROLS.SERVER_LOG_INTERVAL === 0) {
+                logger.info('Stats', 'Engine', { tick: tickCounter, q: { prey: event.stats.preyCount, pred: event.stats.predatorCount } });
             }
         });
 
-        // Global hotkeys
+        return () => unsubscribe();
+    }, [engine, speed]);
+
+    const resetHistory = useCallback(() => {
+        historyRef.current = [];
+        setHistory([]);
+    }, []);
+
+    return { stats, history, resetHistory };
+};
+
+/**
+ * Hook for managing hover and tooltip state.
+ */
+const useHoverState = () => {
+    const [hoveredEntity, setHoveredEntityState] = useState<IEntityInfo | null>(null);
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+    const setHoveredEntity = useCallback((entity: IEntityInfo | null) => {
+        if (entity) logHoverEvent(entity, hoveredEntity);
+        setHoveredEntityState(entity);
+    }, [hoveredEntity]);
+
+    const tooltipVisible = !!hoveredEntity;
+
+    return {
+        hoveredEntity,
+        setHoveredEntity,
+        tooltipVisible,
+        tooltipPos,
+        setTooltipPos
+    };
+};
+
+/**
+ * Hook for managing global hotkeys.
+ */
+const SPEED_KEYS = {
+    PAUSE: 0,
+    NORMAL: 1,
+    FAST: 2,
+    TURBO: 5,
+} as const;
+
+/**
+ * Hook for managing global hotkeys.
+ */
+const useHotkeys = (setSpeed: (val: number | ((prev: number) => number)) => void) => {
+    useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === ' ' || e.key === 'Space') {
-                setSpeed(prev => prev === 0 ? 1 : 0);
+                setSpeed(prev => prev === SPEED_KEYS.PAUSE ? SPEED_KEYS.NORMAL : SPEED_KEYS.PAUSE);
             } else if (e.key === '0') {
-                setSpeed(0);
+                setSpeed(SPEED_KEYS.PAUSE);
             } else if (e.key === '1') {
-                setSpeed(1);
+                setSpeed(SPEED_KEYS.NORMAL);
             } else if (e.key === '2') {
-                setSpeed(2);
+                setSpeed(SPEED_KEYS.FAST);
             } else if (e.key === '5') {
-                setSpeed(5);
+                setSpeed(SPEED_KEYS.TURBO);
             }
 
             if (['f', 'F', 'а', 'А'].includes(e.key)) {
@@ -348,43 +370,64 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
                 }
             }
         };
-        window.addEventListener('keydown', handleKey);
-        return () => {
-            window.removeEventListener('keydown', handleKey);
-            unsubscribe();
-        };
-    }, [engine, speed]);
 
-    const onReset = () => {
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [setSpeed]);
+};
+
+// ============================================================================
+// PROVIDER
+// ============================================================================
+
+export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) => {
+    const engine = useMemo(() => new EngineProxy({ tickRate: ENGINE_CONSTANTS.TICK_RATE }), []);
+
+    // 1. Settings
+    const settings = useSimulationSettings(engine);
+
+    // 2. Lifecycle & Sync
+    const sync = useEngineSync(engine, settings.speed, settings.worldScale);
+
+    // 3. Stats & History
+    const statsInfo = useSimulationStats(engine, settings.speed);
+
+    // 4. Hover state
+    const hover = useHoverState();
+
+    // 5. Hotkeys
+    useHotkeys(settings.setSpeed);
+
+    /** Initialize loader latency. */
+    useEffect(() => {
+        const timer = setTimeout(() => sync.setIsLoading(false), UI_CONTROLS.LOADING_DELAY);
+        return () => clearTimeout(timer);
+    }, [sync]);
+
+    const onReset = useCallback(() => {
         logger.info('UI: Reset Simulation requested', 'SimulationContext');
         localStorage.clear();
         engine.reset();
-        historyRef.current = [];
-        setHistory([]);
-    };
+        statsInfo.resetHistory();
+    }, [engine, statsInfo]);
 
-    const value = {
-        engine,
-        stats,
-        history,
-        speed,
-        setSpeed,
-        worldScale,
-        setWorldScale,
-        isLoading,
-        onReset,
-        cameraState,
-        setCameraState,
-        hoveredEntity,
-        setHoveredEntity,
-        tooltipVisible,
-        tooltipPos,
-        setTooltipPos,
-        autoRotate,
-        setAutoRotate,
-        autoRotateSpeed,
-        setAutoRotateSpeed,
-    };
+    const value = useMemo(() => ({
+        engine, stats: statsInfo.stats, history: statsInfo.history,
+        speed: settings.speed, setSpeed: settings.setSpeed,
+        worldScale: settings.worldScale, setWorldScale: settings.setWorldScale,
+        isLoading: sync.isLoading, onReset,
+        cameraState: sync.cameraState, setCameraState: sync.setCameraState,
+        hoveredEntity: hover.hoveredEntity, setHoveredEntity: hover.setHoveredEntity,
+        tooltipVisible: hover.tooltipVisible, tooltipPos: hover.tooltipPos, setTooltipPos: hover.setTooltipPos,
+        autoRotate: settings.autoRotate, setAutoRotate: settings.setAutoRotate,
+        autoRotateSpeed: settings.autoRotateSpeed, setAutoRotateSpeed: settings.setAutoRotateSpeed,
+    }), [
+        engine, statsInfo.stats, statsInfo.history, settings.speed, settings.setSpeed,
+        settings.worldScale, settings.setWorldScale, sync.isLoading, onReset,
+        sync.cameraState, sync.setCameraState, hover.hoveredEntity, hover.setHoveredEntity,
+        hover.tooltipVisible, hover.tooltipPos, hover.setTooltipPos,
+        settings.autoRotate, settings.setAutoRotate, settings.autoRotateSpeed, settings.setAutoRotateSpeed
+    ]);
 
     return (
         <SimulationContext.Provider value={value}>

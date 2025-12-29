@@ -263,14 +263,16 @@ export class Logger {
         }
       };
 
-      this.socket.onerror = () => {
+      this.socket.onerror = (error) => {
         this.isConnecting = false;
+        console.warn(`[Logger] WebSocket error (${this.context}):`, error);
       };
 
       this.socket.onmessage = (event) => {
         try {
+          if (typeof event.data !== 'string') return;
           const data = JSON.parse(event.data);
-          if (data.type === 'COMMAND') {
+          if (data && typeof data === 'object' && data.type === 'COMMAND') {
             this.notifyCommandSubscribers(data);
           }
         } catch (e) {
@@ -319,6 +321,7 @@ export class Logger {
     try {
       this.socket.send(JSON.stringify(entry));
     } catch (error) {
+      console.warn('[Logger] Failed to send to remote:', error);
       this.messageQueue.push(entry);
     }
   }
