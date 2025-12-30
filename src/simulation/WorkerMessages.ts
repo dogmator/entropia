@@ -48,6 +48,19 @@ export interface ResumeCommand {
     readonly type: 'resume';
 }
 
+export interface SetSpeedCommand {
+    readonly type: 'setSpeed';
+    readonly speed: number;
+}
+
+export interface StartLoopCommand {
+    readonly type: 'startLoop';
+}
+
+export interface StopLoopCommand {
+    readonly type: 'stopLoop';
+}
+
 export interface FindEntityAtCommand {
     readonly type: 'findEntityAt';
     readonly position: { x: number; y: number; z: number };
@@ -82,6 +95,9 @@ export type WorkerCommand =
     | SetConfigCommand
     | PauseCommand
     | ResumeCommand
+    | SetSpeedCommand
+    | StartLoopCommand
+    | StopLoopCommand
     | FindEntityAtCommand
     | GetEntityByInstanceIdCommand
     | GetGeneticNodeCommand

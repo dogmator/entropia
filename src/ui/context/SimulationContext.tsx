@@ -27,9 +27,8 @@ import type { IEntityInfo, ISimulationEngine } from '@/simulation/interfaces/ISi
 // CONSTANTS & TYPES
 // ============================================================================
 
-const MS_PER_SEC = 1000;
-const INITIAL_DRAW_CALLS = 5;
 const FIXED_PRECISION = 2;
+const MS_PER_SECOND = 1000;
 
 // ============================================================================
 // HELPERS
@@ -151,8 +150,12 @@ const useSimulationSettings = (engine: ISimulationEngine) => {
     }, [engine]);
 
     const setSpeed = useCallback((val: number | ((prev: number) => number)) => {
-        setSpeedState(prev => (typeof val === 'function' ? val(prev) : val));
-    }, []);
+        setSpeedState(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            engine.setSpeed(next);
+            return next;
+        });
+    }, [engine]);
 
     const setAutoRotate = useCallback((val: boolean) => setAutoRotateState(val), []);
     const setAutoRotateSpeed = useCallback((val: number) => setAutoRotateSpeedState(val), []);
@@ -191,8 +194,9 @@ const useEngineSync = (engine: ISimulationEngine, speed: number, worldScale: num
         return () => engine.destroy?.();
     }, [engine, worldScale]);
 
-    // Speed Sync
+    // Speed & Loop Sync
     useEffect(() => {
+        engine.setSpeed(speed);
         if (speed === 0) {
             engine.pause();
         } else {
@@ -223,31 +227,22 @@ const useEngineSync = (engine: ISimulationEngine, speed: number, worldScale: num
     return { isLoading, setIsLoading, cameraState, setCameraState };
 };
 
-interface CounterRef {
-    frames: number;
-    ticks: number;
-    lastTime: number;
-    fps: number;
-    tps: number;
-}
 
-const updateCounters = (fpsRef: React.RefObject<CounterRef>, tpsRef: React.RefObject<CounterRef>) => {
-    if (!fpsRef.current || !tpsRef.current) return;
-    const now = performance.now();
-    fpsRef.current.frames++;
-    tpsRef.current.ticks++;
+const useFpsCalculator = () => {
+    const fpsRef = useRef({ frames: 0, lastUpdate: performance.now(), current: 0 });
 
-    if (now - fpsRef.current.lastTime >= MS_PER_SEC) {
-        fpsRef.current.fps = Math.round((fpsRef.current.frames * MS_PER_SEC) / (now - fpsRef.current.lastTime));
-        fpsRef.current.frames = 0;
-        fpsRef.current.lastTime = now;
-    }
+    const updateFps = useCallback(() => {
+        const now = performance.now();
+        fpsRef.current.frames++;
+        if (now - fpsRef.current.lastUpdate >= MS_PER_SECOND) {
+            fpsRef.current.current = Math.round((fpsRef.current.frames * MS_PER_SECOND) / (now - fpsRef.current.lastUpdate));
+            fpsRef.current.frames = 0;
+            fpsRef.current.lastUpdate = now;
+        }
+        return fpsRef.current.current;
+    }, []);
 
-    if (now - tpsRef.current.lastTime >= MS_PER_SEC) {
-        tpsRef.current.tps = Math.round((tpsRef.current.ticks * MS_PER_SEC) / (now - tpsRef.current.lastTime));
-        tpsRef.current.ticks = 0;
-        tpsRef.current.lastTime = now;
-    }
+    return { updateFps, currentFps: fpsRef.current.current };
 };
 
 /**
@@ -258,30 +253,30 @@ const useSimulationStats = (engine: ISimulationEngine, speed: number) => {
     const [history, setHistory] = useState<PopulationDataPoint[]>([]);
     const historyRef = useRef<PopulationDataPoint[]>([]);
 
-    const fpsCounter = useRef<CounterRef>({ frames: 0, ticks: 0, lastTime: performance.now(), fps: ENGINE_CONSTANTS.TICK_RATE, tps: 0 });
-    const tpsCounter = useRef<CounterRef>({ frames: 0, ticks: 0, lastTime: performance.now(), fps: 0, tps: ENGINE_CONSTANTS.TICK_RATE });
     const frameTimestampRef = useRef(performance.now());
+    const { updateFps } = useFpsCalculator();
 
     useEffect(() => {
         let tickCounter = 0;
         const unsubscribe = engine.addEventListener((event) => {
             if (event.type !== 'TickUpdated') return;
-            updateCounters(fpsCounter, tpsCounter);
 
             const now = performance.now();
             const frameTime = now - frameTimestampRef.current;
             frameTimestampRef.current = now;
 
-            const engineStats = engine.getStatsWithWorldData();
+            const currentFps = updateFps();
+
+            const engineStats = event.stats;
             const statsWithPerf: SimulationStats = {
                 ...engineStats,
-                performance: engineStats.performance || {
-                    fps: fpsCounter.current.fps,
-                    tps: tpsCounter.current.tps,
+                performance: {
+                    fps: currentFps,
+                    tps: engineStats.performance?.tps || 0,
                     frameTime: Number(frameTime.toFixed(FIXED_PRECISION)),
-                    simulationTime: Number((event.deltaTime * MS_PER_SEC).toFixed(FIXED_PRECISION)),
-                    entityCount: event.stats.preyCount + event.stats.predatorCount + event.stats.foodCount,
-                    drawCalls: INITIAL_DRAW_CALLS,
+                    simulationTime: engineStats.performance?.simulationTime || 0,
+                    entityCount: engineStats.performance?.entityCount || 0,
+                    drawCalls: engineStats.performance?.drawCalls || 0,
                 }
             };
 

@@ -103,6 +103,7 @@ export class BufferManager {
             if (!f.consumed) { foodCount++; }
         });
 
+        // Diagnostic counts for buffer management logic
         return { prey, pred, food: foodCount };
     }
 

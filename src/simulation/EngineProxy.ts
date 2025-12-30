@@ -25,7 +25,8 @@ import type {
     CommandResponse,
     UpdatedResponse,
     WorkerCommand,
-    WorkerResponse} from './WorkerMessages';
+    WorkerResponse
+} from './WorkerMessages';
 import { isWorkerResponse } from './WorkerMessages';
 
 // ============================================================================
@@ -100,9 +101,8 @@ export class EngineProxy implements ISimulationEngine {
     }
 
     public update(): void {
-        // У ручному режимі відправляємо 'update'.
-        // Якщо auto-tick працює у воркері, цей метод може бути no-op або тригером.
-        // Для сумісності з SimulationDriver (який викликає update()), ми просто відправляємо команду.
+        // Now handled internally by worker loop.
+        // Can be used for manual single-step if needed in future.
         this.sendCommand({ type: 'update' });
     }
 
@@ -439,9 +439,10 @@ export class EngineProxy implements ISimulationEngine {
         console.error('Simulation Error:', message);
     }
 
-    // Методи підтримки сумісності (Legacy), якщо необхідно
-    public pause() { this.sendCommand({ type: 'pause' }); }
-    public resume() { this.sendCommand({ type: 'resume' }); }
+    // Методи управління циклом
+    public pause() { this.sendCommand({ type: 'stopLoop' }); }
+    public resume() { this.sendCommand({ type: 'startLoop' }); }
+    public setSpeed(speed: number) { this.sendCommand({ type: 'setSpeed', speed }); }
 }
 
 function tryCall<T>(fn: (arg: T) => void, arg: T) {

@@ -641,6 +641,8 @@ export class SimulationEngine implements IPersistableEngine {
     // Оновлюємо статистику
     if (newDeaths > 0) {
       this.statisticsManager.incrementDeaths(newDeaths);
+      // Structured debug logging for entity transitions
+      logger.debug(`Engine: ${newDeaths} organisms died. Total dead in memory: ${this.deadOrganisms.size}`, 'Engine');
     }
   }
 
