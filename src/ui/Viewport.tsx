@@ -1,9 +1,9 @@
 import { useEntityHover } from '@ui/hooks';
 import React from 'react';
 
-import type { Food, Obstacle, Organism } from '@/simulation';
-import type { OrganismState } from '@/types';
 import { EntityType } from '@/types';
+import { isFood, isObstacle, isOrganism } from '@ui/utils/EntityTypeGuards';
+import { getStateColor, getStateLabel } from '@ui/utils/OrganismStateFormatters';
 
 import { Entities } from './components/Entities';
 import { Environment } from './components/Environment';
@@ -30,43 +30,6 @@ export const Viewport: React.FC = () => {
     );
   }
 
-  // ============================================================================
-  // ДОПОМІЖНІ МЕТОДИ ІНТРОСПЕКЦІЇ ТИПІВ СУТНОСТЕЙ
-  // ============================================================================
-
-  const isOrganism = (e: unknown): e is Organism =>
-    e !== null &&
-    typeof e === 'object' &&
-    'type' in e &&
-    (e.type === EntityType.PREY || e.type === EntityType.PREDATOR);
-  const isObstacle = (e: unknown): e is Obstacle =>
-    e !== null && typeof e === 'object' && 'type' in e && e.type === EntityType.OBSTACLE;
-  const isFood = (e: unknown): e is Food =>
-    e !== null && typeof e === 'object' && 'type' in e && e.type === EntityType.FOOD;
-
-  const getStateLabel = (state: OrganismState): string => {
-    const labels: Record<OrganismState, string> = {
-      IDLE: 'Спокій',
-      SEEKING: 'Пошук ресурсів',
-      FLEEING: 'Ухилення',
-      HUNTING: 'Полювання',
-      REPRODUCING: 'Репродукція',
-      DYING: 'Летальність',
-    };
-    return labels[state] || state;
-  };
-
-  const getStateColor = (state: OrganismState): string => {
-    const colors: Record<OrganismState, string> = {
-      IDLE: 'text-gray-400',
-      SEEKING: 'text-yellow-400',
-      FLEEING: 'text-red-400',
-      HUNTING: 'text-orange-400',
-      REPRODUCING: 'text-pink-400',
-      DYING: 'text-gray-600',
-    };
-    return colors[state] || 'text-gray-400';
-  };
 
   const worldSize = engine.worldConfig?.WORLD_SIZE;
 
