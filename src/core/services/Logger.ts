@@ -1,6 +1,7 @@
 import { DEBUG_CONFIG } from '@/config';
 
 export enum LogLevel {
+  DEBUG = 'debug',
   INFO = 'info',
   WARNING = 'warning',
   ERROR = 'error'
@@ -87,8 +88,7 @@ export class Logger {
     };
 
     console.debug = (...args) => {
-      // Опціонально захоплюємо debug, зазвичай як INFO
-      this.addLog(LogLevel.INFO, args.map(a => this.formatArg(a)).join(' '), 'Console (Debug)', undefined, true);
+      this.addLog(LogLevel.DEBUG, args.map(a => this.formatArg(a)).join(' '), 'Console (Debug)', undefined, true);
       this.originalConsole.debug(...args);
     };
   }
@@ -102,6 +102,13 @@ export class Logger {
       }
     }
     return String(arg);
+  }
+
+  /**
+   * Додавання налагоджувального повідомлення
+   */
+  public debug(message: string, source?: string, data?: Record<string, unknown>): void {
+    this.addLog(LogLevel.DEBUG, message, source, data);
   }
 
   /**
@@ -206,13 +213,22 @@ export class Logger {
     source?: string,
     data?: Record<string, unknown>
   ): void {
-    if (level !== LogLevel.ERROR && level !== LogLevel.WARNING) {
+    if (level === LogLevel.DEBUG && !DEBUG_CONFIG.remoteLoggingEnabled) {
+      return;
+    }
+
+    if (level !== LogLevel.ERROR && level !== LogLevel.WARNING && level !== LogLevel.DEBUG) {
       return;
     }
 
     const sourcePrefix = source ? ` [${source}]` : '';
     const logMessage = `[${level.toUpperCase()}]${sourcePrefix}: ${message}`;
-    const consoleMethod = level === LogLevel.ERROR ? 'error' : 'warn';
+
+    let consoleMethod: 'debug' | 'log' | 'warn' | 'error' | 'info' = 'log';
+    if (level === LogLevel.ERROR) consoleMethod = 'error';
+    else if (level === LogLevel.WARNING) consoleMethod = 'warn';
+    else if (level === LogLevel.DEBUG) consoleMethod = 'debug';
+    else if (level === LogLevel.INFO) consoleMethod = 'info';
 
     if (data) {
       this.originalConsole[consoleMethod](logMessage, data);

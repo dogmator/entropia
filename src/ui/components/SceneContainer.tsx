@@ -6,7 +6,6 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 import { WORLD_SIZE } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
-import { SimulationDriver } from './SimulationDriver';
 
 const CameraTracker: React.FC = () => {
     const { camera, controls } = useThree();
@@ -82,7 +81,6 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
             />
 
             <CameraTracker />
-            <SimulationDriver />
 
             <ambientLight intensity={0.35} />
 

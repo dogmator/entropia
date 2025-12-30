@@ -124,18 +124,18 @@ const setOrganismTransform = (params: OrganismTransformParams): void => {
 /**
  * Оновлення InstancedMesh для організмів (хижаки/жертви) з розділенням на живих та мертвих
  */
-/**
- * Logic for a single organism update
- */
-const processOrganism = (
-    data: Float32Array,
-    offset: number,
-    aliveMesh: THREE.InstancedMesh,
-    deadMesh: THREE.InstancedMesh,
-    aliveIdx: number,
-    deadIdx: number,
-    scaleMultiplier: number
-): { alive: number; dead: number } => {
+interface ProcessOrganismParams {
+    data: Float32Array;
+    offset: number;
+    aliveMesh: THREE.InstancedMesh;
+    deadMesh: THREE.InstancedMesh;
+    aliveIdx: number;
+    deadIdx: number;
+    scaleMultiplier: number;
+}
+
+const processOrganism = (params: ProcessOrganismParams): { alive: number; dead: number } => {
+    const { data, offset, aliveMesh, deadMesh, aliveIdx, deadIdx, scaleMultiplier } = params;
     const x = data[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
     const y = data[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
     const z = data[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
@@ -178,15 +178,15 @@ const updateOrganismMeshes = (params: UpdateMeshesParams): void => {
     let deadIdx = 0;
 
     for (let i = 0; i < count; i++) {
-        const result = processOrganism(
+        const result = processOrganism({
             data,
-            i * BUFFER_LAYOUT.STRIDE,
+            offset: i * BUFFER_LAYOUT.STRIDE,
             aliveMesh,
             deadMesh,
             aliveIdx,
             deadIdx,
             scaleMultiplier
-        );
+        });
         aliveIdx = result.alive;
         deadIdx = result.dead;
     }
@@ -243,8 +243,6 @@ interface AnimationHookParams {
         food: React.RefObject<THREE.InstancedMesh>
     };
     engine: ISimulationEngine;
-    speed: number;
-    isLoading: boolean;
 }
 
 /**
@@ -279,16 +277,13 @@ const useBoundingVolumesUpdate = (refs: {
  * Хук для керування анімацією та оновленням буферів сутностей
  */
 const useEntitiesAnimation = (params: AnimationHookParams) => {
-    const { refs, engine, speed, isLoading } = params;
+    const { refs, engine } = params;
 
     useFrame((state) => {
         const { prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef } = refs;
         if (!preyRef.current || !deadPreyRef.current || !predRef.current || !deadPredRef.current || !foodRef.current) return;
 
-        if (speed > 0 && !isLoading) {
-            const steps = Math.floor(speed >= 1 ? speed : 1);
-            for (let s = 0; s < steps; s++) engine.update();
-        }
+        /* Simulation is now driven by Worker loop */
 
         PROJ_SCREEN_MATRIX.multiplyMatrices(state.camera.projectionMatrix, state.camera.matrixWorldInverse);
         FRUSTUM.setFromProjectionMatrix(PROJ_SCREEN_MATRIX);
@@ -339,7 +334,6 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
     const deadPredRef = useRef<THREE.InstancedMesh>(null!);
     const foodRef = useRef<THREE.InstancedMesh>(null!);
 
-    const { speed, isLoading } = useSimulation();
 
     const orgGeo = useMemo(() => {
         const geo = new THREE.ConeGeometry(
@@ -359,7 +353,7 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
 
     useEntitiesAnimation({
         refs: { prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef },
-        engine, speed, isLoading
+        engine
     });
     useBoundingVolumesUpdate({ prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef });
     const { handlePointerMove, handlePointerOut, handlePointerMiss } = useEntityInteraction(engine);
@@ -379,8 +373,8 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
                 meshRef={deadPreyRef}
                 geo={orgGeo}
                 color={COLORS.prey.death}
-                emissiveIntensity={0}
-                shininess={0}
+                emissiveIntensity={0.1}
+                shininess={5}
                 onPointerMove={(e) => handlePointerMove(e, 'prey', true)}
                 onPointerOut={handlePointerOut}
             />
@@ -397,8 +391,8 @@ export const Entities: React.FC<EntitiesProps> = ({ engine }) => {
                 meshRef={deadPredRef}
                 geo={orgGeo}
                 color={COLORS.predator.death}
-                emissiveIntensity={0}
-                shininess={0}
+                emissiveIntensity={0.1}
+                shininess={5}
                 onPointerMove={(e) => handlePointerMove(e, 'predator', true)}
                 onPointerOut={handlePointerOut}
             />

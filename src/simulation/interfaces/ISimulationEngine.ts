@@ -182,4 +182,10 @@ export interface ISimulationEngine {
    * Resume simulation.
    */
   resume(): void;
+
+  /**
+   * Set simulation speed multiplier.
+   * @param speed - Speed multiplier (1.0 is normal, 0 is paused)
+   */
+  setSpeed(speed: number): void;
 }
