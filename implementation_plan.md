@@ -47,3 +47,71 @@
 - Новонароджені помітно менші та доростають до adult за енергією+віком.
 - Нові поля доступні в діагностиці.
 - Всі тести/перевірки проходять.
+
+---
+
+# Implementation Plan: Повний QA-прогін + користувацька UI-перевірка + production-risk аналіз
+
+## Контекст
+Користувач запросив повний прогін доступних тестів/quality gates, перевірку UI очима користувача через browser automation та аналітичний висновок у форматі 4×Top-3.
+
+## План виконання
+1. Перевірити можливість синхронізації з `dev` (fetch + наявність локальної/remote гілки).
+2. Запустити доступні перевірки: lint, typecheck, unit tests, build, coverage.
+3. Підняти локальний dev-сервер і провести browser-driven UI smoke.
+4. Зафіксувати screenshot-артефакт і підготувати деталізований звіт.
+5. Сформувати 4 пріоритизовані Top-3 з фокусом на production-ризиках.
+
+## Артефакти
+- `docs/TESTING_REPORT_2026-03-15.md`
+- оновлення `docs/OPTIMIZATION_PLAN.md`
+- оновлення `walkthrough.md`
+- оновлення `task.md`
+
+---
+
+# Implementation Plan: Production-impact improvements після QA (2026-03-15)
+
+## Реалізаційний scope
+1. **Performance**
+   - Декомпозиція `SimulationEngine.update()` на локальні pipeline-етапи.
+   - Зменшення шуму команд у `EngineProxy` (dedup `setSpeed`, dedup loop commands, batched `setConfig`).
+   - Lazy-loading важких UI-модулів (`SettingsPanel`, `DiagnosticsModal`) для зниження pressure initial bundle.
+2. **Refactoring / Contract gaps**
+   - Реалізація `exportState`/`importState` у proxy+worker контракті замість `not implemented`.
+   - Посилення типізації async payload у proxy.
+3. **UI/UX**
+   - Явні стани керування симуляцією (`run/pause/stop`) з disabled-state.
+   - Безпечні clamp-обмеження для налаштувань симуляції.
+   - Empty/degraded state для графіків діагностики при відсутності метрик.
+4. **Fault-tolerance / ecosystem balance**
+   - Fail-safe guards: pause при підтвердженому extinction, recovery spawn при тривалому zero-food.
+   - Негативні unit-тести для proxy state-sync сценаріїв.
+
+## Валідація
+- `pnpm run typecheck`
+- `pnpm exec vitest run`
+- `pnpm run build`
+- `pnpm run lint` (із фіксацією залишкового debt)
+- `pnpm run test:coverage -- --run` (best effort)
+- browser-driven UI smoke + screenshot
+
+---
+
+# Implementation Plan: Merge verification pass (2026-03-15)
+
+## Scope
+1. Перевірити order-safe поведінку `EngineProxy` batching/dedup.
+2. Підтвердити порядок system pipeline після декомпозиції `Engine.update`.
+3. Перевірити lazy-loaded UI в контексті `SimulationContext`.
+4. Додати unit-тест інваріанту `state === import(export(state))` і виправити persistence за потреби.
+
+---
+
+# Implementation Plan: Stabilization pass (merge-readiness)
+
+## Scope (без розширення етапу)
+1. Diff-focused self-review ключових файлів поточного PR.
+2. Локальний hardening race-sensitive місць у batching/flush `EngineProxy`.
+3. Додаткові unit-тести на запитані послідовності команд і persistence repeat cycle.
+4. Повторна валідація typecheck/tests/build/lint/coverage-attempt.
