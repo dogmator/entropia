@@ -23,6 +23,8 @@ import { logger } from '@/core';
 import { EngineProxy, isFood } from '@/simulation';
 import type { IEntityInfo, ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 
+import { calculateNextFpsState, createInitialFpsState } from './fps';
+
 // ============================================================================
 // CONSTANTS & TYPES
 // ============================================================================
@@ -33,6 +35,57 @@ const MS_PER_SECOND = 1000;
 // ============================================================================
 // HELPERS
 // ============================================================================
+
+
+type StoredNumberOptions = {
+    key: string;
+    min: number;
+    max: number;
+    fallback: number;
+};
+
+const getStoredNumber = ({ key, min, max, fallback }: StoredNumberOptions): number => {
+    const saved = localStorage.getItem(key);
+    if (!saved) return fallback;
+
+    const parsed = parseFloat(saved);
+    return Math.max(min, Math.min(max, parsed));
+};
+
+const getStoredBoolean = (key: string, fallback: boolean): boolean => {
+    const saved = localStorage.getItem(key);
+    return saved ? saved === 'true' : fallback;
+};
+
+
+const getHistoryUpdateFrequency = (speed: number): number => {
+    const normalizedSpeed = speed > 1 ? speed : 1;
+    return Math.max(1, Math.floor(UI_CONFIG.updateFrequency / normalizedSpeed));
+};
+
+const shouldLogTickStats = (tickCounter: number): boolean => tickCounter % UI_CONTROLS.SERVER_LOG_INTERVAL === 0;
+
+
+const createStatsWithPerf = (engineStats: SimulationStats, frameTime: number, currentFps: number): SimulationStats => ({
+    ...engineStats,
+    performance: {
+        fps: currentFps,
+        tps: engineStats.performance?.tps || 0,
+        frameTime: Number(frameTime.toFixed(FIXED_PRECISION)),
+        simulationTime: engineStats.performance?.simulationTime || 0,
+        entityCount: engineStats.performance?.entityCount || 0,
+        drawCalls: engineStats.performance?.drawCalls || 0,
+    }
+});
+
+const appendHistoryPoint = (
+    historyRef: React.MutableRefObject<PopulationDataPoint[]>,
+    setHistory: React.Dispatch<React.SetStateAction<PopulationDataPoint[]>>,
+    dataPoint: PopulationDataPoint
+): void => {
+    historyRef.current = [...historyRef.current, dataPoint].slice(-UI_CONFIG.historyLength);
+    setHistory([...historyRef.current]);
+};
 
 /**
  * Utility to log hover events.
@@ -112,37 +165,31 @@ const isCameraDiff = (last: CameraState, curr: CameraState) => {
  * Hook for managing simulation settings and their persistence.
  */
 const useSimulationSettings = (engine: ISimulationEngine) => {
-    const [worldScale, setWorldScaleState] = useState<number>(() => {
-        const saved = localStorage.getItem(UI_CONTROLS.WORLD_SCALE.STORAGE_KEY);
-        if (saved) {
-            const parsed = parseFloat(saved);
-            return Math.max(UI_CONTROLS.WORLD_SCALE.MIN, Math.min(UI_CONTROLS.WORLD_SCALE.MAX, parsed));
-        }
-        return UI_CONTROLS.WORLD_SCALE.DEFAULT;
-    });
+    const [worldScale, setWorldScaleState] = useState<number>(() => getStoredNumber({
+        key: UI_CONTROLS.WORLD_SCALE.STORAGE_KEY,
+        min: UI_CONTROLS.WORLD_SCALE.MIN,
+        max: UI_CONTROLS.WORLD_SCALE.MAX,
+        fallback: UI_CONTROLS.WORLD_SCALE.DEFAULT
+    }));
 
-    const [speed, setSpeedState] = useState<number>(() => {
-        const saved = localStorage.getItem(UI_CONTROLS.SPEED.STORAGE_KEY);
-        if (saved) {
-            const parsed = parseFloat(saved);
-            return Math.max(UI_CONTROLS.SPEED.MIN, Math.min(UI_CONTROLS.SPEED.MAX, parsed));
-        }
-        return UI_CONTROLS.SPEED.DEFAULT;
-    });
+    const [speed, setSpeedState] = useState<number>(() => getStoredNumber({
+        key: UI_CONTROLS.SPEED.STORAGE_KEY,
+        min: UI_CONTROLS.SPEED.MIN,
+        max: UI_CONTROLS.SPEED.MAX,
+        fallback: UI_CONTROLS.SPEED.DEFAULT
+    }));
 
-    const [autoRotate, setAutoRotateState] = useState<boolean>(() => {
-        const saved = localStorage.getItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_ENABLED);
-        return saved ? saved === 'true' : CAMERA.AUTO_ROTATE.ENABLED;
-    });
+    const [autoRotate, setAutoRotateState] = useState<boolean>(() => getStoredBoolean(
+        UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_ENABLED,
+        CAMERA.AUTO_ROTATE.ENABLED
+    ));
 
-    const [autoRotateSpeed, setAutoRotateSpeedState] = useState<number>(() => {
-        const saved = localStorage.getItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED);
-        if (saved) {
-            const parsed = parseFloat(saved);
-            return Math.max(CAMERA.AUTO_ROTATE.SPEED_MIN, Math.min(CAMERA.AUTO_ROTATE.SPEED_MAX, parsed));
-        }
-        return CAMERA.AUTO_ROTATE.SPEED;
-    });
+    const [autoRotateSpeed, setAutoRotateSpeedState] = useState<number>(() => getStoredNumber({
+        key: UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED,
+        min: CAMERA.AUTO_ROTATE.SPEED_MIN,
+        max: CAMERA.AUTO_ROTATE.SPEED_MAX,
+        fallback: CAMERA.AUTO_ROTATE.SPEED
+    }));
 
     const setWorldScale = useCallback((val: number) => {
         setWorldScaleState(val);
@@ -217,7 +264,7 @@ const useEngineSync = (engine: ISimulationEngine, speed: number, worldScale: num
     // Remote Commands
     useEffect(() => {
         const unsubscribe = logger.subscribeToCommands((cmd) => {
-            if (cmd.action === 'RELOAD') {
+            if (cmd['action'] === 'RELOAD') {
                 window.location.reload();
             }
         });
@@ -229,20 +276,21 @@ const useEngineSync = (engine: ISimulationEngine, speed: number, worldScale: num
 
 
 const useFpsCalculator = () => {
-    const fpsRef = useRef({ frames: 0, lastUpdate: performance.now(), current: 0 });
+    const fpsRef = useRef(createInitialFpsState(0));
 
     const updateFps = useCallback(() => {
         const now = performance.now();
-        fpsRef.current.frames++;
-        if (now - fpsRef.current.lastUpdate >= MS_PER_SECOND) {
-            fpsRef.current.current = Math.round((fpsRef.current.frames * MS_PER_SECOND) / (now - fpsRef.current.lastUpdate));
-            fpsRef.current.frames = 0;
-            fpsRef.current.lastUpdate = now;
+
+        if (fpsRef.current.lastUpdate === 0) {
+            fpsRef.current = createInitialFpsState(now);
+            return fpsRef.current.current;
         }
+
+        fpsRef.current = calculateNextFpsState(fpsRef.current, now, MS_PER_SECOND);
         return fpsRef.current.current;
     }, []);
 
-    return { updateFps, currentFps: fpsRef.current.current };
+    return { updateFps };
 };
 
 /**
@@ -268,35 +316,25 @@ const useSimulationStats = (engine: ISimulationEngine, speed: number) => {
             const currentFps = updateFps();
 
             const engineStats = event.stats;
-            const statsWithPerf: SimulationStats = {
-                ...engineStats,
-                performance: {
-                    fps: currentFps,
-                    tps: engineStats.performance?.tps || 0,
-                    frameTime: Number(frameTime.toFixed(FIXED_PRECISION)),
-                    simulationTime: engineStats.performance?.simulationTime || 0,
-                    entityCount: engineStats.performance?.entityCount || 0,
-                    drawCalls: engineStats.performance?.drawCalls || 0,
-                }
-            };
-
-            setStats(statsWithPerf);
+            setStats(createStatsWithPerf(engineStats, frameTime, currentFps));
             tickCounter++;
 
-            const updateFreq = Math.max(1, Math.floor(UI_CONFIG.updateFrequency / (speed > 1 ? speed : 1)));
+            const updateFreq = getHistoryUpdateFrequency(speed);
             if (tickCounter % updateFreq === 0) {
-                const newData = { time: tickCounter, prey: event.stats.preyCount, pred: event.stats.predatorCount };
-                historyRef.current = [...historyRef.current, newData].slice(-UI_CONFIG.historyLength);
-                setHistory([...historyRef.current]);
+                appendHistoryPoint(historyRef, setHistory, {
+                    time: tickCounter,
+                    prey: event.stats.preyCount,
+                    pred: event.stats.predatorCount,
+                });
             }
 
-            if (tickCounter % UI_CONTROLS.SERVER_LOG_INTERVAL === 0) {
+            if (shouldLogTickStats(tickCounter)) {
                 logger.info('Stats', 'Engine', { tick: tickCounter, q: { prey: event.stats.preyCount, pred: event.stats.predatorCount } });
             }
         });
 
         return () => unsubscribe();
-    }, [engine, speed]);
+    }, [engine, speed, updateFps]);
 
     const resetHistory = useCallback(() => {
         historyRef.current = [];
