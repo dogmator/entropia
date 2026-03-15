@@ -118,6 +118,7 @@ docker compose up -d
 - [План Рефакторингу](./docs/REFACTORING_PLAN.md) — Детальний план модернізації архітектури.
 - [Метрики якості проекту](./docs/QUALITY_METRICS.md) — Ключові показники стабільності коду.
 - [Оптимізаційний план](docs/OPTIMIZATION_PLAN.md)
+- [Звіт про тестування 2026-03-15](docs/TESTING_REPORT_2026-03-15.md)
 - [Принципи проекту для агентів](AGENTS.md)
 
 ## 🧪 Refactoring Update: Academic Logging Hardening (32+ fixes)
