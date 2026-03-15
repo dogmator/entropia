@@ -17,6 +17,8 @@ import * as THREE from 'three';
 import { COLORS, PARTICLE_CONSTANTS, RENDER } from '@/config';
 import type { Vector3 } from '@/types';
 
+const POW_2 = 2;
+
 import {
   particleFragmentShader,
   particleVertexShader,
@@ -162,6 +164,7 @@ export class ParticleSystem {
       p.y = position.y;
       p.z = position.z;
       p.vx = Math.cos(angle) * speed;
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       p.vy = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * PARTICLE_CONSTANTS.BIRTH_Y_VARIANCE;
       p.vz = Math.sin(angle) * speed;
       p.life = PARTICLE_CONSTANTS.BIRTH_LIFE;
@@ -383,16 +386,22 @@ export class ParticleSystem {
 
     if (explosive) {
       // Генерація ізотропного сферичного розподілу векторів швидкості за методом Марсальї
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       const theta = Math.random() * PARTICLE_CONSTANTS.TWO_PI;
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       const phi = Math.acos(PARTICLE_CONSTANTS.SPHERE_PHI_MULTIPLIER * Math.random() - PARTICLE_CONSTANTS.SPHERE_RANDOM_OFFSET);
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       const r = speed * (PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET + Math.random() * PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET);
 
       p.vx = r * Math.sin(phi) * Math.cos(theta);
       p.vy = r * Math.sin(phi) * Math.sin(theta);
       p.vz = r * Math.cos(phi);
     } else {
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       p.vx = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * speed;
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       p.vy = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * speed;
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       p.vz = (Math.random() - PARTICLE_CONSTANTS.VELOCITY_CENTER_OFFSET) * speed;
     }
 
@@ -429,6 +438,7 @@ interface Trail {
   line: THREE.Line;
   maxLength: number;
   needsRebuild: boolean;
+  lastFrameId: number;
 }
 
 /**
@@ -438,6 +448,7 @@ export class TrailSystem {
   private readonly scene: THREE.Scene;
   private readonly trails: Map<string, Trail> = new Map();
   private readonly maxTrailLength: number;
+  private currentFrameId: number = 0;
 
   constructor(scene: THREE.Scene, maxTrailLength: number = RENDER.maxTrailParticles) {
     this.scene = scene;
@@ -470,9 +481,9 @@ export class TrailSystem {
       const lastPos = trail.positions[trail.positions.length - 1];
       if (lastPos) {
         const distSq =
-          (position.x - lastPos.x) ** 2 +
-          (position.y - lastPos.y) ** 2 +
-          (position.z - lastPos.z) ** 2;
+          (position.x - lastPos.x) ** POW_2 +
+          (position.y - lastPos.y) ** POW_2 +
+          (position.z - lastPos.z) ** POW_2;
 
         if (distSq > PARTICLE_CONSTANTS.TRAIL_TELEPORT_THRESHOLD_SQ) {
           trail.positions.length = 0;
@@ -480,6 +491,8 @@ export class TrailSystem {
         }
       }
     }
+
+    trail.lastFrameId = this.currentFrameId;
 
     // Реєстрація нового положення в ланцюгу трасування
     trail.positions.push(new THREE.Vector3(position.x, position.y, position.z));
@@ -520,6 +533,27 @@ export class TrailSystem {
     this.trails.forEach((_trail, id) => {
       this.removeTrail(id);
     });
+  }
+
+  /**
+   * Маркування початку кадру для механізму очищення старіх слідів.
+   */
+  public beginFrame(): void {
+    this.currentFrameId++;
+  }
+
+  /**
+   * Видалення слідів, які не були оновлені в поточному кадрі.
+   */
+  public prune(): void {
+    const idsToRemove: string[] = [];
+    this.trails.forEach((trail, id) => {
+      if (trail.lastFrameId !== this.currentFrameId) {
+        idsToRemove.push(id);
+      }
+    });
+
+    idsToRemove.forEach(id => this.removeTrail(id));
   }
 
   /**
@@ -575,6 +609,7 @@ export class TrailSystem {
       line,
       maxLength: this.maxTrailLength,
       needsRebuild: true,
+      lastFrameId: this.currentFrameId,
     };
   }
 

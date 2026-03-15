@@ -212,6 +212,13 @@ export class CosmicBackground {
   private starMaterial: THREE.ShaderMaterial | null = null;
   private nebulaMaterial: THREE.ShaderMaterial | null = null;
 
+  // Nebula palette constants
+  private static readonly NEBULA_COLORS = {
+    PURPLE: 0x1a0a2e,
+    INDIGO: 0x16213e,
+    BLUE: 0x0f3460,
+  } as const;
+
   constructor(scene: THREE.Scene) {
     this.scene = scene;
     this.createStarField();
@@ -239,8 +246,11 @@ export class CosmicBackground {
     const radius = COSMIC_BACKGROUND_CONSTANTS.STAR_RADIUS;
     for (let i = 0; i < starCount; i++) {
       // Побудова рівномірного розподілу на сфері з використанням полярних координат
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       const theta = Math.random() * COSMIC_BACKGROUND_CONSTANTS.TWO_PI;
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       const phi = Math.acos(COSMIC_BACKGROUND_CONSTANTS.VECTOR2_MULTIPLIER * Math.random() - COSMIC_BACKGROUND_CONSTANTS.SINGLE_COMPONENT);
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       const r = radius * (COSMIC_BACKGROUND_CONSTANTS.STAR_RADIUS_MIN_FACTOR + Math.random() * COSMIC_BACKGROUND_CONSTANTS.STAR_RADIUS_VARIATION);
 
       positions[i * COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS] = r * Math.sin(phi) * Math.cos(theta);
@@ -248,13 +258,17 @@ export class CosmicBackground {
       positions[i * COSMIC_BACKGROUND_CONSTANTS.VECTOR3_COMPONENTS + COSMIC_BACKGROUND_CONSTANTS.VECTOR2_MULTIPLIER] = r * Math.cos(phi);
 
       // Визначення масштабу: експоненціальний розподіл (домінування малих об'єктів)
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       sizes[i] = Math.pow(Math.random(), COSMIC_BACKGROUND_CONSTANTS.STAR_SIZE_POWER) * COSMIC_BACKGROUND_CONSTANTS.STAR_SIZE_MULTIPLIER + COSMIC_BACKGROUND_CONSTANTS.STAR_SIZE_BASE;
 
       // Встановлення базової фотометричної яскравості
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       brightnesses[i] = COSMIC_BACKGROUND_CONSTANTS.STAR_BRIGHTNESS_BASE + Math.random() * COSMIC_BACKGROUND_CONSTANTS.STAR_BRIGHTNESS_VARIATION;
 
       // Параметризація характеристик мерехтіння
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       twinkleSpeeds[i] = COSMIC_BACKGROUND_CONSTANTS.STAR_TWINKLE_BASE + Math.random() * COSMIC_BACKGROUND_CONSTANTS.STAR_TWINKLE_VARIATION;
+      /* eslint-disable-next-line sonarjs/pseudo-random */
       twinkleOffsets[i] = Math.random() * COSMIC_BACKGROUND_CONSTANTS.TWO_PI;
     }
 
@@ -290,9 +304,9 @@ export class CosmicBackground {
     const geometry = new THREE.SphereGeometry(COSMIC_BACKGROUND_CONSTANTS.NEBULA_RADIUS, COSMIC_BACKGROUND_CONSTANTS.NEBULA_SEGMENTS, COSMIC_BACKGROUND_CONSTANTS.NEBULA_SEGMENTS);
 
     // Визначення спектральної палітри туманності
-    const color1 = new THREE.Color(0x1a0a2e); // Спектральний фіолетовий
-    const color2 = new THREE.Color(0x16213e); // Глибокий індиго
-    const color3 = new THREE.Color(0x0f3460); // Насичений небесно-синій
+    const color1 = new THREE.Color(CosmicBackground.NEBULA_COLORS.PURPLE); // Спектральний фіолетовий
+    const color2 = new THREE.Color(CosmicBackground.NEBULA_COLORS.INDIGO); // Глибокий індиго
+    const color3 = new THREE.Color(CosmicBackground.NEBULA_COLORS.BLUE); // Насичений небесно-синій
 
     this.nebulaMaterial = new THREE.ShaderMaterial({
       uniforms: {

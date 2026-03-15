@@ -7,8 +7,9 @@ const SQUARED_UNIT_THRESHOLD_M = 1_000_000;
 const SQUARED_UNIT_THRESHOLD_K = 1_000;
 const DECIMALS_AREA_M = 2;
 const DECIMALS_AREA_K = 1;
-const ZOOM_PERCENTAGE_SCALE = 50;
+const ZOOM_PERCENTAGE_SCALE = 10;
 const MAX_PERCENTAGE = 100;
+const FIXED_PRECISION_ZOOM = 2;
 const DEFAULT_GRID_EFFICIENCY = 95;
 
 const formatNumber = (value: number | undefined, defaultValue: number, decimals: number = 0) =>
@@ -39,61 +40,80 @@ const getCameraTarget = (stats: SimulationStats) => ({
     z: formatNumber(stats.targetZ, 0, 0),
 });
 
-export const WorldGeometry: React.FC<{ currentStats: SimulationStats }> = ({ currentStats }) => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400 uppercase tracking-widest">Розмір світу</span>
-                <span className="text-lg font-mono font-bold text-blue-400">
-                    {formatNumber(currentStats.worldSize, WORLD_SIZE)}×{formatNumber(currentStats.worldSize, WORLD_SIZE)}
-                </span>
-            </div>
-            <div className="text-xs text-gray-500">
-                Площа: {getWorldArea(currentStats.worldSize)}
-            </div>
+const WorldSizeCard = ({ currentStats }: { currentStats: SimulationStats }) => (
+    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+        <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-400 uppercase tracking-widest">Розмір світу</span>
+            <span className="text-lg font-mono font-bold text-blue-400">
+                {formatNumber(currentStats.worldSize, WORLD_SIZE)}×{formatNumber(currentStats.worldSize, WORLD_SIZE)}
+            </span>
         </div>
+        <div className="text-xs text-gray-500">
+            Площа: {getWorldArea(currentStats.worldSize)}
+        </div>
+    </div>
+);
 
+const CameraPositionCard = ({ currentStats }: { currentStats: SimulationStats }) => {
+    const pos = getCameraPosition(currentStats);
+    return (
         <div className="bg-white/5 rounded-xl p-4 border border-white/10">
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-400 uppercase tracking-widest">Позиція камери</span>
                 <span className="text-lg font-mono font-bold text-emerald-400">
-                    ({getCameraPosition(currentStats).x}, {getCameraPosition(currentStats).y}, {getCameraPosition(currentStats).z})
+                    ({pos.x}, {pos.y}, {pos.z})
                 </span>
             </div>
             <div className="text-xs text-gray-500">
-                X: {getCameraPosition(currentStats).x}, Y: {getCameraPosition(currentStats).y}, Z: {getCameraPosition(currentStats).z}
+                X: {pos.x}, Y: {pos.y}, Z: {pos.z}
             </div>
         </div>
+    );
+};
 
+const CameraTargetCard = ({ currentStats }: { currentStats: SimulationStats }) => {
+    const target = getCameraTarget(currentStats);
+    return (
         <div className="bg-white/5 rounded-xl p-4 border border-white/10">
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-400 uppercase tracking-widest">Ціль камери</span>
                 <span className="text-lg font-mono font-bold text-blue-400">
-                    ({getCameraTarget(currentStats).x}, {getCameraTarget(currentStats).y}, {getCameraTarget(currentStats).z})
+                    ({target.x}, {target.y}, {target.z})
                 </span>
             </div>
             <div className="text-xs text-gray-500">
-                X: {getCameraTarget(currentStats).x}, Y: {getCameraTarget(currentStats).y}, Z: {getCameraTarget(currentStats).z}
+                X: {target.x}, Y: {target.y}, Z: {target.z}
             </div>
         </div>
+    );
+};
 
-        <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400 uppercase tracking-widest">Масштаб</span>
-                <span className="text-lg font-mono font-bold text-purple-400">
-                    {formatNumber(currentStats.zoom, ENGINE_CONSTANTS.DEFAULT_ZOOM, 2)}×
-                </span>
-            </div>
-            <div className="text-xs text-gray-500">
-                Дистанція: {formatNumber(currentStats.cameraDistance, 0, 0)}
-            </div>
-            <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden">
-                <div
-                    className="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-300"
-                    style={{ width: `${Math.min((currentStats.zoom ?? ENGINE_CONSTANTS.DEFAULT_ZOOM) * ZOOM_PERCENTAGE_SCALE, MAX_PERCENTAGE)}%` }}
-                />
-            </div>
+const ScaleCard = ({ currentStats }: { currentStats: SimulationStats }) => (
+    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+        <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-gray-400 uppercase tracking-widest">Масштаб</span>
+            <span className="text-lg font-mono font-bold text-purple-400">
+                {formatNumber(currentStats.zoom, ENGINE_CONSTANTS.DEFAULT_ZOOM, FIXED_PRECISION_ZOOM)}×
+            </span>
         </div>
+        <div className="text-xs text-gray-500">
+            Дистанція: {formatNumber(currentStats.cameraDistance, 0, 0)}
+        </div>
+        <div className="w-full h-2 bg-black/50 rounded-full overflow-hidden">
+            <div
+                className="h-full bg-gradient-to-r from-purple-600 to-purple-400 transition-all duration-300"
+                style={{ width: `${Math.min((currentStats.zoom ?? ENGINE_CONSTANTS.DEFAULT_ZOOM) * ZOOM_PERCENTAGE_SCALE, MAX_PERCENTAGE)}%` }}
+            />
+        </div>
+    </div>
+);
+
+export const WorldGeometry: React.FC<{ currentStats: SimulationStats }> = ({ currentStats }) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <WorldSizeCard currentStats={currentStats} />
+        <CameraPositionCard currentStats={currentStats} />
+        <CameraTargetCard currentStats={currentStats} />
+        <ScaleCard currentStats={currentStats} />
 
         <div className="bg-white/5 rounded-xl p-4 border border-white/10">
             <div className="flex items-center justify-between mb-2">

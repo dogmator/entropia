@@ -1,55 +1,150 @@
-
+/**
+ * SimulationContext - Global state management for the simulation.
+ *
+ * Responsibilities:
+ * - Engine lifecycle management (init, reset, destroy)
+ * - Global state (speed, scale, camera, stats)
+ * - Event handling (ticks, keyboard shortcuts)
+ * - Persistence (localStorage)
+ */
 import type { PopulationDataPoint, SimulationStats } from '@shared/types';
 import type { CameraState } from '@ui/hooks';
 import type { PropsWithChildren } from 'react';
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { UI_CONFIG } from '@/config';
+import {
+    CAMERA,
+    ENGINE_CONSTANTS,
+    INITIAL_SIMULATION_STATS,
+    UI_CONFIG,
+    UI_CONTROLS
+} from '@/config';
 import { logger } from '@/core';
-import type { Food, Obstacle, Organism } from '@/simulation';
-import { isFood, SimulationEngine } from '@/simulation';
+import { EngineProxy, isFood } from '@/simulation';
+import type { IEntityInfo, ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 
-interface SimulationContextValue {
-    engine: SimulationEngine;
-    stats: SimulationStats;
-    history: PopulationDataPoint[];
-    speed: number;
-    setSpeed: (val: number | ((prev: number) => number)) => void;
-    worldScale: number;
-    setWorldScale: (val: number) => void;
-    isLoading: boolean;
-    onReset: () => void;
-    cameraState: CameraState;
-    setCameraState: (state: CameraState) => void;
-    hoveredEntity: Organism | Food | Obstacle | null;
-    setHoveredEntity: (entity: Organism | Food | Obstacle | null) => void;
-    tooltipVisible: boolean;
-    tooltipPos: { x: number; y: number };
-    setTooltipPos: (pos: { x: number; y: number }) => void;
-}
+import { calculateNextFpsState, createInitialFpsState } from './fps';
 
-const SimulationContext = createContext<SimulationContextValue | null>(null);
+// ============================================================================
+// CONSTANTS & TYPES
+// ============================================================================
+
+const FIXED_PRECISION = 2;
+const MS_PER_SECOND = 1000;
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+
+type StoredNumberOptions = {
+    key: string;
+    min: number;
+    max: number;
+    fallback: number;
+};
+
+const getStoredNumber = ({ key, min, max, fallback }: StoredNumberOptions): number => {
+    const saved = localStorage.getItem(key);
+    if (!saved) return fallback;
+
+    const parsed = parseFloat(saved);
+    return Math.max(min, Math.min(max, parsed));
+};
+
+const getStoredBoolean = (key: string, fallback: boolean): boolean => {
+    const saved = localStorage.getItem(key);
+    return saved ? saved === 'true' : fallback;
+};
+
+
+const getHistoryUpdateFrequency = (speed: number): number => {
+    const normalizedSpeed = speed > 1 ? speed : 1;
+    return Math.max(1, Math.floor(UI_CONFIG.updateFrequency / normalizedSpeed));
+};
+
+const shouldLogTickStats = (tickCounter: number): boolean => tickCounter % UI_CONTROLS.SERVER_LOG_INTERVAL === 0;
+
+
+const createStatsWithPerf = (engineStats: SimulationStats, frameTime: number, currentFps: number): SimulationStats => ({
+    ...engineStats,
+    performance: {
+        fps: currentFps,
+        tps: engineStats.performance?.tps || 0,
+        frameTime: Number(frameTime.toFixed(FIXED_PRECISION)),
+        simulationTime: engineStats.performance?.simulationTime || 0,
+        entityCount: engineStats.performance?.entityCount || 0,
+        drawCalls: engineStats.performance?.drawCalls || 0,
+    }
+});
+
+const appendHistoryPoint = (
+    historyRef: React.MutableRefObject<PopulationDataPoint[]>,
+    setHistory: React.Dispatch<React.SetStateAction<PopulationDataPoint[]>>,
+    dataPoint: PopulationDataPoint
+): void => {
+    historyRef.current = [...historyRef.current, dataPoint].slice(-UI_CONFIG.historyLength);
+    setHistory([...historyRef.current]);
+};
 
 /**
- * Утиліта для логування подій наведення на сутності.
- * Винесена для чистоти компонента.
+ * Utility to log hover events.
  */
-const logHoverEvent = (entity: Organism | Food | Obstacle, previousEntity: Organism | Food | Obstacle | null) => {
+const logHoverEvent = (entity: IEntityInfo, previousEntity: IEntityInfo | null) => {
     if (entity === previousEntity) return;
 
     const isFoodItem = isFood(entity);
-    const source = isFoodItem ? 'Hover:Food' : 'Hover:Entity';
+    // Explicitly check for dead status if available on the object runtime
+    const isDead = 'isDead' in entity && (entity as { isDead?: boolean }).isDead === true;
 
-    // Debug hint для консолі браузера
-    console.debug(`[Hover] ${entity.type} ID: ${entity.id}`);
+    let source: string;
+    if (isFoodItem) {
+        source = 'Hover:Food';
+    } else if (isDead) {
+        source = 'Hover:DeadEntity';
+    } else {
+        source = 'Hover:Entity';
+    }
+
+    console.debug(`[Hover] ${entity.type} ID: ${entity.id} (Dead: ${isDead})`);
 
     logger.info(`Hovered over ${entity.type} (ID: ${entity.id})`, source, {
         id: entity.id,
         type: entity.type,
         position: entity.position,
-        isFood: isFoodItem
+        isFood: isFoodItem,
+        isDead
     });
 };
+
+interface SimulationContextValue {
+    engine: ISimulationEngine;
+    stats: SimulationStats;
+    history: PopulationDataPoint[];
+    speed: number;
+    setSpeed: (val: number | ((prev: number) => number)) => void;
+    onReset: () => void;
+    worldScale: number;
+    setWorldScale: (val: number) => void;
+    isLoading: boolean;
+    cameraState: CameraState;
+    setCameraState: (state: CameraState) => void;
+    hoveredEntity: IEntityInfo | null;
+    setHoveredEntity: (entity: IEntityInfo | null) => void;
+    tooltipVisible: boolean;
+    tooltipPos: { x: number; y: number };
+    setTooltipPos: (pos: { x: number; y: number }) => void;
+    autoRotate: boolean;
+    setAutoRotate: (val: boolean) => void;
+    autoRotateSpeed: number;
+    setAutoRotateSpeed: (val: number) => void;
+    simulationState: 'running' | 'paused' | 'stopped';
+    runSimulation: () => void;
+    pauseSimulation: () => void;
+    stopSimulation: () => void;
+}
+
+const SimulationContext = createContext<SimulationContextValue | null>(null);
 
 export const useSimulation = () => {
     const context = useContext(SimulationContext);
@@ -59,201 +154,252 @@ export const useSimulation = () => {
     return context;
 };
 
-export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) => {
-    /** Масштабний коефіцієнт світу (0.5x - 10.0x). */
-    const [worldScale, setWorldScale] = useState(1.0);
+const isCameraDiff = (last: CameraState, curr: CameraState) => {
+    const isP = last.position.x !== curr.position.x || last.position.y !== curr.position.y || last.position.z !== curr.position.z;
+    const isT = last.target.x !== curr.target.x || last.target.y !== curr.target.y || last.target.z !== curr.target.z;
+    const isO = last.zoom !== curr.zoom || last.distance !== curr.distance || last.fov !== curr.fov || last.aspect !== curr.aspect;
+    return isP || isT || isO;
+};
 
-    /** Ініціалізація та мемоїзація екземпляра симуляційного рушія. */
-    const engine = useMemo(() => new SimulationEngine(worldScale), [worldScale]);
+// ============================================================================
+// CUSTOM HOOKS
+// ============================================================================
 
-    /** Темпоральний масштаб симуляції (0x - 5x). */
-    const [speed, setSpeed] = useState(1);
+/**
+ * Hook for managing simulation settings and their persistence.
+ */
+const useSimulationSettings = (engine: ISimulationEngine) => {
+    const [worldScale, setWorldScaleState] = useState<number>(() => getStoredNumber({
+        key: UI_CONTROLS.WORLD_SCALE.STORAGE_KEY,
+        min: UI_CONTROLS.WORLD_SCALE.MIN,
+        max: UI_CONTROLS.WORLD_SCALE.MAX,
+        fallback: UI_CONTROLS.WORLD_SCALE.DEFAULT
+    }));
 
-    /** Стан камери в реальному часі. */
-    const [cameraState, setCameraState] = useState<CameraState>({
-        position: { x: 0, y: 0, z: 0 },
-        target: { x: 0, y: 0, z: 0 },
-        zoom: 1,
-        distance: 0,
-        fov: 60,
-        aspect: 1,
-        near: 0.1,
-        far: 5000,
-    });
+    const [speed, setSpeedState] = useState<number>(() => getStoredNumber({
+        key: UI_CONTROLS.SPEED.STORAGE_KEY,
+        min: UI_CONTROLS.SPEED.MIN,
+        max: UI_CONTROLS.SPEED.MAX,
+        fallback: UI_CONTROLS.SPEED.DEFAULT
+    }));
 
-    // Передаємо дані камери в Engine з ефективним дебаунсингом
-    const lastCameraStateRef = useRef<CameraState | null>(null);
+    const [autoRotate, setAutoRotateState] = useState<boolean>(() => getStoredBoolean(
+        UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_ENABLED,
+        CAMERA.AUTO_ROTATE.ENABLED
+    ));
+
+    const [autoRotateSpeed, setAutoRotateSpeedState] = useState<number>(() => getStoredNumber({
+        key: UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED,
+        min: CAMERA.AUTO_ROTATE.SPEED_MIN,
+        max: CAMERA.AUTO_ROTATE.SPEED_MAX,
+        fallback: CAMERA.AUTO_ROTATE.SPEED
+    }));
+
+    const setWorldScale = useCallback((val: number) => {
+        setWorldScaleState(val);
+        engine.updateWorldScale(val);
+    }, [engine]);
+
+    const setSpeed = useCallback((val: number | ((prev: number) => number)) => {
+        setSpeedState(prev => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            engine.setSpeed(next);
+            return next;
+        });
+    }, [engine]);
+
+    const setAutoRotate = useCallback((val: boolean) => setAutoRotateState(val), []);
+    const setAutoRotateSpeed = useCallback((val: number) => setAutoRotateSpeedState(val), []);
+
+    // Persistence
     useEffect(() => {
-        if (cameraState) {
-            // Ефективна перевірка змін камери
-            const lastState = lastCameraStateRef.current;
-            const hasChanges = !lastState ||
-                lastState.position.x !== cameraState.position.x ||
-                lastState.position.y !== cameraState.position.y ||
-                lastState.position.z !== cameraState.position.z ||
-                lastState.target.x !== cameraState.target.x ||
-                lastState.target.y !== cameraState.target.y ||
-                lastState.target.z !== cameraState.target.z ||
-                lastState.zoom !== cameraState.zoom ||
-                lastState.distance !== cameraState.distance ||
-                lastState.fov !== cameraState.fov ||
-                lastState.aspect !== cameraState.aspect;
+        localStorage.setItem(UI_CONTROLS.SPEED.STORAGE_KEY, speed.toString());
+        localStorage.setItem(UI_CONTROLS.WORLD_SCALE.STORAGE_KEY, worldScale.toString());
+        localStorage.setItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_ENABLED, autoRotate.toString());
+        localStorage.setItem(UI_CONTROLS.AUTO_ROTATE.STORAGE_KEY_SPEED, autoRotateSpeed.toString());
+    }, [speed, worldScale, autoRotate, autoRotateSpeed]);
 
-            if (hasChanges) {
-                lastCameraStateRef.current = cameraState;
-                engine.setCameraData(cameraState);
-            }
+    return {
+        worldScale, setWorldScale, speed, setSpeed,
+        autoRotate, setAutoRotate, autoRotateSpeed, setAutoRotateSpeed
+    };
+};
+
+/**
+ * Hook for managing engine lifecycle and state synchronization.
+ */
+const useEngineSync = (engine: ISimulationEngine, speed: number, worldScale: number) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [cameraState, setCameraState] = useState<CameraState>({ ...CAMERA.INITIAL_STATE });
+    const lastCameraStateRef = useRef<CameraState | null>(null);
+
+    // Engine Init
+    useEffect(() => {
+        engine.init(worldScale)
+            .then(() => setIsLoading(false))
+            .catch((err: unknown) => {
+                logger.error('Failed to init engine', 'SimulationContext', { err });
+                setIsLoading(false);
+            });
+
+        return () => engine.destroy?.();
+    }, [engine, worldScale]);
+
+    // Speed & Loop Sync
+    useEffect(() => {
+        engine.setSpeed(speed);
+        if (speed === 0) {
+            engine.pause();
+        } else {
+            engine.resume();
+        }
+    }, [speed, engine]);
+
+    // Camera Sync
+    useEffect(() => {
+        if (!cameraState) return;
+        const last = lastCameraStateRef.current;
+        if (!last || isCameraDiff(last, cameraState)) {
+            lastCameraStateRef.current = cameraState;
+            engine.setCameraData(cameraState.position, cameraState.target);
         }
     }, [cameraState, engine]);
 
-    /** Агрегована статистика симуляційного процесу. */
-    const [stats, setStats] = useState<SimulationStats>({
-        preyCount: 0,
-        predatorCount: 0,
-        foodCount: 0,
-        avgEnergy: 0,
-        avgPreyEnergy: 0,
-        avgPredatorEnergy: 0,
-        generation: 0,
-        maxGeneration: 0,
-        maxAge: 0,
-        totalDeaths: 0,
-        totalBirths: 0,
-        extinctionRisk: 0
-    });
-
-    /** Хронологічний реєстр популяційної динаміки для візуалізації графіків. */
-    const [history, setHistory] = useState<PopulationDataPoint[]>([]);
-
-    const [isLoading, setIsLoading] = useState(true);
-
-    /** Стан наведення на сутності. */
-    const [hoveredEntity, setHoveredEntityState] = useState<Organism | Food | Obstacle | null>(null);
-    const [tooltipVisible, setTooltipVisible] = useState(false);
-    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-
-    /** Обгортка для логування подій наведення. */
-    const setHoveredEntity = (entity: Organism | Food | Obstacle | null) => {
-        if (entity) {
-            logHoverEvent(entity, hoveredEntity);
-        }
-        setHoveredEntityState(entity);
-    };
-
-    /** Референс для зберігання історії без тригера рендерингу. */
-    const historyRef = useRef<PopulationDataPoint[]>([]);
-
+    // Remote Commands
     useEffect(() => {
-        setTooltipVisible(!!hoveredEntity);
-    }, [hoveredEntity]);
-
-    /** Метрики продуктивності системного рендерингу та логіки. */
-    const fpsCounter = useRef({ frames: 0, lastTime: performance.now(), fps: 60 });
-    const tpsCounter = useRef({ ticks: 0, lastTime: performance.now(), tps: 60 });
-    const frameTimestampRef = useRef(performance.now());
-
-    /** Ефект десеріалізації налаштувань користувача із локального сховища. */
-    useEffect(() => {
-        const savedSpeed = localStorage.getItem('entropia-speed');
-        if (savedSpeed) {
-            const parsedSpeed = parseFloat(savedSpeed);
-            setSpeed(Math.max(0, Math.min(5, parsedSpeed)));
-        }
-        const savedScale = localStorage.getItem('entropia-scale');
-        if (savedScale) {
-            const parsedScale = parseFloat(savedScale);
-            setWorldScale(Math.max(0.1, Math.min(10, parsedScale)));
-        }
-        // Імітація латентності завантажувача для забезпечення візуальної плавності переходів.
-        const timer = setTimeout(() => setIsLoading(false), 500);
-        return () => clearTimeout(timer);
+        const unsubscribe = logger.subscribeToCommands((cmd) => {
+            if (cmd['action'] === 'RELOAD') {
+                window.location.reload();
+            }
+        });
+        return () => unsubscribe();
     }, []);
 
-    /** Синхронізація темпоральних параметрів із персистентним сховищем. */
-    useEffect(() => {
-        localStorage.setItem('entropia-speed', speed.toString());
-        localStorage.setItem('entropia-scale', worldScale.toString());
-    }, [speed, worldScale]);
+    return { isLoading, setIsLoading, cameraState, setCameraState };
+};
 
-    /** Реєстрація підписки на події симуляційного рушія та обробка системних подій. */
+
+const useFpsCalculator = () => {
+    const fpsRef = useRef(createInitialFpsState(0));
+
+    const updateFps = useCallback(() => {
+        const now = performance.now();
+
+        if (fpsRef.current.lastUpdate === 0) {
+            fpsRef.current = createInitialFpsState(now);
+            return fpsRef.current.current;
+        }
+
+        fpsRef.current = calculateNextFpsState(fpsRef.current, now, MS_PER_SECOND);
+        return fpsRef.current.current;
+    }, []);
+
+    return { updateFps };
+};
+
+/**
+ * Hook for managing simulation stats and history.
+ */
+const useSimulationStats = (engine: ISimulationEngine, speed: number) => {
+    const [stats, setStats] = useState<SimulationStats>({ ...INITIAL_SIMULATION_STATS });
+    const [history, setHistory] = useState<PopulationDataPoint[]>([]);
+    const historyRef = useRef<PopulationDataPoint[]>([]);
+
+    const frameTimestampRef = useRef(performance.now());
+    const { updateFps } = useFpsCalculator();
+
     useEffect(() => {
         let tickCounter = 0;
         const unsubscribe = engine.addEventListener((event) => {
-            if (event.type === 'TickUpdated') {
-                const now = performance.now();
-                fpsCounter.current.frames++;
-                tpsCounter.current.ticks++;
+            if (event.type !== 'TickUpdated') return;
 
-                const elapsedFps = now - fpsCounter.current.lastTime;
-                const elapsedTps = now - tpsCounter.current.lastTime;
+            const now = performance.now();
+            const frameTime = now - frameTimestampRef.current;
+            frameTimestampRef.current = now;
 
-                // Обчислення частоти кадрів (FPS)
-                if (elapsedFps >= 1000) {
-                    fpsCounter.current.fps = Math.round((fpsCounter.current.frames * 1000) / elapsedFps);
-                    fpsCounter.current.frames = 0;
-                    fpsCounter.current.lastTime = now;
-                }
+            const currentFps = updateFps();
 
-                // Обчислення частоти обробки логіки (TPS)
-                if (elapsedTps >= 1000) {
-                    tpsCounter.current.tps = Math.round((tpsCounter.current.ticks * 1000) / elapsedTps);
-                    tpsCounter.current.ticks = 0;
-                    tpsCounter.current.lastTime = now;
-                }
+            const engineStats = event.stats;
+            setStats(createStatsWithPerf(engineStats, frameTime, currentFps));
+            tickCounter++;
 
-                const frameTime = now - frameTimestampRef.current;
-                frameTimestampRef.current = now;
+            const updateFreq = getHistoryUpdateFrequency(speed);
+            if (tickCounter % updateFreq === 0) {
+                appendHistoryPoint(historyRef, setHistory, {
+                    time: tickCounter,
+                    prey: event.stats.preyCount,
+                    pred: event.stats.predatorCount,
+                });
+            }
 
-                /** Формування розширеного об'єкта статистики з метриками продуктивності та геометричними даними. */
-                const engineStats = engine.getStatsWithWorldData();
-
-                // Використовуємо метрики продуктивності безпосередньо з двигуна, 
-                // якщо вони там є, або збагачуємо їх на стороні клієнта.
-                const statsWithPerformance: SimulationStats = {
-                    ...engineStats,
-                    performance: engineStats.performance || {
-                        fps: fpsCounter.current.fps,
-                        tps: tpsCounter.current.tps,
-                        frameTime: Number(frameTime.toFixed(2)),
-                        simulationTime: Number((event.deltaTime * 1000).toFixed(2)),
-                        entityCount: event.stats.preyCount + event.stats.predatorCount + event.stats.foodCount,
-                        drawCalls: 5, // Базові категорії об'єктів
-                    }
-                };
-
-                setStats(statsWithPerformance);
-
-                tickCounter++;
-                /** Дискретизація оновлення історії популяції згідно з конфігурацією інтерфейсу. */
-                if (tickCounter % Math.max(1, Math.floor(UI_CONFIG.updateFrequency / (speed > 1 ? speed : 1))) === 0) {
-                    const newData: PopulationDataPoint = {
-                        time: tickCounter,
-                        prey: event.stats.preyCount,
-                        pred: event.stats.predatorCount
-                    };
-                    historyRef.current = [...historyRef.current, newData].slice(-UI_CONFIG.historyLength);
-                    setHistory([...historyRef.current]);
-                }
+            if (shouldLogTickStats(tickCounter)) {
+                logger.info('Stats', 'Engine', { tick: tickCounter, q: { prey: event.stats.preyCount, pred: event.stats.predatorCount } });
             }
         });
 
-        /** Делегування обробки глобальних подій клавіатури (Hotkeys). */
+        return () => unsubscribe();
+    }, [engine, speed, updateFps]);
+
+    const resetHistory = useCallback(() => {
+        historyRef.current = [];
+        setHistory([]);
+    }, []);
+
+    return { stats, history, resetHistory };
+};
+
+/**
+ * Hook for managing hover and tooltip state.
+ */
+const useHoverState = () => {
+    const [hoveredEntity, setHoveredEntityState] = useState<IEntityInfo | null>(null);
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+
+    const setHoveredEntity = useCallback((entity: IEntityInfo | null) => {
+        if (entity) logHoverEvent(entity, hoveredEntity);
+        setHoveredEntityState(entity);
+    }, [hoveredEntity]);
+
+    const tooltipVisible = !!hoveredEntity;
+
+    return {
+        hoveredEntity,
+        setHoveredEntity,
+        tooltipVisible,
+        tooltipPos,
+        setTooltipPos
+    };
+};
+
+/**
+ * Hook for managing global hotkeys.
+ */
+const SPEED_KEYS = {
+    PAUSE: 0,
+    NORMAL: 1,
+    FAST: 2,
+    TURBO: 5,
+} as const;
+
+/**
+ * Hook for managing global hotkeys.
+ */
+const useHotkeys = (setSpeed: (val: number | ((prev: number) => number)) => void) => {
+    useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === ' ' || e.key === 'Space') {
-                // Space/Пробіл: тригерний перемикач Пауза/Нормальна швидкість
-                setSpeed(prev => prev === 0 ? 1 : 0);
+                setSpeed(prev => prev === SPEED_KEYS.PAUSE ? SPEED_KEYS.NORMAL : SPEED_KEYS.PAUSE);
             } else if (e.key === '0') {
-                setSpeed(0);
+                setSpeed(SPEED_KEYS.PAUSE);
             } else if (e.key === '1') {
-                setSpeed(1);
+                setSpeed(SPEED_KEYS.NORMAL);
             } else if (e.key === '2') {
-                setSpeed(2);
+                setSpeed(SPEED_KEYS.FAST);
             } else if (e.key === '5') {
-                setSpeed(5);
+                setSpeed(SPEED_KEYS.TURBO);
             }
 
-            // Перемикання повноекранного режиму (F)
-            if (e.key === 'f' || e.key === 'F' || e.key === 'а' || e.key === 'А') {
+            if (['f', 'F', 'а', 'А'].includes(e.key)) {
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen();
                 } else if (document.exitFullscreen) {
@@ -261,39 +407,103 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
                 }
             }
         };
-        window.addEventListener('keydown', handleKey);
-        return () => {
-            window.removeEventListener('keydown', handleKey);
-            unsubscribe();
-        };
-    }, [engine, speed]);
 
-    /** Реніціалізація системного стану та очищення локальних даних. */
-    const onReset = () => {
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
+    }, [setSpeed]);
+};
+
+// ============================================================================
+// PROVIDER
+// ============================================================================
+
+export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) => {
+    const engine = useMemo(() => new EngineProxy({ tickRate: ENGINE_CONSTANTS.TICK_RATE }), []);
+
+    // 1. Settings
+    const settings = useSimulationSettings(engine);
+
+    // 2. Lifecycle & Sync
+    const sync = useEngineSync(engine, settings.speed, settings.worldScale);
+
+    // 3. Stats & History
+    const statsInfo = useSimulationStats(engine, settings.speed);
+
+    // 4. Hover state
+    const hover = useHoverState();
+
+    const [simulationState, setSimulationState] = useState<'running' | 'paused' | 'stopped'>(settings.speed > 0 ? 'running' : 'paused');
+    const lastNonZeroSpeedRef = useRef(settings.speed > 0 ? settings.speed : SPEED_KEYS.NORMAL);
+
+    const setSpeedWithState = useCallback((val: number | ((prev: number) => number)) => {
+        settings.setSpeed((prev) => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            if (next > 0) {
+                lastNonZeroSpeedRef.current = next;
+                setSimulationState('running');
+            } else {
+                setSimulationState('paused');
+            }
+            return next;
+        });
+    }, [settings]);
+
+    // 5. Hotkeys
+    useHotkeys(setSpeedWithState);
+
+    /** Initialize loader latency. */
+    useEffect(() => {
+        const timer = setTimeout(() => sync.setIsLoading(false), UI_CONTROLS.LOADING_DELAY);
+        return () => clearTimeout(timer);
+    }, [sync]);
+
+    const runSimulation = useCallback(() => {
+        const nextSpeed = lastNonZeroSpeedRef.current > 0 ? lastNonZeroSpeedRef.current : SPEED_KEYS.NORMAL;
+        setSpeedWithState(nextSpeed);
+        setSimulationState('running');
+    }, [setSpeedWithState]);
+
+    const pauseSimulation = useCallback(() => {
+        setSpeedWithState(SPEED_KEYS.PAUSE);
+        setSimulationState('paused');
+    }, [setSpeedWithState]);
+
+    const stopSimulation = useCallback(() => {
+        setSpeedWithState(SPEED_KEYS.PAUSE);
+        engine.pause();
+        setSimulationState('stopped');
+    }, [engine, setSpeedWithState]);
+
+    const onReset = useCallback(() => {
+        logger.info('UI: Reset Simulation requested', 'SimulationContext');
         localStorage.clear();
         engine.reset();
-        historyRef.current = [];
-        setHistory([]);
-    };
+        statsInfo.resetHistory();
+        setSimulationState('paused');
+    }, [engine, statsInfo]);
 
-    const value = {
-        engine,
-        stats,
-        history,
-        speed,
-        setSpeed,
-        worldScale,
-        setWorldScale,
-        isLoading,
-        onReset,
-        cameraState,
-        setCameraState,
-        hoveredEntity,
-        setHoveredEntity,
-        tooltipVisible,
-        tooltipPos,
-        setTooltipPos,
-    };
+    const value = useMemo(() => ({
+        engine, stats: statsInfo.stats, history: statsInfo.history,
+        speed: settings.speed, setSpeed: setSpeedWithState,
+        worldScale: settings.worldScale, setWorldScale: settings.setWorldScale,
+        isLoading: sync.isLoading, onReset,
+        cameraState: sync.cameraState, setCameraState: sync.setCameraState,
+        hoveredEntity: hover.hoveredEntity, setHoveredEntity: hover.setHoveredEntity,
+        tooltipVisible: hover.tooltipVisible, tooltipPos: hover.tooltipPos, setTooltipPos: hover.setTooltipPos,
+        autoRotate: settings.autoRotate, setAutoRotate: settings.setAutoRotate,
+        autoRotateSpeed: settings.autoRotateSpeed, setAutoRotateSpeed: settings.setAutoRotateSpeed,
+        simulationState,
+        runSimulation,
+        pauseSimulation,
+        stopSimulation,
+    }), [
+        engine, statsInfo.stats, statsInfo.history, settings.speed, setSpeedWithState,
+        settings.worldScale, settings.setWorldScale, sync.isLoading, onReset,
+        sync.cameraState, sync.setCameraState, hover.hoveredEntity, hover.setHoveredEntity,
+        hover.tooltipVisible, hover.tooltipPos, hover.setTooltipPos,
+        settings.autoRotate, settings.setAutoRotate, settings.autoRotateSpeed, settings.setAutoRotateSpeed
+        , simulationState, runSimulation, pauseSimulation, stopSimulation
+    ]);
 
     return (
         <SimulationContext.Provider value={value}>

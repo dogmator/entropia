@@ -11,11 +11,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventBus } from '@/core';
-import type { Genome, WorldConfig } from '@/types';
-import { EntityType } from '@/types';
+import type { Genome, OrganismId,WorldConfig } from '@/types';
+import { createOrganismId,EntityType } from '@/types';
 
 import { Food, Obstacle, Organism } from '../../Entity';
-import { SpatialHashGrid } from '../../SpatialHashGrid';
+import { GridManager } from '../../managers/GridManager';
 import { CollisionSystem } from '../CollisionSystem';
 
 /**
@@ -25,7 +25,7 @@ const createTestGenome = (type: EntityType = EntityType.PREY): Genome => ({
     id: 'test-genome',
     type,
     subtype: 'default',
-    size: 1,
+    size: 3,
     maxSpeed: 5,
     senseRadius: 30,
     metabolism: 1,
@@ -47,15 +47,15 @@ const createWorldConfig = (): WorldConfig => ({
 
 describe('CollisionSystem', () => {
     let collisionSystem: CollisionSystem;
-    let spatialGrid: SpatialHashGrid;
+    let gridManager: GridManager;
     let eventBus: EventBus;
     let worldConfig: WorldConfig;
 
     beforeEach(() => {
         worldConfig = createWorldConfig();
-        spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE);
+        gridManager = new GridManager(worldConfig.WORLD_SIZE, 50);
         eventBus = new EventBus();
-        collisionSystem = new CollisionSystem(spatialGrid, eventBus);
+        collisionSystem = new CollisionSystem(gridManager, eventBus, worldConfig);
     });
 
     describe('isColliding', () => {
@@ -89,23 +89,30 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const prey = new Organism('prey-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5); // Дуже близько до prey
 
             organisms.set(prey.id, prey);
             food.set(foodItem.id, foodItem);
 
-            // Реєструємо їжу в spatial grid
-            spatialGrid.insert(foodItem);
+            // Реєструємо їжу через GridManager
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const initialEnergy = prey.energy;
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
             // Енергія повинна збільшитись
             expect(prey.energy).toBeGreaterThan(initialEnergy);
-            // Їжа повинна бути видалена
-            expect(food.has(foodItem.id)).toBe(false);
+            // Їжа повинна залишатись після першого укусу, але з меншим радіусом
+            expect(food.has(foodItem.id)).toBe(true);
+            expect(foodItem.radius).toBeLessThan(foodItem.baseRadius);
+
+            // Повторний апдейт у межах cooldown не має додавати новий укус
+            const energyAfterFirstBite = prey.energy;
+            collisionSystem.update(organisms, food, obstacles, 2);
+            expect(prey.energy).toBe(energyAfterFirstBite);
         });
 
         it('хижаки не повинні їсти їжу', () => {
@@ -113,18 +120,18 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const predator = new Organism('pred-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(predator.id, predator);
             food.set(foodItem.id, foodItem);
 
-            spatialGrid.insert(predator);
-            spatialGrid.insert(foodItem);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const initialEnergy = predator.energy;
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
             // Енергія не повинна змінитись
             expect(predator.energy).toBe(initialEnergy);
@@ -139,18 +146,18 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const predator = new Organism('pred-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
-            const prey = new Organism('prey-1', { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
 
             organisms.set(predator.id, predator);
             organisms.set(prey.id, prey);
 
-            spatialGrid.insert(predator);
-            spatialGrid.insert(prey);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const predatorInitialEnergy = predator.energy;
 
-            const deadIds = collisionSystem.update(organisms, food, obstacles);
+            const deadIds = collisionSystem.update(organisms, food, obstacles, 1);
 
             // Жертва повинна бути мертва
             expect(prey.isDead).toBe(true);
@@ -162,27 +169,60 @@ describe('CollisionSystem', () => {
     });
 
     describe('handleObstacleCollision', () => {
-        it('повинен відбивати швидкість при зіткненні з перешкодою', () => {
+        it('повинен ковзати вздовж поверхні перешкоди при зіткненні', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const prey = new Organism('prey-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
-            prey.velocity = { x: 5, y: 0, z: 0 }; // Рухається в напрямку перешкоди
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            prey.velocity = { x: 5, y: 1, z: 0 }; // Має нормальну + тангенціальну компоненти
 
             const obstacle = Obstacle.create(1, 12, 10, 10, 3); // Близько до prey
 
             organisms.set(prey.id, prey);
             obstacles.set(obstacle.id, obstacle);
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(obstacle);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
-            // Швидкість повинна змінитись (відбиття)
-            // Точне значення залежить від реалізації, але напрямок повинен змінитись
+            // Нормальна компонента має погаситись, тангенціальна — зберегтись для slide
             expect(prey.velocity.x).toBeLessThan(5);
+            expect(Math.abs(prey.velocity.y)).toBeGreaterThan(0);
+        });
+
+        it('повинен зрештою видаляти їжу після серії укусів і емітити подію', () => {
+            const organisms = new Map<string, Organism>();
+            const food = new Map<string, Food>();
+            const obstacles = new Map<string, Obstacle>();
+
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const foodItem = Food.create(1, 10.5, 10.5, 10.5);
+
+            organisms.set(prey.id, prey);
+            food.set(foodItem.id, foodItem);
+
+            gridManager.initializeStatic(obstacles);
+
+            const eventHandler = vi.fn();
+            eventBus.on('EntityDied', eventHandler);
+
+            for (let tick = 1; tick <= 40; tick++) {
+                gridManager.rebuild(organisms, food);
+                collisionSystem.update(organisms, food, obstacles, tick);
+                if (!food.has(foodItem.id)) {
+                    break;
+                }
+            }
+
+            expect(food.has(foodItem.id)).toBe(false);
+            expect(eventHandler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'EntityDied',
+                    entityType: EntityType.FOOD,
+                })
+            );
         });
     });
 
@@ -192,26 +232,21 @@ describe('CollisionSystem', () => {
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
-            const prey = new Organism('prey-1', { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(prey.id, prey);
             food.set(foodItem.id, foodItem);
 
-            spatialGrid.insert(prey);
-            spatialGrid.insert(foodItem);
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
 
             const eventHandler = vi.fn();
             eventBus.on('EntityDied', eventHandler);
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
-            expect(eventHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: 'EntityDied',
-                    entityType: EntityType.FOOD,
-                })
-            );
+            expect(eventHandler).not.toHaveBeenCalled();
         });
     });
 });

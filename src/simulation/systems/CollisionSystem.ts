@@ -11,32 +11,39 @@
 /**
  * Константи фізичних параметрів колізій.
  */
-import { INTERACTION, PHYSICS } from '@/config';
+import { ENTITY_CONSTANTS, INTERACTION, PHYSICS } from '@/config';
 import type { EventBus } from '@/core';
 import { Vector3Pool } from '@/core/ObjectPool';
-import type { SpatialHashGrid } from '@/simulation';
+import { Random } from '@/core/utils/Random';
 import type { EntityId, GridEntity, Vector3 } from '@/types';
+import type { WorldConfig } from '@/types';
 import { EntityType } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
+import type { GridManager } from '../managers/GridManager';
 import { MathUtils } from '../MathUtils';
 
 /**
  * Клас, що реалізує фізику просторових взаємодій.
  */
 export class CollisionSystem {
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
+
   constructor(
-    private readonly spatialGrid: SpatialHashGrid,
-    private readonly eventBus: EventBus
+    private readonly gridManager: GridManager,
+    private readonly eventBus: EventBus,
+    private readonly worldConfig: WorldConfig
   ) { }
 
   /**
    * Запуск циклу ідентифікації та вирішення колізій для всієї системи.
    */
-  update(
+  public update(
     organisms: Map<string, Organism>,
     food: Map<string, Food>,
-    obstacles: Map<string, Obstacle>
+    obstacles: Map<string, Obstacle>,
+    tick: number
   ): string[] {
     const deadOrganismIds: string[] = [];
 
@@ -48,7 +55,8 @@ export class CollisionSystem {
         food,
         obstacles,
         organisms,
-        deadOrganismIds
+        deadOrganismIds,
+        tick
       );
     });
 
@@ -63,10 +71,14 @@ export class CollisionSystem {
     food: Map<string, Food>,
     obstacles: Map<string, Obstacle>,
     organisms: Map<string, Organism>,
-    deadIds: string[]
+    deadIds: string[],
+    tick: number
   ): void {
     const searchRadius = organism.radius + PHYSICS.COLLISION_SEARCH_RADIUS_OFFSET;
-    const neighbors = this.spatialGrid.getNearby(organism.position, searchRadius);
+
+    // Використання кешованого буфера
+    this.gridManager.getNearby(organism.position, searchRadius, this.nearbyBuffer);
+    const neighbors = this.nearbyBuffer;
 
     for (const neighbor of neighbors) {
       // Виключення самоперетину
@@ -80,7 +92,7 @@ export class CollisionSystem {
 
         case EntityType.FOOD:
           if (organism.isPrey) {
-            this.handleFoodCollision(organism, neighbor as GridEntity, food);
+            this.handleFoodCollision(organism, neighbor as GridEntity, food, tick);
           }
           break;
 
@@ -112,17 +124,48 @@ export class CollisionSystem {
 
       // Розрахунок нормувального вектора зіткнення
       const diff = Vector3Pool.acquire();
-      MathUtils.toroidalVector(organism.position, neighborEntity.position, undefined, diff);
+      MathUtils.toroidalVector(organism.position, neighborEntity.position, this.worldConfig.WORLD_SIZE, diff);
       const nx = diff.x / dist;
       const ny = diff.y / dist;
       const nz = diff.z / dist;
       Vector3Pool.release(diff);
 
-      // Пружне відбиття вектора швидкості відносно нормалі
       const dot = organism.velocity.x * nx + organism.velocity.y * ny + organism.velocity.z * nz;
-      organism.velocity.x = (organism.velocity.x - 2 * dot * nx) * INTERACTION.obstacleBounceDamping;
-      organism.velocity.y = (organism.velocity.y - 2 * dot * ny) * INTERACTION.obstacleBounceDamping;
-      organism.velocity.z = (organism.velocity.z - 2 * dot * nz) * INTERACTION.obstacleBounceDamping;
+
+      const tangentX = organism.velocity.x - dot * nx;
+      const tangentY = organism.velocity.y - dot * ny;
+      const tangentZ = organism.velocity.z - dot * nz;
+      const tangentMagnitudeSq = tangentX * tangentX + tangentY * tangentY + tangentZ * tangentZ;
+
+      if (tangentMagnitudeSq > PHYSICS.EPSILON * PHYSICS.EPSILON) {
+        organism.velocity.x = tangentX * INTERACTION.obstacleSlideRetention;
+        organism.velocity.y = tangentY * INTERACTION.obstacleSlideRetention;
+        organism.velocity.z = tangentZ * INTERACTION.obstacleSlideRetention;
+      } else {
+        organism.velocity.x = (organism.velocity.x - 2 * dot * nx) * INTERACTION.obstacleBounceDamping;
+        organism.velocity.y = (organism.velocity.y - 2 * dot * ny) * INTERACTION.obstacleBounceDamping;
+        organism.velocity.z = (organism.velocity.z - 2 * dot * nz) * INTERACTION.obstacleBounceDamping;
+
+        organism.velocity.x -= nx * INTERACTION.obstacleFallbackReflectImpulse;
+        organism.velocity.y -= ny * INTERACTION.obstacleFallbackReflectImpulse;
+        organism.velocity.z -= nz * INTERACTION.obstacleFallbackReflectImpulse;
+      }
+
+      const postSpeedSq =
+        organism.velocity.x * organism.velocity.x +
+        organism.velocity.y * organism.velocity.y +
+        organism.velocity.z * organism.velocity.z;
+      if (postSpeedSq < INTERACTION.obstacleMinSlideSpeed * INTERACTION.obstacleMinSlideSpeed) {
+        organism.stuckTicks += 1;
+        if (organism.stuckTicks >= ENTITY_CONSTANTS.STUCK_TICKS_THRESHOLD) {
+          organism.velocity.x += (Random.next() - 0.5) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+          organism.velocity.y += (Random.next() - 0.5) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+          organism.velocity.z += (Random.next() - 0.5) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+          organism.stuckTicks = 0;
+        }
+      } else {
+        organism.stuckTicks = 0;
+      }
 
       // Геометрична корекція позиції для усунення перекриття об'єктів
       const overlap = minDist - dist;
@@ -138,25 +181,28 @@ export class CollisionSystem {
   private handleFoodCollision(
     organism: Organism,
     neighborEntity: GridEntity,
-    food: Map<string, Food>
+    food: Map<string, Food>,
+    tick: number
   ): void {
     const foodItem = food.get(neighborEntity.id);
     if (!foodItem || foodItem.consumed) { return; }
 
     if (this.isColliding(organism, foodItem)) {
-      // Абсорбція енергії субстрату організмом
-      organism.addEnergy(foodItem.energyValue);
-      foodItem.consumed = true;
-      food.delete(neighborEntity.id);
+      const absorbedEnergy = foodItem.applyBite(ENTITY_CONSTANTS.FOOD_BITE_ENERGY, tick);
+      organism.addEnergy(absorbedEnergy);
 
-      // Генерація системної події про елімінацію ресурсу
-      this.eventBus.emit({
-        type: 'EntityDied',
-        entityType: EntityType.FOOD,
-        id: neighborEntity.id as EntityId,
-        position: { x: foodItem.position.x, y: foodItem.position.y, z: foodItem.position.z },
-        causeOfDeath: 'predation',
-      });
+      if (foodItem.consumed) {
+        food.delete(neighborEntity.id);
+
+        // Генерація системної події про елімінацію ресурсу
+        this.eventBus.emit({
+          type: 'EntityDied',
+          entityType: EntityType.FOOD,
+          id: neighborEntity.id as EntityId,
+          position: { x: foodItem.position.x, y: foodItem.position.y, z: foodItem.position.z },
+          causeOfDeath: 'predation',
+        });
+      }
     }
   }
 
