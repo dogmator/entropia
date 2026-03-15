@@ -144,3 +144,24 @@ docker compose up -d
 - **Організми народжуються малими** (близько 40% від adult-розміру) та ростуть за age+energy.
 - **Аномалії стали непрохідними**: застосовується ковзання уздовж поверхні, відбиття використовується як fallback.
 - **Розширено діагностику hover-панелі**: growth, maturity, adult/current radius, stuck ticks, current food energy.
+
+## 🧾 QA Update (2026-03-15)
+- Виконано повний доступний прогін перевірок якості (lint/typecheck/unit/build/coverage-attempt).
+- Проведено browser-driven user-perspective smoke перевірку UI з артефактом screenshot.
+- Підготовлено розширений звіт з виконаними/невиконаними перевірками і 4 блоками production-risk Top-3: `docs/TESTING_REPORT_2026-03-15.md`.
+
+## 🚀 Production-impact update (2026-03-15)
+- Декомпозовано update pipeline ядра симуляції та додано fail-safe guards для деградаційних станів.
+- Реалізовано proxy/worker state contract (`exportState`/`importState`) і message оптимізації (dedup + batched config updates).
+- Додано явне керування run/pause/stop в UI, clamp-захист налаштувань і degraded-state в діагностиці.
+- Додано lazy-loading `SettingsPanel`/`DiagnosticsModal`, що зменшує pressure початкового UI-бандла.
+
+## ✅ Merge Verification Pass (2026-03-15)
+- Підтверджено order-safe поведінку `EngineProxy` batching/dedup для critical-команд.
+- Додано unit-тест інваріанту серіалізації: `state === import(export(state))`.
+- Підтверджено browser-driven, що lazy-loaded `SettingsPanel`/`DiagnosticsModal` коректно працюють з `SimulationContext`.
+
+## 🔒 Stabilization pass (merge-readiness, 2026-03-15)
+- Посилено order-safety batching/flush у `EngineProxy`.
+- Додано повторний persistence-cycle test для виявлення дрейфу стану.
+- Підтверджено стабільність regression-suite після точкових виправлень перед merge.
