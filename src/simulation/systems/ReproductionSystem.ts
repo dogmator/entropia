@@ -24,6 +24,7 @@ const MIN_AGE = MIN_REPRODUCTION_AGE; // Поріг репродуктивної
  */
 export interface NewbornData {
   parent: Organism;
+  energy: number;
 }
 
 /**
@@ -86,7 +87,10 @@ export class ReproductionSystem {
     organism.updateState('REPRODUCING');
 
     // Агрегування даних для подальшої генерації об'єкта
-    newborns.push({ parent: organism });
+    newborns.push({
+      parent: organism,
+      energy: organism.energy
+    });
   }
 
   /**
@@ -102,7 +106,7 @@ export class ReproductionSystem {
       // Контроль переповнення популяції на етапі створення
       if (organisms.size >= maxPopulation) { break; }
 
-      const child = this.organismFactory.createOffspring(data.parent);
+      const child = this.organismFactory.createOffspring(data.parent, data.energy);
       organisms.set(child.id, child);
 
       // Реєстрація зв'язків у філогенетичній структурі

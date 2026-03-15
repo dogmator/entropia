@@ -7,7 +7,7 @@
  * - Забезпечення детермінованості експорту/імпорту стану.
  */
 
-import { beforeEach,describe, expect, it } from 'vitest';
+import { beforeEach,describe, expect, it, vi } from 'vitest';
 
 import { EntityType } from '@/types';
 
@@ -118,5 +118,59 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
     expect(restoredData.preyCount).toBe(originalData.preyCount);
     expect(restoredData.foodCount).toBe(originalData.foodCount);
+  });
+
+  it('повинен зберігати інваріант state === import(export(state))', () => {
+    engine.start();
+    for (let i = 0; i < 4; i++) {
+      engine.update();
+    }
+
+    const exportedState = engine.exportState();
+    const rehydratedEngine = new SimulationEngine(1.0);
+    rehydratedEngine.importState(exportedState);
+    const reExportedState = rehydratedEngine.exportState();
+
+    expect(reExportedState).toEqual(exportedState);
+  });
+
+  it('повинен залишатися стабільним на повторному persistence cycle', () => {
+    engine.start();
+    for (let i = 0; i < 4; i++) {
+      engine.update();
+    }
+
+    const state1 = engine.exportState();
+
+    const engine2 = new SimulationEngine(1.0);
+    engine2.importState(state1);
+    const exportedFromEngine2 = engine2.exportState();
+
+    const engine3 = new SimulationEngine(1.0);
+    engine3.importState(exportedFromEngine2);
+    const state2 = engine3.exportState();
+
+    expect(state2).toEqual(state1);
+  });
+
+  it('повинен зберігати порядок виконання simulation systems у pipeline', () => {
+    const order: string[] = [];
+    const originalStartSubsystemTimer = engine.performanceMonitor.startSubsystemTimer.bind(engine.performanceMonitor);
+
+    vi.spyOn(engine.performanceMonitor, 'startSubsystemTimer').mockImplementation((name) => {
+      order.push(name);
+      return originalStartSubsystemTimer(name);
+    });
+
+    engine.start();
+    engine.update();
+
+    expect(order).toEqual([
+      'BehaviorSystem',
+      'PhysicsSystem',
+      'MetabolismSystem',
+      'CollisionSystem',
+      'ReproductionSystem',
+    ]);
   });
 });

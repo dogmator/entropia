@@ -39,7 +39,6 @@ export default tseslint.config(
       react: { version: 'detect' },
     },
     rules: {
-      // ...Все твои строгие правила остаются здесь...
 
       ...reactHooks.configs.recommended.rules,
       ...react.configs.recommended.rules,
@@ -53,7 +52,7 @@ export default tseslint.config(
       '@typescript-eslint/explicit-member-accessibility': ['error', { accessibility: 'explicit', overrides: { constructors: 'no-public' } }],
       '@typescript-eslint/no-explicit-any': 'error',
 
-      // HARDCORE MODE (Оставляем!)
+      // HARDCORE MODE
       'complexity': ['error', { max: 10 }],
       'max-lines-per-function': ['error', { max: 50, skipBlankLines: true, skipComments: true }],
       'max-depth': ['error', 3],
@@ -71,7 +70,19 @@ export default tseslint.config(
           ignoreReadonlyClassProperties: true
         }
       ],
-      'react/no-unknown-property': ['error', { ignore: ['args', 'attach', 'position', 'rotation', 'scale', 'intensity', 'groundColor', 'object', 'geometry', 'material', 'castShadow', 'receiveShadow', 'decay', 'penumbra', 'angle', 'target', 'transparent', 'opacity', 'side', 'map', 'emissive', 'emissiveIntensity', 'shininess', 'specular', 'frustumCulled', 'onPointerMissed'] }],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression > TSTypeReference > Identifier[name="any"]',
+          message: 'Avoid using "as any". Use proper types or "unknown" if necessary.',
+        },
+        {
+          selector: 'TSAsExpression > TSAnyKeyword',
+          message: 'Avoid using "as any". Use proper types or "unknown" if necessary.',
+        },
+      ],
+      // UPDATED LIST WITH R3F PROPS
+      'react/no-unknown-property': ['error', { ignore: ['args', 'attach', 'position', 'rotation', 'scale', 'intensity', 'groundColor', 'object', 'geometry', 'material', 'castShadow', 'receiveShadow', 'decay', 'penumbra', 'angle', 'target', 'transparent', 'opacity', 'side', 'map', 'emissive', 'emissiveIntensity', 'shininess', 'specular', 'frustumCulled', 'onPointerMissed', 'depthWrite', 'flatShading'] }],
     },
   }
 );
