@@ -64,3 +64,31 @@
 4. Додано slide-first обробку obstacle collisions + fallback reflect + anti-stuck impulse.
 5. Розширено hover-діагностику (radius/growth/maturity/stuck/current food energy).
 6. Додано unit-тести для росту/їжі та оновлено тести колізій.
+
+## Етап 10 — Комплексне тестування та production-risk аудит (2026-03-15)
+1. Перевірено git-синхронізацію з `dev` до старту: в оточенні немає `dev/origin/dev`.
+2. Запущено доступні quality gates: `pnpm run lint`, `pnpm run typecheck`, `pnpm exec vitest run`, `pnpm run build`, `pnpm run test:coverage -- --run`.
+3. Проведено user-perspective UI smoke в browser container (кнопки, sliders, діагностика, короткий soak).
+4. Зафіксовано артефакт screenshot та сформовано повний тестовий звіт.
+5. Складено 4 блоки Top-3 з пріоритетами за production-ризиком і очікуваним ефектом.
+
+## Етап 11 — Реалізація production-impact покращень (2026-03-15)
+1. Розкладено гарячий `SimulationEngine.update()` на локальні етапи pipeline та додано fail-safe guards.
+2. В `EngineProxy` додано dedup/batching команд і закрито contract gap (`exportState`/`importState`) через worker-команди.
+3. Додано негативні unit-тести `EngineProxy.test.ts` (dedup, batched config, export fallback, import command).
+4. UI керування доповнено явними станами `run/pause/stop`, disabled-state та захистом параметрів через clamp.
+5. Діагностика отримала empty/degraded state для графіків при відсутніх даних.
+6. Застосовано lazy-loading `SettingsPanel` + `DiagnosticsModal` для зниження initial runtime/bundle pressure.
+
+## Етап 12 — Merge verification pass (2026-03-15)
+1. Додано order-safety для batched `setConfig` у `EngineProxy` через flush перед critical-командами.
+2. Додано unit-тести на порядок pipeline systems та на інваріант `state === import(export(state))`.
+3. Посилено `PersistenceService.importState`: відновлення `rngState` + синхронізація статистики після імпорту.
+4. Підтверджено browser-верифікацією, що lazy-loaded панелі коректно читають `SimulationContext`.
+
+## Етап 13 — Stabilization pass (merge-readiness)
+1. Виконано diff-focused self-review по ключових файлах PR.
+2. Посилено batching/flush order-safety в `EngineProxy`.
+3. Додано додаткові unit-тести послідовностей команд proxy.
+4. Додано повторний persistence-cycle тест для перевірки дрейфу стану.
+5. Прогнано typecheck/tests/build/lint/coverage-attempt та зафіксовано результати.
