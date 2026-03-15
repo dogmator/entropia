@@ -65,4 +65,13 @@ export const INTERACTION = {
 
   /** Guaranteed minimum energy gain during hunting. */
   minEnergyGain: 25,
+
+  /** Tangential velocity preservation for obstacle sliding. */
+  obstacleSlideRetention: 0.92,
+
+  /** Minimum tangential speed to keep stable sliding. */
+  obstacleMinSlideSpeed: 0.08,
+
+  /** Minimal normal impulse used as collision fallback. */
+  obstacleFallbackReflectImpulse: 0.2,
 } as const;

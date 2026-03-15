@@ -56,3 +56,11 @@
   - перевірка кнопок керування симуляцією,
   - фіксація скриншота.
 - Підсумковий звіт винесено в `docs/TESTING_REPORT_2026-03-15.md`.
+
+## Етап 9 — Непрохідні аномалії, дискретна їжа та ріст (виконано)
+1. Додано модель енергії їжі (`maxEnergy/currentEnergy/baseRadius`) і `applyBite` з cooldown.
+2. Перероблено food collision: prey споживають їжу укусами, а не миттєвим видаленням.
+3. Додано органічний ріст організмів (`adultRadius`, `growthRatio`, `maturityRatio`, `stuckTicks`).
+4. Додано slide-first обробку obstacle collisions + fallback reflect + anti-stuck impulse.
+5. Розширено hover-діагностику (radius/growth/maturity/stuck/current food energy).
+6. Додано unit-тести для росту/їжі та оновлено тести колізій.
