@@ -1,15 +1,16 @@
 /* eslint-disable simple-import-sort/imports */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
 
 import { Dashboard } from './Dashboard';
-import { DiagnosticsModal } from './DiagnosticsModal';
-import { SettingsPanel } from './SettingsPanel';
 import { SimulationControls } from './SimulationControls';
 import { Icons } from './shared/Icons';
 import { UI_CONFIG } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
 import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
+
+const DiagnosticsModal = React.lazy(async () => import('./DiagnosticsModal').then(module => ({ default: module.DiagnosticsModal })));
+const SettingsPanel = React.lazy(async () => import('./SettingsPanel').then(module => ({ default: module.SettingsPanel })));
 
 const GESTURE = {
   THRESHOLD_X: 50,
@@ -70,7 +71,19 @@ const useSidebarGestures = (
  */
 export const Sidebar: React.FC = () => {
   const {
-    engine, stats, history, onReset, speed, setSpeed, worldScale, setWorldScale
+    engine,
+    stats,
+    history,
+    onReset,
+    speed,
+    setSpeed,
+    worldScale,
+    setWorldScale,
+    isLoading,
+    simulationState,
+    runSimulation,
+    pauseSimulation,
+    stopSimulation
   } = useSimulation();
 
   const [isOpen, setIsOpen] = useState(() => {
@@ -106,6 +119,11 @@ export const Sidebar: React.FC = () => {
           onReset={onReset}
           speed={speed}
           setSpeed={setSpeed}
+          isLoading={isLoading}
+          simulationState={simulationState}
+          runSimulation={runSimulation}
+          pauseSimulation={pauseSimulation}
+          stopSimulation={stopSimulation}
           engine={engine}
           worldScale={worldScale}
           setWorldScale={setWorldScale}
@@ -136,20 +154,22 @@ const SidebarDiagnostics: React.FC<{
   if (!memory) return null;
 
   return (
-    <DiagnosticsModal
-      isOpen={isOpen}
-      onClose={onClose}
-      currentStats={stats}
-      performanceHistory={monitor.getPerformanceHistory() || []}
-      memoryStats={{
-        usedJSHeapSize: memory.usedJSHeapSize,
-        totalJSHeapSize: memory.totalJSHeapSize,
-        jsHeapSizeLimit: memory.jsHeapSizeLimit,
-        used: memory.usedJSHeapSize,
-        total: memory.totalJSHeapSize,
-        limit: memory.jsHeapSizeLimit
-      }}
-    />
+    <Suspense fallback={<LazyFallback label="Завантаження панелі діагностики..." />}>
+      <DiagnosticsModal
+        isOpen={isOpen}
+        onClose={onClose}
+        currentStats={stats}
+        performanceHistory={monitor.getPerformanceHistory() || []}
+        memoryStats={{
+          usedJSHeapSize: memory.usedJSHeapSize,
+          totalJSHeapSize: memory.totalJSHeapSize,
+          jsHeapSizeLimit: memory.jsHeapSizeLimit,
+          used: memory.usedJSHeapSize,
+          total: memory.totalJSHeapSize,
+          limit: memory.jsHeapSizeLimit
+        }}
+      />
+    </Suspense>
   );
 };
 
@@ -189,6 +209,11 @@ interface SidebarContentProps {
   onReset: () => void;
   speed: number;
   setSpeed: (v: number) => void;
+  isLoading: boolean;
+  simulationState: 'running' | 'paused' | 'stopped';
+  runSimulation: () => void;
+  pauseSimulation: () => void;
+  stopSimulation: () => void;
   engine: ISimulationEngine;
   worldScale: number;
   setWorldScale: (v: number) => void;
@@ -197,7 +222,21 @@ interface SidebarContentProps {
 
 
 const SidebarContent: React.FC<SidebarContentProps> = ({
-  isOpen, stats, history, onReset, speed, setSpeed, engine, worldScale, setWorldScale, onOpenDiagnostics
+  isOpen,
+  stats,
+  history,
+  onReset,
+  speed,
+  setSpeed,
+  isLoading,
+  simulationState,
+  runSimulation,
+  pauseSimulation,
+  stopSimulation,
+  engine,
+  worldScale,
+  setWorldScale,
+  onOpenDiagnostics
 }) => (
   <div className={`w-full h-full bg-black/60 backdrop-blur-2xl flex flex-col gap-6 p-4 sm:p-6 overflow-y-auto custom-scrollbar pointer-events-auto transition-opacity duration-500 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
     <div className="flex-shrink-0">
@@ -212,13 +251,20 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
         onReset={onReset}
         speed={speed}
         onSpeedChange={setSpeed}
+        simulationState={simulationState}
+        onRun={runSimulation}
+        onPause={pauseSimulation}
+        onStop={stopSimulation}
+        disabled={isLoading}
       />
 
-      <SettingsPanel
-        engine={engine}
-        worldScale={worldScale}
-        onWorldScaleChange={setWorldScale}
-      />
+      <Suspense fallback={<LazyFallback label="Завантаження конфігуратора..." />}>
+        <SettingsPanel
+          engine={engine}
+          worldScale={worldScale}
+          onWorldScaleChange={setWorldScale}
+        />
+      </Suspense>
 
       <DiagnosticsButton
         onOpen={onOpenDiagnostics}
@@ -259,4 +305,8 @@ const SidebarFooter: React.FC = () => (
     Темпоральні профілі: [0] [1] [2] [5] або [Space]<br />
     Селекція суб&apos;єкта: активація трекінг-шлейфу при натисканні
   </div>
+);
+
+const LazyFallback: React.FC<{ label: string }> = ({ label }) => (
+  <div className="bg-white/5 rounded-xl p-3 text-xs text-gray-400 animate-pulse border border-white/5">{label}</div>
 );
