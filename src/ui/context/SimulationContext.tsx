@@ -138,6 +138,10 @@ interface SimulationContextValue {
     setAutoRotate: (val: boolean) => void;
     autoRotateSpeed: number;
     setAutoRotateSpeed: (val: number) => void;
+    simulationState: 'running' | 'paused' | 'stopped';
+    runSimulation: () => void;
+    pauseSimulation: () => void;
+    stopSimulation: () => void;
 }
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
@@ -428,8 +432,24 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
     // 4. Hover state
     const hover = useHoverState();
 
+    const [simulationState, setSimulationState] = useState<'running' | 'paused' | 'stopped'>(settings.speed > 0 ? 'running' : 'paused');
+    const lastNonZeroSpeedRef = useRef(settings.speed > 0 ? settings.speed : SPEED_KEYS.NORMAL);
+
+    const setSpeedWithState = useCallback((val: number | ((prev: number) => number)) => {
+        settings.setSpeed((prev) => {
+            const next = typeof val === 'function' ? val(prev) : val;
+            if (next > 0) {
+                lastNonZeroSpeedRef.current = next;
+                setSimulationState('running');
+            } else {
+                setSimulationState('paused');
+            }
+            return next;
+        });
+    }, [settings]);
+
     // 5. Hotkeys
-    useHotkeys(settings.setSpeed);
+    useHotkeys(setSpeedWithState);
 
     /** Initialize loader latency. */
     useEffect(() => {
@@ -437,16 +457,34 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
         return () => clearTimeout(timer);
     }, [sync]);
 
+    const runSimulation = useCallback(() => {
+        const nextSpeed = lastNonZeroSpeedRef.current > 0 ? lastNonZeroSpeedRef.current : SPEED_KEYS.NORMAL;
+        setSpeedWithState(nextSpeed);
+        setSimulationState('running');
+    }, [setSpeedWithState]);
+
+    const pauseSimulation = useCallback(() => {
+        setSpeedWithState(SPEED_KEYS.PAUSE);
+        setSimulationState('paused');
+    }, [setSpeedWithState]);
+
+    const stopSimulation = useCallback(() => {
+        setSpeedWithState(SPEED_KEYS.PAUSE);
+        engine.pause();
+        setSimulationState('stopped');
+    }, [engine, setSpeedWithState]);
+
     const onReset = useCallback(() => {
         logger.info('UI: Reset Simulation requested', 'SimulationContext');
         localStorage.clear();
         engine.reset();
         statsInfo.resetHistory();
+        setSimulationState('paused');
     }, [engine, statsInfo]);
 
     const value = useMemo(() => ({
         engine, stats: statsInfo.stats, history: statsInfo.history,
-        speed: settings.speed, setSpeed: settings.setSpeed,
+        speed: settings.speed, setSpeed: setSpeedWithState,
         worldScale: settings.worldScale, setWorldScale: settings.setWorldScale,
         isLoading: sync.isLoading, onReset,
         cameraState: sync.cameraState, setCameraState: sync.setCameraState,
@@ -454,12 +492,17 @@ export const SimulationProvider: React.FC<PropsWithChildren> = ({ children }) =>
         tooltipVisible: hover.tooltipVisible, tooltipPos: hover.tooltipPos, setTooltipPos: hover.setTooltipPos,
         autoRotate: settings.autoRotate, setAutoRotate: settings.setAutoRotate,
         autoRotateSpeed: settings.autoRotateSpeed, setAutoRotateSpeed: settings.setAutoRotateSpeed,
+        simulationState,
+        runSimulation,
+        pauseSimulation,
+        stopSimulation,
     }), [
-        engine, statsInfo.stats, statsInfo.history, settings.speed, settings.setSpeed,
+        engine, statsInfo.stats, statsInfo.history, settings.speed, setSpeedWithState,
         settings.worldScale, settings.setWorldScale, sync.isLoading, onReset,
         sync.cameraState, sync.setCameraState, hover.hoveredEntity, hover.setHoveredEntity,
         hover.tooltipVisible, hover.tooltipPos, hover.setTooltipPos,
         settings.autoRotate, settings.setAutoRotate, settings.autoRotateSpeed, settings.setAutoRotateSpeed
+        , simulationState, runSimulation, pauseSimulation, stopSimulation
     ]);
 
     return (

@@ -40,8 +40,45 @@ export interface EngineProxyOptions {
 
 interface PendingRequest {
     resolve: (value: unknown) => void;
-    reject: (reason?: any) => void;
+    reject: (reason?: unknown) => void;
 }
+
+interface CameraPayload {
+    position: Vector3;
+    target: Vector3;
+}
+
+const DEFAULT_TICK_RATE = 60;
+const ASYNC_COMMAND_TIMEOUT_MS = 5000;
+const CONFIG_BATCH_DEBOUNCE_MS = 32;
+const PERFORMANCE_HISTORY_LIMIT = 600;
+
+const FALLBACK_SIMULATION_CONFIG: SimulationConfig = {
+    foodSpawnRate: 0,
+    maxFood: 0,
+    maxOrganisms: 0,
+    showObstacles: true,
+    mutationFactor: 0,
+    reproductionThreshold: 0,
+    organismOpacity: 1,
+    foodOpacity: 1,
+    organismScale: 1,
+    foodScale: 1,
+    bloomIntensity: 0,
+    showGrid: false,
+    gridOpacity: 0,
+    trailLength: 0,
+    showEnergyGlow: false,
+    showTrails: false,
+    showParticles: false,
+    graphicsQuality: 'CUSTOM',
+    drag: 1,
+    separationWeight: 0,
+    alignmentWeight: 0,
+    cohesionWeight: 0,
+    seekWeight: 0,
+    avoidWeight: 0,
+};
 
 // ============================================================================
 // ENGINE PROXY
@@ -69,9 +106,15 @@ export class EngineProxy implements ISimulationEngine {
     // Кореляція запитів
     private pendingRequests: Map<string, PendingRequest> = new Map();
     private requestCounter = 0;
+    private lastLoopCommand: 'startLoop' | 'stopLoop' | null = null;
+    private lastSpeed: number | null = null;
+    private pendingConfigPatch: Partial<SimulationConfig> = {};
+    private configBatchTimer: ReturnType<typeof setTimeout> | null = null;
+    private lastExportedState: SerializedSimulationStateV1 | null = null;
+    private latestCameraPayload: CameraPayload | null = null;
 
     constructor(options: EngineProxyOptions = {}) {
-        this.tickRate = options.tickRate ?? 60;
+        this.tickRate = options.tickRate ?? DEFAULT_TICK_RATE;
     }
 
     // ============================================================================
@@ -139,12 +182,15 @@ export class EngineProxy implements ISimulationEngine {
     }
 
     public setCameraData(_position: Vector3, _target: Vector3): void {
-        // TODO: Можна оптимізувати і не слати кожен кадр, якщо воркеру це не критично.
-        // Але ISimulationEngine вимагає цього методу.
-        // Поки що заглушка, або реалізація відправки даних, якщо воркеру це треба для логіки (наприклад LOD).
-        // В оригіналі Engine використовує це для StatisticsManager для метрик.
-        // this._position = position;
-        // this._target = target;
+        const payload: CameraPayload = { position: _position, target: _target };
+        if (
+            this.latestCameraPayload &&
+            this.isCameraPayloadEqual(this.latestCameraPayload, payload)
+        ) {
+            return;
+        }
+
+        this.latestCameraPayload = payload;
     }
 
     public getStatsWithWorldData(): SimulationStats {
@@ -152,6 +198,7 @@ export class EngineProxy implements ISimulationEngine {
     }
 
     public reset(): void {
+        this.flushPendingConfigBatch();
         this.sendCommand({ type: 'reset' });
         // Очищаємо локальний стан, хоча воркер скоро пришле оновлення
         // this._position = position;
@@ -199,22 +246,55 @@ export class EngineProxy implements ISimulationEngine {
     }
 
     public exportState(): SerializedSimulationStateV1 {
-        throw new Error('exportState not implemented in EngineProxy yet');
+        this.flushPendingConfigBatch();
+
+        this.requestExportStateSnapshot();
+
+        return this.lastExportedState ?? this.buildFallbackExportState();
     }
 
-    public importState(_state: SerializedSimulationStateV1): void {
-        throw new Error('importState not implemented in EngineProxy yet');
+    public importState(state: SerializedSimulationStateV1): void {
+        this.flushPendingConfigBatch();
+
+        this.sendAsyncCommand<boolean>('importState', { state })
+            .then(() => {
+                logger.info('Proxy: importState applied', 'EngineProxy', { tick: state.tick });
+            })
+            .catch((error: unknown) => {
+                logger.error('Proxy: importState command failed', 'EngineProxy', { error });
+            });
     }
 
     public updateConfig(newConfig: Partial<SimulationConfig>): void {
         if (this._config) {
             Object.assign(this._config, newConfig);
         }
-        this.sendCommand({ type: 'setConfig', config: newConfig });
-        logger.info('Proxy: Sent setConfig command', 'EngineProxy', { config: newConfig });
+
+        this.pendingConfigPatch = {
+            ...this.pendingConfigPatch,
+            ...newConfig,
+        };
+
+        if (this.configBatchTimer !== null) {
+            clearTimeout(this.configBatchTimer);
+        }
+
+        this.configBatchTimer = setTimeout(() => {
+            const patch = this.pendingConfigPatch;
+            this.pendingConfigPatch = {};
+            this.configBatchTimer = null;
+
+            if (Object.keys(patch).length === 0) {
+                return;
+            }
+
+            this.sendCommand({ type: 'setConfig', config: patch });
+            logger.info('Proxy: Sent batched setConfig command', 'EngineProxy', { config: patch });
+        }, CONFIG_BATCH_DEBOUNCE_MS);
     }
 
     public updateWorldScale(scale: number): void {
+        this.flushPendingConfigBatch();
         logger.info(`Proxy: Updating world scale to ${scale} (re-init)`, 'EngineProxy');
         this.sendCommand({ type: 'init', scale });
     }
@@ -292,6 +372,11 @@ export class EngineProxy implements ISimulationEngine {
         this.worker?.terminate();
         this.worker = null;
         this.isInitialized = false;
+        if (this.configBatchTimer) {
+            clearTimeout(this.configBatchTimer);
+            this.configBatchTimer = null;
+        }
+        this.pendingConfigPatch = {};
         this.pendingRequests.clear();
         this.listeners.clear();
     }
@@ -306,6 +391,25 @@ export class EngineProxy implements ISimulationEngine {
 
     private sendCommand(command: WorkerCommand): void {
         if (!this.worker) return;
+
+        if (command.type !== 'setConfig') {
+            this.flushPendingConfigBatch();
+        }
+
+        if (command.type === 'setSpeed') {
+            if (this.lastSpeed === command.speed) {
+                return;
+            }
+            this.lastSpeed = command.speed;
+        }
+
+        if (command.type === 'startLoop' || command.type === 'stopLoop') {
+            if (this.lastLoopCommand === command.type) {
+                return;
+            }
+            this.lastLoopCommand = command.type;
+        }
+
         // Don't log high-frequency updates to avoid spam, unless debugging specific issue
         if (command.type !== 'update') {
             logger.info(`Proxy: Sending command ${command.type}`, 'EngineProxy', { command });
@@ -313,7 +417,7 @@ export class EngineProxy implements ISimulationEngine {
         this.worker.postMessage(command);
     }
 
-    private sendAsyncCommand<T>(type: string, payload: any): Promise<T> {
+    private sendAsyncCommand<T>(type: string, payload: Record<string, unknown>): Promise<T> {
         if (!this.worker) {
             return Promise.reject(new Error('Worker not initialized'));
         }
@@ -336,8 +440,84 @@ export class EngineProxy implements ISimulationEngine {
                     this.pendingRequests.delete(requestId);
                     reject(new Error(`Timeout for command ${type}`));
                 }
-            }, 5000);
+            }, ASYNC_COMMAND_TIMEOUT_MS);
         });
+    }
+
+    private isCameraPayloadEqual(a: CameraPayload, b: CameraPayload): boolean {
+        return (
+            a.position.x === b.position.x &&
+            a.position.y === b.position.y &&
+            a.position.z === b.position.z &&
+            a.target.x === b.target.x &&
+            a.target.y === b.target.y &&
+            a.target.z === b.target.z
+        );
+    }
+
+    private buildFallbackExportState(): SerializedSimulationStateV1 {
+        return {
+            version: 1,
+            seed: 0,
+            rngState: 0,
+            tick: 0,
+            counters: {
+                foodIdCounter: 0,
+                obstacleIdCounter: 0,
+                organismIdCounter: 0,
+                genomeIdCounter: 0,
+            },
+            stats: {
+                totalDeaths: 0,
+                totalBirths: 0,
+                maxAge: 0,
+                maxGeneration: 0,
+            },
+            config: this._config ?? FALLBACK_SIMULATION_CONFIG,
+            zones: [],
+            obstacles: [],
+            food: [],
+            organisms: [],
+            geneticTree: {
+                roots: [],
+                nodes: [],
+            },
+        };
+    }
+
+    private requestExportStateSnapshot(): void {
+        this.sendAsyncCommand<SerializedSimulationStateV1>('exportState', {})
+            .then((state) => {
+                this.lastExportedState = state;
+            })
+            .catch((error: unknown) => {
+                logger.error('Proxy: exportState command failed', 'EngineProxy', { error });
+            });
+    }
+
+    private flushPendingConfigBatch(): void {
+        if (!this.worker) {
+            this.pendingConfigPatch = {};
+            if (this.configBatchTimer !== null) {
+                clearTimeout(this.configBatchTimer);
+                this.configBatchTimer = null;
+            }
+            return;
+        }
+
+        if (this.configBatchTimer !== null) {
+            clearTimeout(this.configBatchTimer);
+            this.configBatchTimer = null;
+        }
+
+        if (Object.keys(this.pendingConfigPatch).length === 0) {
+            return;
+        }
+
+        const patch = this.pendingConfigPatch;
+        this.pendingConfigPatch = {};
+        this.worker.postMessage({ type: 'setConfig', config: patch });
+        logger.info('Proxy: Flushed batched setConfig command before critical command', 'EngineProxy', { config: patch });
     }
 
     private handleMessage(event: MessageEvent): void {
@@ -348,30 +528,7 @@ export class EngineProxy implements ISimulationEngine {
             return;
         }
 
-        if ('stats' in response && response.stats && response.stats.performance) {
-            // Конвертація PerformanceMetrics у формат SystemMetrics (або мапінг)
-            // SystemMetrics: cpu, memory, fps, tps, timestamp ...
-            // stats.performance: fps, tps, frameTime ...
-            // Перевірка сумісності типів або їх підмножин.
-            // Спрощений мапінг:
-            const pm = response.stats.performance;
-            const metrics: SystemMetrics = {
-                cpu: 0,
-                memory: 0,
-                fps: pm.fps,
-                tps: pm.tps,
-                timestamp: performance.now(),
-                frameTime: pm.frameTime,
-                simulationTime: pm.simulationTime,
-                entityCount: pm.entityCount,
-                memoryUsage: 0,
-                drawCalls: pm.drawCalls
-            };
-            this._performanceHistory.push(metrics);
-            if (this._performanceHistory.length > 600) {
-                this._performanceHistory.shift();
-            }
-        }
+        this.updatePerformanceHistory(response);
 
         switch (response.type) {
             case 'updated':
@@ -400,6 +557,30 @@ export class EngineProxy implements ISimulationEngine {
             case 'commandResponse':
                 this.handleCommandResponse(response);
                 break;
+        }
+    }
+
+    private updatePerformanceHistory(response: WorkerResponse): void {
+        if (!('stats' in response) || !response.stats || !response.stats.performance) {
+            return;
+        }
+
+        const pm = response.stats.performance;
+        const metrics: SystemMetrics = {
+            cpu: 0,
+            memory: 0,
+            fps: pm.fps,
+            tps: pm.tps,
+            timestamp: performance.now(),
+            frameTime: pm.frameTime,
+            simulationTime: pm.simulationTime,
+            entityCount: pm.entityCount,
+            memoryUsage: 0,
+            drawCalls: pm.drawCalls
+        };
+        this._performanceHistory.push(metrics);
+        if (this._performanceHistory.length > PERFORMANCE_HISTORY_LIMIT) {
+            this._performanceHistory.shift();
         }
     }
 
