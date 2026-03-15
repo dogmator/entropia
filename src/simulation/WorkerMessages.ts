@@ -6,7 +6,12 @@
  * - WorkerResponse — повідомлення від worker до main thread
  */
 
-import type { RenderBuffers, SimulationConfig, SimulationStats, WorldConfig } from '@/types';
+import type {
+    RenderBuffers,
+    SimulationConfig,
+    SimulationStats,
+    WorldConfig
+} from '@/types';
 
 // ============================================================================
 // КОМАНДИ (Main Thread → Worker)
@@ -43,6 +48,56 @@ export interface ResumeCommand {
     readonly type: 'resume';
 }
 
+export interface SetSpeedCommand {
+    readonly type: 'setSpeed';
+    readonly speed: number;
+}
+
+export interface StartLoopCommand {
+    readonly type: 'startLoop';
+}
+
+export interface StopLoopCommand {
+    readonly type: 'stopLoop';
+}
+
+export interface FindEntityAtCommand {
+    readonly type: 'findEntityAt';
+    readonly position: { x: number; y: number; z: number };
+    readonly tolerance: number;
+    readonly requestId: string;
+}
+
+export interface GetEntityByInstanceIdCommand {
+    readonly type: 'getEntityByInstanceId';
+    readonly entityType: 'prey' | 'predator' | 'food';
+    readonly instanceId: number;
+    readonly isDead?: boolean;
+    readonly requestId: string;
+}
+
+export interface GetGeneticNodeCommand {
+    readonly type: 'getGeneticNode';
+    readonly genomeId: string;
+    readonly requestId: string;
+}
+
+export interface GetGeneticRootsCommand {
+    readonly type: 'getGeneticRoots';
+    readonly requestId: string;
+}
+
+export interface ExportStateCommand {
+    readonly type: 'exportState';
+    readonly requestId: string;
+}
+
+export interface ImportStateCommand {
+    readonly type: 'importState';
+    readonly requestId: string;
+    readonly state: import('@/types').SerializedSimulationStateV1;
+}
+
 export type WorkerCommand =
     | InitCommand
     | UpdateCommand
@@ -50,7 +105,16 @@ export type WorkerCommand =
     | GetStatsCommand
     | SetConfigCommand
     | PauseCommand
-    | ResumeCommand;
+    | ResumeCommand
+    | SetSpeedCommand
+    | StartLoopCommand
+    | StopLoopCommand
+    | FindEntityAtCommand
+    | GetEntityByInstanceIdCommand
+    | GetGeneticNodeCommand
+    | GetGeneticRootsCommand
+    | ExportStateCommand
+    | ImportStateCommand;
 
 // ============================================================================
 // ВІДПОВІДІ (Worker → Main Thread)
@@ -59,7 +123,10 @@ export type WorkerCommand =
 export interface InitializedResponse {
     readonly type: 'initialized';
     readonly stats: SimulationStats;
+    readonly config: SimulationConfig;
     readonly worldConfig: WorldConfig;
+    readonly zones: Map<string, import('@/types').EcologicalZone>;
+    readonly obstacles: Map<string, import('@/simulation').Obstacle>;
 }
 
 export interface UpdatedResponse {
@@ -84,12 +151,19 @@ export interface ReadyResponse {
     readonly type: 'ready';
 }
 
+export interface CommandResponse {
+    readonly type: 'commandResponse';
+    readonly requestId: string;
+    readonly result: unknown;
+}
+
 export type WorkerResponse =
     | InitializedResponse
     | UpdatedResponse
     | StatsResponse
     | ErrorResponse
-    | ReadyResponse;
+    | ReadyResponse
+    | CommandResponse;
 
 // ============================================================================
 // УТИЛІТИ

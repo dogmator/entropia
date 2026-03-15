@@ -13,16 +13,17 @@
  */
 
 import { ENGINE_CONSTANTS } from '@/config';
+import type { GridEntity } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
-import type { SpatialHashGrid } from '../SpatialHashGrid';
+import type { GridManager } from './GridManager';
 
 export class EntityManager {
   public readonly organisms: Map<string, Organism> = new Map();
   public readonly food: Map<string, Food> = new Map();
   public readonly obstacles: Map<string, Obstacle> = new Map();
 
-  constructor(private readonly spatialGrid: SpatialHashGrid) {}
+  constructor(private readonly gridManager: GridManager) { }
 
   /**
    * Find organism at given position.
@@ -146,17 +147,21 @@ export class EntityManager {
     this.obstacles.clear();
   }
 
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
+
   private getEntityCandidates(
     pos: { x: number; y: number; z: number },
     tolerance: number
   ): string[] {
     try {
-      if (this.spatialGrid) {
-        const neighbors = this.spatialGrid.getNearby(
+      if (this.gridManager) {
+        this.gridManager.getNearby(
           pos,
-          tolerance * ENGINE_CONSTANTS.GRID_FALLBACK_MULT
+          tolerance * ENGINE_CONSTANTS.GRID_FALLBACK_MULT,
+          this.nearbyBuffer
         );
-        return neighbors.map((n) => n.id);
+        return this.nearbyBuffer.map((n) => n.id);
       }
     } catch {
       // Fallback to full list search

@@ -6,7 +6,6 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 import { WORLD_SIZE } from '../../config';
 import { useSimulation } from '../context/SimulationContext';
-import { SimulationDriver } from './SimulationDriver';
 
 const CameraTracker: React.FC = () => {
     const { camera, controls } = useThree();
@@ -46,6 +45,8 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
     worldSize = WORLD_SIZE,
     children
 }) => {
+    const { autoRotate, autoRotateSpeed } = useSimulation();
+
     return (
         <Canvas
             shadows
@@ -75,10 +76,11 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
                 dampingFactor={0.05}
                 minDistance={100}
                 maxDistance={worldSize * 3}
+                autoRotate={autoRotate}
+                autoRotateSpeed={autoRotateSpeed}
             />
 
             <CameraTracker />
-            <SimulationDriver />
 
             <ambientLight intensity={0.35} />
 

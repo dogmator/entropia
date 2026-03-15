@@ -52,6 +52,51 @@ export interface ChartLineProps {
     stroke: string;
 }
 
+const AreaChartContent = ({ data, lines }: { data: Partial<PerformanceMetrics>[]; lines: ChartLineProps[] }) => (
+    <AreaChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke={DIAGNOSTICS_CONFIG.CHART.GRID_COLOR} />
+        <XAxis dataKey="timestamp" hide />
+        <YAxis hide />
+        <Tooltip
+            contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '8px' }}
+        />
+        {lines.map((line) => (
+            <Area
+                key={line.name}
+                name={line.name}
+                type="monotone"
+                dataKey={line.dataKey}
+                stroke={line.stroke}
+                fill={line.stroke}
+                fillOpacity={CHART_FILL_OPACITY}
+            />
+        ))}
+    </AreaChart>
+);
+
+const LineChartContent = ({ data, lines }: { data: Partial<PerformanceMetrics>[]; lines: ChartLineProps[] }) => (
+    <LineChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke={DIAGNOSTICS_CONFIG.CHART.GRID_COLOR} />
+        <XAxis dataKey="timestamp" hide />
+        <YAxis hide />
+        <Tooltip
+            contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '8px' }}
+            labelFormatter={(value) => `Time: ${new Date(value).toLocaleTimeString()}`}
+        />
+        {lines.map((line) => (
+            <Line
+                key={line.name}
+                name={line.name}
+                type="monotone"
+                dataKey={line.dataKey}
+                stroke={line.stroke}
+                strokeWidth={CHART_STROKE_WIDTH}
+                dot={false}
+            />
+        ))}
+    </LineChart>
+);
+
 export const PerformanceChart = React.memo(({
     title,
     data,
@@ -67,50 +112,19 @@ export const PerformanceChart = React.memo(({
 }) => (
     <div className="bg-white/5 rounded-xl p-4 border border-white/10">
         <h3 className="text-sm font-medium text-gray-300 mb-4">{title}</h3>
-        <ResponsiveContainer width="100%" height={height}>
-            {area ? (
-                <AreaChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={DIAGNOSTICS_CONFIG.CHART.GRID_COLOR} />
-                    <XAxis dataKey="timestamp" hide />
-                    <YAxis hide />
-                    <Tooltip
-                        contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '8px' }}
-                    />
-                    {lines.map((line) => (
-                        <Area
-                            key={line.name}
-                            name={line.name}
-                            type="monotone"
-                            dataKey={line.dataKey}
-                            stroke={line.stroke}
-                            fill={line.stroke}
-                            fillOpacity={CHART_FILL_OPACITY}
-                        />
-                    ))}
-                </AreaChart>
-            ) : (
-                <LineChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={DIAGNOSTICS_CONFIG.CHART.GRID_COLOR} />
-                    <XAxis dataKey="timestamp" hide />
-                    <YAxis hide />
-                    <Tooltip
-                        contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '8px' }}
-                        labelFormatter={(value) => `Time: ${new Date(value).toLocaleTimeString()}`}
-                    />
-                    {lines.map((line) => (
-                        <Line
-                            key={line.name}
-                            name={line.name}
-                            type="monotone"
-                            dataKey={line.dataKey}
-                            stroke={line.stroke}
-                            strokeWidth={CHART_STROKE_WIDTH}
-                            dot={false}
-                        />
-                    ))}
-                </LineChart>
-            )}
-        </ResponsiveContainer>
+        {data.length === 0 ? (
+            <div className="h-[200px] flex items-center justify-center text-xs text-gray-500 border border-dashed border-white/10 rounded-lg">
+                Дані тимчасово недоступні. Зачекайте на перші тики симуляції.
+            </div>
+        ) : (
+            <ResponsiveContainer width="100%" height={height}>
+                {area ? (
+                    <AreaChartContent data={data} lines={lines} />
+                ) : (
+                    <LineChartContent data={data} lines={lines} />
+                )}
+            </ResponsiveContainer>
+        )}
     </div>
 ));
 
