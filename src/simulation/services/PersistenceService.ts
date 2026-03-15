@@ -57,7 +57,10 @@ export class PersistenceService {
                 id: f.id,
                 position: engine.mapVector3(f.position),
                 radius: f.radius,
+                baseRadius: f.baseRadius,
                 energyValue: f.energyValue,
+                maxEnergy: f.maxEnergy,
+                currentEnergy: f.currentEnergy,
                 spawnTime: f.spawnTime,
                 consumed: f.consumed,
             })),
@@ -68,6 +71,10 @@ export class PersistenceService {
                 velocity: engine.mapVector3(o.velocity),
                 acceleration: engine.mapVector3(o.acceleration),
                 radius: o.radius,
+                adultRadius: o.adultRadius,
+                growthRatio: o.growthRatio,
+                maturityRatio: o.maturityRatio,
+                stuckTicks: o.stuckTicks,
                 energy: o.energy,
                 age: o.age,
                 state: o.state,
@@ -182,6 +189,9 @@ export class PersistenceService {
                 f.energyValue,
                 f.spawnTime
             );
+            food.radius = f.radius;
+            food.currentEnergy = f.currentEnergy;
+            food.consumed = f.consumed;
             engine.food.set(f.id, food);
         });
 
@@ -201,6 +211,8 @@ export class PersistenceService {
             organism.state = o.state;
             organism.trailEnabled = o.trailEnabled;
             organism.lastActiveAt = o.lastActiveAt;
+            organism.stuckTicks = o.stuckTicks;
+            organism.updateGrowthFromState();
 
             engine.organisms.set(o.id, organism);
         });

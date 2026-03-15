@@ -25,7 +25,7 @@ const createTestGenome = (type: EntityType = EntityType.PREY): Genome => ({
     id: 'test-genome',
     type,
     subtype: 'default',
-    size: 1,
+    size: 3,
     maxSpeed: 5,
     senseRadius: 30,
     metabolism: 1,
@@ -101,12 +101,18 @@ describe('CollisionSystem', () => {
 
             const initialEnergy = prey.energy;
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
             // Енергія повинна збільшитись
             expect(prey.energy).toBeGreaterThan(initialEnergy);
-            // Їжа повинна бути видалена
-            expect(food.has(foodItem.id)).toBe(false);
+            // Їжа повинна залишатись після першого укусу, але з меншим радіусом
+            expect(food.has(foodItem.id)).toBe(true);
+            expect(foodItem.radius).toBeLessThan(foodItem.baseRadius);
+
+            // Повторний апдейт у межах cooldown не має додавати новий укус
+            const energyAfterFirstBite = prey.energy;
+            collisionSystem.update(organisms, food, obstacles, 2);
+            expect(prey.energy).toBe(energyAfterFirstBite);
         });
 
         it('хижаки не повинні їсти їжу', () => {
@@ -125,7 +131,7 @@ describe('CollisionSystem', () => {
 
             const initialEnergy = predator.energy;
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
             // Енергія не повинна змінитись
             expect(predator.energy).toBe(initialEnergy);
@@ -151,7 +157,7 @@ describe('CollisionSystem', () => {
 
             const predatorInitialEnergy = predator.energy;
 
-            const deadIds = collisionSystem.update(organisms, food, obstacles);
+            const deadIds = collisionSystem.update(organisms, food, obstacles, 1);
 
             // Жертва повинна бути мертва
             expect(prey.isDead).toBe(true);
@@ -163,13 +169,13 @@ describe('CollisionSystem', () => {
     });
 
     describe('handleObstacleCollision', () => {
-        it('повинен відбивати швидкість при зіткненні з перешкодою', () => {
+        it('повинен ковзати вздовж поверхні перешкоди при зіткненні', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
-            prey.velocity = { x: 5, y: 0, z: 0 }; // Рухається в напрямку перешкоди
+            prey.velocity = { x: 5, y: 1, z: 0 }; // Має нормальну + тангенціальну компоненти
 
             const obstacle = Obstacle.create(1, 12, 10, 10, 3); // Близько до prey
 
@@ -179,11 +185,44 @@ describe('CollisionSystem', () => {
             gridManager.initializeStatic(obstacles);
             gridManager.rebuild(organisms, food);
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
-            // Швидкість повинна змінитись (відбиття)
-            // Точне значення залежить від реалізації, але напрямок повинен змінитись
+            // Нормальна компонента має погаситись, тангенціальна — зберегтись для slide
             expect(prey.velocity.x).toBeLessThan(5);
+            expect(Math.abs(prey.velocity.y)).toBeGreaterThan(0);
+        });
+
+        it('повинен зрештою видаляти їжу після серії укусів і емітити подію', () => {
+            const organisms = new Map<string, Organism>();
+            const food = new Map<string, Food>();
+            const obstacles = new Map<string, Obstacle>();
+
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const foodItem = Food.create(1, 10.5, 10.5, 10.5);
+
+            organisms.set(prey.id, prey);
+            food.set(foodItem.id, foodItem);
+
+            gridManager.initializeStatic(obstacles);
+
+            const eventHandler = vi.fn();
+            eventBus.on('EntityDied', eventHandler);
+
+            for (let tick = 1; tick <= 40; tick++) {
+                gridManager.rebuild(organisms, food);
+                collisionSystem.update(organisms, food, obstacles, tick);
+                if (!food.has(foodItem.id)) {
+                    break;
+                }
+            }
+
+            expect(food.has(foodItem.id)).toBe(false);
+            expect(eventHandler).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    type: 'EntityDied',
+                    entityType: EntityType.FOOD,
+                })
+            );
         });
     });
 
@@ -205,14 +244,9 @@ describe('CollisionSystem', () => {
             const eventHandler = vi.fn();
             eventBus.on('EntityDied', eventHandler);
 
-            collisionSystem.update(organisms, food, obstacles);
+            collisionSystem.update(organisms, food, obstacles, 1);
 
-            expect(eventHandler).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    type: 'EntityDied',
-                    entityType: EntityType.FOOD,
-                })
-            );
+            expect(eventHandler).not.toHaveBeenCalled();
         });
     });
 });
