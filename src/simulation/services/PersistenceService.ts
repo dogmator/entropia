@@ -1,8 +1,4 @@
 import { Random } from '@/core/utils/Random';
-import {
-    createFoodId,
-    createObstacleId,
-} from '@/types';
 import type {
     GeneticTreeNode,
     Genome,
@@ -10,10 +6,21 @@ import type {
     OrganismId,
     SerializedGenome,
     SerializedSimulationStateV1,
+    SimulationStats,
 } from '@/types';
-import { isPreyGenome, isPredatorGenome } from '@/types';
+import {
+    createFoodId,
+    createObstacleId,
+} from '@/types';
+import { isPredatorGenome,isPreyGenome } from '@/types';
+
 import { Food, Obstacle, Organism } from '../Entity';
 import { IPersistableEngine } from '../interfaces/IPersistableEngine';
+
+interface PersistedOrganismRuntime {
+    causeOfDeath?: Organism['causeOfDeath'];
+    huntSuccessCount?: number;
+}
 
 export class PersistenceService {
     public static exportState(engine: IPersistableEngine): SerializedSimulationStateV1 {
@@ -64,7 +71,10 @@ export class PersistenceService {
                 spawnTime: f.spawnTime,
                 consumed: f.consumed,
             })),
-            organisms: Array.from(engine.organisms.values()).map(o => ({
+            organisms: Array.from(engine.organisms.values()).map(o => {
+                const persistedOrganism = o as Organism & PersistedOrganismRuntime;
+
+                return ({
                 id: o.id,
                 type: o.type as 'PREY' | 'PREDATOR',
                 position: engine.mapVector3(o.position),
@@ -79,10 +89,10 @@ export class PersistenceService {
                 age: o.age,
                 state: o.state,
                 isDead: o.isDead,
-                causeOfDeath: (o as any).causeOfDeath || null,
+                causeOfDeath: persistedOrganism.causeOfDeath ?? null,
                 trailEnabled: o.trailEnabled,
                 parentOrganismId: o.parentOrganismId,
-                huntSuccessCount: (o as any).huntSuccessCount || 0,
+                huntSuccessCount: persistedOrganism.huntSuccessCount ?? 0,
                 lastActiveAt: o.lastActiveAt,
                 genome: {
                     id: o.genome.id,
@@ -104,7 +114,8 @@ export class PersistenceService {
                         packAffinity: o.genome.packAffinity
                     } : {}),
                 } as SerializedGenome
-            })),
+            });
+            }),
             geneticTree: {
                 roots: engine.geneticRoots.map(id => String(id)),
                 nodes: Array.from(engine.geneticTree.values()).map(node => ({
@@ -124,14 +135,38 @@ export class PersistenceService {
     }
 
     public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
+        type EngineMutableShape = IPersistableEngine & {
+            seed: number;
+            tick: number;
+            foodIdCounter: number;
+            obstacleIdCounter: number;
+            statisticsManager: {
+                reset: () => void;
+                incrementDeaths: (count: number) => void;
+                incrementBirths: (count: number) => void;
+                update: (
+                    organisms: Map<string, Organism>,
+                    foodSize: number,
+                    obstacleSize: number,
+                    tick: number,
+                    zones: Map<string, import('@/types').EcologicalZone>,
+                    gridManager: IPersistableEngine['gridManager'],
+                    config: import('@/types').SimulationConfig
+                ) => void;
+                getStats: () => SimulationStats;
+            };
+        };
+
+        const mutableEngine = engine as EngineMutableShape;
         const factory = engine.spawnService.getFactory();
 
         // Скидання систем перед завантаженням стану
-        (engine as { seed: number }).seed = state.seed >>> 0;
+        mutableEngine.seed = state.seed >>> 0;
         Random.reset(engine.seed);
-        (engine as { tick: number }).tick = state.tick;
-        (engine as { foodIdCounter: number }).foodIdCounter = state.counters.foodIdCounter;
-        (engine as { obstacleIdCounter: number }).obstacleIdCounter = state.counters.obstacleIdCounter;
+        Random.setState(state.rngState >>> 0);
+        mutableEngine.tick = state.tick;
+        mutableEngine.foodIdCounter = state.counters.foodIdCounter;
+        mutableEngine.obstacleIdCounter = state.counters.obstacleIdCounter;
 
         factory.setIdCounter(state.counters.organismIdCounter);
         factory.setGenomeIdCounter(state.counters.genomeIdCounter);
@@ -216,5 +251,20 @@ export class PersistenceService {
 
             engine.organisms.set(o.id, organism);
         });
+
+        Random.setState(state.rngState >>> 0);
+
+        mutableEngine.statisticsManager.reset();
+        mutableEngine.statisticsManager.incrementDeaths(state.stats.totalDeaths);
+        mutableEngine.statisticsManager.incrementBirths(state.stats.totalBirths);
+        mutableEngine.statisticsManager.update(
+            engine.organisms,
+            engine.food.size,
+            engine.obstacles.size,
+            engine.tick,
+            engine.zones,
+            engine.gridManager,
+            engine.config
+        );
     }
 }

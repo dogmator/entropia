@@ -60,6 +60,12 @@ import type { IPersistableEngine } from './interfaces/IPersistableEngine';
 // ENGINE_CONSTANTS тепер імпортується з constants.ts
 
 export class SimulationEngine implements IPersistableEngine {
+  private static readonly POPULATION_ALERT_INTERVAL_TICKS = 60;
+  private static readonly ENGINE_STATUS_LOG_INTERVAL_TICKS = 300;
+  private static readonly MAX_ORGANISM_AGE_TICKS = 5000;
+  private static readonly EXTINCTION_FAILSAFE_TICKS = 180;
+  private static readonly RESOURCE_FAILSAFE_TICKS = 600;
+
   // Життєвий цикл
   public state: EngineState = EngineState.INITIALIZING;
 
@@ -98,6 +104,8 @@ export class SimulationEngine implements IPersistableEngine {
   public foodIdCounter: number = 0;
   public obstacleIdCounter: number = 0;
   public tick: number = 0;
+  private zeroPopulationTicks = 0;
+  private zeroFoodTicks = 0;
 
   public seed: number;
 
@@ -343,6 +351,8 @@ export class SimulationEngine implements IPersistableEngine {
     this.foodIdCounter = 0;
     this.obstacleIdCounter = 0;
     this.tick = 0;
+    this.zeroPopulationTicks = 0;
+    this.zeroFoodTicks = 0;
     this.statisticsManager.reset();
 
     this.spawnService.resetFactory();
@@ -424,99 +434,13 @@ export class SimulationEngine implements IPersistableEngine {
       return;
     }
 
-    this.tick++;
-    this.reproductionSystem.setTick(this.tick);
+    this.prepareTick();
+    this.logPopulationSnapshot();
 
-    // Процедурна генерація енергетичних субстратів (їжі)
-    this.spawnFood();
-
-    // Корекція просторової дискретизації
-    this.gridManager.rebuild(
-      this.entityManager.organisms,
-      this.entityManager.food
-    );
-
-    // Циклічне застосування функціональних систем до реєстру організмів
-    if (this.organisms.size === 0 && this.tick % 60 === 0) {
-      logger.warn(`Critical population drop: 0 organisms at tick ${this.tick}. Check spawning or death logic.`, 'Engine');
-    } else if (this.tick % 300 === 0) {
-      logger.info(`Engine tick ${this.tick}: ${this.organisms.size} organisms, ${this.food.size} food`, 'Engine');
-    }
-
-    const endBehavior = this.performanceMonitor.startSubsystemTimer('BehaviorSystem');
-    this.behaviorSystem.update(this.organisms);
-    endBehavior();
-
-    const endPhysics = this.performanceMonitor.startSubsystemTimer('PhysicsSystem');
-    this.physicsSystem.update(this.organisms);
-    endPhysics();
-
-    const endMetabolism = this.performanceMonitor.startSubsystemTimer('MetabolismSystem');
-    this.metabolismSystem.update(this.organisms, this.tick);
-    endMetabolism();
-
-    // Ідентифікація та аналіз механічних взаємодій (колізій)
-    const endCollision = this.performanceMonitor.startSubsystemTimer('CollisionSystem');
-    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.tick);
-    endCollision();
-
-    // Veрифікація можливості репродуктивних актів
-    const endReproduction = this.performanceMonitor.startSubsystemTimer('ReproductionSystem');
-    const newborns = this.reproductionSystem.checkReproduction(this.organisms, this.config.maxOrganisms);
-    endReproduction();
-
-    // ------------------------------------------------------------------
-    // "Reaper" Loop: Ідентифікація метаболічних та вікових смертей
-    // ------------------------------------------------------------------
-    // Оскільки MetabolismSystem лише виставляє прапорці (або вимагає перевірки віку),
-    // необхідно явно зібрати ці "тихі" смерті для коректної обробки.
-    const metabolicDeadIds: string[] = [];
-    // Тимчасово фіксований ліміт віку (todo: винести в конфіг)
-    const MAX_AGE = 5000;
-
-    this.organisms.forEach(org => {
-      // Перевірка на досягнення граничного віку
-      if (!org.isDead && this.metabolismSystem.isOld(org, MAX_AGE)) {
-        org.die('old_age');
-      }
-
-      // Акумуляція всіх мертвих організмів
-      if (org.isDead) {
-        metabolicDeadIds.push(org.id);
-      }
-    });
-
-    // Об'єднання списків (Колізії + Метаболізм)
-    // Використання Set для усунення можливих дублікатів
-    const allDeadIds = Array.from(new Set([...deadIds, ...metabolicDeadIds]));
-
-    // Логування важливих подій (об'єднано для оптимізації)
-    const hasSignificantEvents = allDeadIds.length > 0 || newborns.length > 0;
-    if (hasSignificantEvents) {
-      const events: string[] = [];
-      const eventData: import('@/types').EngineEventData = {};
-
-      if (allDeadIds.length > 0) {
-        events.push(`${allDeadIds.length} died`);
-        eventData.deadCount = allDeadIds.length;
-      }
-
-      if (newborns.length > 0) {
-        events.push(`${newborns.length} born`);
-        eventData.newbornCount = newborns.length;
-      }
-
-      const currentStats = this.statisticsManager.getStats();
-      const statsSummary = `[Prey: ${currentStats.preyCount}, Pred: ${currentStats.predatorCount}, Food: ${currentStats.foodCount}]`;
-      logger.info(`Population events: ${events.join(', ')} ${statsSummary}`, 'Engine', {
-        ...eventData,
-        currentStats: {
-          prey: currentStats.preyCount,
-          predators: currentStats.predatorCount,
-          food: currentStats.foodCount
-        }
-      });
-    }
+    const deadIds = this.runCoreSystems();
+    const newborns = this.runReproductionSystem();
+    const allDeadIds = this.collectAllDeadIds(deadIds);
+    this.logPopulationEvents(allDeadIds.length, newborns.length);
 
     // Актуалізація статистичних метрик
     this.statisticsManager.update(
@@ -535,6 +459,11 @@ export class SimulationEngine implements IPersistableEngine {
     // Елімінація об'єктів з термінальним статусом (смерть)
     this.processDeaths(allDeadIds);
 
+    if (this.applyFailSafeGuards()) {
+      this.finishFrame();
+      return;
+    }
+
     // Диспетчеризація оновленого стану через шину подій
     const stats = this.statisticsManager.getStats();
     const performanceMetrics = this.performanceMonitor.getCurrentMetrics();
@@ -550,14 +479,135 @@ export class SimulationEngine implements IPersistableEngine {
     });
 
     // Реєстрація тика симуляції та завершення вимірювання
+    this.finishFrame();
+
+    // Оновлення TPS тепер відбувається автоматично в registerTick()
+    // this.performanceMonitor.updateTPS(); // Вилучено - інтегровано в registerTick
+  }
+
+  private prepareTick(): void {
+    this.tick++;
+    this.reproductionSystem.setTick(this.tick);
+    this.spawnFood();
+    this.gridManager.rebuild(this.entityManager.organisms, this.entityManager.food);
+  }
+
+  private logPopulationSnapshot(): void {
+    if (this.organisms.size === 0 && this.tick % SimulationEngine.POPULATION_ALERT_INTERVAL_TICKS === 0) {
+      logger.warn(`Critical population drop: 0 organisms at tick ${this.tick}. Check spawning or death logic.`, 'Engine');
+      return;
+    }
+
+    if (this.tick % SimulationEngine.ENGINE_STATUS_LOG_INTERVAL_TICKS === 0) {
+      logger.info(`Engine tick ${this.tick}: ${this.organisms.size} organisms, ${this.food.size} food`, 'Engine');
+    }
+  }
+
+  private runCoreSystems(): string[] {
+    const endBehavior = this.performanceMonitor.startSubsystemTimer('BehaviorSystem');
+    this.behaviorSystem.update(this.organisms);
+    endBehavior();
+
+    const endPhysics = this.performanceMonitor.startSubsystemTimer('PhysicsSystem');
+    this.physicsSystem.update(this.organisms);
+    endPhysics();
+
+    const endMetabolism = this.performanceMonitor.startSubsystemTimer('MetabolismSystem');
+    this.metabolismSystem.update(this.organisms, this.tick);
+    endMetabolism();
+
+    const endCollision = this.performanceMonitor.startSubsystemTimer('CollisionSystem');
+    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.tick);
+    endCollision();
+    return deadIds;
+  }
+
+  private runReproductionSystem() {
+    const endReproduction = this.performanceMonitor.startSubsystemTimer('ReproductionSystem');
+    const newborns = this.reproductionSystem.checkReproduction(this.organisms, this.config.maxOrganisms);
+    endReproduction();
+    return newborns;
+  }
+
+  private collectAllDeadIds(collisionDeadIds: string[]): string[] {
+    const metabolicDeadIds: string[] = [];
+
+    this.organisms.forEach(org => {
+      if (!org.isDead && this.metabolismSystem.isOld(org, SimulationEngine.MAX_ORGANISM_AGE_TICKS)) {
+        org.die('old_age');
+      }
+
+      if (org.isDead) {
+        metabolicDeadIds.push(org.id);
+      }
+    });
+
+    return Array.from(new Set([...collisionDeadIds, ...metabolicDeadIds]));
+  }
+
+  private logPopulationEvents(deadCount: number, newbornCount: number): void {
+    if (deadCount === 0 && newbornCount === 0) {
+      return;
+    }
+
+    const events: string[] = [];
+    const eventData: import('@/types').EngineEventData = {};
+
+    if (deadCount > 0) {
+      events.push(`${deadCount} died`);
+      eventData.deadCount = deadCount;
+    }
+
+    if (newbornCount > 0) {
+      events.push(`${newbornCount} born`);
+      eventData.newbornCount = newbornCount;
+    }
+
+    const currentStats = this.statisticsManager.getStats();
+    const statsSummary = `[Prey: ${currentStats.preyCount}, Pred: ${currentStats.predatorCount}, Food: ${currentStats.foodCount}]`;
+
+    logger.info(`Population events: ${events.join(', ')} ${statsSummary}`, 'Engine', {
+      ...eventData,
+      currentStats: {
+        prey: currentStats.preyCount,
+        predators: currentStats.predatorCount,
+        food: currentStats.foodCount
+      }
+    });
+  }
+
+  private applyFailSafeGuards(): boolean {
+    this.zeroPopulationTicks = this.organisms.size === 0 ? this.zeroPopulationTicks + 1 : 0;
+    this.zeroFoodTicks = this.food.size === 0 ? this.zeroFoodTicks + 1 : 0;
+
+    if (this.zeroPopulationTicks >= SimulationEngine.EXTINCTION_FAILSAFE_TICKS) {
+      logger.warn('Fail-safe activated: ecosystem extinction detected, engine paused', 'Engine', {
+        tick: this.tick,
+        zeroPopulationTicks: this.zeroPopulationTicks
+      });
+      this.stop();
+      return true;
+    }
+
+    if (this.zeroFoodTicks >= SimulationEngine.RESOURCE_FAILSAFE_TICKS && this.organisms.size > 0) {
+      logger.warn('Fail-safe activated: prolonged resource depletion detected', 'Engine', {
+        tick: this.tick,
+        zeroFoodTicks: this.zeroFoodTicks,
+        organisms: this.organisms.size
+      });
+      this.spawnFood();
+      this.zeroFoodTicks = 0;
+    }
+
+    return false;
+  }
+
+  private finishFrame(): void {
     this.performanceMonitor.registerTick(performance.now() - this.performanceMonitor['currentFrameStartTime']);
     this.performanceMonitor.endFrame(
       this.organisms.size + this.food.size,
       this.calculateDrawCalls()
     );
-
-    // Оновлення TPS тепер відбувається автоматично в registerTick()
-    // this.performanceMonitor.updateTPS(); // Вилучено - інтегровано в registerTick
   }
 
   // ============================================================================
