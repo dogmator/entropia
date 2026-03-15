@@ -268,8 +268,17 @@ self.onmessage = (event: MessageEvent<WorkerCommand>): void => {
         case 'getGeneticRoots':
             handleAsyncCommand(e => e.getGeneticRoots(), data.requestId);
             break;
+        case 'exportState':
+            handleAsyncCommand(async e => e.exportState(), data.requestId);
+            break;
+        case 'importState':
+            handleAsyncCommand(async e => {
+                e.importState(data.state);
+                return true;
+            }, data.requestId);
+            break;
         default:
-            sendResponse({ type: 'error', message: `Unknown command: ${(data as any).type}` });
+            sendResponse({ type: 'error', message: `Unknown command: ${JSON.stringify(data)}` });
     }
 };
 

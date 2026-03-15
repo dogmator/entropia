@@ -87,6 +87,17 @@ export interface GetGeneticRootsCommand {
     readonly requestId: string;
 }
 
+export interface ExportStateCommand {
+    readonly type: 'exportState';
+    readonly requestId: string;
+}
+
+export interface ImportStateCommand {
+    readonly type: 'importState';
+    readonly requestId: string;
+    readonly state: import('@/types').SerializedSimulationStateV1;
+}
+
 export type WorkerCommand =
     | InitCommand
     | UpdateCommand
@@ -101,7 +112,9 @@ export type WorkerCommand =
     | FindEntityAtCommand
     | GetEntityByInstanceIdCommand
     | GetGeneticNodeCommand
-    | GetGeneticRootsCommand;
+    | GetGeneticRootsCommand
+    | ExportStateCommand
+    | ImportStateCommand;
 
 // ============================================================================
 // ВІДПОВІДІ (Worker → Main Thread)

@@ -77,3 +77,38 @@
 - Перейти на bite-based модель їжі для детермінованого балансу.
 - Додати growth pipeline (newborn->adult) керований age+energy+genome.
 - Експортувати/імпортувати нові growth/food поля в persistence.
+
+## 10. Аудит якості та UX-перевірка (2026-03-15, виконано)
+- Перед запуском перевірено синхронізацію з `dev`; в оточенні відсутні `dev/origin/dev`, тому merge технічно недоступний.
+- Прогнано повний доступний стек перевірок: `lint`, `typecheck`, `unit`, `build`, `coverage` (coverage впав через відсутній `@vitest/coverage-v8` та `ENOSPC`).
+- Виконано browser-driven smoke сценарій UI з перевіркою кнопок/слайдерів/діагностики та скриншотом.
+- Зафіксовано production-risk Top-3 по 4 напрямках: performance, refactoring/docs, UX, fault-tolerance/ecosystem balance.
+- Деталі винесено в `docs/TESTING_REPORT_2026-03-15.md`.
+
+## 11. Реалізований пакет покращень (2026-03-15)
+- **Performance:**
+  - декомпозовано `SimulationEngine.update()` на етапи (`prepareTick`, `runCoreSystems`, `runReproductionSystem`, `finishFrame`);
+  - у `EngineProxy` реалізовано dedup `setSpeed` / loop-команд та batched `setConfig`;
+  - у UI додано lazy-loading для `SettingsPanel` і `DiagnosticsModal`.
+- **Refactoring/contract:**
+  - прибрано runtime-gap з `not implemented` для `EngineProxy.exportState/importState` через нові worker-команди.
+- **UI/UX:**
+  - додано явні кнопки стану симуляції (`▶ Запуск`, `⏸ Пауза`, `⏹ Стоп`) + disabled-state;
+  - додано clamp для ключових налаштувань;
+  - додано degraded/empty стан графіків діагностики.
+- **Fault-tolerance/ecosystem:**
+  - fail-safe pause при тривалому extinction;
+  - fail-safe recovery spawn при довгому дефіциті ресурсів.
+
+## 12. Merge verification pass (2026-03-15)
+- Доведено order-safety для `EngineProxy` batching/dedup через flush pending config перед critical-командами.
+- Додано unit-тести на:
+  - порядок system-pipeline у `Engine.update`;
+  - dedup/batching order safety;
+  - інваріант `state === import(export(state))`.
+- Підтверджено browser-driven, що lazy-loaded `SettingsPanel`/`DiagnosticsModal` коректно працюють з `SimulationContext`.
+
+## 13. Stabilization pass (merge-readiness)
+- Посилено order-safety `EngineProxy` для batching/flush у критичних послідовностях команд.
+- Додано повторний persistence-cycle інваріант (`state2 = import(export(import(export(state1))))`).
+- Локально очищено частину code-smells у змінених файлах без розширення scope.
