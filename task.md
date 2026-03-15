@@ -19,3 +19,30 @@
 - Реалізувати slide-first колізії з перешкодами та anti-stuck fallback.
 - Розширити hover-діагностику полями growth/energy/collision.
 - Додати unit-тести нової логіки.
+
+## task_boundary (2026-03-15): full QA + UX smoke + production-risk Top-3
+- Перевірити можливість підтягнути зміни з `dev` перед тестуванням.
+- Прогнати всі доступні перевірки якості з репозиторію/CI.
+- Виконати browser-driven user-perspective перевірку UI з артефактом screenshot.
+- Сформувати тестовий звіт з переліком виконаних та невиконаних перевірок.
+- Підготувати 4 блоки Top-3: performance, refactoring/docs, UI/UX, fault-tolerance/ecosystem balance.
+
+## task_boundary (2026-03-15): production-impact implementation package
+- Реалізувати pipeline decomposition у `SimulationEngine.update`.
+- Реалізувати message dedup/batching та import/export state contract у proxy/worker.
+- Реалізувати явну модель run/pause/stop у UI controls.
+- Додати fail-safe guards для деградаційних станів симуляції.
+- Додати негативні тести для proxy sync/commands.
+- Оновити документацію та тестовий звіт після реалізації.
+
+## task_boundary (2026-03-15): merge verification pass
+- Перевірити batching/dedup order-safety в `EngineProxy`.
+- Підтвердити порядок simulation systems в `Engine.update`.
+- Перевірити lazy-loaded UI з `SimulationContext`.
+- Додати unit-test `state === import(export(state))`.
+
+## task_boundary (2026-03-15): stabilization pass
+- Diff-focused self-review ключових файлів поточного PR.
+- Локальний hardening batching/flush order-safety без нового рефакторинг-етапу.
+- Додати повторний persistence-cycle test.
+- Додати/розширити тести на запитані послідовності команд proxy.
