@@ -1,33 +1,33 @@
 /**
- * Metabolic processes constants.
- * Entropy model of thermodynamics for biological agents.
+ * Константи метаболічних процесів.
+ * Ентропійна модель термодинаміки біологічних агентів.
  */
 
 export const METABOLIC_CONSTANTS = {
-  /** Energy costs for maintaining basic homeostasis and vital functions. */
-  exist: 0.03,
+  /** Енергетичні витрати на підтримку базового гомеостазу та вітальних функцій. */
+  exist: 0.01,
 
-  /** Locomotion costs proportional to kinetic component. */
-  move: 0.004,
+  /** Витрати на локомоцію, пропорційні кінетичній складовій. */
+  move: 0.001,
 
-  /** Costs for sensory systems operation and signal processing. */
+  /** Витрати на функціонування сенсорних систем та обробку сигналів. */
   sense: 0.0005,
 
-  /** Scale coefficient (allometric dependence of costs on subject size). */
+  /** Масштабний коефіцієнт (алометрична залежність витрат від розміру суб'єкта). */
   size: 0.001,
 } as const;
 
 export const METABOLIC_THRESHOLDS = {
-  /** Energy level for hunger state (normalized < 0.5). */
+  /** Рівень енергії для переходу в стан голоду (нормалізований < 0.5). */
   hunger: 0.5,
-  /** Critical energy level for exhaustion state (normalized < 0.2). */
+  /** Критичний рівень енергії для стану виснаження (нормалізований < 0.2). */
   critical: 0.2,
-  /** Old age threshold (relative to maximum age). */
+  /** Поріг старості (відносно максимального віку). */
   oldAgeRatio: 0.8,
 } as const;
 
-/** Initial energy potential of newly formed organism. */
-export const INITIAL_ENERGY = 100;
+/** Початковий енергетичний потенціал новоствореного організму. */
+export const INITIAL_ENERGY = 200;
 
-/** Maximum energy capacity of biological subject. */
+/** Максимальна енергетична ємність біологічного суб'єкта. */
 export const MAX_ENERGY = 300;

@@ -25,14 +25,14 @@ export class MathUtils {
   /**
    * Приведення координати до циклічного діапазону [0, WORLD_SIZE).
    */
-  static wrap(value: number, worldSize: number = WORLD_SIZE): number {
+  public static wrap(value: number, worldSize: number = WORLD_SIZE): number {
     return ((value % worldSize) + worldSize) % worldSize;
   }
 
   /**
    * Мутація вектора для відповідності тороїдальним межам простору.
    */
-  static wrapVector(v: MutableVector3, worldSize: number = WORLD_SIZE): void {
+  public static wrapVector(v: MutableVector3, worldSize: number = WORLD_SIZE): void {
     v.x = MathUtils.wrap(v.x, worldSize);
     v.y = MathUtils.wrap(v.y, worldSize);
     v.z = MathUtils.wrap(v.z, worldSize);
@@ -41,7 +41,7 @@ export class MathUtils {
   /**
    * Обчислення квадрата найкоротшої тороїдальної відстані між точками.
    */
-  static toroidalDistanceSq(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
+  public static toroidalDistanceSq(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
     let dx = Math.abs(a.x - b.x);
     let dy = Math.abs(a.y - b.y);
     let dz = Math.abs(a.z - b.z);
@@ -58,14 +58,14 @@ export class MathUtils {
   /**
    * Обчислення найкоротшої тороїдальної відстані (модуль вектора).
    */
-  static toroidalDistance(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
+  public static toroidalDistance(a: Vector3, b: Vector3, worldSize: number = WORLD_SIZE): number {
     return Math.sqrt(MathUtils.toroidalDistanceSq(a, b, worldSize));
   }
 
   /**
    * Розрахунок найкоротшого різницевого вектора з урахуванням тороїдальної топології.
    */
-  static toroidalVector(from: Vector3, to: Vector3, worldSize: number = WORLD_SIZE, target?: MutableVector3): MutableVector3 {
+  public static toroidalVector(from: Vector3, to: Vector3, worldSize: number = WORLD_SIZE, target?: MutableVector3): MutableVector3 {
     let dx = to.x - from.x;
     let dy = to.y - from.y;
     let dz = to.z - from.z;
@@ -97,7 +97,7 @@ export class MathUtils {
   /**
    * Нормалізація вектора (приведення до одиничної довжини).
    */
-  static normalize(v: Vector3, target?: MutableVector3): MutableVector3 {
+  public static normalize(v: Vector3, target?: MutableVector3): MutableVector3 {
     const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
     const res = target || { x: 0, y: 0, z: 0 };
 
@@ -116,7 +116,7 @@ export class MathUtils {
   /**
    * Обмеження норми вектора заданим максимальним значенням (Clamping).
    */
-  static limit(v: Vector3, max: number, target?: MutableVector3): MutableVector3 {
+  public static limit(v: Vector3, max: number, target?: MutableVector3): MutableVector3 {
     const magSq = v.x * v.x + v.y * v.y + v.z * v.z;
     const res = target || { x: 0, y: 0, z: 0 };
 
@@ -138,28 +138,28 @@ export class MathUtils {
   /**
    * Обчислення евклідової норми (довжини) вектора.
    */
-  static magnitude(v: Vector3): number {
+  public static magnitude(v: Vector3): number {
     return Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
   }
 
   /**
    * Обчислення квадрата норми вектора (оптимізовано для порівнянь).
    */
-  static magnitudeSq(v: Vector3): number {
+  public static magnitudeSq(v: Vector3): number {
     return v.x * v.x + v.y * v.y + v.z * v.z;
   }
 
   /**
    * Скалярний добуток двох векторів.
    */
-  static dot(a: Vector3, b: Vector3): number {
+  public static dot(a: Vector3, b: Vector3): number {
     return a.x * b.x + a.y * b.y + a.z * b.z;
   }
 
   /**
    * Векторний добуток двох векторів у тривимірному просторі.
    */
-  static cross(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
+  public static cross(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
     const x = a.y * b.z - a.z * b.y;
     const y = a.z * b.x - a.x * b.z;
     const z = a.x * b.y - a.y * b.x;
@@ -176,7 +176,7 @@ export class MathUtils {
   /**
    * Арифметичне додавання двох векторів.
    */
-  static add(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
+  public static add(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
     const x = a.x + b.x;
     const y = a.y + b.y;
     const z = a.z + b.z;
@@ -193,7 +193,7 @@ export class MathUtils {
   /**
    * Арифметичне віднімання двох векторів.
    */
-  static sub(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
+  public static sub(a: Vector3, b: Vector3, target?: MutableVector3): MutableVector3 {
     const x = a.x - b.x;
     const y = a.y - b.y;
     const z = a.z - b.z;

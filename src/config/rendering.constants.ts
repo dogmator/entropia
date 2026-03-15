@@ -144,18 +144,76 @@ export const RENDER = {
   enableTracertForAllOrganisms: true,
 } as const;
 
+export const ENVIRONMENT_RENDERING = {
+  BOX_OPACITY: 0.08,
+  ZONE_OPACITY: 0.05,
+  ZONE_SEGMENTS: 16,
+  OBSTACLE_SEGMENTS: 2,
+  OBSTACLE_EMISSIVE_INTENSITY: 0.1,
+  DEFAULT_ZONE_COLOR: 0xffffff,
+  CENTER_DIVIDER: 2,
+} as const;
+
+export const BUFFER_LAYOUT = {
+  STRIDE: 13,
+  FOOD_STRIDE: 5,
+  OFFSETS: {
+    X: 0,
+    Y: 1,
+    Z: 2,
+    VX: 3,
+    VY: 4,
+    VZ: 5,
+    RADIUS: 6,
+    IS_DEAD: 7,
+    ID: 8,
+    TYPE: 9,
+    STATE: 10,
+    AGE: 11,
+    MAX_ENERGY: 12,
+  },
+  FOOD_OFFSETS: {
+    X: 0,
+    Y: 1,
+    Z: 2,
+    RADIUS: 3,
+    ID: 4,
+  },
+  DEAD_THRESHOLD: 0.5,
+} as const;
+
+export const CAMERA = {
+  INITIAL_STATE: {
+    position: { x: 0, y: 0, z: 0 },
+    target: { x: 0, y: 0, z: 0 },
+    zoom: 1,
+    distance: 0,
+    fov: 60,
+    aspect: 1,
+    near: 0.1,
+    far: 5000,
+  },
+  AUTO_ROTATE: {
+    ENABLED: true,
+    SPEED: 2.0,
+    SPEED_MIN: 0.1,
+    SPEED_MAX: 20,
+  },
+} as const;
+
 /** Color palette. */
 export const COLORS = {
   prey: {
     base: 0x44ff88,
     glow: 0x88ffaa,
-    death: 0x88ff88,
+    // дужче зменьшити яркость при загибели
+    death: 0x44ff44,
     trail: 0x66ff99,
   },
   predator: {
     base: 0xff4466,
     glow: 0xff6688,
-    death: 0xff8888,
+    death: 0xff4444,
     trail: 0xff6688,
   },
   food: {
@@ -212,6 +270,10 @@ export const COSMIC_BACKGROUND_CONSTANTS = {
 export const ENTITY_CONSTANTS = {
   // Food properties
   FOOD_RADIUS: 2,
+  FOOD_MIN_RADIUS_FACTOR: 0.25,
+  FOOD_REMOVAL_THRESHOLD: 0.5,
+  FOOD_BITE_ENERGY: 15,
+  FOOD_BITE_COOLDOWN_TICKS: 4,
 
   // Prey genome creation variance
   PREY_SPEED_VARIANCE: 0.5,
@@ -245,6 +307,12 @@ export const ENTITY_CONSTANTS = {
   // Organism properties
   VELOCITY_RANGE: 2,
   OFFSPRING_RADIUS_MULTIPLIER: 2,
+  NEWBORN_RADIUS_FACTOR: 0.4,
+  GROWTH_AGE_CAP_TICKS: 320,
+  GROWTH_ENERGY_PENALTY_THRESHOLD: 0.2,
+  GROWTH_ENERGY_RECOVERY_THRESHOLD: 0.55,
+  STUCK_TICKS_THRESHOLD: 8,
+  STUCK_RELEASE_IMPULSE: 0.22,
 
   // Trait mutation bounds
   TRAIT_MIN_BOUND: 0,

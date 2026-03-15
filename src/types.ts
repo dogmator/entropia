@@ -69,6 +69,17 @@ export const GraphicsQuality = {
 
 export type GraphicsQuality = typeof GraphicsQuality[keyof typeof GraphicsQuality];
 
+/** Стани життєвого циклу рушія симуляції. */
+export const EngineState = {
+  INITIALIZING: 'INITIALIZING',
+  READY: 'READY',
+  RUNNING: 'RUNNING',
+  PAUSED: 'PAUSED',
+  STOPPED: 'STOPPED',
+} as const;
+
+export type EngineState = typeof EngineState[keyof typeof EngineState];
+
 // ============================================================================
 // ОБ'ЄКТИ ВЕКТОРНОГО АНАЛІЗУ
 // ============================================================================
@@ -341,6 +352,10 @@ export interface SerializedOrganism {
   velocity: SerializedVector3;
   acceleration: SerializedVector3;
   radius: number;
+  adultRadius: number;
+  growthRatio: number;
+  maturityRatio: number;
+  stuckTicks: number;
   energy: number;
   age: number;
   state: OrganismState;
@@ -357,7 +372,10 @@ export interface SerializedFood {
   id: string;
   position: SerializedVector3;
   radius: number;
+  baseRadius: number;
   energyValue: number;
+  maxEnergy: number;
+  currentEnergy: number;
   spawnTime: number;
   consumed: boolean;
 }
@@ -574,6 +592,10 @@ export interface OrganismRenderData {
   readonly position: Vector3;
   readonly velocity: Vector3;
   readonly radius: number;
+  readonly adultRadius: number;
+  readonly growthRatio: number;
+  readonly maturityRatio: number;
+  readonly stuckTicks: number;
   readonly energy: number;
   readonly maxEnergy: number;
   readonly type: EntityType;
@@ -588,6 +610,7 @@ export interface FoodRenderData {
   readonly position: Vector3;
   readonly radius: number;
   readonly energyValue: number;
+  readonly currentEnergy: number;
 }
 
 export interface ObstacleRenderData {

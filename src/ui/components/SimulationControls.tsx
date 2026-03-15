@@ -9,6 +9,11 @@ interface SimulationControlsProps {
   onReset: () => void;
   speed: number;
   onSpeedChange: (val: number) => void;
+  simulationState: 'running' | 'paused' | 'stopped';
+  onRun: () => void;
+  onPause: () => void;
+  onStop: () => void;
+  disabled?: boolean;
 }
 
 const SPEED_STEPS = [
@@ -23,15 +28,22 @@ const SPEED_STEPS = [
  * Компонент SimulationControls — інтерфейс керування темпоральними параметрами симуляції.
  */
 export const SimulationControls: React.FC<SimulationControlsProps> = ({
-  onReset, speed, onSpeedChange
+  onReset, speed, onSpeedChange, simulationState, onRun, onPause, onStop, disabled = false
 }) => {
   return (
     <div className="flex flex-col gap-4 bg-white/5 p-4 rounded-xl border border-white/5">
+      <SimulationStateControls
+        simulationState={simulationState}
+        onRun={onRun}
+        onPause={onPause}
+        onStop={onStop}
+        disabled={disabled}
+      />
       <SpeedHeader speed={speed} />
       <SpeedStatus speed={speed} />
-      <SpeedSlider speed={speed} onChange={onSpeedChange} />
-      <SpeedQuickButtons speed={speed} onChange={onSpeedChange} />
-      <ResetButton onReset={onReset} />
+      <SpeedSlider speed={speed} onChange={onSpeedChange} disabled={disabled} />
+      <SpeedQuickButtons speed={speed} onChange={onSpeedChange} disabled={disabled} />
+      <ResetButton onReset={onReset} disabled={disabled} />
     </div>
   );
 };
@@ -65,7 +77,7 @@ const SpeedStatus: React.FC<{ speed: number }> = ({ speed }) => {
   );
 };
 
-const SpeedSlider: React.FC<{ speed: number, onChange: (val: number) => void }> = ({ speed, onChange }) => (
+const SpeedSlider: React.FC<{ speed: number, onChange: (val: number) => void, disabled: boolean }> = ({ speed, onChange, disabled }) => (
   <div className="flex flex-col gap-3">
     <div className="relative">
       <div className="absolute -top-2 left-0 right-0 flex justify-between pointer-events-none px-0.5">
@@ -80,6 +92,7 @@ const SpeedSlider: React.FC<{ speed: number, onChange: (val: number) => void }> 
         type="range"
         min={0} max={5.0} step={0.1}
         value={speed}
+        disabled={disabled}
         onInput={(e: React.ChangeEvent<HTMLInputElement>) => onChange(parseFloat(e.target.value))}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(parseFloat(e.target.value))}
         className="w-full h-2 sm:h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:bg-white/20 transition-colors touch-manipulation"
@@ -104,11 +117,12 @@ const SpeedSlider: React.FC<{ speed: number, onChange: (val: number) => void }> 
   </div>
 );
 
-const SpeedQuickButtons: React.FC<{ speed: number, onChange: (val: number) => void }> = ({ speed, onChange }) => (
+const SpeedQuickButtons: React.FC<{ speed: number, onChange: (val: number) => void, disabled: boolean }> = ({ speed, onChange, disabled }) => (
   <div className="grid grid-cols-5 gap-2">
     {SPEED_STEPS.map((btn) => (
       <button
         key={btn.value}
+        disabled={disabled}
         onClick={() => onChange(btn.value)}
         className={`h-8 rounded-lg text-[10px] font-bold transition-all duration-200 touch-manipulation ${speed === btn.value
           ? `bg-${btn.color}-500/30 text-${btn.color}-400 ring-2 ring-${btn.color}-500/50`
@@ -121,14 +135,47 @@ const SpeedQuickButtons: React.FC<{ speed: number, onChange: (val: number) => vo
   </div>
 );
 
-const ResetButton: React.FC<{ onReset: () => void }> = ({ onReset }) => (
+const ResetButton: React.FC<{ onReset: () => void, disabled: boolean }> = ({ onReset, disabled }) => (
   <button
+    disabled={disabled}
     onClick={onReset}
     className="h-10 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center gap-2 hover:bg-rose-500/20 hover:shadow-[0_0_20px_rgba(244,63,94,0.2)] transition-all duration-300 border border-rose-500/20 hover:border-rose-500/40 touch-manipulation hover:scale-[1.02] active:scale-95 font-bold text-[11px] sm:text-[10px] uppercase tracking-widest"
     title="Скинути симуляційну модель"
   >
     <Icons.Reset />
     Реініціалізувати Світ
+  </button>
+);
+
+const SimulationStateControls: React.FC<{
+  simulationState: 'running' | 'paused' | 'stopped';
+  onRun: () => void;
+  onPause: () => void;
+  onStop: () => void;
+  disabled: boolean;
+}> = ({ simulationState, onRun, onPause, onStop, disabled }) => (
+  <div className="grid grid-cols-3 gap-2">
+    <ControlButton label="▶ Запуск" onClick={onRun} active={simulationState === 'running'} disabled={disabled} />
+    <ControlButton label="⏸ Пауза" onClick={onPause} active={simulationState === 'paused'} disabled={disabled} />
+    <ControlButton label="⏹ Стоп" onClick={onStop} active={simulationState === 'stopped'} disabled={disabled} />
+  </div>
+);
+
+const ControlButton: React.FC<{
+  label: string;
+  onClick: () => void;
+  active: boolean;
+  disabled: boolean;
+}> = ({ label, onClick, active, disabled }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={`h-8 rounded-lg text-[10px] font-bold transition-all duration-200 touch-manipulation ${active
+      ? 'bg-emerald-500/30 text-emerald-300 ring-2 ring-emerald-500/40'
+      : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+  >
+    {label}
   </button>
 );
 

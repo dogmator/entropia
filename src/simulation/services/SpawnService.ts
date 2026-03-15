@@ -15,6 +15,7 @@ import type {
   EcologicalZone,
   EntitySpawnedEvent,
   FoodId,
+  GridEntity,
   MutableVector3,
   OrganismId,
   Vector3,
@@ -27,8 +28,8 @@ import {
 
 import type { Obstacle, Organism } from '../Entity';
 import { Food, OrganismFactory } from '../Entity';
+import type { GridManager } from '../managers/GridManager';
 import { MathUtils } from '../MathUtils';
-import type { SpatialHashGrid } from '../SpatialHashGrid';
 
 // ============================================================================
 // ПЕРЕЛІКИ ТА ОБ'ЄКТИ КОНФІГУРАЦІЇ
@@ -99,20 +100,19 @@ export class SpawnService {
   private readonly organismFactory: OrganismFactory;
 
   private rand(): number {
-    return this.rng ? this.rng.next() : Math.random();
+    return Random.next();
   }
 
   constructor(
     private readonly eventBus: EventBus,
-    private readonly spatialGrid: SpatialHashGrid,
+    private readonly gridManager: GridManager,
     private readonly zones: Map<string, EcologicalZone>,
     private readonly obstacles: Map<string, Obstacle>,
-    private readonly rng?: Random,
     config?: Partial<SpawnConfig>,
     private readonly worldConfig?: WorldConfig // Added optional for now to avoid breaking tests if any
   ) {
     this.config = { ...DEFAULT_SPAWN_CONFIG, ...config };
-    this.organismFactory = new OrganismFactory(this.rng ?? Random.fromMath());
+    this.organismFactory = new OrganismFactory();
   }
 
   // ============================================================================
@@ -137,7 +137,9 @@ export class SpawnService {
     let organism: Organism;
 
     if (parent) {
-      organism = this.organismFactory.createOffspring(parent);
+      // Default to INITIAL_ENERGY if not specified (SpawnService logic usually implies new full organisms or specific logic)
+      // Actually, createOffspring expects specific energy. Using INITIAL_ENERGY constant.
+      organism = this.organismFactory.createOffspring(parent, 100); // 100 is placeholder, should ideally come from config or parent
       organism.position.x = position.x;
       organism.position.y = position.y;
       organism.position.z = position.z;
@@ -266,22 +268,26 @@ export class SpawnService {
     return this.getRandomValidPosition(5);
   }
 
+  /** Кешований буфер сусідів для уникнення алокацій. */
+  private readonly nearbyBuffer: GridEntity[] = [];
+
   /**
    * Створення нових ресурсів поблизу вже існуючих (кластерний ефект).
    */
   private getClusteredPosition(): MutableVector3 | null {
     // Пошук існуючих енергетичних центрів через просторову сітку
     const ws = this.worldSize;
-    const nearbyEntities = this.spatialGrid.getNearby(
+    this.gridManager.getNearby(
       {
         x: this.rand() * ws,
         y: this.rand() * ws,
         z: this.rand() * ws,
       },
-      50
+      50,
+      this.nearbyBuffer
     );
 
-    const foodEntities = Array.from(nearbyEntities).filter(e => e.type === EntityType.FOOD);
+    const foodEntities = this.nearbyBuffer.filter(e => e.type === EntityType.FOOD);
     if (foodEntities.length > 0) {
       const target = foodEntities[Math.floor(this.rand() * foodEntities.length)];
       if (!target) { return this.getRandomValidPosition(5); }
