@@ -42,3 +42,17 @@
 - `scripts/log-server.ts`: payload-size/message-size/source-size санітизація, safer JSON parse diagnostics, валідований broadcast command.
 - `vite.config.ts`: checker-plugin переведено в optional async-loading за `VITE_ENABLE_CHECKER=true`, щоб production build та pre-commit не залежали від локальної наявності checker-пакета.
 - Валідація: на кожному етапі змін коду виконувались tests + eslint + typecheck; додатково верифіковано `pnpm -s build`.
+
+## Етап 8 — Комплексне тестування функціональності (2026-03-15, виконано)
+- Перед стартом перевірено можливість синхронізації з `dev` (`git remote -v`, `git branch --all`): remote не налаштовані, доступна лише локальна гілка `work`.
+- Виконано повний регресійний прогін:
+  - `pnpm run test --run` ✅
+  - `pnpm run typecheck` ✅
+  - `pnpm run build` ✅
+  - `pnpm run lint` ❌ (pre-existing lint debt)
+- З точки зору користувача виконано browser automation сценарій:
+  - відкриття UI,
+  - взаємодія з `🔍 Діагностика` і всіма ключовими вкладками,
+  - перевірка кнопок керування симуляцією,
+  - фіксація скриншота.
+- Підсумковий звіт винесено в `docs/TESTING_REPORT_2026-03-15.md`.
