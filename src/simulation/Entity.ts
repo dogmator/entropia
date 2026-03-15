@@ -17,6 +17,7 @@ import {
   GENETICS,
   INITIAL_ENERGY,
   MAX_ENERGY,
+  PHYSICS,
   PREDATOR_SUBTYPES,
 } from '@/config';
 import {
@@ -81,6 +82,10 @@ export abstract class Entity {
 export class Food extends Entity {
   public readonly type = EntityType.FOOD;
   public readonly energyValue: number;
+  public readonly maxEnergy: number;
+  public currentEnergy: number;
+  public readonly baseRadius: number;
+  public lastBiteTick: number;
 
   /** Часова мітка ініціалізації для синхронізації анімацій. */
   public readonly spawnTime: number;
@@ -95,9 +100,41 @@ export class Food extends Entity {
     spawnTime: number = Date.now()
   ) {
     super(id, position);
-    this.radius = ENTITY_CONSTANTS.FOOD_RADIUS; // Set radius in derived class
+    this.baseRadius = ENTITY_CONSTANTS.FOOD_RADIUS;
+    this.radius = this.baseRadius;
     this.energyValue = energyValue;
+    this.maxEnergy = energyValue;
+    this.currentEnergy = energyValue;
+    this.lastBiteTick = Number.NEGATIVE_INFINITY;
     this.spawnTime = spawnTime;
+  }
+
+  public applyBite(requestedEnergy: number, tick: number): number {
+    if (this.consumed || requestedEnergy <= 0) {
+      return 0;
+    }
+
+    if (tick - this.lastBiteTick < ENTITY_CONSTANTS.FOOD_BITE_COOLDOWN_TICKS) {
+      return 0;
+    }
+
+    this.lastBiteTick = tick;
+
+    const absorbedEnergy = Math.min(this.currentEnergy, requestedEnergy);
+    this.currentEnergy = Math.max(0, this.currentEnergy - absorbedEnergy);
+
+    const energyRatio = this.maxEnergy > 0 ? this.currentEnergy / this.maxEnergy : 0;
+    const clampedRatio = Math.max(0, Math.min(1, energyRatio));
+    const radiusFactor = ENTITY_CONSTANTS.FOOD_MIN_RADIUS_FACTOR
+      + (1 - ENTITY_CONSTANTS.FOOD_MIN_RADIUS_FACTOR) * clampedRatio;
+    this.radius = this.baseRadius * radiusFactor;
+
+    if (this.currentEnergy <= ENTITY_CONSTANTS.FOOD_REMOVAL_THRESHOLD) {
+      this.consumed = true;
+      this.currentEnergy = 0;
+    }
+
+    return absorbedEnergy;
   }
 
   /**
@@ -201,6 +238,10 @@ export class Organism extends Entity {
   public color: number; // Added color property to Organism
   public mass: number; // Added mass property to Organism
   public targetPosition: MutableVector3; // Added targetPosition property to Organism
+  public readonly adultRadius: number;
+  public growthRatio: number;
+  public maturityRatio: number;
+  public stuckTicks: number;
 
   // Генетичний дескриптор
   public readonly genome: Genome;
@@ -220,8 +261,12 @@ export class Organism extends Entity {
     this.type = genome.type as typeof EntityType.PREY | typeof EntityType.PREDATOR;
     this.parentOrganismId = parentId;
     this.energy = energy ?? INITIAL_ENERGY;
-    this.radius = genome.size;
-    this.mass = genome.size;
+    this.adultRadius = genome.size;
+    this.growthRatio = ENTITY_CONSTANTS.NEWBORN_RADIUS_FACTOR;
+    this.maturityRatio = 0;
+    this.radius = this.adultRadius * this.growthRatio;
+    this.mass = this.radius;
+    this.stuckTicks = 0;
     this.velocity = { x: 0, y: 0, z: 0 };
     this.acceleration = { x: 0, y: 0, z: 0 };
     this.targetPosition = { ...position };
@@ -234,6 +279,7 @@ export class Organism extends Entity {
       z: (Random.next() - 0.5) * ENTITY_CONSTANTS.VELOCITY_RANGE,
     };
     this.acceleration = vec3Zero();
+    this.updateGrowthFromState();
   }
 
   /** Перевірка приналежності до трофічного рівня продуцентів/травоїдних. */
@@ -263,14 +309,33 @@ export class Organism extends Entity {
   /** Поповнення енергетичного депо організму. */
   addEnergy(amount: number): void {
     this.energy = Math.min(MAX_ENERGY, this.energy + amount);
+    this.updateGrowthFromState();
   }
 
   /** Дисипація енергії та перевірка на критичний рівень виснаження. */
   consumeEnergy(amount: number): void {
     this.energy -= amount;
+    this.updateGrowthFromState();
     if (this.energy <= 0) {
       this.die('starvation');
     }
+  }
+
+  public updateGrowthFromState(): void {
+    const maturity = Math.max(0, Math.min(1, this.age / ENTITY_CONSTANTS.GROWTH_AGE_CAP_TICKS));
+    this.maturityRatio = maturity;
+
+    const normalizedEnergy = Math.max(0, Math.min(1, this.energy / MAX_ENERGY));
+
+    const penalty = ENTITY_CONSTANTS.GROWTH_ENERGY_PENALTY_THRESHOLD;
+    const recovery = ENTITY_CONSTANTS.GROWTH_ENERGY_RECOVERY_THRESHOLD;
+    const energyWindow = Math.max(PHYSICS.EPSILON, recovery - penalty);
+    const energyGrowth = Math.max(0, Math.min(1, (normalizedEnergy - penalty) / energyWindow));
+
+    const growthWindow = maturity * energyGrowth;
+    this.growthRatio = ENTITY_CONSTANTS.NEWBORN_RADIUS_FACTOR + (1 - ENTITY_CONSTANTS.NEWBORN_RADIUS_FACTOR) * growthWindow;
+    this.radius = this.adultRadius * this.growthRatio;
+    this.mass = this.radius;
   }
 
   /** Ініціалізація процесу термінальної елімінації (смерті). */
@@ -301,6 +366,10 @@ export class Organism extends Entity {
       position: { ...this.position } as Vector3,
       velocity: { ...this.velocity } as Vector3,
       radius: this.radius,
+      adultRadius: this.adultRadius,
+      growthRatio: this.growthRatio,
+      maturityRatio: this.maturityRatio,
+      stuckTicks: this.stuckTicks,
       energy: this.energy,
       maxEnergy: MAX_ENERGY,
       type: this.type,
