@@ -457,7 +457,7 @@ export class SimulationEngine implements IPersistableEngine {
 
     // Ідентифікація та аналіз механічних взаємодій (колізій)
     const endCollision = this.performanceMonitor.startSubsystemTimer('CollisionSystem');
-    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles);
+    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.tick);
     endCollision();
 
     // Veрифікація можливості репродуктивних актів

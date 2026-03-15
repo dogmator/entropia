@@ -137,3 +137,10 @@ docker compose up -d
 - посилено `scripts/log-server.ts` (payload/text caps, sanitize + safe parse diagnostics);
 - `vite.config.ts` тепер безпечний для build у середовищах без `vite-plugin-checker` (checker вмикається лише через `VITE_ENABLE_CHECKER=true`);
 - розширено unit-тести для logger/transport на edge-cases.
+
+## Нове в симуляції: ріст та поетапне харчування
+- **Їжа тепер споживається дискретно**: один контакт = один укус з cooldown.
+- **Кристали їжі візуально зменшуються** відповідно до `currentEnergy`.
+- **Організми народжуються малими** (близько 40% від adult-розміру) та ростуть за age+energy.
+- **Аномалії стали непрохідними**: застосовується ковзання уздовж поверхні, відбиття використовується як fallback.
+- **Розширено діагностику hover-панелі**: growth, maturity, adult/current radius, stuck ticks, current food energy.
