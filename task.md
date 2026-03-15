@@ -12,3 +12,10 @@
 - [x] Зробити `vite.config.ts` стійким для build без checker-залежності.
 - [x] Прогнати tests + eslint + typecheck після кожного кодового етапу.
 - [x] Оновити `walkthrough.md`, `README.md`, `docs/OPTIMIZATION_PLAN.md`.
+
+## task_boundary (2026-03-15): impassable anomalies + food bites + growth
+- Реалізувати дискретні укуси їжі з cooldown і пороговим видаленням.
+- Реалізувати ріст організмів: newborn ~40% adult, ріст за age+energy+genome.
+- Реалізувати slide-first колізії з перешкодами та anti-stuck fallback.
+- Розширити hover-діагностику полями growth/energy/collision.
+- Додати unit-тести нової логіки.

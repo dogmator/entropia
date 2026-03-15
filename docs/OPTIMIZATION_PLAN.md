@@ -70,3 +70,10 @@
 - Запущено lint: `pnpm run lint` (виявлено pre-existing 360 errors, 10 warnings).
 - Проведено browser-driven перевірку UX (керування симуляцією та вкладки діагностики) з артефактом скриншота.
 - Детальний звіт зафіксовано у `docs/TESTING_REPORT_2026-03-15.md`.
+
+## Оновлення 2026-03-15 — фізика аномалій, ріст, харчування
+- Впровадити slide-first obstacle response для зменшення неприродних bounce-патернів.
+- Закрити тунелювання через push-out + fallback reflect + anti-stuck.
+- Перейти на bite-based модель їжі для детермінованого балансу.
+- Додати growth pipeline (newborn->adult) керований age+energy+genome.
+- Експортувати/імпортувати нові growth/food поля в persistence.

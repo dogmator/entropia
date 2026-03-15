@@ -73,6 +73,7 @@ export class MetabolismSystem {
 
     // Інкрементація біологічного віку (старіння)
     org.age++;
+    org.updateGrowthFromState();
 
     // Реєстрація часової мітки останньої метаболічної активності
     org.lastActiveAt = this.currentTick;
