@@ -123,6 +123,41 @@ export const Viewport: React.FC = () => {
               </span>
 
               <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Поточний радіус
+              </span>
+              <span className="text-cyan-300 text-right font-bold">
+                {(hoveredEntity.radius ?? 0).toFixed(2)}
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Adult radius
+              </span>
+              <span className="text-cyan-500 text-right">
+                {(hoveredEntity.adultRadius ?? hoveredEntity.radius ?? 0).toFixed(2)}
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Ріст
+              </span>
+              <span className="text-emerald-300 text-right">
+                {Math.round((hoveredEntity.growthRatio ?? 0) * 100)}%
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Зрілість
+              </span>
+              <span className="text-indigo-300 text-right">
+                {Math.round((hoveredEntity.maturityRatio ?? 0) * 100)}%
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Stuck ticks
+              </span>
+              <span className="text-right text-orange-300">
+                {hoveredEntity.stuckTicks ?? 0}
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
                 Візуальний шлейф
               </span>
               <span
@@ -166,6 +201,20 @@ export const Viewport: React.FC = () => {
               </span>
               <span className="text-yellow-400 font-bold text-right">
                 +{hoveredEntity.energyValue}
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Поточна енергія
+              </span>
+              <span className="text-yellow-300 font-bold text-right">
+                {Math.round(hoveredEntity.currentEnergy ?? hoveredEntity.energyValue ?? 0)}
+              </span>
+
+              <span className="text-gray-500 uppercase tracking-tighter text-[9px]">
+                Розмір кристалу
+              </span>
+              <span className="text-amber-200 text-right">
+                {(hoveredEntity.radius ?? 0).toFixed(2)}
               </span>
             </div>
           </div>
