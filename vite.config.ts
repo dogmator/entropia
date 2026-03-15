@@ -1,8 +1,7 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import type { ViteDevServer } from 'vite';
+import type { Plugin, ViteDevServer } from 'vite';
 import { defineConfig, loadEnv } from 'vite';
-import checker from 'vite-plugin-checker';
 
 const SERVER_CONFIG = {
   port: 3000,
@@ -34,7 +33,7 @@ const BUILD_CONFIG = {
     output: {
       manualChunks: {
         'three-core': ['three'],
-        'charts': ['recharts'],
+        charts: ['recharts'],
         'react-vendor': ['react', 'react-dom'],
       },
       chunkFileNames: 'assets/[name]-[hash].js',
@@ -52,42 +51,53 @@ const RESOLVE_CONFIG = {
     '@core': path.resolve(__dirname, './src/core'),
     '@simulation': path.resolve(__dirname, './src/simulation'),
     '@ui': path.resolve(__dirname, './src/ui'),
-  }
+  },
 };
 
-export default defineConfig(({ mode }) => {
+const createResponseHeadersPlugin = (): Plugin => ({
+  name: 'configure-response-headers',
+  configureServer: (server: ViteDevServer) => {
+    server.middlewares.use((_req, res, next) => {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      next();
+    });
+  },
+});
+
+const resolveCheckerPlugin = async (mode: string): Promise<Plugin | null> => {
+  if (mode !== 'development' || process.env['VITE_ENABLE_CHECKER'] !== 'true') {
+    return null;
+  }
+
+  const checkerModule = await import('vite-plugin-checker');
+  const checker = checkerModule.default;
+
+  return checker({
+    typescript: {
+      root: path.resolve(__dirname, './'),
+      tsconfigPath: 'tsconfig.json',
+    },
+    eslint: {
+      lintCommand: `eslint "${path.resolve(__dirname, './src')}/**/*.{ts,tsx}"`,
+      useFlatConfig: true,
+    },
+  });
+};
+
+export default defineConfig(async ({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const checkerPlugin = await resolveCheckerPlugin(mode);
+
   return {
     root: 'src/ui',
     publicDir: '../../public',
     envDir: '..',
     base: '/entropia/',
     server: SERVER_CONFIG,
-    plugins: [
-      react(),
-      mode === 'development' && checker({
-        typescript: {
-          root: path.resolve(__dirname, './'),
-          tsconfigPath: 'tsconfig.json',
-        },
-        eslint: {
-          lintCommand: `eslint "${path.resolve(__dirname, './src')}/**/*.{ts,tsx}"`,
-          useFlatConfig: true,
-        },
-      }),
-      {
-        name: 'configure-response-headers',
-        configureServer: (server: ViteDevServer) => {
-          server.middlewares.use((_req, res, next) => {
-            res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-            res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
-            next();
-          });
-        },
-      }
-    ].filter(Boolean),
+    plugins: [react(), checkerPlugin, createResponseHeadersPlugin()].filter(Boolean),
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
+      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
     },
     resolve: RESOLVE_CONFIG,
     build: BUILD_CONFIG,

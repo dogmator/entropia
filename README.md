@@ -92,6 +92,15 @@ docker compose up -d
 
 ---
 
+
+## 🧹 Refactoring Update: Logger (ТОП-8 smell-ів)
+
+Останній цикл рефакторингу сфокусовано на `src/core/services/Logger.ts`:
+- усунено **8 ключових smell-ів** (long parameter list, `any`, завищена складність, magic numbers);
+- уніфіковано payload-підхід для логів та консольного перехоплення;
+- додано unit-тести для регресії (дублікати, формат виводу, command notification, websocket reconnect, performance warning).
+- стабілізовано `SimulationContext`: виправлено strict-типізацію remote command, виділено pure FPS helpers і додано тести `src/ui/context/__tests__/fps.test.ts`.
+
 ## 🔮 Roadmap Розвитку
 
 - [x] **Phase 1-3**: Оптимізація пам'яті та декомпозиція ядра.
@@ -110,3 +119,20 @@ docker compose up -d
 - [Метрики якості проекту](./docs/QUALITY_METRICS.md) — Ключові показники стабільності коду.
 - [Оптимізаційний план](docs/OPTIMIZATION_PLAN.md)
 - [Принципи проекту для агентів](AGENTS.md)
+
+## 🧪 Refactoring Update: Academic Logging Hardening (32+ fixes)
+
+Новий етап фокусувався на академічному hardening для logging stack:
+- `scripts/log-server.ts`: строгі type-guards, без `any`, без nested ternary, централізація ANSI/command/error констант.
+- `src/core/services/logger/transports/WebSocketTransport.ts`: підсилена надійність reconnect/send/flush, ідемпотентне перемикання remote transport.
+- `src/core/services/logger/Logger.ts`: стабільні payload-сигнатури, контроль `maxLogs`, нормалізація `recent` інтервалів, O(1)-оновлення stats counters.
+- Нове покриття unit-тестами для logger/transport критичних сценаріїв.
+
+## 🔧 Logging v4 Stability Pass (64+ fixes)
+
+Додатковий етап академічної стабілізації:
+- посилено `src/core/services/Logger.ts` (safe dedup, bounded remote queue, reconnect lifecycle, immutability remote payload);
+- посилено `src/core/services/logger/transports/WebSocketTransport.ts` (bounded queue + reconnect timer hygiene);
+- посилено `scripts/log-server.ts` (payload/text caps, sanitize + safe parse diagnostics);
+- `vite.config.ts` тепер безпечний для build у середовищах без `vite-plugin-checker` (checker вмикається лише через `VITE_ENABLE_CHECKER=true`);
+- розширено unit-тести для logger/transport на edge-cases.
