@@ -41,6 +41,7 @@ export interface EngineProxyOptions {
 interface PendingRequest {
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
 }
 
 interface CameraPayload {
@@ -377,6 +378,9 @@ export class EngineProxy implements ISimulationEngine {
             this.configBatchTimer = null;
         }
         this.pendingConfigPatch = {};
+        this.pendingRequests.forEach((request) => {
+            clearTimeout(request.timeoutId);
+        });
         this.pendingRequests.clear();
         this.listeners.clear();
     }
@@ -426,21 +430,27 @@ export class EngineProxy implements ISimulationEngine {
         console.debug(`[Proxy] Sending async command: ${type} (req: ${requestId})`);
 
         return new Promise<T>((resolve, reject) => {
-            this.pendingRequests.set(requestId, { resolve: resolve as (v: unknown) => void, reject });
+            const timeoutId = setTimeout(() => {
+                const request = this.pendingRequests.get(requestId);
+                if (!request) {
+                    return;
+                }
+
+                this.pendingRequests.delete(requestId);
+                reject(new Error(`Timeout for command ${type}`));
+            }, ASYNC_COMMAND_TIMEOUT_MS);
+
+            this.pendingRequests.set(requestId, {
+                resolve: resolve as (v: unknown) => void,
+                reject,
+                timeoutId,
+            });
 
             this.worker!.postMessage({
                 type,
                 requestId,
                 ...payload
             });
-
-            // Захист по таймауту?
-            setTimeout(() => {
-                if (this.pendingRequests.has(requestId)) {
-                    this.pendingRequests.delete(requestId);
-                    reject(new Error(`Timeout for command ${type}`));
-                }
-            }, ASYNC_COMMAND_TIMEOUT_MS);
         });
     }
 
@@ -605,6 +615,7 @@ export class EngineProxy implements ISimulationEngine {
         console.debug(`[Proxy] Received response for req: ${requestId}`);
         const request = this.pendingRequests.get(requestId);
         if (request) {
+            clearTimeout(request.timeoutId);
             request.resolve(result);
             this.pendingRequests.delete(requestId);
         }
