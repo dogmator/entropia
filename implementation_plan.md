@@ -158,3 +158,20 @@
 3. Оновити місця читання історії та latest-метрик на нові helper-методи.
 4. Додати unit-тест на коректність обрізки/порядку/актуального останнього кадру.
 5. Прогнати targeted tests + typecheck + lint (best-effort з фіксацією pre-existing debt).
+
+---
+
+# Implementation Plan: EventBus onAll duplicate-delivery hardening (2026-03-17)
+
+## Контекст
+Глобальний API `EventBus.onAll` дублював обробку подій: callback реєструвався і на конкретні типи, і на `'*'`.
+
+## Стратегія
+1. Прибрати per-type реєстрації з `onAll`.
+2. Залишити лише `'*'`-реєстрацію, оскільки `emit()` уже дистрибутує global callbacks.
+3. Додати unit-тест на exactly-once delivery для `onAll`.
+4. Прогнати checks: targeted test, typecheck, lint.
+
+## Критерії
+- `onAll` callback викликається рівно один раз на один `emit`.
+- Поведінка інших API `EventBus` не змінена.

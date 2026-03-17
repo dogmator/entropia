@@ -76,20 +76,14 @@ export class EventBus {
    * @returns Функція для анулювання глобальної підписки.
    */
   public onAll(callback: EventCallback): Unsubscribe {
-    const unsubscribers: Unsubscribe[] = [];
-
-    // Ітеративна підписка на всі виявлені типи подій
-    this.listeners.forEach((_, eventType) => {
-      unsubscribers.push(this.on(eventType as SimulationEvent['type'], callback));
-    });
-
-    // Реєстрація обробника для майбутніх (динамічних) типів подій
+    // Реєстрація єдиного глобального обробника для всіх поточних і майбутніх подій.
+    // Додаткові точкові підписки на кожен тип не потрібні, бо emit() окремо дистрибутує '*'.
+    // Це запобігає дублюванню callback-викликів і зайвому O(k) memory footprint для k типів подій.
     const globalCallbacks = this.listeners.get('*') || new Set();
     globalCallbacks.add(callback);
     this.listeners.set('*', globalCallbacks);
 
     return () => {
-      unsubscribers.forEach(unsub => unsub());
       globalCallbacks.delete(callback);
       if (globalCallbacks.size === 0) {
         this.listeners.delete('*');
