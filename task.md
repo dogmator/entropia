@@ -52,3 +52,9 @@
 - Гарантувати очищення timeout-handle також під час `dispose`.
 - Додати unit-тест на cleanup timeout після успішної async-відповіді.
 - Прогнати regression checks: targeted unit tests + typecheck + lint.
+
+## task_boundary (2026-03-17): PerformanceMonitor O(1) history hardening
+- Усунути O(n) `Array.shift()` у `PerformanceMonitor.endFrame`.
+- Впровадити кільцевий буфер для frame-history без зміни бізнес-семантики метрик.
+- Додати unit-тест для переповнення історії: порядок + актуальність latest-entry.
+- Прогнати regression checks: targeted test + typecheck + lint (із фіксацією залишкового debt поза scope).

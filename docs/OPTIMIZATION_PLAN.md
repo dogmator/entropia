@@ -118,3 +118,9 @@
 - Це створювало накопичення «зайвих» активних таймерів під високою частотою async-команд і зайве навантаження на event loop.
 - Реалізовано lifecycle cleanup timeout-handle у всіх критичних гілках: `commandResponse`, `timeout`, `dispose`.
 - Додано unit-тест, що підтверджує відсутність delayed timeout-rejection після вчасної відповіді воркера.
+
+## 15. PerformanceMonitor history O(1) hardening (2026-03-17)
+- Ідентифіковано головний runtime-bottleneck у diagnostics-підсистемі: `Array.shift()` у `endFrame` масштабується як O(n) та деградує під навантаженням.
+- Реалізовано кільцевий буфер фіксованої місткості для історії кадрів з O(1) вставкою та стабільним memory profile.
+- Збережено backward-compatible поведінку публічних методів (`getCurrentMetrics`, `getPerformanceHistory`, `getAveragePerformance`).
+- Додано unit-тест на сценарій переповнення буфера для гарантії правильного порядку записів і актуального latest-entry.
