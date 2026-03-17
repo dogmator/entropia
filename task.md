@@ -64,3 +64,9 @@
 - Залишити лише глобальну підписку `'*'` для гарантії exactly-once delivery на одну подію.
 - Додати regression unit-тест на інваріант: `onAll` викликає callback рівно один раз.
 - Прогнати checks: targeted unit test + typecheck + lint (із фіксацією pre-existing debt).
+
+## [2026-03-17] Worker buffer transfer hardening
+- [x] Root-cause: воркер відправляв `updated` payload через `postMessage` без transferables, що викликало копіювання великих typed arrays на кожному кадрі.
+- [x] Виділено окремий `workerSnapshot` для compact snapshot + transfer-list.
+- [x] Додано unit-тести для non-shared і SharedArrayBuffer сценаріїв.
+- [x] Валідація: targeted test, typecheck, lint (lint debt pre-existing).
