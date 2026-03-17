@@ -136,3 +136,25 @@
 2. Очищати timeout handle також у fallback-path (dispose/timeout).
 3. Додати unit-тест на гарантію відсутності timeout-rejection після вчасної відповіді.
 4. Прогнати `vitest`, `typecheck`, `lint`.
+
+---
+
+# Implementation Plan: PerformanceMonitor history buffer O(1) hardening (2026-03-17)
+
+## Context
+Найкритичніший bottleneck у `PerformanceMonitor` — видалення першого елемента через `Array.shift()` на кожному переповненні історії кадрів. Це створює O(n) копіювання масиву в гарячому циклі `endFrame()`.
+
+## task_boundary
+- `src/core/services/PerformanceMonitor.ts`
+- `src/core/utils/__tests__/PerformanceMonitor.test.ts`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `task.md`
+- `walkthrough.md`
+
+## Fix strategy
+1. Замінити `shift()` на кільцевий буфер фіксованого розміру (`entriesStart`).
+2. Інкапсулювати запис/читання через `storeEntry`, `getLatestEntry`, `getOrderedEntries`.
+3. Оновити місця читання історії та latest-метрик на нові helper-методи.
+4. Додати unit-тест на коректність обрізки/порядку/актуального останнього кадру.
+5. Прогнати targeted tests + typecheck + lint (best-effort з фіксацією pre-existing debt).
