@@ -109,3 +109,10 @@
    - `pnpm test --run src/core/utils/__tests__/PerformanceMonitor.test.ts` ✅
    - `pnpm typecheck` ✅
    - `pnpm lint` ❌ (значний pre-existing lint debt поза scope змін)
+
+## Етап 16 — EventBus onAll duplicate-delivery hardening (2026-03-17)
+1. Виявлено архітектурний дефект у `EventBus.onAll`: callback одночасно реєструвався на кожен поточний тип події і в `'*'`.
+2. Це створювало дубльовану доставку одного й того ж event до глобального слухача та зайве зростання пам'яті пропорційно кількості типів подій.
+3. Реалізовано точковий fix: `onAll` тепер реєструє лише `'*'`-слухач, а `emit()` вже забезпечує дистрибуцію до глобальних callbacks.
+4. Додано unit-тест `src/core/__tests__/EventBus.test.ts` на інваріант exactly-once для `onAll`.
+5. Валідація: targeted test ✅, typecheck ✅, lint ❌ (наявний pre-existing lint debt поза scope).

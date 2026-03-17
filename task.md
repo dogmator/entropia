@@ -58,3 +58,9 @@
 - Впровадити кільцевий буфер для frame-history без зміни бізнес-семантики метрик.
 - Додати unit-тест для переповнення історії: порядок + актуальність latest-entry.
 - Прогнати regression checks: targeted test + typecheck + lint (із фіксацією залишкового debt поза scope).
+
+## task_boundary (2026-03-17): EventBus onAll duplicate-delivery hardening
+- Усунути дублювання callback-викликів у `EventBus.onAll`, яке масштабувало обробку як `O(k + m)` підписок на `k` типів подій.
+- Залишити лише глобальну підписку `'*'` для гарантії exactly-once delivery на одну подію.
+- Додати regression unit-тест на інваріант: `onAll` викликає callback рівно один раз.
+- Прогнати checks: targeted unit test + typecheck + lint (із фіксацією pre-existing debt).
