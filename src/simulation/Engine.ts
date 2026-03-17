@@ -517,7 +517,7 @@ export class SimulationEngine implements IPersistableEngine {
     endMetabolism();
 
     const endCollision = this.performanceMonitor.startSubsystemTimer('CollisionSystem');
-    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.tick);
+    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.zones, this.tick);
     endCollision();
     return deadIds;
   }
