@@ -143,3 +143,9 @@
 - **Worker portability:** додано `SharedArrayBuffer` feature-detection в snapshot-пайплайні.
 - **Debug-noise control:** remote logging переведено в explicit opt-in модель.
 - **PWA integrity:** додано відсутні іконки з manifest для усунення 404 у прод-оточеннях.
+
+## 2026-03-17 — Hardening непрохідності аномалій
+- Додано collision-gate для зон-аномалій у `CollisionSystem` з freeze-path для випадків deep-penetration.
+- Уніфіковано collision response для obstacle/zone через спільний spherical barrier resolver.
+- Заборонено spawn/reproduction організмів у зоні дії аномалій через валідацію у `SpawnService`.
+- Додано unit-тести на freeze-стан і на блокування spawn усередині аномалії.
