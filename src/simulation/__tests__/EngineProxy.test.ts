@@ -197,4 +197,33 @@ describe('EngineProxy command optimization', () => {
 
     expect(postedMessages.some((msg) => msg.type === 'importState')).toBe(true);
   });
+
+  it('clears async timeout once command response arrives', async () => {
+    const pendingRejection = vi.fn();
+
+    const requestPromise = proxy.getGeneticRoots().catch((error) => {
+      pendingRejection(error);
+      throw error;
+    });
+
+    const command = postedMessages.find((msg) => msg.type === 'getGeneticRoots') as
+      | { requestId?: string }
+      | undefined;
+
+    expect(command?.requestId).toBeDefined();
+
+    (proxy as unknown as { handleMessage: (event: MessageEvent) => void }).handleMessage({
+      data: {
+        type: 'commandResponse',
+        requestId: command?.requestId,
+        result: [],
+      },
+    } as MessageEvent);
+
+    await expect(requestPromise).resolves.toEqual([]);
+
+    vi.advanceTimersByTime(6000);
+
+    expect(pendingRejection).not.toHaveBeenCalled();
+  });
 });

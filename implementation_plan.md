@@ -115,3 +115,24 @@
 2. Локальний hardening race-sensitive місць у batching/flush `EngineProxy`.
 3. Додаткові unit-тести на запитані послідовності команд і persistence repeat cycle.
 4. Повторна валідація typecheck/tests/build/lint/coverage-attempt.
+
+---
+
+# Implementation Plan: EngineProxy async timeout lifecycle hardening (2026-03-16)
+
+## Контекст
+У `EngineProxy.sendAsyncCommand` створюється `setTimeout` для кожного async-запиту, але при успішній відповіді цей таймер не очищається. Під навантаженням це створює зайві активні таймери, що погіршує масштабованість і може спричиняти деградацію продуктивності event loop.
+
+## Scope
+- `src/simulation/EngineProxy.ts`
+- `src/simulation/__tests__/EngineProxy.test.ts`
+- `docs/OPTIMIZATION_PLAN.md`
+- `walkthrough.md`
+- `README.md`
+- `task.md`
+
+## Кроки
+1. Розширити `PendingRequest` timeout handle та очищати його при `commandResponse`.
+2. Очищати timeout handle також у fallback-path (dispose/timeout).
+3. Додати unit-тест на гарантію відсутності timeout-rejection після вчасної відповіді.
+4. Прогнати `vitest`, `typecheck`, `lint`.
