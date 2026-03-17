@@ -136,3 +136,77 @@
 2. Очищати timeout handle також у fallback-path (dispose/timeout).
 3. Додати unit-тест на гарантію відсутності timeout-rejection після вчасної відповіді.
 4. Прогнати `vitest`, `typecheck`, `lint`.
+
+---
+
+# Implementation Plan: PerformanceMonitor history buffer O(1) hardening (2026-03-17)
+
+## Context
+Найкритичніший bottleneck у `PerformanceMonitor` — видалення першого елемента через `Array.shift()` на кожному переповненні історії кадрів. Це створює O(n) копіювання масиву в гарячому циклі `endFrame()`.
+
+## task_boundary
+- `src/core/services/PerformanceMonitor.ts`
+- `src/core/utils/__tests__/PerformanceMonitor.test.ts`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `task.md`
+- `walkthrough.md`
+
+## Fix strategy
+1. Замінити `shift()` на кільцевий буфер фіксованого розміру (`entriesStart`).
+2. Інкапсулювати запис/читання через `storeEntry`, `getLatestEntry`, `getOrderedEntries`.
+3. Оновити місця читання історії та latest-метрик на нові helper-методи.
+4. Додати unit-тест на коректність обрізки/порядку/актуального останнього кадру.
+5. Прогнати targeted tests + typecheck + lint (best-effort з фіксацією pre-existing debt).
+
+---
+
+# Implementation Plan: EventBus onAll duplicate-delivery hardening (2026-03-17)
+
+## Контекст
+Глобальний API `EventBus.onAll` дублював обробку подій: callback реєструвався і на конкретні типи, і на `'*'`.
+
+## Стратегія
+1. Прибрати per-type реєстрації з `onAll`.
+2. Залишити лише `'*'`-реєстрацію, оскільки `emit()` уже дистрибутує global callbacks.
+3. Додати unit-тест на exactly-once delivery для `onAll`.
+4. Прогнати checks: targeted test, typecheck, lint.
+
+## Критерії
+- `onAll` callback викликається рівно один раз на один `emit`.
+- Поведінка інших API `EventBus` не змінена.
+
+---
+
+# Implementation Plan: Worker render-buffer transfer pressure hardening (2026-03-17)
+
+## Контекст
+У worker-loop на кожному тіку передаються великі `Float32Array` рендер-буфери через `postMessage` без transferables. Це провокує постійне deep-copy між потоками і масштабно збільшує CPU/memory pressure при рості популяції.
+
+## План
+1. Ізолювати snapshot-утиліту для формування компактних views тільки на фактично заповнені елементи (`count * stride`).
+2. Для не-SAB буферів створювати копію лише used-length та передавати `ArrayBuffer` як transferable.
+3. Для `SharedArrayBuffer` зберегти zero-copy поведінку без transfer-list.
+4. Додати unit-тести на обидва сценарії (transferable і SAB).
+5. Прогнати `vitest` (targeted), `typecheck`, `lint`.
+
+---
+
+# Implementation Plan: EventBus history O(1) scalability hardening (2026-03-17)
+
+## Контекст
+`EventBus.emit()` обрізав історію подій через `Array.shift()`. У високочастотному потоці це створює O(n) копіювання масиву, що знижує пропускну здатність шини подій.
+
+## task_boundary
+- `src/core/EventBus.ts`
+- `src/core/__tests__/EventBus.test.ts`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `task.md`
+- `walkthrough.md`
+
+## План
+1. Замінити історію подій на кільцевий буфер фіксованої місткості (100).
+2. Зберегти публічний API без поведінкових змін (`getHistory`, `getLastEvent`, `clearHistory`).
+3. Додати unit-тест на переповнення буфера та порядок подій.
+4. Прогнати targeted tests + quality checks.
