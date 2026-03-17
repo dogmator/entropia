@@ -99,3 +99,13 @@
 3. Забезпечено cleanup у трьох гілках: success-response, timeout-reject, dispose.
 4. Додано unit-тест, що перевіряє відсутність повторного reject після вже успішно завершеної async-команди.
 5. Прогнано `vitest` (targeted), `typecheck`, `lint` (lint фіксує pre-existing debt поза scope).
+
+## Етап 15 — PerformanceMonitor O(1) history hardening (2026-03-17)
+1. Локалізовано масштабний ризик у гарячому шляху: `Array.shift()` у `endFrame()` виконував O(n) копіювання масиву при кожному переповненні історії.
+2. Реалізовано кільцевий буфер (`entriesStart`) для збереження історії кадрів з O(1) вставкою.
+3. Інкапсульовано доступ до історії через `storeEntry`, `getLatestEntry`, `getOrderedEntries`, щоб зберегти попередню семантику API.
+4. Додано unit-тест на переповнення буфера, який перевіряє збереження порядку та актуальність останнього запису.
+5. Валідація:
+   - `pnpm test --run src/core/utils/__tests__/PerformanceMonitor.test.ts` ✅
+   - `pnpm typecheck` ✅
+   - `pnpm lint` ❌ (значний pre-existing lint debt поза scope змін)

@@ -57,6 +57,7 @@ interface PerformanceEntry {
 
 export class PerformanceMonitor {
   private entries: PerformanceEntry[] = [];
+  private entriesStart: number = 0;
   private maxEntries: number = PERFORMANCE_CONSTANTS.MAX_ENTRIES;
   private frameCount: number = 0;
   private lastFPSUpdate: number = performance.now();
@@ -145,11 +146,6 @@ export class PerformanceMonitor {
     const now = PerformanceHelpers.time.now();
     const frameTime = now - this.currentFrameStartTime;
 
-    // Лімітуємо кількість записів для зменшення навантаження
-    if (this.entries.length >= this.maxEntries) {
-      this.entries.shift();
-    }
-
     const entry: PerformanceEntry = {
       timestamp: now,
       fps: this.currentFPS,
@@ -161,7 +157,7 @@ export class PerformanceMonitor {
       memoryUsage: this.getCurrentMemoryInfo()
     };
 
-    this.entries.push(entry);
+    this.storeEntry(entry);
   }
 
   /**
@@ -183,11 +179,9 @@ export class PerformanceMonitor {
     }
 
     // Оновлюємо останній запис
-    if (this.entries.length > 0) {
-      const lastEntry = this.entries[this.entries.length - 1];
-      if (lastEntry) {
-        lastEntry.simulationTime = simulationTime;
-      }
+    const lastEntry = this.getLatestEntry();
+    if (lastEntry) {
+      lastEntry.simulationTime = simulationTime;
     }
 
     this.tickCount++;
@@ -362,10 +356,11 @@ export class PerformanceMonitor {
    * Розрахунок FPS з оптимізацією
    */
   private calculateFPS(): number {
-    if (this.entries.length === 0) { return 0; }
+    const orderedEntries = this.getOrderedEntries();
+    if (orderedEntries.length === 0) { return 0; }
 
     // Використовуємо останні записи для розрахунку
-    const recentEntries = this.entries.slice(-PERFORMANCE_CONSTANTS.RECENT_ENTRIES_WINDOW);
+    const recentEntries = orderedEntries.slice(-PERFORMANCE_CONSTANTS.RECENT_ENTRIES_WINDOW);
     if (recentEntries.length === 0) { return 0; }
 
     const totalFrameTime = recentEntries.reduce((sum, entry) => sum + entry.frameTime, 0);
@@ -385,7 +380,7 @@ export class PerformanceMonitor {
     // Автоматичне налаштування при кожному запиті
     this.autoAdjustMonitoring();
 
-    const lastEntry = this.entries[this.entries.length - 1];
+    const lastEntry = this.getLatestEntry();
 
     return {
       fps: this.currentFPS,
@@ -401,7 +396,7 @@ export class PerformanceMonitor {
    * Отримання історії метрик
    */
   public getPerformanceHistory(): PerformanceMetrics[] {
-    return this.entries.map(entry => ({
+    return this.getOrderedEntries().map(entry => ({
       fps: entry.fps,
       tps: entry.tps,
       frameTime: entry.frameTime,
@@ -457,7 +452,7 @@ export class PerformanceMonitor {
    */
   public getAveragePerformance(windowMs: number = PERFORMANCE_CONSTANTS.AVG_PERFORMANCE_WINDOW): PerformanceMetrics {
     const cutoffTime = PerformanceHelpers.time.now() - windowMs;
-    const recentEntries = this.entries.filter(entry => entry.timestamp > cutoffTime);
+    const recentEntries = this.getOrderedEntries().filter(entry => entry.timestamp > cutoffTime);
 
     if (recentEntries.length === 0) {
       return this.getCurrentMetrics();
@@ -590,6 +585,7 @@ export class PerformanceMonitor {
     this.memoryTimer = null;
 
     this.entries = [];
+    this.entriesStart = 0;
     this.subsystemMetrics.clear();
     this.fpsRingBuffer.fill(PERFORMANCE_CONSTANTS.DEFAULT_FPS);
     this.fpsRingIndex = 0;
@@ -599,5 +595,38 @@ export class PerformanceMonitor {
     this.tickCount = 0;
   }
 
-}
+  private storeEntry(entry: PerformanceEntry): void {
+    if (this.entries.length < this.maxEntries) {
+      this.entries.push(entry);
+      return;
+    }
 
+    this.entries[this.entriesStart] = entry;
+    this.entriesStart = (this.entriesStart + 1) % this.maxEntries;
+  }
+
+  private getLatestEntry(): PerformanceEntry | undefined {
+    if (this.entries.length === 0) {
+      return undefined;
+    }
+
+    if (this.entries.length < this.maxEntries) {
+      return this.entries[this.entries.length - 1];
+    }
+
+    const latestIndex = (this.entriesStart + this.entries.length - 1) % this.entries.length;
+    return this.entries[latestIndex];
+  }
+
+  private getOrderedEntries(): PerformanceEntry[] {
+    if (this.entries.length < this.maxEntries || this.entriesStart === 0) {
+      return this.entries;
+    }
+
+    return [
+      ...this.entries.slice(this.entriesStart),
+      ...this.entries.slice(0, this.entriesStart)
+    ];
+  }
+
+}
