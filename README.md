@@ -184,3 +184,9 @@ docker compose up -d
 - Усунуто O(n) обрізання історії в `EventBus.emit`: замість `Array.shift()` тепер використовується O(1) кільцевий буфер для останніх 100 подій.
 - Зовнішня поведінка API збережена (`getHistory`, `getLastEvent`, `clearHistory`).
 - Додано regression unit-тест на переповнення історії та перевірку порядку/актуальності останньої події.
+
+## 🩹 UI/Worker stability fixes (2026-03-17)
+- Виправлено reset-потік у `EngineProxy`: після `reset` примусово запитується один `update`, щоб UI одразу отримував нові буфери навіть у стані `stop`.
+- Додано guard для середовищ без `SharedArrayBuffer` у `workerSnapshot`, що усуває `ReferenceError` у браузерах без COOP/COEP.
+- Віддалене WebSocket-логування вимкнено за замовчуванням; тепер вмикається лише через `localStorage['entropia:remoteLogging']='1'`.
+- Додано PWA іконки `public/icon-192.png` та `public/icon-512.png` для усунення 404 у manifest.

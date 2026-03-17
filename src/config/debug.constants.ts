@@ -4,7 +4,7 @@
 
 export const DEBUG_CONFIG = {
     /** Увімкнення віддаленого логування за замовчуванням у DEV режимі. */
-    remoteLoggingEnabled: true,
+    remoteLoggingEnabled: false,
 
     /** Порт сервера логів. */
     remotePort: 3011,

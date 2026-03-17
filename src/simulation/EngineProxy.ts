@@ -201,6 +201,7 @@ export class EngineProxy implements ISimulationEngine {
     public reset(): void {
         this.flushPendingConfigBatch();
         this.sendCommand({ type: 'reset' });
+        this.sendCommand({ type: 'update' });
         // Очищаємо локальний стан, хоча воркер скоро пришле оновлення
         // this._position = position;
         // this._target = target;
