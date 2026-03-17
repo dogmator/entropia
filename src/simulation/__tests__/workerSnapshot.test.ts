@@ -61,4 +61,30 @@ describe('snapshotRenderBuffers', () => {
         expect(buffers.food.buffer).toBe(shared);
         expect(transferables).toHaveLength(0);
     });
+
+    it('falls back to transferable clone when SharedArrayBuffer is unavailable', () => {
+        const source = createBuffers();
+        source.prey[0] = 99;
+
+        const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'SharedArrayBuffer');
+        const restored = descriptor ? descriptor.value : undefined;
+        Object.defineProperty(globalThis, 'SharedArrayBuffer', {
+            value: undefined,
+            configurable: true,
+            writable: true,
+        });
+
+        try {
+            const { buffers, transferables } = snapshotRenderBuffers(source);
+            expect(buffers.prey[0]).toBe(99);
+            expect(buffers.prey.buffer).not.toBe(source.prey.buffer);
+            expect(transferables.length).toBeGreaterThan(0);
+        } finally {
+            Object.defineProperty(globalThis, 'SharedArrayBuffer', {
+                value: restored,
+                configurable: true,
+                writable: true,
+            });
+        }
+    });
 });
