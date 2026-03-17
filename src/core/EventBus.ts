@@ -39,8 +39,27 @@ type Unsubscribe = () => void;
  */
 export class EventBus {
   private readonly listeners: Map<string, Set<EventCallback>> = new Map();
-  private readonly eventHistory: SimulationEvent[] = [];
+  private readonly eventHistory: Array<SimulationEvent | undefined> = [];
+  private historyStart: number = 0;
+  private historySize: number = 0;
   private readonly maxHistorySize: number = 100;
+
+  private appendToHistory(event: SimulationEvent): void {
+    if (this.historySize < this.maxHistorySize) {
+      const writeIndex = (this.historyStart + this.historySize) % this.maxHistorySize;
+      this.eventHistory[writeIndex] = event;
+      this.historySize += 1;
+      return;
+    }
+
+    this.eventHistory[this.historyStart] = event;
+    this.historyStart = (this.historyStart + 1) % this.maxHistorySize;
+  }
+
+  private readHistory(index: number): SimulationEvent | undefined {
+    const normalizedIndex = (this.historyStart + index) % this.maxHistorySize;
+    return this.eventHistory[normalizedIndex];
+  }
 
   /**
    * Реєстрація слухача для детермінованого типу події.
@@ -76,20 +95,14 @@ export class EventBus {
    * @returns Функція для анулювання глобальної підписки.
    */
   public onAll(callback: EventCallback): Unsubscribe {
-    const unsubscribers: Unsubscribe[] = [];
-
-    // Ітеративна підписка на всі виявлені типи подій
-    this.listeners.forEach((_, eventType) => {
-      unsubscribers.push(this.on(eventType as SimulationEvent['type'], callback));
-    });
-
-    // Реєстрація обробника для майбутніх (динамічних) типів подій
+    // Реєстрація єдиного глобального обробника для всіх поточних і майбутніх подій.
+    // Додаткові точкові підписки на кожен тип не потрібні, бо emit() окремо дистрибутує '*'.
+    // Це запобігає дублюванню callback-викликів і зайвому O(k) memory footprint для k типів подій.
     const globalCallbacks = this.listeners.get('*') || new Set();
     globalCallbacks.add(callback);
     this.listeners.set('*', globalCallbacks);
 
     return () => {
-      unsubscribers.forEach(unsub => unsub());
       globalCallbacks.delete(callback);
       if (globalCallbacks.size === 0) {
         this.listeners.delete('*');
@@ -103,11 +116,8 @@ export class EventBus {
    * @param event — Об'єкт події, що містить корисне навантаження.
    */
   public emit<T extends SimulationEvent>(event: T): void {
-    // Фіксація події в журналі історії (буферизація)
-    this.eventHistory.push(event);
-    if (this.eventHistory.length > this.maxHistorySize) {
-      this.eventHistory.shift();
-    }
+    // Фіксація події в журналі історії (кільцевий буфер O(1))
+    this.appendToHistory(event);
 
     // Дистрибуція події цільовим обробникам
     const callbacks = this.listeners.get(event.type);
@@ -144,6 +154,8 @@ export class EventBus {
 
   public clearHistory(): void {
     this.eventHistory.length = 0;
+    this.historyStart = 0;
+    this.historySize = 0;
   }
 
   /**
@@ -157,15 +169,22 @@ export class EventBus {
    * Доступ до стеку останніх системних подій (режим читання).
    */
   public getHistory(): ReadonlyArray<SimulationEvent> {
-    return [...this.eventHistory];
+    const history: SimulationEvent[] = [];
+    for (let i = 0; i < this.historySize; i++) {
+      const event = this.readHistory(i);
+      if (event) {
+        history.push(event);
+      }
+    }
+    return history;
   }
 
   /**
    * Ретроспективний пошук останнього інциденту вказаного типу.
    */
   public getLastEvent<T extends SimulationEvent>(eventType: T['type']): T | null {
-    for (let i = this.eventHistory.length - 1; i >= 0; i--) {
-      const event = this.eventHistory[i];
+    for (let i = this.historySize - 1; i >= 0; i--) {
+      const event = this.readHistory(i);
       if (event && event.type === eventType) {
         return event as T;
       }

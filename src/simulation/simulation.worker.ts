@@ -10,6 +10,7 @@ import { logger } from '@/core';
 import { SimulationEngine } from './Engine';
 import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
+import { snapshotRenderBuffers } from './workerSnapshot';
 
 // ============================================================================
 // СТАН ВОРКЕРА
@@ -31,25 +32,13 @@ const TIMESTEP = 1000 / 60; // 60 TPS фізики (фіксований кро�
 /**
  * Надсилання відповіді до main thread.
  */
-function sendResponse(response: WorkerResponse): void {
-    // Якщо відповідь містить буфери, передаємо їх як transferable
-    // УВАГА: Transferable робить буфер непридатним для використання у відправника (detached)
-    // Оскільки BufferManager наразі використовує звичайні Float32Array і намагається їх перевикористовувати,
-    // ми НЕ передаємо їх як transferable, щоб уникнути детачменту, 
-    // ЯКЩО це не SharedArrayBuffer.
-    if (response.type === 'updated' && response.buffers) {
-        if (response.buffers.sharedBuffer) {
-            // SharedArrayBuffer не потребує transferables для спільного використання,
-            // він просто копіює посилання, але дані спільні.
-            self.postMessage(response);
-        } else {
-            // Для звичайних буферів копіювання (без transferables) безпечніше, 
-            // поки ми не перейдемо на повний SAB або не зміними логіку BufferManager
-            self.postMessage(response);
-        }
-    } else {
-        self.postMessage(response);
+function sendResponse(response: WorkerResponse, transferables: Transferable[] = []): void {
+    if (transferables.length > 0) {
+        self.postMessage(response, transferables);
+        return;
     }
+
+    self.postMessage(response);
 }
 
 /**
@@ -92,7 +81,7 @@ function handleUpdate(): void {
 
     try {
         engine.update();
-        const buffers = engine.getRenderData();
+        const { buffers, transferables } = snapshotRenderBuffers(engine.getRenderData());
         const stats = engine.getStats();
         const tick = engine.getTick();
 
@@ -101,7 +90,7 @@ function handleUpdate(): void {
             buffers,
             stats,
             tick,
-        });
+        }, transferables);
     } catch (error) {
         sendResponse({
             type: 'error',
@@ -192,7 +181,7 @@ function loop(): void {
     }
 
     if (updated) {
-        const buffers = engine.getRenderData();
+        const { buffers, transferables } = snapshotRenderBuffers(engine.getRenderData());
         const stats = engine.getStats();
         const tick = engine.getTick();
 
@@ -201,7 +190,7 @@ function loop(): void {
             buffers,
             stats,
             tick,
-        });
+        }, transferables);
     }
 
     timeoutId = self.setTimeout(loop, 1000 / 60);

@@ -2,7 +2,9 @@
  * Модульні тести для PerformanceMonitor.
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+import { PERFORMANCE_CONSTANTS } from '@/config';
 
 import { PerformanceMonitor } from "../../services/PerformanceMonitor";
 
@@ -43,6 +45,25 @@ describe('PerformanceMonitor', () => {
       const history = monitor.getFPSHistory();
       expect(history.length).toBeGreaterThan(0);
       expect(history[history.length - 1]).toBeGreaterThan(0);
+    });
+
+
+    it('повинен зберігати історію кадрів у кільцевому буфері без втрати актуального запису', () => {
+      const framesToRecord = PERFORMANCE_CONSTANTS.MAX_ENTRIES + 5;
+
+      for (let i = 1; i <= framesToRecord; i++) {
+        monitor.beginFrame();
+        monitor.endFrame(i, i);
+      }
+
+      const history = monitor.getPerformanceHistory();
+      expect(history).toHaveLength(PERFORMANCE_CONSTANTS.MAX_ENTRIES);
+      expect(history[0]?.entityCount).toBe(6);
+      expect(history[history.length - 1]?.entityCount).toBe(framesToRecord);
+
+      const metrics = monitor.getCurrentMetrics();
+      expect(metrics.entityCount).toBe(framesToRecord);
+      expect(metrics.drawCalls).toBe(framesToRecord);
     });
   });
 
