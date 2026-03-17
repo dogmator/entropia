@@ -52,3 +52,27 @@
 - Гарантувати очищення timeout-handle також під час `dispose`.
 - Додати unit-тест на cleanup timeout після успішної async-відповіді.
 - Прогнати regression checks: targeted unit tests + typecheck + lint.
+
+## task_boundary (2026-03-17): PerformanceMonitor O(1) history hardening
+- Усунути O(n) `Array.shift()` у `PerformanceMonitor.endFrame`.
+- Впровадити кільцевий буфер для frame-history без зміни бізнес-семантики метрик.
+- Додати unit-тест для переповнення історії: порядок + актуальність latest-entry.
+- Прогнати regression checks: targeted test + typecheck + lint (із фіксацією залишкового debt поза scope).
+
+## task_boundary (2026-03-17): EventBus onAll duplicate-delivery hardening
+- Усунути дублювання callback-викликів у `EventBus.onAll`, яке масштабувало обробку як `O(k + m)` підписок на `k` типів подій.
+- Залишити лише глобальну підписку `'*'` для гарантії exactly-once delivery на одну подію.
+- Додати regression unit-тест на інваріант: `onAll` викликає callback рівно один раз.
+- Прогнати checks: targeted unit test + typecheck + lint (із фіксацією pre-existing debt).
+
+## [2026-03-17] Worker buffer transfer hardening
+- [x] Root-cause: воркер відправляв `updated` payload через `postMessage` без transferables, що викликало копіювання великих typed arrays на кожному кадрі.
+- [x] Виділено окремий `workerSnapshot` для compact snapshot + transfer-list.
+- [x] Додано unit-тести для non-shared і SharedArrayBuffer сценаріїв.
+- [x] Валідація: targeted test, typecheck, lint (lint debt pre-existing).
+
+## task_boundary (2026-03-17): EventBus history O(1) scalability hardening
+- Локалізувати bottleneck в `EventBus.emit()` через O(n) `Array.shift()` на кожному переповненні історії.
+- Замінити історію подій на кільцевий буфер фіксованої місткості без зміни публічного контракту.
+- Додати regression unit-тест на інваріанти: capacity=100, порядок подій, correct last event.
+- Прогнати quality gates для змін: targeted test + typecheck + eslint (targeted), зафіксувати pre-existing global lint debt.

@@ -99,3 +99,39 @@
 3. Забезпечено cleanup у трьох гілках: success-response, timeout-reject, dispose.
 4. Додано unit-тест, що перевіряє відсутність повторного reject після вже успішно завершеної async-команди.
 5. Прогнано `vitest` (targeted), `typecheck`, `lint` (lint фіксує pre-existing debt поза scope).
+
+## Етап 15 — PerformanceMonitor O(1) history hardening (2026-03-17)
+1. Локалізовано масштабний ризик у гарячому шляху: `Array.shift()` у `endFrame()` виконував O(n) копіювання масиву при кожному переповненні історії.
+2. Реалізовано кільцевий буфер (`entriesStart`) для збереження історії кадрів з O(1) вставкою.
+3. Інкапсульовано доступ до історії через `storeEntry`, `getLatestEntry`, `getOrderedEntries`, щоб зберегти попередню семантику API.
+4. Додано unit-тест на переповнення буфера, який перевіряє збереження порядку та актуальність останнього запису.
+5. Валідація:
+   - `pnpm test --run src/core/utils/__tests__/PerformanceMonitor.test.ts` ✅
+   - `pnpm typecheck` ✅
+   - `pnpm lint` ❌ (значний pre-existing lint debt поза scope змін)
+
+## Етап 16 — EventBus onAll duplicate-delivery hardening (2026-03-17)
+1. Виявлено архітектурний дефект у `EventBus.onAll`: callback одночасно реєструвався на кожен поточний тип події і в `'*'`.
+2. Це створювало дубльовану доставку одного й того ж event до глобального слухача та зайве зростання пам'яті пропорційно кількості типів подій.
+3. Реалізовано точковий fix: `onAll` тепер реєструє лише `'*'`-слухач, а `emit()` вже забезпечує дистрибуцію до глобальних callbacks.
+4. Додано unit-тест `src/core/__tests__/EventBus.test.ts` на інваріант exactly-once для `onAll`.
+5. Валідація: targeted test ✅, typecheck ✅, lint ❌ (наявний pre-existing lint debt поза scope).
+
+## Етап 17 — Worker render-buffer transfer hardening (2026-03-17)
+1. Локалізовано критичний bottleneck у `simulation.worker.ts`: кожен `updated` кадр серіалізував великі `Float32Array` без transferables.
+2. Додано `workerSnapshot.ts`, який формує компактний snapshot за `count * stride` та готує `transferables` для non-SAB буферів.
+3. Оновлено `sendResponse` у worker для підтримки `postMessage(response, transferables)`.
+4. Збережено існуючу zero-copy семантику для `SharedArrayBuffer` (без transfer-list).
+5. Додано unit-тест `workerSnapshot.test.ts` для обох режимів передачі.
+6. Валідація: targeted test ✅, typecheck ✅, lint ❌ (наявний pre-existing lint debt поза scope).
+
+## Етап 18 — EventBus history O(1) scalability hardening (2026-03-17)
+1. Проведено root-cause аналіз: `EventBus.emit()` використовував `Array.shift()` при переповненні історії, що створювало O(n) копіювання в гарячому шляху.
+2. Реалізовано кільцевий буфер історії (`historyStart`, `historySize`, `appendToHistory`, `readHistory`) з O(1) вставкою/перезаписом.
+3. Адаптовано `getHistory`, `getLastEvent`, `clearHistory` під нову модель збереження без зміни публічної поведінки.
+4. Додано regression unit-тест на сценарій 120 подій при місткості 100 для перевірки порядку та latest-event.
+5. Валідація:
+   - `pnpm run test --run src/core/__tests__/EventBus.test.ts` ✅
+   - `pnpm run typecheck` ✅
+   - `pnpm exec eslint src/core/EventBus.ts src/core/__tests__/EventBus.test.ts` ✅
+   - `pnpm run lint` ❌ (наявний pre-existing lint debt у великій кількості файлів поза scope)
