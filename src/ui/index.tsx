@@ -12,8 +12,9 @@ import { logger } from '@/core';
 
 import { App } from './App';
 
-// Активація віддаленого логування для відладки (працює тільки в DEV режимі)
-logger.setRemoteLogging(true);
+// Активація віддаленого логування лише за явним opt-in, щоб уникнути шуму в браузері без log-server.
+const shouldEnableRemoteLogging = localStorage.getItem('entropia:remoteLogging') === '1';
+logger.setRemoteLogging(shouldEnableRemoteLogging);
 
 /** Пошук кореневого контейнера в структурі документа. */
 const rootElement = document.getElementById('root');

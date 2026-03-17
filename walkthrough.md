@@ -135,3 +135,14 @@
    - `pnpm run typecheck` ✅
    - `pnpm exec eslint src/core/EventBus.ts src/core/__tests__/EventBus.test.ts` ✅
    - `pnpm run lint` ❌ (наявний pre-existing lint debt у великій кількості файлів поза scope)
+
+## Етап 19 — UI reset + worker/browser compatibility hardening (2026-03-17)
+1. Відтворено симптом: після `stop` + вимирання популяції `reset` не оновлює відразу візуальний стан через відсутність `updated`-повідомлення.
+2. Реалізовано точковий fix у `EngineProxy.reset()`: після `reset` надсилається один `update` для синхронізації буферів.
+3. Усунуто `SharedArrayBuffer is not defined` у воркері через feature-detection перед `instanceof`.
+4. Прибрано шумові WebSocket помилки 127.0.0.1:3011: remote logging за замовчуванням вимкнено, ввімкнення тільки через localStorage opt-in.
+5. Усунуто manifest 404: додано `public/icon-192.png` та `public/icon-512.png`.
+6. Валідація:
+   - `pnpm test --run src/simulation/__tests__/workerSnapshot.test.ts src/simulation/__tests__/EngineProxy.test.ts` ✅
+   - `pnpm typecheck` ✅
+   - `pnpm exec eslint ...` ❌ (pre-existing lint debt у тестових файлах поза scope поточного hotfix)
