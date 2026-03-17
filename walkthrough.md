@@ -146,3 +146,11 @@
    - `pnpm test --run src/simulation/__tests__/workerSnapshot.test.ts src/simulation/__tests__/EngineProxy.test.ts` ✅
    - `pnpm typecheck` ✅
    - `pnpm exec eslint ...` ❌ (pre-existing lint debt у тестових файлах поза scope поточного hotfix)
+
+## Етап 20 — Organism vs anomaly hardening (2026-03-17)
+1. Уточнено вимогу: напівпрозорі сферичні зони на сцені мають працювати як повністю непрохідні аномалії для організмів.
+2. Розширено `CollisionSystem.update(...)`: додано `zones`, а також pre-check `handleZoneCollisions`.
+3. Для організмів, що повністю всередині аномалії, реалізовано freeze (обнулення velocity/acceleration).
+4. Для зіткнень зі стінкою аномалії використано той самий slide-first / reflect-fallback механізм, що й для obstacle.
+5. Оновлено spawn-логіку: `SpawnService` тепер блокує spawn/reproduction організмів у межах зон.
+6. Додано unit-тести: freeze у `CollisionSystem.test.ts` і spawn-заборона у `SpawnService.anomaly.test.ts`.
