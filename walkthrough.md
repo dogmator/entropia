@@ -124,3 +124,14 @@
 4. Збережено існуючу zero-copy семантику для `SharedArrayBuffer` (без transfer-list).
 5. Додано unit-тест `workerSnapshot.test.ts` для обох режимів передачі.
 6. Валідація: targeted test ✅, typecheck ✅, lint ❌ (наявний pre-existing lint debt поза scope).
+
+## Етап 18 — EventBus history O(1) scalability hardening (2026-03-17)
+1. Проведено root-cause аналіз: `EventBus.emit()` використовував `Array.shift()` при переповненні історії, що створювало O(n) копіювання в гарячому шляху.
+2. Реалізовано кільцевий буфер історії (`historyStart`, `historySize`, `appendToHistory`, `readHistory`) з O(1) вставкою/перезаписом.
+3. Адаптовано `getHistory`, `getLastEvent`, `clearHistory` під нову модель збереження без зміни публічної поведінки.
+4. Додано regression unit-тест на сценарій 120 подій при місткості 100 для перевірки порядку та latest-event.
+5. Валідація:
+   - `pnpm run test --run src/core/__tests__/EventBus.test.ts` ✅
+   - `pnpm run typecheck` ✅
+   - `pnpm exec eslint src/core/EventBus.ts src/core/__tests__/EventBus.test.ts` ✅
+   - `pnpm run lint` ❌ (наявний pre-existing lint debt у великій кількості файлів поза scope)
