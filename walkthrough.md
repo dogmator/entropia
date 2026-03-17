@@ -92,3 +92,10 @@
 3. Додано додаткові unit-тести послідовностей команд proxy.
 4. Додано повторний persistence-cycle тест для перевірки дрейфу стану.
 5. Прогнано typecheck/tests/build/lint/coverage-attempt та зафіксовано результати.
+
+## Етап 14 — EngineProxy timeout lifecycle hardening (2026-03-16)
+1. Локалізовано критичний bottleneck у `EngineProxy.sendAsyncCommand`: timeout-таймери не очищались після успішної відповіді.
+2. Додано явний `timeoutId` у pending-request та централізований cleanup.
+3. Забезпечено cleanup у трьох гілках: success-response, timeout-reject, dispose.
+4. Додано unit-тест, що перевіряє відсутність повторного reject після вже успішно завершеної async-команди.
+5. Прогнано `vitest` (targeted), `typecheck`, `lint` (lint фіксує pre-existing debt поза scope).

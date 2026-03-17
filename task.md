@@ -46,3 +46,9 @@
 - Локальний hardening batching/flush order-safety без нового рефакторинг-етапу.
 - Додати повторний persistence-cycle test.
 - Додати/розширити тести на запитані послідовності команд proxy.
+
+## task_boundary (2026-03-16): EngineProxy async timeout lifecycle hardening
+- Усунути накопичення timeout-таймерів у `sendAsyncCommand` після успішного `commandResponse`.
+- Гарантувати очищення timeout-handle також під час `dispose`.
+- Додати unit-тест на cleanup timeout після успішної async-відповіді.
+- Прогнати regression checks: targeted unit tests + typecheck + lint.
