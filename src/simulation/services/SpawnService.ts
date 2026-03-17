@@ -174,38 +174,17 @@ export class SpawnService {
 
       case OrganismSpawnStrategy.RANDOM:
       default:
-        return this.getRandomValidPosition(this.config.minOrganismDistance);
+        return this.getRandomValidPosition(this.config.minOrganismDistance, true);
     }
   }
 
   /**
    * Визначення позиції на основі екологічних уподобань виду.
    */
-  private getEcologicalPosition(type: EntityType): MutableVector3 | null {
-    if (type === EntityType.PREY) {
-      // Пріоритетне розселення травоїдних у заповідних зонах та біля джерел ресурсів
-      const sanctuary = this.zones.get('sanctuary');
-      if (sanctuary && this.rand() < 0.4) {
-        return this.getPositionInZone(sanctuary);
-      }
-      const oasis = this.zones.get('oasis_center');
-      if (oasis && this.rand() < 0.4) {
-        return this.getPositionInZone(oasis);
-      }
-    } else {
-      // Пріоритетне розселення хижаків у зонах активного полювання
-      const huntingGround = this.zones.get('hunting_ground');
-      if (huntingGround && this.rand() < 0.4) {
-        return this.getPositionInZone(huntingGround);
-      }
-      const desert = this.zones.get('desert_0');
-      if (desert && this.rand() < 0.3) {
-        return this.getPositionInZone(desert);
-      }
-    }
-
-    // Резервний варіант: випадкова валідна позиція
-    return this.getRandomValidPosition(this.config.minOrganismDistance);
+  private getEcologicalPosition(_type: EntityType): MutableVector3 | null {
+    // На поточному етапі екологічні зони працюють як непрохідні аномалії для організмів.
+    // Тому для будь-якого виду обираємо лише позиції поза межами аномалій.
+    return this.getRandomValidPosition(this.config.minOrganismDistance, true);
   }
 
   // ============================================================================
@@ -317,7 +296,7 @@ export class SpawnService {
   /**
    * Генерація випадкових координат із багаторазовими перевірками на валідність.
    */
-  private getRandomValidPosition(minDistance: number): MutableVector3 | null {
+  private getRandomValidPosition(minDistance: number, avoidZones: boolean = false): MutableVector3 | null {
     for (let attempt = 0; attempt < this.config.maxSpawnAttempts; attempt++) {
       const ws = this.worldSize;
       const pos: MutableVector3 = {
@@ -326,7 +305,7 @@ export class SpawnService {
         z: this.rand() * ws,
       };
 
-      if (this.isValidPosition(pos, minDistance)) {
+      if (this.isValidPosition(pos, minDistance, avoidZones)) {
         return pos;
       }
     }
@@ -389,13 +368,23 @@ export class SpawnService {
   /**
    * Валідація точки на предмет колізій із просторовими аномаліями.
    */
-  private isValidPosition(pos: Vector3, minDistance: number): boolean {
+  private isValidPosition(pos: Vector3, minDistance: number, avoidZones: boolean = false): boolean {
     for (const obstacle of this.obstacles.values()) {
       const distSq = MathUtils.toroidalDistanceSq(pos, obstacle.position, this.worldSize);
       const minDistSq = (obstacle.radius + minDistance) ** 2;
 
       if (distSq < minDistSq) {
         return false;
+      }
+    }
+
+    if (avoidZones) {
+      for (const zone of this.zones.values()) {
+        const distSq = MathUtils.toroidalDistanceSq(pos, zone.center, this.worldSize);
+        const minDistSq = (zone.radius + minDistance) ** 2;
+        if (distSq < minDistSq) {
+          return false;
+        }
       }
     }
 
