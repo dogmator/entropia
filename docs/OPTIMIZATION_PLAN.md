@@ -137,3 +137,9 @@
 - **Рішення:** впроваджено фіксований кільцевий буфер (`historyStart`, `historySize`) з O(1) append/overwrite.
 - **Сумісність:** публічні методи `getHistory`, `getLastEvent`, `clearHistory` зберегли попередню семантику.
 - **Верифікація:** додано unit-тест на переповнення (120 emit при місткості 100), порядок і останню подію.
+
+## 18.1. UI resilience hotfixes (2026-03-17)
+- **Reset consistency:** після `reset` додається синхронізуючий `update`, щоб уникнути зависання візуального стану після `stop`.
+- **Worker portability:** додано `SharedArrayBuffer` feature-detection в snapshot-пайплайні.
+- **Debug-noise control:** remote logging переведено в explicit opt-in модель.
+- **PWA integrity:** додано відсутні іконки з manifest для усунення 404 у прод-оточеннях.
