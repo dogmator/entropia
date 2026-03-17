@@ -175,3 +175,17 @@
 ## Критерії
 - `onAll` callback викликається рівно один раз на один `emit`.
 - Поведінка інших API `EventBus` не змінена.
+
+---
+
+# Implementation Plan: Worker render-buffer transfer pressure hardening (2026-03-17)
+
+## Контекст
+У worker-loop на кожному тіку передаються великі `Float32Array` рендер-буфери через `postMessage` без transferables. Це провокує постійне deep-copy між потоками і масштабно збільшує CPU/memory pressure при рості популяції.
+
+## План
+1. Ізолювати snapshot-утиліту для формування компактних views тільки на фактично заповнені елементи (`count * stride`).
+2. Для не-SAB буферів створювати копію лише used-length та передавати `ArrayBuffer` як transferable.
+3. Для `SharedArrayBuffer` зберегти zero-copy поведінку без transfer-list.
+4. Додати unit-тести на обидва сценарії (transferable і SAB).
+5. Прогнати `vitest` (targeted), `typecheck`, `lint`.
