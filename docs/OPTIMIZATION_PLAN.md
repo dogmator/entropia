@@ -112,3 +112,9 @@
 - Посилено order-safety `EngineProxy` для batching/flush у критичних послідовностях команд.
 - Додано повторний persistence-cycle інваріант (`state2 = import(export(import(export(state1))))`).
 - Локально очищено частину code-smells у змінених файлах без розширення scope.
+
+## 14. EngineProxy async timeout lifecycle hardening (2026-03-16)
+- Виявлено архітектурний ризик: `sendAsyncCommand` створював timeout на кожний запит, але при успішній відповіді таймер не очищався.
+- Це створювало накопичення «зайвих» активних таймерів під високою частотою async-команд і зайве навантаження на event loop.
+- Реалізовано lifecycle cleanup timeout-handle у всіх критичних гілках: `commandResponse`, `timeout`, `dispose`.
+- Додано unit-тест, що підтверджує відсутність delayed timeout-rejection після вчасної відповіді воркера.
