@@ -70,3 +70,9 @@
 - [x] Виділено окремий `workerSnapshot` для compact snapshot + transfer-list.
 - [x] Додано unit-тести для non-shared і SharedArrayBuffer сценаріїв.
 - [x] Валідація: targeted test, typecheck, lint (lint debt pre-existing).
+
+## task_boundary (2026-03-17): EventBus history O(1) scalability hardening
+- Локалізувати bottleneck в `EventBus.emit()` через O(n) `Array.shift()` на кожному переповненні історії.
+- Замінити історію подій на кільцевий буфер фіксованої місткості без зміни публічного контракту.
+- Додати regression unit-тест на інваріанти: capacity=100, порядок подій, correct last event.
+- Прогнати quality gates для змін: targeted test + typecheck + eslint (targeted), зафіксувати pre-existing global lint debt.
