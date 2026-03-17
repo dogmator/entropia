@@ -165,3 +165,8 @@ docker compose up -d
 - Посилено order-safety batching/flush у `EngineProxy`.
 - Додано повторний persistence-cycle test для виявлення дрейфу стану.
 - Підтверджено стабільність regression-suite після точкових виправлень перед merge.
+
+## 🛡️ EngineProxy hardening (2026-03-16)
+- Усунуто ризик накопичення timeout-таймерів у async-командах `EngineProxy`.
+- Тепер timeout lifecycle очищується при `commandResponse`, при `timeout` і під час `dispose`.
+- Додано unit-тест, який підтверджує, що після успішної відповіді воркера не відбувається повторний timeout-reject.
