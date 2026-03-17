@@ -88,6 +88,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5); // Дуже близько до prey
@@ -101,7 +102,7 @@ describe('CollisionSystem', () => {
 
             const initialEnergy = prey.energy;
 
-            collisionSystem.update(organisms, food, obstacles, 1);
+            collisionSystem.update(organisms, food, obstacles, zones, 1);
 
             // Енергія повинна збільшитись
             expect(prey.energy).toBeGreaterThan(initialEnergy);
@@ -111,7 +112,7 @@ describe('CollisionSystem', () => {
 
             // Повторний апдейт у межах cooldown не має додавати новий укус
             const energyAfterFirstBite = prey.energy;
-            collisionSystem.update(organisms, food, obstacles, 2);
+            collisionSystem.update(organisms, food, obstacles, zones, 2);
             expect(prey.energy).toBe(energyAfterFirstBite);
         });
 
@@ -119,6 +120,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
 
             const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
@@ -131,7 +133,7 @@ describe('CollisionSystem', () => {
 
             const initialEnergy = predator.energy;
 
-            collisionSystem.update(organisms, food, obstacles, 1);
+            collisionSystem.update(organisms, food, obstacles, zones, 1);
 
             // Енергія не повинна змінитись
             expect(predator.energy).toBe(initialEnergy);
@@ -145,6 +147,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
 
             const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
             const prey = new Organism(createOrganismId('prey-1'), { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
@@ -157,7 +160,7 @@ describe('CollisionSystem', () => {
 
             const predatorInitialEnergy = predator.energy;
 
-            const deadIds = collisionSystem.update(organisms, food, obstacles, 1);
+            const deadIds = collisionSystem.update(organisms, food, obstacles, zones, 1);
 
             // Жертва повинна бути мертва
             expect(prey.isDead).toBe(true);
@@ -173,6 +176,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             prey.velocity = { x: 5, y: 1, z: 0 }; // Має нормальну + тангенціальну компоненти
@@ -185,7 +189,7 @@ describe('CollisionSystem', () => {
             gridManager.initializeStatic(obstacles);
             gridManager.rebuild(organisms, food);
 
-            collisionSystem.update(organisms, food, obstacles, 1);
+            collisionSystem.update(organisms, food, obstacles, zones, 1);
 
             // Нормальна компонента має погаситись, тангенціальна — зберегтись для slide
             expect(prey.velocity.x).toBeLessThan(5);
@@ -196,6 +200,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
@@ -210,7 +215,7 @@ describe('CollisionSystem', () => {
 
             for (let tick = 1; tick <= 40; tick++) {
                 gridManager.rebuild(organisms, food);
-                collisionSystem.update(organisms, food, obstacles, tick);
+                collisionSystem.update(organisms, food, obstacles, zones, tick);
                 if (!food.has(foodItem.id)) {
                     break;
                 }
@@ -231,6 +236,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
@@ -244,9 +250,40 @@ describe('CollisionSystem', () => {
             const eventHandler = vi.fn();
             eventBus.on('EntityDied', eventHandler);
 
-            collisionSystem.update(organisms, food, obstacles, 1);
+            collisionSystem.update(organisms, food, obstacles, zones, 1);
 
             expect(eventHandler).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('zone anomalies', () => {
+        it('замораживает организм, если он полностью внутри аномалии', () => {
+            const organisms = new Map<string, Organism>();
+            const food = new Map<string, Food>();
+            const obstacles = new Map<string, Obstacle>();
+            const zones = new Map<string, import('@/types').EcologicalZone>();
+
+            const prey = new Organism(createOrganismId('prey-zone-freeze'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            prey.velocity = { x: 2, y: 1, z: -1 };
+            prey.acceleration = { x: 1, y: 1, z: 1 };
+            organisms.set(prey.id, prey);
+
+            zones.set('zone_1', {
+                id: 'zone_1',
+                type: 'OASIS',
+                center: { x: 10, y: 10, z: 10 },
+                radius: 20,
+                foodMultiplier: 1,
+                dangerMultiplier: 1,
+            });
+
+            gridManager.initializeStatic(obstacles);
+            gridManager.rebuild(organisms, food);
+
+            collisionSystem.update(organisms, food, obstacles, zones, 1);
+
+            expect(prey.velocity).toEqual({ x: 0, y: 0, z: 0 });
+            expect(prey.acceleration).toEqual({ x: 0, y: 0, z: 0 });
         });
     });
 });

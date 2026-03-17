@@ -76,3 +76,10 @@
 - Замінити історію подій на кільцевий буфер фіксованої місткості без зміни публічного контракту.
 - Додати regression unit-тест на інваріанти: capacity=100, порядок подій, correct last event.
 - Прогнати quality gates для змін: targeted test + typecheck + eslint (targeted), зафіксувати pre-existing global lint debt.
+
+## task_boundary (2026-03-17): organism vs anomaly hardening
+- Трактувати зони як непрохідні аномалії для організмів.
+- Freeze організмів, що вже знаходяться всередині аномалії.
+- Реюзнути slide/reflect collision response для зіткнень зі стінкою аномалії.
+- Заборонити spawn/reproduction організмів усередині зон.
+- Додати unit-тести на freeze та spawn-заборону.

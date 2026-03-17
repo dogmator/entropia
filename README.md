@@ -190,3 +190,9 @@ docker compose up -d
 - Додано guard для середовищ без `SharedArrayBuffer` у `workerSnapshot`, що усуває `ReferenceError` у браузерах без COOP/COEP.
 - Віддалене WebSocket-логування вимкнено за замовчуванням; тепер вмикається лише через `localStorage['entropia:remoteLogging']='1'`.
 - Додано PWA іконки `public/icon-192.png` та `public/icon-512.png` для усунення 404 у manifest.
+
+## Оновлення 2026-03-17: аномалії як тверді бар'єри для організмів
+- Екологічні сферичні зони тепер обробляються як непрохідні аномалії для організмів.
+- Якщо організм потрапив всередину аномалії (legacy/save-case), він переходить у freeze (без руху).
+- При дотику до стінки аномалії застосовується natural collision response: ковзання по дотичній, або відбиття як fallback.
+- Spawn/reproduction організмів в межах аномалій заборонені.
