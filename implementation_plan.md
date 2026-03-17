@@ -189,3 +189,24 @@
 3. Для `SharedArrayBuffer` зберегти zero-copy поведінку без transfer-list.
 4. Додати unit-тести на обидва сценарії (transferable і SAB).
 5. Прогнати `vitest` (targeted), `typecheck`, `lint`.
+
+---
+
+# Implementation Plan: EventBus history O(1) scalability hardening (2026-03-17)
+
+## Контекст
+`EventBus.emit()` обрізав історію подій через `Array.shift()`. У високочастотному потоці це створює O(n) копіювання масиву, що знижує пропускну здатність шини подій.
+
+## task_boundary
+- `src/core/EventBus.ts`
+- `src/core/__tests__/EventBus.test.ts`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `task.md`
+- `walkthrough.md`
+
+## План
+1. Замінити історію подій на кільцевий буфер фіксованої місткості (100).
+2. Зберегти публічний API без поведінкових змін (`getHistory`, `getLastEvent`, `clearHistory`).
+3. Додати unit-тест на переповнення буфера та порядок подій.
+4. Прогнати targeted tests + quality checks.
