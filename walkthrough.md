@@ -116,3 +116,11 @@
 3. Реалізовано точковий fix: `onAll` тепер реєструє лише `'*'`-слухач, а `emit()` вже забезпечує дистрибуцію до глобальних callbacks.
 4. Додано unit-тест `src/core/__tests__/EventBus.test.ts` на інваріант exactly-once для `onAll`.
 5. Валідація: targeted test ✅, typecheck ✅, lint ❌ (наявний pre-existing lint debt поза scope).
+
+## Етап 17 — Worker render-buffer transfer hardening (2026-03-17)
+1. Локалізовано критичний bottleneck у `simulation.worker.ts`: кожен `updated` кадр серіалізував великі `Float32Array` без transferables.
+2. Додано `workerSnapshot.ts`, який формує компактний snapshot за `count * stride` та готує `transferables` для non-SAB буферів.
+3. Оновлено `sendResponse` у worker для підтримки `postMessage(response, transferables)`.
+4. Збережено існуючу zero-copy семантику для `SharedArrayBuffer` (без transfer-list).
+5. Додано unit-тест `workerSnapshot.test.ts` для обох режимів передачі.
+6. Валідація: targeted test ✅, typecheck ✅, lint ❌ (наявний pre-existing lint debt поза scope).
