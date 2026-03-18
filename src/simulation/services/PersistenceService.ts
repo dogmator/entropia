@@ -1,3 +1,4 @@
+import { WORLD_SIZE } from '@/config';
 import { Random } from '@/core/utils/Random';
 import type {
     GeneticTreeNode,
@@ -14,15 +15,22 @@ import {
     createObstacleId,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
-import { WORLD_SIZE } from '@/config';
 
 import { Food, Obstacle, Organism } from '../Entity';
 import { IPersistableEngine } from '../interfaces/IPersistableEngine';
 import { isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
+import type { PopulationStatsAggregation } from './StatisticsManager';
 
 interface PersistedOrganismRuntime {
     causeOfDeath?: Organism['causeOfDeath'];
     huntSuccessCount?: number;
+}
+
+interface FoodAnomalyCheckParams {
+    position: Vector3;
+    zones: Iterable<{ center: Vector3; radius: number }>;
+    obstacles: Iterable<{ position: Vector3; radius: number }>;
+    worldSize: number;
 }
 
 export class PersistenceService {
@@ -36,12 +44,13 @@ export class PersistenceService {
             : WORLD_SIZE;
     }
 
-    private static isFoodBlockedByAnomaly(
-        position: Vector3,
-        zones: Iterable<{ center: Vector3; radius: number }>,
-        obstacles: Iterable<{ position: Vector3; radius: number }>,
-        worldSize: number
-    ): boolean {
+    private static isFoodBlockedByAnomaly(params: FoodAnomalyCheckParams): boolean {
+        const {
+            position,
+            zones,
+            obstacles,
+            worldSize,
+        } = params;
         const minDistance = PersistenceService.FOOD_ANOMALY_PADDING;
         return isPositionBlockedByAnomalies({
             position,
@@ -54,6 +63,7 @@ export class PersistenceService {
         });
     }
 
+    // eslint-disable-next-line max-lines-per-function
     public static exportState(engine: IPersistableEngine): SerializedSimulationStateV1 {
         const factory = engine.spawnService.getFactory();
 
@@ -165,6 +175,7 @@ export class PersistenceService {
         return state;
     }
 
+    // eslint-disable-next-line max-lines-per-function
     public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
         type EngineMutableShape = IPersistableEngine & {
             seed: number;
@@ -175,15 +186,15 @@ export class PersistenceService {
                 reset: () => void;
                 incrementDeaths: (count: number) => void;
                 incrementBirths: (count: number) => void;
-                update: (
-                    organisms: Map<string, Organism>,
-                    foodSize: number,
-                    obstacleSize: number,
-                    tick: number,
-                    zones: Map<string, import('@/types').EcologicalZone>,
-                    gridManager: IPersistableEngine['gridManager'],
-                    config: import('@/types').SimulationConfig
-                ) => void;
+                update: (params: {
+                    aggregation: PopulationStatsAggregation;
+                    foodSize: number;
+                    obstacleSize: number;
+                    tick: number;
+                    zones: Map<string, import('@/types').EcologicalZone>;
+                    gridManager: IPersistableEngine['gridManager'];
+                    config: import('@/types').SimulationConfig;
+                }) => void;
                 getStats: () => SimulationStats;
             };
         };
@@ -251,7 +262,12 @@ export class PersistenceService {
 
         engine.food.clear();
         state.food.forEach(f => {
-            if (PersistenceService.isFoodBlockedByAnomaly(f.position, engine.zones.values(), engine.obstacles.values(), worldSize)) {
+            if (PersistenceService.isFoodBlockedByAnomaly({
+                position: f.position,
+                zones: engine.zones.values(),
+                obstacles: engine.obstacles.values(),
+                worldSize,
+            })) {
                 return;
             }
 
@@ -293,15 +309,46 @@ export class PersistenceService {
 
         mutableEngine.statisticsManager.reset();
         mutableEngine.statisticsManager.incrementDeaths(state.stats.totalDeaths);
-        mutableEngine.statisticsManager.incrementBirths(state.stats.totalBirths);
-        mutableEngine.statisticsManager.update(
-            engine.organisms,
-            engine.food.size,
-            engine.obstacles.size,
-            engine.tick,
-            engine.zones,
-            engine.gridManager,
-            engine.config
-        );
+       mutableEngine.statisticsManager.incrementBirths(state.stats.totalBirths);
+        const aggregation: PopulationStatsAggregation = {
+            preyCount: 0,
+            predatorCount: 0,
+            totalEnergy: 0,
+            preyEnergy: 0,
+            predatorEnergy: 0,
+            organismCount: 0,
+            maxAge: 0,
+            maxGeneration: 1,
+        };
+
+        engine.organisms.forEach(org => {
+            aggregation.organismCount++;
+            aggregation.totalEnergy += org.energy;
+
+            if (org.isPrey) {
+                aggregation.preyCount++;
+                aggregation.preyEnergy += org.energy;
+            } else {
+                aggregation.predatorCount++;
+                aggregation.predatorEnergy += org.energy;
+            }
+
+            if (org.age > aggregation.maxAge) {
+                aggregation.maxAge = org.age;
+            }
+            if (org.genome.generation > aggregation.maxGeneration) {
+                aggregation.maxGeneration = org.genome.generation;
+            }
+        });
+
+        mutableEngine.statisticsManager.update({
+            aggregation,
+            foodSize: engine.food.size,
+            obstacleSize: engine.obstacles.size,
+            tick: engine.tick,
+            zones: engine.zones,
+            gridManager: engine.gridManager,
+            config: engine.config,
+        });
     }
 }
