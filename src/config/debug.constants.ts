@@ -7,7 +7,7 @@ export const DEBUG_CONFIG = {
     remoteLoggingEnabled: false,
 
     /** Порт сервера логів. */
-    remotePort: 3011,
+    remotePort: 3013,
 
     /** Хост сервера логів. */
     remoteHost: '127.0.0.1',
