@@ -134,3 +134,11 @@
 - Обмежити розмір `remote_debug.log` у `log-server` з авто-підрізанням старих записів.
 - Додати unit-тести для нового dev-toggle та file-cap helper.
 - Оновити документацію і перевірити `typecheck` + targeted tests + `build`.
+
+## task_boundary (2026-03-18): phased performance overhaul
+- Етап 1: розділити simulation cadence і render snapshot cadence у worker/proxy. ✅
+- Етап 2: зменшити churn серіалізації render buffers у `BufferManager`/`workerSnapshot`. ✅
+- Етап 3: скоротити кількість проходів по `organisms` через single-pass aggregation у `Engine`/`StatisticsManager`. ✅
+- Етап 4: децимувати UI state updates та додати adaptive degrade для дорогих VFX.
+- Етап 5: виконати повний regression, build, lint, browser smoke та оновити документацію після кожного етапу.
+- Після кожного кодового етапу запускати tests + quality gates згідно з user instruction.
