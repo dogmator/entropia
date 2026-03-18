@@ -196,3 +196,48 @@ docker compose up -d
 - Якщо організм потрапив всередину аномалії (legacy/save-case), він переходить у freeze (без руху).
 - При дотику до стінки аномалії застосовується natural collision response: ковзання по дотичній, або відбиття як fallback.
 - Spawn/reproduction організмів в межах аномалій заборонені.
+
+## Оновлення 2026-03-17: WOW-ефект Evolution Pulse
+- Додано сценічний візуальний ефект `EvolutionPulse` без змін simulation logic.
+- При появі нових організмів генерується світловий expansion pulse (зелений), при смертях — короткий death pulse (червоний).
+- Ефект побудовано на основі дельти `totalBirths/totalDeaths` і позицій із render buffers.
+- Додані обмеження для стабільності FPS: ліміт нових пульсів за тик і ліміт одночасних активних пульсів.
+
+## Оновлення 2026-03-17: WOW-ефект Genetic Comet Trail
+- Додано `GeneticCometTrail`: у новонароджених організмів з'являється короткий "кометний хвіст".
+- Ефект працює через окремий lightweight trail-layer (`TrailSystem`) і не змінює фізику або поведінку агентів.
+- Детекція newborn базується на появі нових alive-id у render buffers + дельті `totalBirths`.
+- Впроваджено обмеження безпеки для FPS: TTL, ліміт активних комет і ліміт нових комет за кадр.
+
+## Оновлення 2026-03-17: 1Hz stutter mitigation
+- Зменшено періодичне UI-логування статистики: `SERVER_LOG_INTERVAL` змінено з `60` до `300` тиков.
+- Ослаблено 1Hz пік cache-refresh у статистиці: `STATS_CONSTANTS.CACHE_TIMEOUT` змінено з `1000ms` до `3000ms`.
+- Мета: прибрати регулярні мікрофризи з періодом ~1 сек без зміни simulation logic.
+
+## Оновлення 2026-03-17: food anomaly import hardening
+- Закрито edge-case persistence: під час `importState` їжа тепер проходить валідацію на колізію з аномаліями.
+- Елементи їжі, що знаходяться в межах зон або перешкод (з урахуванням захисного буфера), не імпортуються в engine.
+- Додано regression unit-test на legacy-state сценарій.
+
+## Оновлення 2026-03-17: runtime one-shot sanitation
+- У `SimulationEngine` додано одноразову runtime-санітизацію їжі проти аномалій.
+- Sweep виконується на першому тіку після `start`, а також повторно після `reset` та `importState`.
+- Мета: очистити legacy/кастомні стани в пам'яті, навіть якщо не було повторного persistence-імпорту.
+
+## Оновлення 2026-03-17: anomaly-validator unification
+- Геометричну перевірку позицій відносно аномалій винесено в спільний utility `AnomalyValidation`.
+- `SpawnService`, `PersistenceService` та runtime-sweep у `SimulationEngine` тепер використовують один і той самий валідатор.
+- Це знижує ризик розходження поведінки між spawn/import/runtime шляхами.
+
+## Оновлення 2026-03-17: hot-path render performance hardening
+- `TrailSystem` переведено на O(1) кільцеву модель історії треків без `Array.shift()` і без per-point `Vector3` алокацій.
+- У `Trails` додано кешування id та reuse параметрів для зниження щокадрового object/string churn.
+- `GeneticCometTrail` переведено на reuse-буфери та snapshot-cache; React state синхронізується лише при фактичній зміні активних комет.
+- У `SimulationContext` оптимізовано append історії популяції (без подвійного копіювання масиву на кожному оновленні).
+- Перевірки після змін: `pnpm run typecheck`, `pnpm exec vitest run`, `pnpm build` — успішно.
+
+## Оновлення 2026-03-17: remote logging без ручного кроку + обмеження файлу
+- У `dev` remote logging тепер увімкнено за замовчуванням (ручний `localStorage.setItem(...,'1')` більше не потрібен).
+- Збережено override: `localStorage['entropia:remoteLogging']='0'` вимикає remote logging явно.
+- `scripts/log-server.ts` тепер обмежує розмір `remote_debug.log`: максимум 5 MB, при переповненні зберігає останні 4 MB (auto-trim).
+- Додано unit-тести для dev-toggle та bounded file append логіки.

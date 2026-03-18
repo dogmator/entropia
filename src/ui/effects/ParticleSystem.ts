@@ -429,16 +429,16 @@ export class ParticleSystem {
  */
 interface Trail {
   readonly organismId: string;
-  readonly positions: THREE.Vector3[];
-  readonly alphas: number[];
   readonly color: THREE.Color;
   readonly geometry: THREE.BufferGeometry;
   readonly positionBuffer: Float32Array;
   readonly colorBuffer: Float32Array;
+  readonly historyBuffer: Float32Array;
   line: THREE.Line;
   maxLength: number;
-  needsRebuild: boolean;
   lastFrameId: number;
+  historySize: number;
+  historyWriteIndex: number;
 }
 
 /**
@@ -477,37 +477,21 @@ export class TrailSystem {
     }
 
     // Check for wrapping/teleportation (distance threshold)
-    if (trail.positions.length > 0) {
-      const lastPos = trail.positions[trail.positions.length - 1];
-      if (lastPos) {
-        const distSq =
-          (position.x - lastPos.x) ** POW_2 +
-          (position.y - lastPos.y) ** POW_2 +
-          (position.z - lastPos.z) ** POW_2;
+    const lastPos = this.getLastTrailPoint(trail);
+    if (lastPos !== null) {
+      const distSq =
+        (position.x - lastPos.x) ** POW_2 +
+        (position.y - lastPos.y) ** POW_2 +
+        (position.z - lastPos.z) ** POW_2;
 
-        if (distSq > PARTICLE_CONSTANTS.TRAIL_TELEPORT_THRESHOLD_SQ) {
-          trail.positions.length = 0;
-          trail.alphas.length = 0;
-        }
+      if (distSq > PARTICLE_CONSTANTS.TRAIL_TELEPORT_THRESHOLD_SQ) {
+        trail.historySize = 0;
+        trail.historyWriteIndex = 0;
       }
     }
 
     trail.lastFrameId = this.currentFrameId;
-
-    // Реєстрація нового положення в ланцюгу трасування
-    trail.positions.push(new THREE.Vector3(position.x, position.y, position.z));
-    trail.alphas.push(1.0);
-
-    // Усікання ланцюга відповідно до ліміту довжини
-    if (trail.positions.length > trail.maxLength) {
-      trail.positions.shift();
-      trail.alphas.shift();
-    }
-
-    // Коригування градієнта прозорості (ефект поступового зникнення)
-    for (let i = 0; i < trail.alphas.length; i++) {
-      trail.alphas[i] = (i + 1) / trail.positions.length;
-    }
+    this.appendTrailPoint(trail, position);
 
     // Виконання прямого запису в буфери відеопам'яті
     this.updateTrailBuffers(trail);
@@ -574,6 +558,7 @@ export class TrailSystem {
     // Алокація буферів максимальної ємності на етапі ініціалізації
     const positionBuffer = new Float32Array(this.maxTrailLength * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
     const colorBuffer = new Float32Array(this.maxTrailLength * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
+    const historyBuffer = new Float32Array(this.maxTrailLength * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
 
     const geometry = new THREE.BufferGeometry();
     const posAttr = new THREE.BufferAttribute(positionBuffer, PARTICLE_CONSTANTS.VECTOR3_COMPONENTS);
@@ -600,16 +585,16 @@ export class TrailSystem {
 
     return {
       organismId,
-      positions: [],
-      alphas: [],
       color: new THREE.Color(color),
       geometry,
       positionBuffer,
       colorBuffer,
+      historyBuffer,
       line,
       maxLength: this.maxTrailLength,
-      needsRebuild: true,
       lastFrameId: this.currentFrameId,
+      historySize: 0,
+      historyWriteIndex: 0,
     };
   }
 
@@ -617,24 +602,30 @@ export class TrailSystem {
    * Оновлення вмісту атрибутів буферів (Zero GC - відсутність нових алокацій!).
    */
   private updateTrailBuffers(trail: Trail): void {
-    if (trail.positions.length < PARTICLE_CONSTANTS.VECTOR2_OFFSET) { return; }
-
-    const count = trail.positions.length;
+    const count = trail.historySize;
+    if (count < PARTICLE_CONSTANTS.VECTOR2_OFFSET) {
+      trail.geometry.setDrawRange(0, 0);
+      return;
+    }
+    const startIndex = (trail.historyWriteIndex - count + trail.maxLength) % trail.maxLength;
 
     // Інкрементальне заповнення буферів детермінованими даними
     for (let i = 0; i < count; i++) {
-      const pos = trail.positions[i];
-      const alpha = trail.alphas[i];
+      const historyIndex = (startIndex + i) % trail.maxLength;
+      const sourceOffset = historyIndex * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
+      const targetOffset = i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
+      const alpha = (i + 1) / count;
 
-      if (pos === undefined || alpha === undefined) { continue; }
+      trail.positionBuffer[targetOffset + PARTICLE_CONSTANTS.X_OFFSET] =
+        trail.historyBuffer[sourceOffset + PARTICLE_CONSTANTS.X_OFFSET] ?? 0;
+      trail.positionBuffer[targetOffset + PARTICLE_CONSTANTS.Y_OFFSET] =
+        trail.historyBuffer[sourceOffset + PARTICLE_CONSTANTS.Y_OFFSET] ?? 0;
+      trail.positionBuffer[targetOffset + PARTICLE_CONSTANTS.Z_OFFSET] =
+        trail.historyBuffer[sourceOffset + PARTICLE_CONSTANTS.Z_OFFSET] ?? 0;
 
-      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.X_OFFSET] = pos.x;
-      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Y_OFFSET] = pos.y;
-      trail.positionBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Z_OFFSET] = pos.z;
-
-      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.X_OFFSET] = trail.color.r * alpha;
-      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Y_OFFSET] = trail.color.g * alpha;
-      trail.colorBuffer[i * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS + PARTICLE_CONSTANTS.Z_OFFSET] = trail.color.b * alpha;
+      trail.colorBuffer[targetOffset + PARTICLE_CONSTANTS.X_OFFSET] = trail.color.r * alpha;
+      trail.colorBuffer[targetOffset + PARTICLE_CONSTANTS.Y_OFFSET] = trail.color.g * alpha;
+      trail.colorBuffer[targetOffset + PARTICLE_CONSTANTS.Z_OFFSET] = trail.color.b * alpha;
     }
 
     const posAttr = trail.geometry.attributes['position'] as THREE.BufferAttribute;
@@ -649,5 +640,30 @@ export class TrailSystem {
 
     // Коригування індексу відмальовування вершин
     trail.geometry.setDrawRange(0, count);
+  }
+
+  private appendTrailPoint(trail: Trail, position: Vector3): void {
+    const writeOffset = trail.historyWriteIndex * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
+    trail.historyBuffer[writeOffset + PARTICLE_CONSTANTS.X_OFFSET] = position.x;
+    trail.historyBuffer[writeOffset + PARTICLE_CONSTANTS.Y_OFFSET] = position.y;
+    trail.historyBuffer[writeOffset + PARTICLE_CONSTANTS.Z_OFFSET] = position.z;
+
+    trail.historyWriteIndex = (trail.historyWriteIndex + 1) % trail.maxLength;
+    if (trail.historySize < trail.maxLength) {
+      trail.historySize++;
+    }
+  }
+
+  private getLastTrailPoint(trail: Trail): Vector3 | null {
+    if (trail.historySize === 0) {
+      return null;
+    }
+    const lastIndex = (trail.historyWriteIndex - 1 + trail.maxLength) % trail.maxLength;
+    const offset = lastIndex * PARTICLE_CONSTANTS.VECTOR3_COMPONENTS;
+    return {
+      x: trail.historyBuffer[offset + PARTICLE_CONSTANTS.X_OFFSET] ?? 0,
+      y: trail.historyBuffer[offset + PARTICLE_CONSTANTS.Y_OFFSET] ?? 0,
+      z: trail.historyBuffer[offset + PARTICLE_CONSTANTS.Z_OFFSET] ?? 0,
+    };
   }
 }
