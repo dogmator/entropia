@@ -278,6 +278,7 @@ const useBoundingVolumesUpdate = (refs: {
  */
 const useEntitiesAnimation = (params: AnimationHookParams) => {
     const { refs, engine } = params;
+    const lastShowGlowRef = useRef<boolean | null>(null);
 
     useFrame((state) => {
         const { prey: preyRef, deadPrey: deadPreyRef, pred: predRef, deadPred: deadPredRef, food: foodRef } = refs;
@@ -296,11 +297,14 @@ const useEntitiesAnimation = (params: AnimationHookParams) => {
         updateFoodMesh({ mesh: foodRef.current, data: renderBuffers.food, count: renderBuffers.foodCount, scaleMultiplier: engine.config.foodScale, rotationTime: now });
 
         const showGlow = engine.config.showEnergyGlow;
-        const preyMat = preyRef.current.material as THREE.MeshPhongMaterial;
-        const predMat = predRef.current.material as THREE.MeshPhongMaterial;
+        if (lastShowGlowRef.current !== showGlow) {
+            lastShowGlowRef.current = showGlow;
+            const preyMat = preyRef.current.material as THREE.MeshPhongMaterial;
+            const predMat = predRef.current.material as THREE.MeshPhongMaterial;
 
-        if (preyMat) preyMat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.prey : 0;
-        if (predMat) predMat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.predator : 0;
+            if (preyMat) preyMat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.prey : 0;
+            if (predMat) predMat.emissiveIntensity = showGlow ? RENDER.materials.emissiveIntensity.predator : 0;
+        }
     });
 };
 
