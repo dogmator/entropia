@@ -54,6 +54,7 @@ import { CameraDataProvider } from './providers';
 import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
 import { StatisticsManager } from './services/StatisticsManager';
+import { isPositionBlockedByAnomalies } from './utils/AnomalyValidation';
 
 import type { IPersistableEngine } from './interfaces/IPersistableEngine';
 
@@ -65,6 +66,11 @@ export class SimulationEngine implements IPersistableEngine {
   private static readonly MAX_ORGANISM_AGE_TICKS = 5000;
   private static readonly EXTINCTION_FAILSAFE_TICKS = 180;
   private static readonly RESOURCE_FAILSAFE_TICKS = 600;
+  /**
+   * Захисний буфер для їжі відносно радіуса аномалії.
+   * Значення синхронізоване з Spawn/Persistence санітизацією.
+   */
+  private static readonly FOOD_ANOMALY_PADDING = 5;
 
   // Життєвий цикл
   public state: EngineState = EngineState.INITIALIZING;
@@ -106,6 +112,11 @@ export class SimulationEngine implements IPersistableEngine {
   public tick: number = 0;
   private zeroPopulationTicks = 0;
   private zeroFoodTicks = 0;
+  /**
+   * One-shot прапорець для runtime-санітизації legacy/нестабільного стану.
+   * Скидається після першого успішного sweep.
+   */
+  private needsFoodAnomalySanitization = true;
 
   public seed: number;
 
@@ -353,6 +364,7 @@ export class SimulationEngine implements IPersistableEngine {
     this.tick = 0;
     this.zeroPopulationTicks = 0;
     this.zeroFoodTicks = 0;
+    this.needsFoodAnomalySanitization = true;
     this.statisticsManager.reset();
 
     this.spawnService.resetFactory();
@@ -401,6 +413,9 @@ export class SimulationEngine implements IPersistableEngine {
 
   public importState(state: SerializedSimulationStateV1): void {
     PersistenceService.importState(this, state);
+    // Після імпорту запускаємо додатковий one-shot sweep у runtime
+    // для повної сумісності зі старими/кастомними станами.
+    this.needsFoodAnomalySanitization = true;
   }
 
   /**
@@ -488,8 +503,63 @@ export class SimulationEngine implements IPersistableEngine {
   private prepareTick(): void {
     this.tick++;
     this.reproductionSystem.setTick(this.tick);
+    this.sanitizeFoodAgainstAnomaliesIfNeeded();
     this.spawnFood();
     this.gridManager.rebuild(this.entityManager.organisms, this.entityManager.food);
+  }
+
+  /**
+   * Одноразова runtime-санітизація їжі проти аномалій.
+   * Виконується на першому тіку після reset/import/start, щоб
+   * прибрати legacy-артефакти без постійного оверхеду щотика.
+   */
+  private sanitizeFoodAgainstAnomaliesIfNeeded(): void {
+    if (!this.needsFoodAnomalySanitization) {
+      return;
+    }
+
+    const removedCount = this.removeFoodInsideAnomalies();
+    this.needsFoodAnomalySanitization = false;
+
+    if (removedCount > 0) {
+      logger.warn('Runtime food anomaly sanitation removed invalid food items', 'Engine', {
+        tick: this.tick,
+        removedFood: removedCount,
+      });
+    }
+  }
+
+  /**
+   * Видаляє елементи їжі, що опинилися в межах зон/перешкод.
+   * @returns Кількість вилучених елементів.
+   */
+  private removeFoodInsideAnomalies(): number {
+    let removed = 0;
+    for (const [foodId, foodItem] of this.food.entries()) {
+      if (!this.isFoodBlockedByAnomaly(foodItem.position)) {
+        continue;
+      }
+      this.food.delete(foodId);
+      removed++;
+    }
+    return removed;
+  }
+
+  /**
+   * Перевіряє, чи потрапляє позиція їжі у заборонену область
+   * будь-якої зони або перешкоди (з урахуванням буфера безпеки).
+   */
+  private isFoodBlockedByAnomaly(position: { x: number; y: number; z: number }): boolean {
+    const minDistance = SimulationEngine.FOOD_ANOMALY_PADDING;
+    return isPositionBlockedByAnomalies({
+      position,
+      obstacles: this.obstacles.values(),
+      zones: this.zones.values(),
+      worldSize: this.worldConfig.WORLD_SIZE,
+      obstaclePadding: minDistance,
+      zonePadding: minDistance,
+      checkZones: true,
+    });
   }
 
   private logPopulationSnapshot(): void {
@@ -517,7 +587,7 @@ export class SimulationEngine implements IPersistableEngine {
     endMetabolism();
 
     const endCollision = this.performanceMonitor.startSubsystemTimer('CollisionSystem');
-    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.tick);
+    const deadIds = this.collisionSystem.update(this.organisms, this.food, this.obstacles, this.zones, this.tick);
     endCollision();
     return deadIds;
   }
