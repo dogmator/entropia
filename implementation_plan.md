@@ -218,6 +218,200 @@
 ## Scope
 1. Заборонити проникнення/рух організмів всередині екологічних сфер (зони трактуються як тверді аномалії).
 2. Додати freeze-поведінку для організмів, які вже опинилися глибоко всередині аномалії.
-3. Забезпечити ковзання/відбиття при контакті зі стінкою аномалії через існуючу collision-модель.
-4. Заборонити spawn/reproduction організмів у межах аномалій.
-5. Додати unit-тести для collision та spawn-обмежень.
+
+---
+
+# Implementation Plan: WOW-ефект `Evolution Pulse` (2026-03-17)
+
+## Контекст
+Потрібно додати простий, але виразний візуальний ефект без змін у фізиці симуляції:
+- світловий пульс при народженні організмів;
+- короткий імплозивний пульс при смерті.
+
+## task_boundary
+- `src/ui/components/EvolutionPulse.tsx` (новий)
+- `src/ui/Viewport.tsx`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `walkthrough.md`
+
+## Кроки реалізації
+1. Створити 3D-компонент пульсів, який:
+   - слухає дельту `totalBirths/totalDeaths` зі статистики;
+   - генерує пульси в позиціях організмів з render buffers;
+   - анімує scale/opacity у `useFrame` з TTL.
+2. Підключити компонент до сцени у `Viewport`.
+3. Обмежити навантаження:
+   - ліміт одночасних пульсів;
+   - ліміт нових пульсів за тик.
+4. Оновити документацію та walkthrough.
+5. Прогнати `typecheck` і targeted unit tests.
+
+## Критерії приймання
+- Ефект візуально помітний при народженні/смерті.
+- Немає впливу на simulation logic.
+- TypeScript strict і тести проходять.
+
+---
+
+# Implementation Plan: WOW-ефект `Genetic Comet Trail` (2026-03-17)
+
+## Контекст
+Потрібно додати короткий "кометний хвіст" для новонароджених організмів:
+- тривалість 2-3 секунди;
+- яскраві кольори за видом;
+- без втручання у simulation logic.
+
+## task_boundary
+- `src/ui/components/GeneticCometTrail.tsx` (новий)
+- `src/ui/Viewport.tsx`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `walkthrough.md`
+- `task.md`
+
+## Кроки реалізації
+1. Створити компонент на базі наявного `TrailSystem`.
+2. Визначати newborn-кандидатів через появу нових alive-id у render buffers + дельту `totalBirths`.
+3. Тримати активні comet-trails через TTL із лімітом одночасно активних ефектів.
+4. Додати intro-wave при першій появі популяції для гарантованої видимості.
+5. Підключити компонент у `Viewport`.
+6. Прогнати `typecheck` + targeted eslint.
+
+---
+
+# Implementation Plan: Hot-path render performance hardening (2026-03-17)
+
+## Контекст
+Потрібно реалізувати найвпливовіші оптимізації для гарячого UI/render шляху:
+1. зменшити per-frame GC/алокації;
+2. прибрати надлишкові O(n)-операції у trail/comet логіці;
+3. зменшити частоту зайвих React state-оновлень у кадрі.
+
+## task_boundary
+- `src/ui/components/Trails.tsx`
+- `src/ui/components/GeneticCometTrail.tsx`
+- `src/ui/effects/ParticleSystem.ts` (клас `TrailSystem`)
+- `src/ui/context/SimulationContext.tsx`
+- `src/ui/components/Entities.tsx` (лише точкові hot-path оптимізації)
+- `src/ui/components/EvolutionPulse.tsx` (лише якщо потрібне усунення зайвих алокацій)
+- `src/simulation/__tests__/` (тільки за потреби regression)
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `task.md`
+- `walkthrough.md`
+
+## План реалізації
+1. **TrailSystem O(1) історія треку**
+   - Усунути `shift()`/масиви `Vector3` у `updateTrail`.
+   - Перейти на preallocated кільцеву структуру координат/alpha без per-point `new Vector3`.
+   - Зберегти існуючий API `updateTrail/removeTrail/prune`.
+2. **Trails.tsx мінімізація per-frame алокацій**
+   - Прибрати template-string churn для id (cache-ключі/стабільні ключі).
+   - Уникнути створення тимчасових об’єктів у циклі там, де це можливо без зміни API.
+3. **GeneticCometTrail hot-path cleanup**
+   - Замінити масові `[...]` алокації (`alive`, `aliveMap`, `newbornCandidates`) на reuse-буфери/мапи у `useRef`.
+   - Знизити частоту `setRenderComets` до фактичних змін складу активних комет.
+4. **SimulationContext history append optimization**
+   - Прибрати `historyRef = [...historyRef, point].slice(...)` на кожному апдейті.
+   - Використати кільцевий буфер/контрольований push+truncate без подвійного копіювання.
+5. **Verification**
+   - `pnpm exec vitest run` (повний regression).
+   - `pnpm build`.
+   - Зафіксувати зміни і результат у `walkthrough.md`, `task.md`, `docs/OPTIMIZATION_PLAN.md`.
+
+## Критерії приймання
+- В гарячому рендер-шляху прибрано найбільш дорогі per-frame алокації.
+- Немає змін функціональної поведінки симуляції.
+- `vitest run` і `build` проходять.
+
+---
+
+# Implementation Plan: Periodic 1Hz stutter mitigation (2026-03-17)
+
+## Контекст
+Користувач зафіксував періодичні фризи з частотою приблизно раз на секунду.
+
+## task_boundary
+- `src/config/ui.constants.ts`
+- `src/config/statistics.constants.ts`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `walkthrough.md`
+- `task.md`
+
+## План
+1. Зменшити частоту UI stats logging.
+2. Збільшити `CACHE_TIMEOUT` для статистичних heavy-обчислень.
+3. Підтвердити валідацію (`typecheck`, `build`) і оновити документацію.
+
+---
+
+# Implementation Plan: Заборона появи їжі всередині аномалій (2026-03-17)
+
+## Контекст
+Є підозра, що фіча «їжа не з'являється всередині аномалій» закрита не повністю. Поточні тести покривають spawn через `SpawnService`, але не покривають legacy/import сценарії.
+
+## task_boundary
+- `src/simulation/services/PersistenceService.ts`
+- `src/simulation/__tests__/Engine.buffers.test.ts`
+- `task.md`
+- `walkthrough.md`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+
+## План
+1. Додати санітизацію `food` під час `importState`: не завантажувати елементи їжі, що потрапляють у зони/аномалії або в заборонену дистанцію до obstacles.
+2. Додати regression-тест на import сценарій: state із їжею в аномалії після `importState` не повинен містити таку їжу.
+3. Перевірити, що існуючий spawn-тест і новий regression-тест проходять.
+4. Оновити `task.md`, `walkthrough.md`, `README.md`, `docs/OPTIMIZATION_PLAN.md` коротким записом про закриття edge-case.
+
+## Критерії приймання
+- Після імпорту стану в engine немає `food` всередині аномалій.
+- Новий тест відтворює edge-case і проходить стабільно.
+- Існуючі тести на spawn-обмеження продовжують проходити.
+
+---
+
+# Implementation Plan: Runtime one-shot санітизація їжі в аномаліях (2026-03-17)
+
+## Контекст
+Після фіксу `importState` потрібен додатковий runtime-захист, щоб очищати legacy/кастомні стани, де їжа могла опинитися в аномаліях уже в пам'яті рушія.
+
+## task_boundary
+- `src/simulation/Engine.ts`
+- `src/simulation/__tests__/Engine.buffers.test.ts`
+- `task.md`
+- `walkthrough.md`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+
+## План
+1. Додати one-shot runtime sweep для `food` на першому тіку після `start`/`reset`/`importState`.
+2. Використати ту саму тороїдальну перевірку та той самий buffer (`+5`), що у spawn/persistence валідації.
+3. Додати regression-тест на runtime-сценарій: вручну вставлена їжа в аномалії має бути вилучена після першого `update()`.
+4. Документувати поведінку в README/walkthrough/optimization notes.
+
+---
+
+# Implementation Plan: Уніфікація anomaly-validator для їжі (2026-03-17)
+
+## Контекст
+Поточна логіка перевірки «їжа не всередині аномалій» дублюється у трьох місцях (`SpawnService`, `PersistenceService`, `Engine`). Це підвищує ризик розходження поведінки.
+
+## task_boundary
+- `src/simulation/utils/AnomalyValidation.ts` (новий)
+- `src/simulation/utils/__tests__/AnomalyValidation.test.ts` (новий)
+- `src/simulation/services/SpawnService.ts`
+- `src/simulation/services/PersistenceService.ts`
+- `src/simulation/Engine.ts`
+- `task.md`
+- `walkthrough.md`
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+
+## План
+1. Створити спільний utility-модуль для валідації позиції відносно сферичних аномалій (zones/obstacles) з тороїдальною метрикою.
+2. Перевести `SpawnService`, `PersistenceService`, `Engine` на спільний utility, зберігши поточні пороги (`+5`, `minDistance`, avoidZones behavior).
+3. Додати unit-тести utility на базові сценарії (блокування зоною, перешкодою, вимкнення zone-check).
+4. Прогнати regression suite (targeted vitest + typecheck) і оновити документацію.

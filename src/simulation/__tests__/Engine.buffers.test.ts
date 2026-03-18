@@ -12,6 +12,7 @@ import { beforeEach,describe, expect, it, vi } from 'vitest';
 import { EntityType } from '@/types';
 
 import { SimulationEngine } from '../Engine';
+import { Food } from '../Entity';
 
 describe('SimulationEngine — Адаптивні буфери рендерингу', () => {
   let engine: SimulationEngine;
@@ -118,6 +119,98 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
     expect(restoredData.preyCount).toBe(originalData.preyCount);
     expect(restoredData.foodCount).toBe(originalData.foodCount);
+  });
+
+  it('повинен відкидати їжу в аномаліях під час importState', () => {
+    const state = engine.exportState();
+    const zone = state.zones[0];
+    const obstacle = state.obstacles[0];
+
+    expect(zone).toBeDefined();
+    expect(obstacle).toBeDefined();
+    if (!zone || !obstacle) {
+      return;
+    }
+
+    let validFood = state.food[0];
+
+    if (!validFood) {
+      let spawned = null;
+      for (let i = 0; i < 200 && !spawned; i++) {
+        spawned = engine['spawnService'].spawnFood(50_000 + i);
+      }
+
+      expect(spawned).not.toBeNull();
+      if (!spawned) {
+        return;
+      }
+
+      validFood = {
+        id: spawned.id,
+        position: { ...spawned.position },
+        radius: spawned.radius,
+        baseRadius: spawned.baseRadius,
+        energyValue: spawned.energyValue,
+        maxEnergy: spawned.maxEnergy,
+        currentEnergy: spawned.currentEnergy,
+        spawnTime: spawned.spawnTime,
+        consumed: spawned.consumed,
+      };
+    }
+
+    state.food = [
+      {
+        ...validFood,
+        id: 'food-inside-zone',
+        position: { ...zone.center },
+      },
+      {
+        ...validFood,
+        id: 'food-inside-obstacle',
+        position: { ...obstacle.position },
+      },
+      {
+        ...validFood,
+        id: 'food-valid',
+      },
+    ];
+
+    const restoredEngine = new SimulationEngine(1.0);
+    restoredEngine.importState(state);
+
+    expect(restoredEngine.food.has('food-inside-zone')).toBe(false);
+    expect(restoredEngine.food.has('food-inside-obstacle')).toBe(false);
+    expect(restoredEngine.food.has('food-valid')).toBe(true);
+  });
+
+  it('повинен виконувати one-shot runtime-санітизацію їжі в аномаліях', () => {
+    engine.food.clear();
+
+    const zone = Array.from(engine.zones.values())[0];
+    expect(zone).toBeDefined();
+    if (!zone) {
+      return;
+    }
+
+    const invalidFood = Food.create(70_001, zone.center.x, zone.center.y, zone.center.z);
+    engine.food.set(invalidFood.id, invalidFood);
+
+    let validFood: Food | null = null;
+    for (let i = 0; i < 200 && !validFood; i++) {
+      validFood = engine['spawnService'].spawnFood(80_000 + i);
+    }
+
+    expect(validFood).not.toBeNull();
+    if (!validFood) {
+      return;
+    }
+    engine.food.set(validFood.id, validFood);
+
+    engine.start();
+    engine.update();
+
+    expect(engine.food.has(invalidFood.id)).toBe(false);
+    expect(engine.food.has(validFood.id)).toBe(true);
   });
 
   it('повинен зберігати інваріант state === import(export(state))', () => {

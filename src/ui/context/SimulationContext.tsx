@@ -83,8 +83,12 @@ const appendHistoryPoint = (
     setHistory: React.Dispatch<React.SetStateAction<PopulationDataPoint[]>>,
     dataPoint: PopulationDataPoint
 ): void => {
-    historyRef.current = [...historyRef.current, dataPoint].slice(-UI_CONFIG.historyLength);
-    setHistory([...historyRef.current]);
+    const history = historyRef.current;
+    history.push(dataPoint);
+    if (history.length > UI_CONFIG.historyLength) {
+        history.splice(0, history.length - UI_CONFIG.historyLength);
+    }
+    setHistory(history.slice());
 };
 
 /**

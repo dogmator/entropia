@@ -6,6 +6,8 @@ import { isFood, isObstacle, isOrganism } from '@ui/utils/EntityTypeGuards';
 import { getStateColor, getStateLabel } from '@ui/utils/OrganismStateFormatters';
 
 import { Entities } from './components/Entities';
+import { EvolutionPulse } from './components/EvolutionPulse';
+import { GeneticCometTrail } from './components/GeneticCometTrail';
 import { Environment } from './components/Environment';
 import { SceneContainer } from './components/SceneContainer';
 import { Trails } from './components/Trails';
@@ -38,6 +40,8 @@ export const Viewport: React.FC = () => {
       <SceneContainer worldSize={worldSize}>
         <Environment engine={engine} />
         <Entities engine={engine} />
+        <EvolutionPulse engine={engine} />
+        <GeneticCometTrail engine={engine} />
         <Trails engine={engine} />
       </SceneContainer>
 
