@@ -7,15 +7,18 @@ import type {
     SerializedGenome,
     SerializedSimulationStateV1,
     SimulationStats,
+    Vector3,
 } from '@/types';
 import {
     createFoodId,
     createObstacleId,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
+import { WORLD_SIZE } from '@/config';
 
 import { Food, Obstacle, Organism } from '../Entity';
 import { IPersistableEngine } from '../interfaces/IPersistableEngine';
+import { isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
 
 interface PersistedOrganismRuntime {
     causeOfDeath?: Organism['causeOfDeath'];
@@ -23,6 +26,34 @@ interface PersistedOrganismRuntime {
 }
 
 export class PersistenceService {
+    private static readonly FOOD_ANOMALY_PADDING = 5;
+
+    private static resolveWorldSize(engine: IPersistableEngine): number {
+        const worldConfig = (engine as IPersistableEngine & { worldConfig?: { WORLD_SIZE?: number } }).worldConfig;
+        const candidate = worldConfig?.WORLD_SIZE;
+        return typeof candidate === 'number' && Number.isFinite(candidate) && candidate > 0
+            ? candidate
+            : WORLD_SIZE;
+    }
+
+    private static isFoodBlockedByAnomaly(
+        position: Vector3,
+        zones: Iterable<{ center: Vector3; radius: number }>,
+        obstacles: Iterable<{ position: Vector3; radius: number }>,
+        worldSize: number
+    ): boolean {
+        const minDistance = PersistenceService.FOOD_ANOMALY_PADDING;
+        return isPositionBlockedByAnomalies({
+            position,
+            obstacles,
+            zones,
+            worldSize,
+            obstaclePadding: minDistance,
+            zonePadding: minDistance,
+            checkZones: true,
+        });
+    }
+
     public static exportState(engine: IPersistableEngine): SerializedSimulationStateV1 {
         const factory = engine.spawnService.getFactory();
 
@@ -216,8 +247,14 @@ export class PersistenceService {
             engine.obstacles.set(o.id, obstacle);
         });
 
+        const worldSize = PersistenceService.resolveWorldSize(engine);
+
         engine.food.clear();
         state.food.forEach(f => {
+            if (PersistenceService.isFoodBlockedByAnomaly(f.position, engine.zones.values(), engine.obstacles.values(), worldSize)) {
+                return;
+            }
+
             const food = new Food(
                 createFoodId(f.id),
                 { ...f.position },
