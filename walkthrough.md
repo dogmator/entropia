@@ -140,9 +140,88 @@
 1. Відтворено симптом: після `stop` + вимирання популяції `reset` не оновлює відразу візуальний стан через відсутність `updated`-повідомлення.
 2. Реалізовано точковий fix у `EngineProxy.reset()`: після `reset` надсилається один `update` для синхронізації буферів.
 3. Усунуто `SharedArrayBuffer is not defined` у воркері через feature-detection перед `instanceof`.
-4. Прибрано шумові WebSocket помилки 127.0.0.1:3011: remote logging за замовчуванням вимкнено, ввімкнення тільки через localStorage opt-in.
+4. Прибрано шумові WebSocket помилки 127.0.0.1:3013: remote logging за замовчуванням вимкнено, ввімкнення тільки через localStorage opt-in.
 5. Усунуто manifest 404: додано `public/icon-192.png` та `public/icon-512.png`.
 6. Валідація:
    - `pnpm test --run src/simulation/__tests__/workerSnapshot.test.ts src/simulation/__tests__/EngineProxy.test.ts` ✅
    - `pnpm typecheck` ✅
    - `pnpm exec eslint ...` ❌ (pre-existing lint debt у тестових файлах поза scope поточного hotfix)
+
+## Етап 20 — Organism vs anomaly hardening (2026-03-17)
+1. Уточнено вимогу: напівпрозорі сферичні зони на сцені мають працювати як повністю непрохідні аномалії для організмів.
+2. Розширено `CollisionSystem.update(...)`: додано `zones`, а також pre-check `handleZoneCollisions`.
+3. Для організмів, що повністю всередині аномалії, реалізовано freeze (обнулення velocity/acceleration).
+4. Для зіткнень зі стінкою аномалії використано той самий slide-first / reflect-fallback механізм, що й для obstacle.
+5. Оновлено spawn-логіку: `SpawnService` тепер блокує spawn/reproduction організмів у межах зон.
+6. Додано unit-тести: freeze у `CollisionSystem.test.ts` і spawn-заборона у `SpawnService.anomaly.test.ts`.
+
+## Етап 21 — Evolution Pulse visual effect (2026-03-17)
+1. Додано новий компонент `src/ui/components/EvolutionPulse.tsx`.
+2. Ефект підписаний на дельти `totalBirths/totalDeaths` через `SimulationContext` і не змінює simulation pipeline.
+3. Позиції пульсів семпляться з render buffers:
+   - birth pulse: позиції живих організмів;
+   - death pulse: позиції мертвих організмів.
+4. Анімація реалізована в `useFrame` (fade-out opacity + expansion scale) з TTL для авто-видалення.
+5. Додано ліміти на інтенсивність: максимум пульсів за тик і максимум активних пульсів.
+6. Інтеграція у сцену виконана через `Viewport` (`<EvolutionPulse engine={engine} />`).
+
+## Етап 22 — Genetic Comet Trail visual effect (2026-03-17)
+1. Додано новий компонент `src/ui/components/GeneticCometTrail.tsx`.
+2. Реалізовано newborn-detection через появу нових alive-id у render buffers.
+3. Додано intro-wave, щоб ефект був видимий одразу після старту/reset.
+4. Для новонароджених запускається короткий trail (`TrailSystem`) з яскравим кольором за видом.
+5. Додано обмеження продуктивності: TTL, max active comets, max new comets per frame.
+6. Інтеграція в сцену через `Viewport` (`<GeneticCometTrail engine={engine} />`).
+
+## Етап 23 — 1Hz stutter mitigation (2026-03-17)
+1. Локалізовано регулярний фриз із періодом ~1 сек у двох джерелах: UI stats logging і статистичний cache refresh.
+2. Зменшено частоту логування stats у UI: `SERVER_LOG_INTERVAL` 60 -> 300.
+3. Збільшено період cache-refresh у `StatisticsManager`: `CACHE_TIMEOUT` 1000ms -> 3000ms.
+4. Реалізовано без зміни simulation logic; лише зниження періодичного overhead.
+
+## Етап 24 — Food anomaly import hardening (2026-03-17)
+1. Локалізовано пропущений edge-case: під час `importState` їжа завантажувалась без геометричної валідації щодо зон/перешкод.
+2. У `PersistenceService` додано санітизацію `state.food`: елементи, що потрапляють у заборонену дистанцію до zones/obstacles, не імпортуються.
+3. Для узгодженості з runtime-spawn використано ту саму тороїдальну метрику та той самий buffer (`+5`) до радіуса аномалій.
+4. Додано regression-тест `Engine.buffers.test.ts`: legacy-state з їжею всередині зони/перешкоди після `importState` очищується.
+
+## Етап 25 — Runtime one-shot санітизація їжі (2026-03-17)
+1. Додано в `SimulationEngine` прапорець `needsFoodAnomalySanitization` для одноразового cleanup без постійного оверхеду.
+2. На першому тіку після `start`/`reset`/`importState` виконується sweep `food` проти зон і перешкод.
+3. Геометрична перевірка використовує тороїдальну дистанцію та той самий safety-buffer `+5`, що у spawn/persistence-шляху.
+4. Додано regression test: їжа, вручну вставлена в центр аномалії, видаляється після `update()`, валідна їжа зберігається.
+
+## Етап 26 — Уніфікація anomaly-validator (2026-03-17)
+1. Створено `src/simulation/utils/AnomalyValidation.ts` з єдиною функцією `isPositionBlockedByAnomalies`.
+2. Переведено `SpawnService`, `PersistenceService` і `SimulationEngine` на спільний utility без зміни семантики порогів.
+3. Додано unit-тести `src/simulation/utils/__tests__/AnomalyValidation.test.ts`, включно з toroidal boundary-case.
+4. Ефект: прибрано дублювання і синхронізовано правила валідації між spawn/import/runtime шляхами.
+
+## Етап 27 — Повний regression після anomaly hardening (2026-03-17)
+1. Прогнано повний тестовий набір у non-watch режимі: `pnpm exec vitest run` — `18/18` test files, `126/126` tests ✅.
+2. Прогнано production-збірку: `pnpm build` ✅.
+3. Зафіксовано, що `pnpm test` у поточній конфігурації запускає watch-режим; для одноразового прогону використовується `pnpm exec vitest run`.
+4. Додаткових runtime-regression після уніфікації anomaly-validator не виявлено.
+
+## Етап 28 — Hot-path render performance hardening (2026-03-17)
+1. `TrailSystem` переведено на O(1) кільцевий буфер історії позицій без `Array.shift()` і без `new THREE.Vector3` у кожному апдейті трейлу.
+2. `Trails.tsx`: додано cache id (`prey_*/predator_*`) і reuse параметрів `position/color/enabled`, щоб зменшити per-frame object/string churn.
+3. `GeneticCometTrail.tsx`: прибрано масові `alive/newborn` масивні алокації через reuse `Map`/`Array` буферів, snapshot-cache, id-cache; `setRenderComets` викликається лише при фактичній зміні активних комет.
+4. `Entities.tsx`: оновлення `emissiveIntensity` тепер виконується тільки при зміні `showEnergyGlow`, без зайвих щокадрових записів у матеріали.
+5. `SimulationContext.tsx`: `appendHistoryPoint` замінено на push+truncate без подвійного копіювання масиву на кожному тіку.
+6. Валідація:
+   - `pnpm run typecheck` ✅
+   - `pnpm exec vitest run` ✅ (`18/18`, `126/126`)
+   - `pnpm build` ✅
+
+## Етап 29 — Dev remote logging auto-enable + bounded log file (2026-03-17)
+1. Додано helper `resolveRemoteLoggingEnabled`: у dev remote logging увімкнено за замовчуванням, але `localStorage['entropia:remoteLogging']='0'` вимикає його явно.
+2. `src/ui/index.tsx` переведено на новий helper, тож ручний крок `setItem(...,'1')` більше не обов'язковий у dev.
+3. У `scripts/log-server.ts` підключено bounded append: `remote_debug.log` має ліміт 5 MB, при перевищенні файл підрізається до останніх 4 MB.
+4. Додано unit-тести:
+   - `src/ui/utils/__tests__/remoteLogging.test.ts`
+   - `scripts/__tests__/log-file-utils.test.ts`
+5. Валідація:
+   - `pnpm run typecheck` ✅
+   - `pnpm exec vitest run src/ui/utils/__tests__/remoteLogging.test.ts scripts/__tests__/log-file-utils.test.ts` ✅
+   - `pnpm build` ✅

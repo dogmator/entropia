@@ -30,6 +30,7 @@ import type { Obstacle, Organism } from '../Entity';
 import { Food, OrganismFactory } from '../Entity';
 import type { GridManager } from '../managers/GridManager';
 import { MathUtils } from '../MathUtils';
+import { isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
 
 // ============================================================================
 // ПЕРЕЛІКИ ТА ОБ'ЄКТИ КОНФІГУРАЦІЇ
@@ -174,38 +175,17 @@ export class SpawnService {
 
       case OrganismSpawnStrategy.RANDOM:
       default:
-        return this.getRandomValidPosition(this.config.minOrganismDistance);
+        return this.getRandomValidPosition(this.config.minOrganismDistance, true);
     }
   }
 
   /**
    * Визначення позиції на основі екологічних уподобань виду.
    */
-  private getEcologicalPosition(type: EntityType): MutableVector3 | null {
-    if (type === EntityType.PREY) {
-      // Пріоритетне розселення травоїдних у заповідних зонах та біля джерел ресурсів
-      const sanctuary = this.zones.get('sanctuary');
-      if (sanctuary && this.rand() < 0.4) {
-        return this.getPositionInZone(sanctuary);
-      }
-      const oasis = this.zones.get('oasis_center');
-      if (oasis && this.rand() < 0.4) {
-        return this.getPositionInZone(oasis);
-      }
-    } else {
-      // Пріоритетне розселення хижаків у зонах активного полювання
-      const huntingGround = this.zones.get('hunting_ground');
-      if (huntingGround && this.rand() < 0.4) {
-        return this.getPositionInZone(huntingGround);
-      }
-      const desert = this.zones.get('desert_0');
-      if (desert && this.rand() < 0.3) {
-        return this.getPositionInZone(desert);
-      }
-    }
-
-    // Резервний варіант: випадкова валідна позиція
-    return this.getRandomValidPosition(this.config.minOrganismDistance);
+  private getEcologicalPosition(_type: EntityType): MutableVector3 | null {
+    // На поточному етапі екологічні зони працюють як непрохідні аномалії для організмів.
+    // Тому для будь-якого виду обираємо лише позиції поза межами аномалій.
+    return this.getRandomValidPosition(this.config.minOrganismDistance, true);
   }
 
   // ============================================================================
@@ -236,19 +216,29 @@ export class SpawnService {
    * Визначення локації для розміщення їжі згідно зі стратегією.
    */
   private getFoodSpawnPosition(): MutableVector3 | null {
+    const preferredPosition = this.getRawFoodSpawnPosition();
+    if (preferredPosition && this.isValidFoodPosition(preferredPosition)) {
+      return preferredPosition;
+    }
+
+    return this.getRandomValidPosition(5, true);
+  }
+
+  /**
+   * Визначення бажаної локації для їжі згідно зі стратегією
+   * (без фінальної валідації аномалій).
+   */
+  private getRawFoodSpawnPosition(): MutableVector3 | null {
     switch (this.config.foodStrategy) {
       case FoodSpawnStrategy.OASIS_PREFERRED:
         return this.getOasisPreferredPosition();
-
       case FoodSpawnStrategy.CLUSTERED:
         return this.getClusteredPosition();
-
       case FoodSpawnStrategy.UNIFORM:
         return this.getUniformPosition();
-
       case FoodSpawnStrategy.RANDOM:
       default:
-        return this.getRandomValidPosition(5);
+        return this.getRandomValidPosition(5, true);
     }
   }
 
@@ -260,12 +250,12 @@ export class SpawnService {
       const oasis = this.zones.get('oasis_center');
       if (oasis) {
         const pos = this.getPositionInZone(oasis);
-        if (pos && this.isValidPosition(pos, 5)) {
+        if (pos && this.isValidFoodPosition(pos)) {
           return pos;
         }
       }
     }
-    return this.getRandomValidPosition(5);
+    return this.getRandomValidPosition(5, true);
   }
 
   /** Кешований буфер сусідів для уникнення алокацій. */
@@ -290,7 +280,7 @@ export class SpawnService {
     const foodEntities = this.nearbyBuffer.filter(e => e.type === EntityType.FOOD);
     if (foodEntities.length > 0) {
       const target = foodEntities[Math.floor(this.rand() * foodEntities.length)];
-      if (!target) { return this.getRandomValidPosition(5); }
+      if (!target) { return this.getRandomValidPosition(5, true); }
       // Розрахунок позиції у безпосередній близькості до знайденого об'єкта
       const angle = this.rand() * Math.PI * 2;
       const phi = Math.acos(2 * this.rand() - 1);
@@ -302,12 +292,12 @@ export class SpawnService {
         z: MathUtils.wrap(target.position.z + r * Math.cos(phi), ws),
       };
 
-      if (this.isValidPosition(pos, 5)) {
+      if (this.isValidFoodPosition(pos)) {
         return pos;
       }
     }
 
-    return this.getRandomValidPosition(5);
+    return this.getRandomValidPosition(5, true);
   }
 
   // ============================================================================
@@ -317,7 +307,7 @@ export class SpawnService {
   /**
    * Генерація випадкових координат із багаторазовими перевірками на валідність.
    */
-  private getRandomValidPosition(minDistance: number): MutableVector3 | null {
+  private getRandomValidPosition(minDistance: number, avoidZones: boolean = false): MutableVector3 | null {
     for (let attempt = 0; attempt < this.config.maxSpawnAttempts; attempt++) {
       const ws = this.worldSize;
       const pos: MutableVector3 = {
@@ -326,7 +316,7 @@ export class SpawnService {
         z: this.rand() * ws,
       };
 
-      if (this.isValidPosition(pos, minDistance)) {
+      if (this.isValidPosition(pos, minDistance, avoidZones)) {
         return pos;
       }
     }
@@ -352,11 +342,11 @@ export class SpawnService {
       z: cellZ * cellSize + this.rand() * cellSize,
     };
 
-    if (this.isValidPosition(pos, 5)) {
+    if (this.isValidFoodPosition(pos)) {
       return pos;
     }
 
-    return this.getRandomValidPosition(5);
+    return this.getRandomValidPosition(5, true);
   }
 
   /**
@@ -389,17 +379,20 @@ export class SpawnService {
   /**
    * Валідація точки на предмет колізій із просторовими аномаліями.
    */
-  private isValidPosition(pos: Vector3, minDistance: number): boolean {
-    for (const obstacle of this.obstacles.values()) {
-      const distSq = MathUtils.toroidalDistanceSq(pos, obstacle.position, this.worldSize);
-      const minDistSq = (obstacle.radius + minDistance) ** 2;
+  private isValidPosition(pos: Vector3, minDistance: number, avoidZones: boolean = false): boolean {
+    return !isPositionBlockedByAnomalies({
+      position: pos,
+      obstacles: this.obstacles.values(),
+      zones: this.zones.values(),
+      worldSize: this.worldSize,
+      obstaclePadding: minDistance,
+      zonePadding: minDistance,
+      checkZones: avoidZones,
+    });
+  }
 
-      if (distSq < minDistSq) {
-        return false;
-      }
-    }
-
-    return true;
+  private isValidFoodPosition(pos: Vector3): boolean {
+    return this.isValidPosition(pos, 5, true);
   }
 
   /**
