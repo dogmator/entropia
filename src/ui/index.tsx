@@ -9,11 +9,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { logger } from '@/core';
+import { resolveRemoteLoggingEnabled } from '@/ui/utils/remoteLogging';
 
 import { App } from './App';
 
-// Активація віддаленого логування лише за явним opt-in, щоб уникнути шуму в браузері без log-server.
-const shouldEnableRemoteLogging = localStorage.getItem('entropia:remoteLogging') === '1';
+// Dev: remote logging увімкнено за замовчуванням.
+// Override: localStorage['entropia:remoteLogging']='0' (disable) або '1' (enable).
+const isDevelopment =
+  typeof process !== 'undefined' &&
+  process.env &&
+  process.env['NODE_ENV'] === 'development';
+const shouldEnableRemoteLogging = resolveRemoteLoggingEnabled(localStorage, isDevelopment);
 logger.setRemoteLogging(shouldEnableRemoteLogging);
 
 /** Пошук кореневого контейнера в структурі документа. */
