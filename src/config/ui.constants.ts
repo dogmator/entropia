@@ -111,5 +111,5 @@ export const UI_CONTROLS = {
     STORAGE_KEY_SPEED: 'entropia-rotationspeed',
   },
   LOADING_DELAY: 500,
-  SERVER_LOG_INTERVAL: 60,
+  SERVER_LOG_INTERVAL: 300,
 } as const;

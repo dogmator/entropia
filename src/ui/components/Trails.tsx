@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import type React from 'react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { BUFFER_LAYOUT, COLORS, RENDER } from '../../config';
 import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
@@ -12,6 +12,20 @@ interface TrailsProps {
 
 export const Trails: React.FC<TrailsProps> = ({ engine }) => {
     const { scene } = useThree();
+    const preyIdCacheRef = useRef<Map<number, string>>(new Map());
+    const predatorIdCacheRef = useRef<Map<number, string>>(new Map());
+    const trailParamsRef = useRef({
+        prey: {
+            position: { x: 0, y: 0, z: 0 },
+            color: COLORS.prey.trail || 0x00ff00,
+            enabled: true
+        },
+        predator: {
+            position: { x: 0, y: 0, z: 0 },
+            color: COLORS.predator.trail || 0xff0000,
+            enabled: true
+        }
+    });
 
     const trailSystem = useMemo(() => {
         return new TrailSystem(scene, RENDER.maxTrailParticles);
@@ -33,39 +47,43 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
 
         const renderBuffers = engine.getRenderData();
         const { prey, predators, preyCount, predatorCount } = renderBuffers;
+        const preyIdCache = preyIdCacheRef.current;
+        const predatorIdCache = predatorIdCacheRef.current;
+        const preyParams = trailParamsRef.current.prey;
+        const predatorParams = trailParamsRef.current.predator;
 
         // Update Prey Trails
         for (let i = 0; i < preyCount; i++) {
             const offset = i * BUFFER_LAYOUT.STRIDE;
-            const numId = prey[offset + BUFFER_LAYOUT.OFFSETS.ID] || 0;
-            const id = `prey_${numId}`;
+            const numId = prey[offset + BUFFER_LAYOUT.OFFSETS.ID] ?? 0;
+            let id = preyIdCache.get(numId);
+            if (!id) {
+                id = `prey_${numId}`;
+                preyIdCache.set(numId, id);
+            }
 
-            const x = prey[offset + BUFFER_LAYOUT.OFFSETS.X] || 0;
-            const y = prey[offset + BUFFER_LAYOUT.OFFSETS.Y] || 0;
-            const z = prey[offset + BUFFER_LAYOUT.OFFSETS.Z] || 0;
+            preyParams.position.x = prey[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
+            preyParams.position.y = prey[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
+            preyParams.position.z = prey[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
 
-            trailSystem.updateTrail(id, {
-                position: { x, y, z },
-                color: COLORS.prey.trail || 0x00ff00,
-                enabled: true
-            });
+            trailSystem.updateTrail(id, preyParams);
         }
 
         // Update Predator Trails
         for (let i = 0; i < predatorCount; i++) {
             const offset = i * BUFFER_LAYOUT.STRIDE;
-            const numId = predators[offset + BUFFER_LAYOUT.OFFSETS.ID] || 0;
-            const id = `predator_${numId}`;
+            const numId = predators[offset + BUFFER_LAYOUT.OFFSETS.ID] ?? 0;
+            let id = predatorIdCache.get(numId);
+            if (!id) {
+                id = `predator_${numId}`;
+                predatorIdCache.set(numId, id);
+            }
 
-            const x = predators[offset + BUFFER_LAYOUT.OFFSETS.X] || 0;
-            const y = predators[offset + BUFFER_LAYOUT.OFFSETS.Y] || 0;
-            const z = predators[offset + BUFFER_LAYOUT.OFFSETS.Z] || 0;
+            predatorParams.position.x = predators[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
+            predatorParams.position.y = predators[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
+            predatorParams.position.z = predators[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
 
-            trailSystem.updateTrail(id, {
-                position: { x, y, z },
-                color: COLORS.predator.trail || 0xff0000,
-                enabled: true
-            });
+            trailSystem.updateTrail(id, predatorParams);
         }
 
         trailSystem.prune();
