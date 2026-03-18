@@ -143,3 +143,55 @@
 - **Worker portability:** додано `SharedArrayBuffer` feature-detection в snapshot-пайплайні.
 - **Debug-noise control:** remote logging переведено в explicit opt-in модель.
 - **PWA integrity:** додано відсутні іконки з manifest для усунення 404 у прод-оточеннях.
+
+## 2026-03-17 — Hardening непрохідності аномалій
+- Додано collision-gate для зон-аномалій у `CollisionSystem` з freeze-path для випадків deep-penetration.
+- Уніфіковано collision response для obstacle/zone через спільний spherical barrier resolver.
+- Заборонено spawn/reproduction організмів у зоні дії аномалій через валідацію у `SpawnService`.
+- Додано unit-тести на freeze-стан і на блокування spawn усередині аномалії.
+
+## 2026-03-17 — Evolution Pulse visual WOW effect
+- Додано lightweight 3D-ефект `EvolutionPulse` для підсилення UX-помітності народжень/смертей.
+- Тригери: дельта `totalBirths/totalDeaths`; координати пульсів семпляться з `RenderBuffers` (alive/dead).
+- Анімація виконується у `useFrame` через scale/opacity fade, без втручання у фізику.
+- Впроваджено guardrails для продуктивності: `MAX_EVENTS_PER_TICK` і `MAX_PULSES`.
+
+## 2026-03-17 — Genetic Comet Trail visual WOW effect
+- Додано новий layer `GeneticCometTrail` для коротких пост-натальних trail-ефектів.
+- Newborn визначаються через delta-аналіз alive-id (render buffers) з валідацією через `totalBirths`.
+- Реалізовано intro-wave для гарантованої помітності після старту/reset.
+- Впроваджено performance guards: `COMET_TTL_SECONDS`, `COMET_MAX_ACTIVE`, `COMET_MAX_NEW_PER_FRAME`.
+
+## 2026-03-17 — Periodic 1Hz stutter mitigation
+- Ідентифіковано регулярне 1Hz навантаження у двох місцях: UI stats logging і cache-refresh статистики.
+- Зменшено частоту UI логів (`SERVER_LOG_INTERVAL: 60 -> 300`), щоб прибрати щосекундний шум.
+- Збільшено timeout кешу статистики (`CACHE_TIMEOUT: 1000 -> 3000`), щоб знизити частоту важких обчислень.
+
+## 2026-03-17 — Food anomaly import hardening
+- Виявлено persistence-edge-case: `importState` відновлював `food` без spatial-валідації по відношенню до зон/перешкод.
+- Додано санітизацію імпорту з тороїдальною дистанцією та захисним радіусним буфером (`+5`) для консистентності зі spawn-логікою.
+- Додано regression test на сценарій legacy-state з їжею всередині аномалій.
+
+## 2026-03-17 — Runtime one-shot food sanitation
+- Додано lightweight safety-gate у `SimulationEngine`: одноразовий cleanup `food` проти zones/obstacles на першому update.
+- Підхід мінімізує performance-вартість (без постійної перевірки щотика) та закриває legacy-edge-case у RAM-стані.
+- Санітизація повторно активується після `reset` і `importState`.
+
+## 2026-03-17 — Anomaly validator unification
+- Винесено дубльовану spatial-валідацію у спільний utility `AnomalyValidation`.
+- Синхронізовано правила для `SpawnService`, `PersistenceService` і runtime one-shot sanitation в `Engine`.
+- Додано unit-тести utility, включно з тороїдальним boundary-сценарієм.
+
+## 2026-03-17 — Hot-path render performance hardening
+- `TrailSystem` переведено з GC-heavy моделі (`Vector3[]` + `shift`) на preallocated кільцевий буфер координат з O(1) append.
+- `Trails.tsx` оптимізовано через id-cache і reuse параметрів, що зменшує щокадрові string/object алокації.
+- `GeneticCometTrail.tsx` переведено на reuse буфери (`Map`/`Array`) + snapshot/id cache без масового пересоздання alive/newborn структур щокадру.
+- `Entities.tsx`: відключено зайві щокадрові material-writes (`emissiveIntensity`) при незмінному `showEnergyGlow`.
+- `SimulationContext.tsx`: history append переписано на push+truncate без подвійного копіювання масиву.
+- Регресійна валідація пройдена: `typecheck`, `vitest run`, `build`.
+
+## 2026-03-17 — Remote logging auto-enable (dev) + bounded log file
+- Увімкнення remote logging у dev переведено на auto-mode (без ручного localStorage-кроку).
+- Додано контрольований override через `localStorage['entropia:remoteLogging']` (`'0'` вимикає примусово).
+- У `log-server` інтегровано bounded append: `remote_debug.log` обмежено до 5 MB, overflow-поведінка — trim до останніх 4 MB.
+- Додано unit-тести для обох нових механізмів.

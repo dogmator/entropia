@@ -1,13 +1,15 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { WebSocket, WebSocketServer } from 'ws';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import {
+    appendLogEntryWithLimit,
+    DEFAULT_MAX_LOG_FILE_BYTES,
+    DEFAULT_TRIM_TO_BYTES
+} from './log-file-utils';
 
 const PORT = 3011;
 const LOG_FILE = 'remote_debug.log';
+const LOG_FILE_PATH = `${process.cwd()}/${LOG_FILE}`;
+const MAX_LOG_FILE_BYTES = DEFAULT_MAX_LOG_FILE_BYTES;
+const TRIM_TO_BYTES = DEFAULT_TRIM_TO_BYTES;
 const COMMAND_TYPE = 'COMMAND';
 const COMMAND_RELOAD = 'RELOAD';
 const COMMAND_CLEAR = 'clear';
@@ -182,7 +184,12 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('message', (message: Buffer) => {
         try {
             const payload = parseLogPayload(message);
-            fs.appendFileSync(LOG_FILE, createLogEntryText(payload));
+            appendLogEntryWithLimit(
+                LOG_FILE_PATH,
+                createLogEntryText(payload),
+                MAX_LOG_FILE_BYTES,
+                TRIM_TO_BYTES
+            );
             printColoredLog(payload);
         } catch (error: unknown) {
             const reason = isErrorWithCode(error) ? error.message : 'Unknown parse failure';
@@ -212,7 +219,8 @@ console.log(`\n${ANSI_COLORS.magenta}========================================${A
 console.log(`${ANSI_COLORS.cyan}    ENTROPIA 3D DIAGNOSTIC SERVER     ${ANSI_COLORS.reset}`);
 console.log(`${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
 console.log(`Address:   ws://localhost:${PORT}`);
-console.log(`Log File:  ${path.resolve(__dirname, LOG_FILE)}`);
+console.log(`Log File:  ${LOG_FILE_PATH}`);
+console.log(`File cap:  ${MAX_LOG_FILE_BYTES} bytes (trim to ${TRIM_TO_BYTES} bytes)`);
 console.log('Runtime:   TypeScript (tsx)');
 console.log('Status:    Running and waiting for connections...');
 console.log(`${ANSI_COLORS.magenta}----------------------------------------${ANSI_COLORS.reset}\n`);
