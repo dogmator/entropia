@@ -83,3 +83,54 @@
 - Реюзнути slide/reflect collision response для зіткнень зі стінкою аномалії.
 - Заборонити spawn/reproduction організмів усередині зон.
 - Додати unit-тести на freeze та spawn-заборону.
+
+## task_boundary (2026-03-17): Evolution Pulse WOW effect
+- Додати lightweight візуальний ефект пульсу для подій birth/death.
+- Джерело тригерів: дельта `totalBirths/totalDeaths` у simulation stats.
+- Джерело координат: `RenderBuffers` (alive для birth, dead для death).
+- Реалізувати TTL-анімацію scale+opacity у `useFrame`.
+- Інтегрувати компонент у `Viewport` без змін simulation logic.
+
+## task_boundary (2026-03-17): Genetic Comet Trail WOW effect
+- Додати post-birth trail-ефект для новонароджених організмів (`GeneticCometTrail`).
+- Детектити newborn через нові alive-id у render buffers + дельту `totalBirths`.
+- Додати intro-wave для миттєвої візуальної демонстрації після старту/reset.
+- Реалізувати TTL та guardrails (max active / max new per frame).
+- Інтегрувати компонент у `Viewport` без змін simulation logic.
+
+## task_boundary (2026-03-17): periodic stutter mitigation
+- Зменшити щосекундний overhead у UI-логуванні статистики.
+- Знизити частоту cache-refresh у `StatisticsManager`, що викликав 1Hz піки обчислень.
+- Валідувати відсутність регресій через `typecheck` + `build`.
+
+## task_boundary (2026-03-17): food anomaly import hardening
+- Усунути legacy-case: їжа з import-state не повинна з'являтися в межах аномалій (zones/obstacles).
+- Додати санітизацію `state.food` під час `PersistenceService.importState`.
+- Додати regression unit-test на import сценарій з їжею всередині аномалії.
+- Оновити документацію про закриття edge-case.
+
+## task_boundary (2026-03-17): runtime food anomaly sanitation
+- Додати one-shot runtime-санітизацію їжі проти зон/перешкод на першому тіку після старту.
+- Після `reset` і `importState` повторно активувати санітизаційний sweep.
+- Додати regression unit-test на runtime-edge-case (legacy invalid food in memory).
+- Оновити технічну документацію щодо нового safety-gate.
+
+## task_boundary (2026-03-17): anomaly-validator unification
+- Винести спільну геометричну перевірку аномалій у окремий utility-модуль.
+- Усунути дублювання валідації у `SpawnService`, `PersistenceService` та `Engine`.
+- Додати unit-тести для utility з перевіркою toroidal-case.
+- Оновити документацію щодо уніфікації safety-логіки.
+
+## task_boundary (2026-03-17): hot-path render performance hardening
+- Усунути O(n) і GC-heavy операції в `TrailSystem.updateTrail` (`shift`/`Vector3` allocations) через O(1) кільцевий буфер.
+- Зменшити per-frame алокації у `Trails` (cache id, reuse params objects).
+- Зменшити per-frame алокації у `GeneticCometTrail` (reuse map/list buffers, cache id/snapshots, sync render state лише при фактичній зміні активних комет).
+- Зменшити копіювання історії в `SimulationContext.appendHistoryPoint`.
+- Виконати regression checks: `typecheck` + `vitest run` + `build`.
+
+## task_boundary (2026-03-17): dev remote logging auto-enable + file size cap
+- Увімкнути remote logging за замовчуванням у dev без ручного `localStorage` кроку.
+- Зберегти можливість override через `localStorage['entropia:remoteLogging']`.
+- Обмежити розмір `remote_debug.log` у `log-server` з авто-підрізанням старих записів.
+- Додати unit-тести для нового dev-toggle та file-cap helper.
+- Оновити документацію і перевірити `typecheck` + targeted tests + `build`.
