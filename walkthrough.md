@@ -225,3 +225,42 @@
    - `pnpm run typecheck` ✅
    - `pnpm exec vitest run src/ui/utils/__tests__/remoteLogging.test.ts scripts/__tests__/log-file-utils.test.ts` ✅
    - `pnpm build` ✅
+
+## Етап 30 — Worker render cadence split (2026-03-18)
+1. Виділено pure helper `src/simulation/workerCadence.ts` для ізольованого рішення про dispatch render snapshot.
+2. `simulation.worker.ts` переведено на дві різні частоти:
+   - fixed-step simulation update;
+   - окремий cadence відправки `updated` snapshots у main thread.
+3. Ручний `handleUpdate()` залишився immediate-path без throttling, щоб не зламати reset/manual update сценарії.
+4. Додано unit-тест `src/simulation/__tests__/workerCadence.test.ts`.
+5. Валідація:
+   - `pnpm run typecheck` ✅
+   - `pnpm exec vitest run src/simulation/__tests__/EngineProxy.test.ts src/simulation/__tests__/workerSnapshot.test.ts src/simulation/__tests__/workerCadence.test.ts` ✅
+   - `pnpm run build` ✅
+   - `pnpm exec eslint src/simulation/simulation.worker.ts src/simulation/workerCadence.ts src/simulation/__tests__/workerCadence.test.ts` ✅
+
+## Етап 31 — Buffer serialization pass reduction (2026-03-18)
+1. `BufferManager` переведено з моделі exact pre-count + exact fill на upper-bound capacity estimate + single exact write-pass.
+2. Фактичні `preyCount` / `predatorCount` / `foodCount` тепер обчислюються безпосередньо під час серіалізації буферів.
+3. Збережено shrink/reset/persistence поведінку завдяки незмінному adaptive-capacity контракту.
+4. Додано unit-тест `src/simulation/services/__tests__/BufferManager.test.ts`.
+5. Валідація:
+   - `pnpm run typecheck` ✅
+   - `pnpm exec vitest run src/simulation/__tests__/workerSnapshot.test.ts src/simulation/__tests__/Engine.buffers.test.ts src/simulation/services/__tests__/BufferManager.test.ts` ✅
+   - `pnpm run build` ✅
+   - `pnpm exec eslint src/simulation/services/BufferManager.ts src/simulation/services/__tests__/BufferManager.test.ts` ✅
+
+## Етап 32 — Single-pass population aggregation (2026-03-18)
+1. `SimulationEngine` переведено з моделі окремого `collectAllDeadIds` + багатопрохідної статистики на єдиний population aggregation pass.
+2. В одному проході тепер збираються:
+   - `preyCount` / `predatorCount`,
+   - сумарні енергії,
+   - `maxAge` / `maxGeneration`,
+   - повний список `deadIds`.
+3. `StatisticsManager` адаптовано під aggregated payload, а `PersistenceService.importState` оновлено для коректної реактивації статистики після імпорту.
+4. Додано unit-тест `src/simulation/services/__tests__/StatisticsManager.test.ts`.
+5. Валідація:
+   - `pnpm run typecheck` ✅
+   - `pnpm exec vitest run src/simulation/__tests__/Engine.buffers.test.ts src/simulation/__tests__/Entity.growth-and-food.test.ts src/simulation/services/__tests__/StatisticsManager.test.ts` ✅
+   - `pnpm run build` ✅
+   - `pnpm exec eslint --fix src/simulation/Engine.ts src/simulation/services/StatisticsManager.ts src/simulation/services/PersistenceService.ts src/simulation/services/__tests__/StatisticsManager.test.ts` ✅
