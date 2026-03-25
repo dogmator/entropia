@@ -195,3 +195,21 @@
 - Додано контрольований override через `localStorage['entropia:remoteLogging']` (`'0'` вимикає примусово).
 - У `log-server` інтегровано bounded append: `remote_debug.log` обмежено до 5 MB, overflow-поведінка — trim до останніх 4 MB.
 - Додано unit-тести для обох нових механізмів.
+
+## 2026-03-18 — Worker render cadence split
+- Після transferable-hardening головним transport bottleneck лишався занадто частий `updated` snapshot із worker у main thread.
+- Додано cadence-control для відправки render snapshots без зміни fixed-step simulation update.
+- Ручний `update` залишено immediate-path, щоб не ламати reset/manual synchronization flow.
+- Додано pure helper `workerCadence` та regression unit-тест для фіксації інваріантів dispatch-рішення.
+
+## 2026-03-18 — Buffer serialization pass reduction
+- Buffer export path містив подвійний прохід: спочатку точний підрахунок живих/мертвих/food сутностей, потім окремий повний серіалізаційний pass.
+- Пайплайн спрощено: `BufferManager` тепер використовує upper-bound оцінку для capacity management і виконує один точний write-pass, який одночасно формує фактичні counts.
+- Семантика `RenderBuffers` збережена: UI все ще отримує exact `preyCount` / `predatorCount` / `foodCount`.
+- Додано unit-тест на exact counts за умов over-allocation capacity, а regression `Engine.buffers.test.ts` підтвердив збереження shrink/reset/persistence поведінки.
+
+## 2026-03-18 — Single-pass population aggregation
+- Після скорочення buffer-churn наступним CPU bottleneck лишались повторні обходи `organisms` у statistics/death pipeline.
+- У `SimulationEngine` зібрано population aggregation в одному проході: counts, energy sums, maxAge, maxGeneration і `deadIds`.
+- `StatisticsManager` тепер споживає агрегований payload замість повторного scan по `Map<string, Organism>`, що скорочує кількість повних проходів у гарячому update-потоці.
+- `PersistenceService.importState` синхронізовано з новою моделлю через явну реагрегацію статистики після імпорту.

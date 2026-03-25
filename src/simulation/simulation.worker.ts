@@ -8,6 +8,10 @@
 import { logger } from '@/core';
 
 import { SimulationEngine } from './Engine';
+import {
+    DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
+    shouldDispatchRenderSnapshot
+} from './workerCadence';
 import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
@@ -18,12 +22,16 @@ import { snapshotRenderBuffers } from './workerSnapshot';
 
 let engine: SimulationEngine | null = null;
 let isRunning = false;
-let timeoutId: any = null;
+let timeoutId: number | null = null;
 
 let lastTime = performance.now();
+let lastSnapshotTime = 0;
 let accumulator = 0;
 let speedFactor = 1.0;
-const TIMESTEP = 1000 / 60; // 60 TPS фізики (фіксований крок)
+const MILLISECONDS_PER_SECOND = 1000;
+const WORKER_LOOP_FPS = 60;
+const MAX_UPDATES_PER_LOOP = 10;
+const TIMESTEP = MILLISECONDS_PER_SECOND / WORKER_LOOP_FPS;
 
 // ============================================================================
 // ОБРОБКА ПОВІДОМЛЕНЬ
@@ -173,7 +181,7 @@ function loop(): void {
     let updated = false;
     // Захист від "спіралі смерті" (max 10 кроків за раз)
     let safetyCounter = 0;
-    while (accumulator >= TIMESTEP && safetyCounter < 10) {
+    while (accumulator >= TIMESTEP && safetyCounter < MAX_UPDATES_PER_LOOP) {
         engine.update();
         accumulator -= TIMESTEP;
         updated = true;
@@ -181,19 +189,29 @@ function loop(): void {
     }
 
     if (updated) {
-        const { buffers, transferables } = snapshotRenderBuffers(engine.getRenderData());
-        const stats = engine.getStats();
-        const tick = engine.getTick();
+        const shouldSendSnapshot = shouldDispatchRenderSnapshot({
+            updated,
+            now,
+            lastSnapshotTime,
+            minIntervalMs: DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
+        });
 
-        sendResponse({
-            type: 'updated',
-            buffers,
-            stats,
-            tick,
-        }, transferables);
+        if (shouldSendSnapshot) {
+            const { buffers, transferables } = snapshotRenderBuffers(engine.getRenderData());
+            const stats = engine.getStats();
+            const tick = engine.getTick();
+
+            sendResponse({
+                type: 'updated',
+                buffers,
+                stats,
+                tick,
+            }, transferables);
+            lastSnapshotTime = now;
+        }
     }
 
-    timeoutId = self.setTimeout(loop, 1000 / 60);
+    timeoutId = self.setTimeout(loop, MILLISECONDS_PER_SECOND / WORKER_LOOP_FPS);
 }
 
 function startAutoUpdate(): void {
@@ -203,6 +221,7 @@ function startAutoUpdate(): void {
     if (engine && timeoutId === null) {
         logger.info('Worker: Starting simulation loop', 'SimulationWorker');
         lastTime = performance.now();
+        lastSnapshotTime = lastTime - DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS;
         accumulator = 0;
         engine.start();
         loop();
@@ -223,6 +242,7 @@ function stopAutoUpdate(): void {
 // MESSAGE HANDLER
 // ============================================================================
 
+// eslint-disable-next-line complexity
 self.onmessage = (event: MessageEvent<WorkerCommand>): void => {
     const data = event.data;
 
