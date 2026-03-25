@@ -48,9 +48,9 @@ export class BufferManager {
         deadOrganisms: Map<string, Organism>,
         food: Map<string, Food>
     ): RenderBuffers {
-        const counts = this.countEntities(organisms, deadOrganisms, food);
-        this.updateBufferCapacities(counts);
-        this.fillRenderBuffers(organisms, deadOrganisms, food);
+        const estimatedCounts = this.estimateCounts(organisms, deadOrganisms, food);
+        this.updateBufferCapacities(estimatedCounts);
+        const counts = this.fillRenderBuffers(organisms, deadOrganisms, food);
 
         return {
             prey: this._preyBuffer,
@@ -76,35 +76,20 @@ export class BufferManager {
     // ПРИВАТНІ МЕТОДИ
     // ============================================================================
 
-    private countEntities(
+    private estimateCounts(
         organisms: Map<string, Organism>,
         deadOrganisms: Map<string, Organism>,
         food: Map<string, Food>
     ): { prey: number; pred: number; food: number } {
-        let prey = 0;
-        let pred = 0;
+        const liveUpperBound = organisms.size;
+        const deadUpperBound = deadOrganisms?.size ?? 0;
+        const foodUpperBound = food.size;
 
-        // Живі організми
-        organisms.forEach(o => {
-            if (!o.isDead) {
-                if (o.isPrey) { prey++; } else { pred++; }
-            }
-        });
-
-        // Мертві організми
-        if (deadOrganisms) {
-            deadOrganisms.forEach(o => {
-                if (o.isPrey) { prey++; } else { pred++; }
-            });
-        }
-
-        let foodCount = 0;
-        food.forEach(f => {
-            if (!f.consumed) { foodCount++; }
-        });
-
-        // Diagnostic counts for buffer management logic
-        return { prey, pred, food: foodCount };
+        return {
+            prey: liveUpperBound + deadUpperBound,
+            pred: liveUpperBound + deadUpperBound,
+            food: foodUpperBound,
+        };
     }
 
     private updateBufferCapacities(counts: { prey: number; pred: number; food: number }): void {
@@ -126,7 +111,7 @@ export class BufferManager {
         organisms: Map<string, Organism>,
         deadOrganisms: Map<string, Organism>,
         food: Map<string, Food>
-    ): void {
+    ): { prey: number; pred: number; food: number } {
         let preyOffset = 0;
         let predOffset = 0;
 
@@ -135,7 +120,12 @@ export class BufferManager {
             const buffer = isPrey ? this._preyBuffer : this._predBuffer;
             const offset = isPrey ? preyOffset : predOffset;
 
-            this.writeOrganismToBuffer(o, buffer, offset, isDead);
+            this.writeOrganismToBuffer({
+                organism: o,
+                buffer,
+                offset,
+                isDead,
+            });
 
             if (isPrey) {
                 preyOffset += BufferManager.PREY_STRIDE;
@@ -163,10 +153,27 @@ export class BufferManager {
             this.writeFoodToBuffer(f, this._foodBuffer, foodOffset);
             foodOffset += BufferManager.FOOD_STRIDE;
         });
+
+        return {
+            prey: preyOffset / BufferManager.PREY_STRIDE,
+            pred: predOffset / BufferManager.PRED_STRIDE,
+            food: foodOffset / BufferManager.FOOD_STRIDE,
+        };
     }
 
     /* eslint-disable @typescript-eslint/no-magic-numbers */
-    private writeOrganismToBuffer(o: Organism, buffer: Float32Array, offset: number, isDead: boolean): void {
+    private writeOrganismToBuffer(params: {
+        organism: Organism;
+        buffer: Float32Array;
+        offset: number;
+        isDead: boolean;
+    }): void {
+        const {
+            organism: o,
+            buffer,
+            offset,
+            isDead,
+        } = params;
         buffer[offset + 0] = o.position.x;
         buffer[offset + 1] = o.position.y;
         buffer[offset + 2] = o.position.z;
