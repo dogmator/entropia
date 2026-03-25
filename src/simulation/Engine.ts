@@ -27,12 +27,11 @@ import type {
   EntityId,
   GeneticTreeNode,
   GenomeId,
+  SerializedSimulationStateV1,
   SimulationConfig,
   SimulationEvent,
   SimulationStats,
-  WorldConfig,
-  SerializedSimulationStateV1
-} from '@/types';
+  WorldConfig} from '@/types';
 import {
   EngineState,
   EntityType,
@@ -49,14 +48,14 @@ import {
   ZONE_DEFAULTS,
 } from '../config';
 import { Food, Obstacle, Organism } from './Entity';
+import type { IPersistableEngine } from './interfaces/IPersistableEngine';
 import { EntityManager, GridManager } from './managers';
 import { CameraDataProvider } from './providers';
 import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
+import type { PopulationStatsAggregation } from './services/StatisticsManager';
 import { StatisticsManager } from './services/StatisticsManager';
 import { isPositionBlockedByAnomalies } from './utils/AnomalyValidation';
-
-import type { IPersistableEngine } from './interfaces/IPersistableEngine';
 
 // ENGINE_CONSTANTS тепер імпортується з constants.ts
 
@@ -452,27 +451,27 @@ export class SimulationEngine implements IPersistableEngine {
     this.prepareTick();
     this.logPopulationSnapshot();
 
-    const deadIds = this.runCoreSystems();
+    const collisionDeadIds = this.runCoreSystems();
     const newborns = this.runReproductionSystem();
-    const allDeadIds = this.collectAllDeadIds(deadIds);
-    this.logPopulationEvents(allDeadIds.length, newborns.length);
+    const populationAggregation = this.collectPopulationAggregation(collisionDeadIds);
+    this.logPopulationEvents(populationAggregation.deadIds.length, newborns.length);
 
     // Актуалізація статистичних метрик
-    this.statisticsManager.update(
-      this.entityManager.organisms,
-      this.entityManager.food.size,
-      this.entityManager.obstacles.size,
-      this.tick,
-      this.zones,
-      this.gridManager,
-      this.config
-    );
+    this.statisticsManager.update({
+      aggregation: populationAggregation.stats,
+      foodSize: this.entityManager.food.size,
+      obstacleSize: this.entityManager.obstacles.size,
+      tick: this.tick,
+      zones: this.zones,
+      gridManager: this.gridManager,
+      config: this.config,
+    });
 
     // Формування нових популяційних одиниць
     this.reproductionSystem.createOffspring(newborns, this.organisms, this.config.maxOrganisms, this.statisticsManager.getStats());
 
     // Елімінація об'єктів з термінальним статусом (смерть)
-    this.processDeaths(allDeadIds);
+    this.processDeaths(populationAggregation.deadIds);
 
     if (this.applyFailSafeGuards()) {
       this.finishFrame();
@@ -599,20 +598,54 @@ export class SimulationEngine implements IPersistableEngine {
     return newborns;
   }
 
-  private collectAllDeadIds(collisionDeadIds: string[]): string[] {
-    const metabolicDeadIds: string[] = [];
+  private collectPopulationAggregation(collisionDeadIds: string[]): {
+    deadIds: string[];
+    stats: PopulationStatsAggregation;
+  } {
+    const deadIds = new Set(collisionDeadIds);
+    const stats: PopulationStatsAggregation = {
+      preyCount: 0,
+      predatorCount: 0,
+      totalEnergy: 0,
+      preyEnergy: 0,
+      predatorEnergy: 0,
+      organismCount: 0,
+      maxAge: this.statisticsManager.getStats().maxAge,
+      maxGeneration: this.statisticsManager.getStats().maxGeneration,
+    };
 
     this.organisms.forEach(org => {
       if (!org.isDead && this.metabolismSystem.isOld(org, SimulationEngine.MAX_ORGANISM_AGE_TICKS)) {
         org.die('old_age');
       }
 
+      stats.organismCount++;
+      stats.totalEnergy += org.energy;
+
+      if (org.isPrey) {
+        stats.preyCount++;
+        stats.preyEnergy += org.energy;
+      } else {
+        stats.predatorCount++;
+        stats.predatorEnergy += org.energy;
+      }
+
+      if (org.age > stats.maxAge) {
+        stats.maxAge = org.age;
+      }
+      if (org.genome.generation > stats.maxGeneration) {
+        stats.maxGeneration = org.genome.generation;
+      }
+
       if (org.isDead) {
-        metabolicDeadIds.push(org.id);
+        deadIds.add(org.id);
       }
     });
 
-    return Array.from(new Set([...collisionDeadIds, ...metabolicDeadIds]));
+    return {
+      deadIds: Array.from(deadIds),
+      stats,
+    };
   }
 
   private logPopulationEvents(deadCount: number, newbornCount: number): void {
@@ -736,6 +769,7 @@ export class SimulationEngine implements IPersistableEngine {
         // Контроль кількості мертвих тіл (FIFO)
         if (this.deadOrganisms.size > MAX_DEAD_BODIES) {
           const oldestDeadId = this.deadOrganisms.keys().next().value;
+          // eslint-disable-next-line max-depth
           if (oldestDeadId) {
             this.deadOrganisms.delete(oldestDeadId);
           }
@@ -860,6 +894,7 @@ export class SimulationEngine implements IPersistableEngine {
       let currentIdx = 0;
       for (const org of this.deadOrganisms.values()) {
         if (org.isPrey === isPrey) {
+          // eslint-disable-next-line max-depth
           if (currentIdx === index) {
             return org;
           }

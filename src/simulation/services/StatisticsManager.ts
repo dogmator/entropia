@@ -17,7 +17,6 @@ import type {
 import { ZoneType } from '@/types';
 
 import { STATS_CONSTANTS } from '../../config';
-import type { Organism } from '../Entity';
 import type { GridManager } from '../managers/GridManager';
 
 /**
@@ -31,6 +30,39 @@ interface StatsCache {
     lastUpdate: number;
     cacheTimeout: number;
 }
+
+export interface PopulationStatsAggregation {
+    preyCount: number;
+    predatorCount: number;
+    totalEnergy: number;
+    preyEnergy: number;
+    predatorEnergy: number;
+    organismCount: number;
+    maxAge: number;
+    maxGeneration: number;
+}
+
+interface StatisticsUpdateParams {
+    aggregation: PopulationStatsAggregation;
+    foodSize: number;
+    obstacleSize: number;
+    tick: number;
+    zones: Map<string, EcologicalZone>;
+    gridManager: GridManager;
+    config: SimulationConfig;
+}
+
+interface WorldGeometryUpdateParams {
+    tick: number;
+    zones: Map<string, EcologicalZone>;
+    gridManager: GridManager;
+    config: SimulationConfig;
+    obstacleSize: number;
+}
+
+const EXTINCTION_WARNING_MULTIPLIER = 2;
+const WORLD_CENTER_DIVISOR = 2;
+const TOTAL_GRID_DIMENSIONS = 3;
 
 /**
  * Дані камери для діагностики.
@@ -96,23 +128,20 @@ export class StatisticsManager {
     /**
      * Повне оновлення статистики на основі стану симуляції.
      */
-    public update(
-        organisms: Map<string, Organism>,
-        foodSize: number,
-        obstacleSize: number,
-        tick: number,
-        zones: Map<string, EcologicalZone>,
-        gridManager: GridManager,
-        config: SimulationConfig
-    ): void {
-        const baseStats = this.calculateBasicPopStats(organisms, foodSize);
-        const maxStats = this.calculateMaxStats(organisms);
-        const cachedStats = this.getOrUpdateCachedStats(organisms);
+    public update(params: StatisticsUpdateParams): void {
+        const {
+            aggregation,
+            foodSize,
+            obstacleSize,
+            tick,
+            zones,
+            gridManager,
+            config,
+        } = params;
+        const aggregatedStats = this.buildAggregatedStats(aggregation, foodSize);
 
         const newStats: SimulationStats = {
-            ...baseStats,
-            ...maxStats,
-            ...cachedStats,
+            ...aggregatedStats,
             generation: tick,
             totalDeaths: this.stats.totalDeaths,
             totalBirths: this.stats.totalBirths,
@@ -122,7 +151,13 @@ export class StatisticsManager {
             this.stats = newStats;
         }
 
-        this.updateWorldGeometry(tick, zones, gridManager, config, obstacleSize);
+        this.updateWorldGeometry({
+            tick,
+            zones,
+            gridManager,
+            config,
+            obstacleSize,
+        });
     }
 
     /**
@@ -164,58 +199,34 @@ export class StatisticsManager {
         return Date.now() - this.statsCache.lastUpdate > this.statsCache.cacheTimeout;
     }
 
-    private calculateBasicPopStats(
-        organisms: Map<string, Organism>,
+    private buildAggregatedStats(
+        aggregation: PopulationStatsAggregation,
         foodSize: number
-    ): Pick<SimulationStats, 'preyCount' | 'predatorCount' | 'foodCount'> {
-        let preyCount = 0;
-        let predatorCount = 0;
-
-        organisms.forEach(org => {
-            if (org.type === 'PREY') {
-                preyCount++;
-            } else {
-                predatorCount++;
-            }
-        });
-
-        return { preyCount, predatorCount, foodCount: foodSize };
-    }
-
-    private calculateMaxStats(
-        organisms: Map<string, Organism>
-    ): Pick<SimulationStats, 'maxAge' | 'maxGeneration'> {
-        let maxAge = this.stats.maxAge;
-        let maxGeneration = this.stats.maxGeneration;
-
-        organisms.forEach(org => {
-            if (org.age > maxAge) {
-                maxAge = org.age;
-            }
-            if (org.genome.generation > maxGeneration) {
-                maxGeneration = org.genome.generation;
-            }
-        });
-
-        return { maxAge, maxGeneration };
-    }
-
-    private getOrUpdateCachedStats(
-        organisms: Map<string, Organism>
-    ): Pick<SimulationStats, 'avgEnergy' | 'avgPreyEnergy' | 'avgPredatorEnergy' | 'extinctionRisk'> {
+    ): Pick<SimulationStats, 'preyCount' | 'predatorCount' | 'foodCount' | 'avgEnergy' | 'avgPreyEnergy' | 'avgPredatorEnergy' | 'extinctionRisk' | 'maxAge' | 'maxGeneration'> {
         if (!this.shouldUpdateCache()) {
             return {
+                preyCount: aggregation.preyCount,
+                predatorCount: aggregation.predatorCount,
+                foodCount: foodSize,
                 avgEnergy: this.statsCache.avgEnergy,
                 avgPreyEnergy: this.statsCache.avgPreyEnergy,
                 avgPredatorEnergy: this.statsCache.avgPredatorEnergy,
                 extinctionRisk: this.statsCache.extinctionRisk,
+                maxAge: Math.max(this.stats.maxAge ?? 0, aggregation.maxAge),
+                maxGeneration: Math.max(this.stats.maxGeneration ?? 0, aggregation.maxGeneration),
             };
         }
 
-        const avgEnergy = this.calculateAverageEnergy(organisms);
-        const avgPreyEnergy = this.calculateAverageEnergyByType(organisms, 'PREY');
-        const avgPredatorEnergy = this.calculateAverageEnergyByType(organisms, 'PREDATOR');
-        const extinctionRisk = this.calculateExtinctionRisk(organisms);
+        const avgEnergy = aggregation.organismCount > 0
+            ? aggregation.totalEnergy / aggregation.organismCount
+            : 0;
+        const avgPreyEnergy = aggregation.preyCount > 0
+            ? aggregation.preyEnergy / aggregation.preyCount
+            : 0;
+        const avgPredatorEnergy = aggregation.predatorCount > 0
+            ? aggregation.predatorEnergy / aggregation.predatorCount
+            : 0;
+        const extinctionRisk = this.calculateExtinctionRisk(aggregation);
 
         this.statsCache.avgEnergy = avgEnergy;
         this.statsCache.avgPreyEnergy = avgPreyEnergy;
@@ -223,7 +234,17 @@ export class StatisticsManager {
         this.statsCache.extinctionRisk = extinctionRisk;
         this.statsCache.lastUpdate = Date.now();
 
-        return { avgEnergy, avgPreyEnergy, avgPredatorEnergy, extinctionRisk };
+        return {
+            preyCount: aggregation.preyCount,
+            predatorCount: aggregation.predatorCount,
+            foodCount: foodSize,
+            avgEnergy,
+            avgPreyEnergy,
+            avgPredatorEnergy,
+            extinctionRisk,
+            maxAge: Math.max(this.stats.maxAge ?? 0, aggregation.maxAge),
+            maxGeneration: Math.max(this.stats.maxGeneration ?? 0, aggregation.maxGeneration),
+        };
     }
 
     private hasStatsChanged(newStats: SimulationStats): boolean {
@@ -238,37 +259,8 @@ export class StatisticsManager {
         );
     }
 
-    private calculateAverageEnergy(organisms: Map<string, Organism>): number {
-        if (organisms.size === 0) { return 0; }
-        let total = 0;
-        organisms.forEach(org => { total += org.energy; });
-        return total / organisms.size;
-    }
-
-    private calculateAverageEnergyByType(
-        organisms: Map<string, Organism>,
-        type: 'PREY' | 'PREDATOR'
-    ): number {
-        let total = 0;
-        let count = 0;
-        organisms.forEach(org => {
-            if (org.type === type) {
-                total += org.energy;
-                count++;
-            }
-        });
-        return count > 0 ? total / count : 0;
-    }
-
-    private calculateExtinctionRisk(organisms: Map<string, Organism>): number {
-        let preyCount = 0;
-        let predatorCount = 0;
-
-        organisms.forEach(org => {
-            if (org.type === 'PREY') { preyCount++; }
-            else { predatorCount++; }
-        });
-
+    private calculateExtinctionRisk(aggregation: PopulationStatsAggregation): number {
+        const { preyCount, predatorCount } = aggregation;
         const totalCount = preyCount + predatorCount;
         if (totalCount === 0) { return 1; }
 
@@ -278,7 +270,7 @@ export class StatisticsManager {
         let risk = 0;
         if (preyCount < STATS_CONSTANTS.EXTINCTION_THRESHOLD_LOW) {
             risk = Math.max(risk, STATS_CONSTANTS.EXTINCTION_RISK_HIGH);
-        } else if (preyCount < STATS_CONSTANTS.EXTINCTION_THRESHOLD_LOW * 2) {
+        } else if (preyCount < STATS_CONSTANTS.EXTINCTION_THRESHOLD_LOW * EXTINCTION_WARNING_MULTIPLIER) {
             risk = Math.max(risk, STATS_CONSTANTS.EXTINCTION_RISK_MEDIUM);
         }
 
@@ -296,13 +288,14 @@ export class StatisticsManager {
     // МЕТОДИ ОНОВЛЕННЯ ГЕОМЕТРИЧНИХ ДАНИХ
     // ============================================================================
 
-    private updateWorldGeometry(
-        tick: number,
-        zones: Map<string, EcologicalZone>,
-        gridManager: GridManager,
-        config: SimulationConfig,
-        obstacleSize: number
-    ): void {
+    private updateWorldGeometry(params: WorldGeometryUpdateParams): void {
+        const {
+            tick,
+            zones,
+            gridManager,
+            config,
+            obstacleSize,
+        } = params;
         this.stats = {
             ...this.stats,
             worldSize: this.worldConfig.WORLD_SIZE,
@@ -342,9 +335,9 @@ export class StatisticsManager {
             cameraX: 0,
             cameraY: 0,
             cameraZ: 0,
-            targetX: this.worldConfig.WORLD_SIZE / 2,
-            targetY: this.worldConfig.WORLD_SIZE / 2,
-            targetZ: this.worldConfig.WORLD_SIZE / 2,
+            targetX: this.worldConfig.WORLD_SIZE / WORLD_CENTER_DIVISOR,
+            targetY: this.worldConfig.WORLD_SIZE / WORLD_CENTER_DIVISOR,
+            targetZ: this.worldConfig.WORLD_SIZE / WORLD_CENTER_DIVISOR,
             zoom: STATS_CONSTANTS.DEFAULT_ZOOM,
             cameraDistance: 0,
             cameraFov: STATS_CONSTANTS.DEFAULT_CAMERA_FOV,
@@ -356,14 +349,13 @@ export class StatisticsManager {
         let oasis = 0;
         let desert = 0;
         let hunting = 0;
-        let sanctuary = 0;
 
         zones.forEach(z => {
             switch (z.type) {
                 case ZoneType.OASIS: oasis++; break;
                 case ZoneType.DESERT: desert++; break;
                 case ZoneType.HUNTING_GROUND: hunting++; break;
-                case ZoneType.SANCTUARY: sanctuary++; break;
+                case ZoneType.SANCTUARY: break;
             }
         });
 
@@ -386,7 +378,7 @@ export class StatisticsManager {
             occupiedCells: gridStats.totalCells,
             totalCells: Math.pow(
                 Math.ceil(this.worldConfig.WORLD_SIZE / STATS_CONSTANTS.MAX_CELL_SIZE),
-                3
+                TOTAL_GRID_DIMENSIONS
             ),
             maxDensity: gridStats.maxEntitiesInCell,
             gridEfficiency: gridStats.avgEntitiesPerCell,
