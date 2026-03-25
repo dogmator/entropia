@@ -241,3 +241,18 @@ docker compose up -d
 - Збережено override: `localStorage['entropia:remoteLogging']='0'` вимикає remote logging явно.
 - `scripts/log-server.ts` тепер обмежує розмір `remote_debug.log`: максимум 5 MB, при переповненні зберігає останні 4 MB (auto-trim).
 - Додано unit-тести для dev-toggle та bounded file append логіки.
+
+## Оновлення 2026-03-18: worker render cadence split
+- Worker-loop продовжує виконувати simulation fixed-step, але відправляє `updated` render snapshots у main thread за окремим cadence для зниження transport pressure.
+- Manual `update` зберігає immediate-path без throttling, тому reset/manual sync сценарії не втрачають коректність.
+- Додано pure helper `workerCadence` і unit-тест на рішення про dispatch snapshot.
+
+## Оновлення 2026-03-18: buffer serialization pass reduction
+- `BufferManager` більше не виконує окремий точний pre-count pass перед серіалізацією render buffers; замість цього використовує upper-bound оцінку місткості та один точний write-pass.
+- Це зменшує CPU overhead на гарячому шляху export/render даних без зміни публічного контракту `RenderBuffers`.
+- Додано unit-тест `BufferManager.test.ts` для гарантії exact counts при over-allocation capacity.
+
+## Оновлення 2026-03-18: single-pass population aggregation
+- `SimulationEngine` тепер агрегує population metrics і список `deadIds` в одному проході по `organisms`, замість окремих повторних обходів для statistics/death collection.
+- `StatisticsManager` переведено на роботу з агрегованим payload, тож середні енергії, counts, max-age/max-generation та extinction-risk більше не вимагають кількох повних scan-pass.
+- Додано unit-тест `StatisticsManager.test.ts`, а також оновлено persistence path для коректної реагрегації після `importState`.
