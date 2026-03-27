@@ -415,3 +415,26 @@
 2. Перевести `SpawnService`, `PersistenceService`, `Engine` на спільний utility, зберігши поточні пороги (`+5`, `minDistance`, avoidZones behavior).
 3. Додати unit-тести utility на базові сценарії (блокування зоною, перешкодою, вимкнення zone-check).
 4. Прогнати regression suite (targeted vitest + typecheck) і оновити документацію.
+
+---
+
+# Implementation Plan: URL ↔ State synchronization for SimulationConfig (2026-03-26)
+
+## Контекст
+Потрібно синхронізувати `SimulationConfig` між runtime-станом UI та query-параметрами URL з двосторонньою синхронізацією, strict-typed парсингом, clean URL і підтримкою browser navigation (`popstate`).
+
+## task_boundary
+- `src/ui/components/settings/useSettingsState.ts`
+- `src/ui/components/settings/urlConfigSync.ts` (новий)
+- `src/ui/components/settings/__tests__/urlConfigSync.test.ts` (новий)
+- `README.md`
+- `docs/OPTIMIZATION_PLAN.md`
+- `walkthrough.md`
+- `task.md`
+
+## Кроки
+1. Винести pure-утиліти для parse/serialize/URL-diff/update (`replaceState`/`pushState`).
+2. Інтегрувати URL-sync у `useSettingsState`: initial hydration, debounced replace для frequent updates, push для discrete actions.
+3. Додати `popstate`-sync з guard від циклічних URL↔state апдейтів.
+4. Додати unit-тести для ignore unknown keys, invalid-value fallback, clean URL diff, history mode.
+5. Прогнати quality gates (`test`, `typecheck`, `lint`) і зафіксувати результат.
