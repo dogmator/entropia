@@ -264,3 +264,13 @@
    - `pnpm exec vitest run src/simulation/__tests__/Engine.buffers.test.ts src/simulation/__tests__/Entity.growth-and-food.test.ts src/simulation/services/__tests__/StatisticsManager.test.ts` ✅
    - `pnpm run build` ✅
    - `pnpm exec eslint --fix src/simulation/Engine.ts src/simulation/services/StatisticsManager.ts src/simulation/services/PersistenceService.ts src/simulation/services/__tests__/StatisticsManager.test.ts` ✅
+
+## Етап 33 — URL ↔ SimulationConfig sync (2026-03-26)
+1. Додано модуль `urlConfigSync` для строго типізованого парсингу/серіалізації query-параметрів із clean URL-дифом.
+2. `useSettingsState` розширено до двосторонньої синхронізації: initial hydration з URL, debounced `replaceState` для frequent змін, `pushState` для дискретних змін, `popstate`-підписка для Back/Forward.
+3. Додано guard від циклів URL→state→URL через позначення URL-driven апдейтів.
+4. Додано unit-тести `urlConfigSync.test.ts` на валідацію ключових сценаріїв.
+5. Валідація:
+   - `pnpm run test --run` ✅
+   - `pnpm run typecheck` ✅
+   - `pnpm run lint` ⚠️ (pre-existing lint debt у репозиторії, не пов’язаний із поточним task boundary)
