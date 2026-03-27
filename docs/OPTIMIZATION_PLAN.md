@@ -213,3 +213,9 @@
 - У `SimulationEngine` зібрано population aggregation в одному проході: counts, energy sums, maxAge, maxGeneration і `deadIds`.
 - `StatisticsManager` тепер споживає агрегований payload замість повторного scan по `Map<string, Organism>`, що скорочує кількість повних проходів у гарячому update-потоці.
 - `PersistenceService.importState` синхронізовано з новою моделлю через явну реагрегацію статистики після імпорту.
+
+## 2026-03-26 — URL/state synchronization hardening (UI config)
+- Додано двосторонню синхронізацію `SimulationConfig` з query-параметрами без реініціалізації Three.js сцени.
+- Реалізовано clean URL-diff: записуються лише поля, що відрізняються від default; при повному збігу параметри очищуються.
+- Додано debounce для frequent `replaceState`, тоді як дискретні user actions використовують `pushState`.
+- Додано `popstate` синхронізацію та валідаційні guards від невалідних/невідомих URL-параметрів.
