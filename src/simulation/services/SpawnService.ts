@@ -8,7 +8,7 @@
  * - Реалізація гнучких стратегій розселення видів.
  */
 
-import { WORLD_SIZE } from '@/config'; // We might still need this as default if optional, or remove if fully injected.
+import { INITIAL_ENERGY, WORLD_SIZE } from '@/config';
 import type { EventBus } from '@/core/EventBus.ts';
 import { Random } from '@/core/utils/Random';
 import type {
@@ -140,7 +140,7 @@ export class SpawnService {
     if (parent) {
       // Default to INITIAL_ENERGY if not specified (SpawnService logic usually implies new full organisms or specific logic)
       // Actually, createOffspring expects specific energy. Using INITIAL_ENERGY constant.
-      organism = this.organismFactory.createOffspring(parent, 100); // 100 is placeholder, should ideally come from config or parent
+      organism = this.organismFactory.createOffspring(parent, INITIAL_ENERGY);
       organism.position.x = position.x;
       organism.position.y = position.y;
       organism.position.z = position.z;

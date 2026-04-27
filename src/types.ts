@@ -660,10 +660,10 @@ export interface EcologicalZone {
 export interface GeneticTreeNode {
   readonly id: GenomeId;
   readonly parentId: GenomeId | null;
-  readonly children: readonly GenomeId[];
+  children: GenomeId[];        // grows as offspring are born
   readonly generation: number;
-  readonly born: number;      // Часова відмітка (tick) появи
-  readonly died: number | null;
+  readonly born: number;
+  died: number | null;         // set on organism death
   readonly type: EntityType;
   readonly traits: {
     readonly speed: number;

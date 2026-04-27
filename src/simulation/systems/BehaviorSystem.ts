@@ -42,7 +42,6 @@ export class BehaviorSystem {
     seek: { x: 0, y: 0, z: 0 },
     flee: { x: 0, y: 0, z: 0 },
     obstacle: { x: 0, y: 0, z: 0 },
-    alignment: { x: 0, y: 0, z: 0, count: 0 },
   };
 
   /** Кешований ZoneModifiers для уникнення алокацій. */
@@ -73,8 +72,6 @@ export class BehaviorSystem {
     f.seek.x = f.seek.y = f.seek.z = 0;
     f.flee.x = f.flee.y = f.flee.z = 0;
     f.obstacle.x = f.obstacle.y = f.obstacle.z = 0;
-    f.alignment.x = f.alignment.y = f.alignment.z = 0;
-    f.alignment.count = 0;
   }
 
   /**
