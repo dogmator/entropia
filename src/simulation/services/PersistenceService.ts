@@ -18,7 +18,7 @@ import { isPredatorGenome,isPreyGenome } from '@/types';
 
 import { Food, Obstacle, Organism } from '../Entity';
 import { IPersistableEngine } from '../interfaces/IPersistableEngine';
-import { isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
+import { FOOD_ANOMALY_PADDING, isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
 import type { PopulationStatsAggregation } from './StatisticsManager';
 
 interface PersistedOrganismRuntime {
@@ -34,8 +34,6 @@ interface FoodAnomalyCheckParams {
 }
 
 export class PersistenceService {
-    private static readonly FOOD_ANOMALY_PADDING = 5;
-
     private static resolveWorldSize(engine: IPersistableEngine): number {
         const worldConfig = (engine as IPersistableEngine & { worldConfig?: { WORLD_SIZE?: number } }).worldConfig;
         const candidate = worldConfig?.WORLD_SIZE;
@@ -51,7 +49,7 @@ export class PersistenceService {
             obstacles,
             worldSize,
         } = params;
-        const minDistance = PersistenceService.FOOD_ANOMALY_PADDING;
+        const minDistance = FOOD_ANOMALY_PADDING;
         return isPositionBlockedByAnomalies({
             position,
             obstacles,

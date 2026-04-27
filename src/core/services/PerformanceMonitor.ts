@@ -137,6 +137,11 @@ export class PerformanceMonitor {
     this.frameCount++;
   }
 
+  /** Returns the timestamp recorded by the last {@link beginFrame} call. */
+  public getFrameStartTime(): number {
+    return this.currentFrameStartTime;
+  }
+
   /**
    * Завершення вимірювання кадру (оптимізоване)
    */
