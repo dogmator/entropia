@@ -11,11 +11,13 @@
  */
 
 import { SpawnService } from '@simulation/services';
-import { BehaviorSystem } from '@simulation/systems';
-import { CollisionSystem } from '@simulation/systems';
-import { MetabolismSystem } from '@simulation/systems';
-import { PhysicsSystem } from '@simulation/systems';
-import { ReproductionSystem } from '@simulation/systems';
+import {
+  BehaviorSystem,
+  CollisionSystem,
+  MetabolismSystem,
+  PhysicsSystem,
+  ReproductionSystem,
+} from '@simulation/systems';
 
 import { MAX_DEAD_BODIES } from '@/config/population.constants';
 import { EventBus } from '@/core';
@@ -23,15 +25,19 @@ import { logger } from '@/core';
 import { PerformanceMonitor } from '@/core';
 import { Random } from '@/core';
 import type {
+  CameraData,
   EcologicalZone,
+  EngineEventData,
   EntityId,
   GeneticTreeNode,
   GenomeId,
+  RenderBuffers,
   SerializedSimulationStateV1,
   SimulationConfig,
   SimulationEvent,
   SimulationStats,
-  WorldConfig} from '@/types';
+  WorldConfig,
+} from '@/types';
 import {
   EngineState,
   EntityType,
@@ -55,7 +61,7 @@ import { BufferManager } from './services/BufferManager';
 import { PersistenceService } from './services/PersistenceService';
 import type { PopulationStatsAggregation } from './services/StatisticsManager';
 import { StatisticsManager } from './services/StatisticsManager';
-import { isPositionBlockedByAnomalies } from './utils/AnomalyValidation';
+import { FOOD_ANOMALY_PADDING, isPositionBlockedByAnomalies } from './utils/AnomalyValidation';
 
 // ENGINE_CONSTANTS тепер імпортується з constants.ts
 
@@ -65,12 +71,6 @@ export class SimulationEngine implements IPersistableEngine {
   private static readonly MAX_ORGANISM_AGE_TICKS = 5000;
   private static readonly EXTINCTION_FAILSAFE_TICKS = 180;
   private static readonly RESOURCE_FAILSAFE_TICKS = 600;
-  /**
-   * Захисний буфер для їжі відносно радіуса аномалії.
-   * Значення синхронізоване з Spawn/Persistence санітизацією.
-   */
-  private static readonly FOOD_ANOMALY_PADDING = 5;
-
   // Життєвий цикл
   public state: EngineState = EngineState.INITIALIZING;
 
@@ -337,7 +337,7 @@ export class SimulationEngine implements IPersistableEngine {
       const organism = this.spawnService.spawnOrganism(type);
       if (organism) {
         this.entityManager.addOrganism(organism);
-        this.reproductionSystem['addToGeneticTree'](organism, undefined);
+        this.reproductionSystem.addToGeneticTree(organism, undefined);
         spawned++;
       }
     }
@@ -404,7 +404,7 @@ export class SimulationEngine implements IPersistableEngine {
 
   // Внутрішні буфери тепер управляються BufferManager
 
-  public getRenderData(): import('../types').RenderBuffers {
+  public getRenderData(): RenderBuffers {
     return this.bufferManager.getRenderData(this.organisms, this.deadOrganisms, this.food);
   }
 
@@ -549,7 +549,7 @@ export class SimulationEngine implements IPersistableEngine {
    * будь-якої зони або перешкоди (з урахуванням буфера безпеки).
    */
   private isFoodBlockedByAnomaly(position: { x: number; y: number; z: number }): boolean {
-    const minDistance = SimulationEngine.FOOD_ANOMALY_PADDING;
+    const minDistance = FOOD_ANOMALY_PADDING;
     return isPositionBlockedByAnomalies({
       position,
       obstacles: this.obstacles.values(),
@@ -603,6 +603,7 @@ export class SimulationEngine implements IPersistableEngine {
     stats: PopulationStatsAggregation;
   } {
     const deadIds = new Set(collisionDeadIds);
+    const prevStats = this.statisticsManager.getStats();
     const stats: PopulationStatsAggregation = {
       preyCount: 0,
       predatorCount: 0,
@@ -610,8 +611,8 @@ export class SimulationEngine implements IPersistableEngine {
       preyEnergy: 0,
       predatorEnergy: 0,
       organismCount: 0,
-      maxAge: this.statisticsManager.getStats().maxAge,
-      maxGeneration: this.statisticsManager.getStats().maxGeneration,
+      maxAge: prevStats.maxAge,
+      maxGeneration: prevStats.maxGeneration,
     };
 
     this.organisms.forEach(org => {
@@ -654,7 +655,7 @@ export class SimulationEngine implements IPersistableEngine {
     }
 
     const events: string[] = [];
-    const eventData: import('@/types').EngineEventData = {};
+    const eventData: EngineEventData = {};
 
     if (deadCount > 0) {
       events.push(`${deadCount} died`);
@@ -706,7 +707,7 @@ export class SimulationEngine implements IPersistableEngine {
   }
 
   private finishFrame(): void {
-    this.performanceMonitor.registerTick(performance.now() - this.performanceMonitor['currentFrameStartTime']);
+    this.performanceMonitor.registerTick(performance.now() - this.performanceMonitor.getFrameStartTime());
     this.performanceMonitor.endFrame(
       this.organisms.size + this.food.size,
       this.calculateDrawCalls()
@@ -738,7 +739,7 @@ export class SimulationEngine implements IPersistableEngine {
   /**
    * Встановлення даних камери для діагностики
    */
-  public setCameraData(cameraData: import('@/types').CameraData): void {
+  public setCameraData(cameraData: CameraData): void {
     // Зберігаємо дані камери через провайдер
     this.cameraDataProvider.setCameraData(cameraData);
 
@@ -800,19 +801,13 @@ export class SimulationEngine implements IPersistableEngine {
     }
   }
 
-  /**
-   * Отримання поточної статистики симуляції
-   */
   public getStats(): SimulationStats {
     return this.statisticsManager.getStats();
   }
 
-  /**
-   * Отримання поточної статистики з геометричними даними
-   */
+  /** Alias required by ISimulationEngine; world data is already embedded via statisticsManager.update(). */
   public getStatsWithWorldData(): SimulationStats {
-    // Геометричні дані оновлюються автоматично в statisticsManager.update()
-    return this.statisticsManager.getStats();
+    return this.getStats();
   }
 
 
@@ -906,15 +901,15 @@ export class SimulationEngine implements IPersistableEngine {
     return this.entityManager.getEntityByInstanceId(type, index);
   }
 
-  public getZones(): Map<string, import('../types').EcologicalZone> {
+  public getZones(): Map<string, EcologicalZone> {
     return this.zones;
   }
 
-  public async getGeneticNode(genomeId: import('../types').GenomeId): Promise<unknown> {
+  public async getGeneticNode(genomeId: GenomeId): Promise<unknown> {
     return this.geneticTree.get(genomeId);
   }
 
-  public async getGeneticRoots(): Promise<import('../types').GenomeId[]> {
+  public async getGeneticRoots(): Promise<GenomeId[]> {
     return this.geneticRoots;
   }
 }

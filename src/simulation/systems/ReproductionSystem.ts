@@ -150,7 +150,7 @@ export class ReproductionSystem {
     if (parent) {
       const parentNode = this.geneticTree.get(parent.genome.id);
       if (parentNode) {
-        (parentNode.children as GenomeId[]).push(organism.genome.id);
+        parentNode.children.push(organism.genome.id);
       }
     } else {
       this.geneticRoots.push(organism.genome.id);
@@ -163,8 +163,7 @@ export class ReproductionSystem {
   updateGeneticTreeOnDeath(organism: Organism): void {
     const node = this.geneticTree.get(organism.genome.id);
     if (node) {
-      // Корекція readonly поля через приведення типів для фіксації термінації
-      (node as { died: number | null }).died = this.currentTick;
+      node.died = this.currentTick;
     }
   }
 
@@ -187,7 +186,7 @@ export class ReproductionSystem {
     if (!node) { return []; }
 
     const descendants: GenomeId[] = [];
-    const queue: GenomeId[] = [...(node.children as GenomeId[])];
+    const queue: GenomeId[] = [...node.children];
 
     while (queue.length > 0) {
       const currentId = queue.shift()!;
@@ -195,7 +194,7 @@ export class ReproductionSystem {
 
       const currentNode = this.geneticTree.get(currentId);
       if (currentNode && currentNode.children.length > 0) {
-        queue.push(...(currentNode.children as GenomeId[]));
+        queue.push(...currentNode.children);
       }
     }
 

@@ -3,7 +3,7 @@
  * Извлечено из Engine.ts для лучшего разделения ответственности.
  */
 
-import type { GridEntity } from '@/types';
+import type { GridEntity, Vector3 } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
 import { SpatialHashGrid } from '../SpatialHashGrid';
@@ -86,7 +86,7 @@ export class GridManager {
 
   // Proxy methods to query BOTH grids
 
-  public getNearby(position: any, radius: number, result: GridEntity[]): void {
+  public getNearby(position: Vector3, radius: number, result: GridEntity[]): void {
     // Очищуємо буфер перед використанням, як запитував користувач
     result.length = 0;
 
