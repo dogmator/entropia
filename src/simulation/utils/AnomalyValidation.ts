@@ -2,6 +2,9 @@ import type { Vector3 } from '@/types';
 
 import { MathUtils } from '../MathUtils';
 
+/** Safety buffer applied to food spawn/import/sanitation against obstacles and zones. */
+export const FOOD_ANOMALY_PADDING = 5;
+
 export interface SphericalObstacle {
   readonly position: Vector3;
   readonly radius: number;
