@@ -101,44 +101,10 @@ export interface MutableVector3 {
   z: number;
 }
 
-/** Допоміжні методи для маніпуляції векторіальними даними. */
+/** Конструктори векторів (Vector Constructors). */
 export const vec3 = (x: number, y: number, z: number): Vector3 => ({ x, y, z });
 export const vec3Zero = (): MutableVector3 => ({ x: 0, y: 0, z: 0 });
 export const vec3Clone = (v: Vector3): MutableVector3 => ({ x: v.x, y: v.y, z: v.z });
-
-export const vec3Length = (v: Vector3): number =>
-  Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-
-export const vec3Normalize = (v: Vector3): Vector3 => {
-  const len = vec3Length(v);
-  if (len === 0) { return { x: 0, y: 0, z: 0 }; }
-  return { x: v.x / len, y: v.y / len, z: v.z / len };
-};
-
-export const vec3Distance = (a: Vector3, b: Vector3): number =>
-  Math.sqrt(
-    (a.x - b.x) * (a.x - b.x) +
-    (a.y - b.y) * (a.y - b.y) +
-    (a.z - b.z) * (a.z - b.z)
-  );
-
-export const vec3Add = (a: Vector3, b: Vector3): Vector3 => ({
-  x: a.x + b.x,
-  y: a.y + b.y,
-  z: a.z + b.z,
-});
-
-export const vec3Sub = (a: Vector3, b: Vector3): Vector3 => ({
-  x: a.x - b.x,
-  y: a.y - b.y,
-  z: a.z - b.z,
-});
-
-export const vec3Scale = (v: Vector3, s: number): Vector3 => ({
-  x: v.x * s,
-  y: v.y * s,
-  z: v.z * s,
-});
 
 // ============================================================================
 // GENOME — ГЕНЕТИЧНА ДЕТЕРМІНАЦІЯ
