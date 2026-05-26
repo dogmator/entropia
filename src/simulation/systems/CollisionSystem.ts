@@ -126,12 +126,8 @@ export class CollisionSystem {
       const fullyInsideThreshold = Math.max(0, zone.radius - organism.radius);
 
       if (dist < fullyInsideThreshold) {
-        organism.velocity.x = 0;
-        organism.velocity.y = 0;
-        organism.velocity.z = 0;
-        organism.acceleration.x = 0;
-        organism.acceleration.y = 0;
-        organism.acceleration.z = 0;
+        MathUtils.zero(organism.velocity);
+        MathUtils.zero(organism.acceleration);
         organism.stuckTicks = 0;
         return true;
       }
