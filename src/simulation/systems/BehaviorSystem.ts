@@ -13,14 +13,11 @@
  */
 import { PHYSICS } from '@/config';
 import { EntityType, type GridEntity } from '@/types';
-import type { EcologicalZone, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types.ts';
+import type { EcologicalZone, MutableVector3, OrganismState, SimulationConfig, Vector3, WorldConfig } from '@/types';
 
 import type { Organism } from '../Entity';
 import type { GridManager } from '../managers/GridManager';
 import { MathUtils } from '../MathUtils';
-
-const _diff = { x: 0, y: 0, z: 0 };
-const _nav = { x: 0, y: 0, z: 0 };
 
 /**
  * Дескриптор модифікаторів поведінки в межах біома.
@@ -52,6 +49,11 @@ export class BehaviorSystem {
 
   /** Кешований буфер сусідів для уникнення алокацій. */
   private readonly nearbyBuffer: GridEntity[] = [];
+
+  /** Scratch-вектор для обчислення тороїдальних різниць (уникнення алокацій). */
+  private readonly scratchDiff: MutableVector3 = { x: 0, y: 0, z: 0 };
+  /** Scratch-вектор для навігаційних обчислень (уникнення алокацій). */
+  private readonly scratchNav: MutableVector3 = { x: 0, y: 0, z: 0 };
 
   constructor(
     private readonly gridManager: GridManager,
@@ -104,17 +106,17 @@ export class BehaviorSystem {
     for (const n of neighbors) {
       if (n.id === org.id) { continue; }
 
-      // Use scratch vector _diff
-      MathUtils.toroidalVector(org.position, n.position, this.worldSize, _diff);
+      // Обчислення тороїдального вектора зміщення у scratch-буфер
+      MathUtils.toroidalVector(org.position, n.position, this.worldSize, this.scratchDiff);
 
-      const distSq = MathUtils.magnitudeSq(_diff);
+      const distSq = MathUtils.magnitudeSq(this.scratchDiff);
       const dist = Math.sqrt(distSq);
 
       if (dist < PHYSICS.EPSILON) { continue; }
 
-      const ndx = _diff.x;
-      const ndy = _diff.y;
-      const ndz = _diff.z;
+      const ndx = this.scratchDiff.x;
+      const ndy = this.scratchDiff.y;
+      const ndz = this.scratchDiff.z;
       // In toroidalVector: to - from.
       // So ndx is vector FROM org TO n.
 
@@ -191,11 +193,10 @@ export class BehaviorSystem {
   private applySeek(org: Organism, seek: { x: number; y: number; z: number }, target: Vector3 | null, mod: ZoneModifiers): void {
     if (!target) { return; }
 
-    // Use scratch vector _nav
-    MathUtils.toroidalVector(org.position, target, this.worldSize, _nav);
-    seek.x = _nav.x;
-    seek.y = _nav.y;
-    seek.z = _nav.z;
+    MathUtils.toroidalVector(org.position, target, this.worldSize, this.scratchNav);
+    seek.x = this.scratchNav.x;
+    seek.y = this.scratchNav.y;
+    seek.z = this.scratchNav.z;
 
     this.applySteeringForce(org, seek, this.config.seekWeight * mod.seekMultiplier);
   }

@@ -40,7 +40,7 @@ export const useSystemMetrics = ({
     currentStats
 }: SystemMetricsOptions) => {
     const [systemMetrics, setSystemMetrics] = useState<SystemMetrics[]>([]);
-    const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const getNewMetric = useCallback((): SystemMetrics => {
         const p = performanceHistory[performanceHistory.length - 1];

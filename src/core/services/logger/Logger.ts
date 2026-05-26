@@ -268,8 +268,8 @@ export class Logger {
     }
 
     private isDevelopment(): boolean {
-        if (typeof process !== 'undefined' && process.env) {
-            return process.env['NODE_ENV'] === 'development';
+        if (typeof import.meta !== 'undefined' && import.meta.env) {
+            return import.meta.env.DEV === true;
         }
 
         return false;
