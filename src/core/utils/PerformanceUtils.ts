@@ -216,14 +216,14 @@ export class TimeUtils {
   /**
    * Створення таймера з автоматичним очищенням
    */
-  public static createTimer(callback: () => void, interval: number): NodeJS.Timeout {
+  public static createTimer(callback: () => void, interval: number): ReturnType<typeof setInterval> {
     return setInterval(callback, interval);
   }
 
   /**
    * Очищення таймера
    */
-  public static clearTimer(timer: NodeJS.Timeout | null): void {
+  public static clearTimer(timer: ReturnType<typeof setInterval> | null): void {
     if (timer) {
       clearInterval(timer);
     }
