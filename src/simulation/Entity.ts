@@ -22,20 +22,17 @@ import {
 } from '@/config';
 import {
   createFoodId,
+  createGenomeId,
   createObstacleId,
+  createOrganismId,
   EntityType,
   GenomeId,
-  OrganismId,
-  PredatorSubtype,
-} from '@/types';
-import {
-  createGenomeId,
-  createOrganismId,
   isPreyGenome,
+  OrganismId,
   OrganismState,
-  // vec3Clone, // unused
+  PredatorSubtype,
   vec3Zero,
-} from '../types';
+} from '@/types';
 import type {
   EntityId,
   FoodId,
@@ -45,8 +42,8 @@ import type {
   PredatorGenome,
   PreyGenome,
   Vector3,
-  // EntityType,
-} from '../types.ts';
+} from '@/types';
+import { MathUtils } from './MathUtils';
 
 // ============================================================================
 // АБСТРАКТНА БАЗОВА СУТНІСТЬ (ENTITY)
@@ -124,7 +121,7 @@ export class Food extends Entity {
     this.currentEnergy = Math.max(0, this.currentEnergy - absorbedEnergy);
 
     const energyRatio = this.maxEnergy > 0 ? this.currentEnergy / this.maxEnergy : 0;
-    const clampedRatio = Math.max(0, Math.min(1, energyRatio));
+    const clampedRatio = MathUtils.clampUnit(energyRatio);
     const radiusFactor = ENTITY_CONSTANTS.FOOD_MIN_RADIUS_FACTOR
       + (1 - ENTITY_CONSTANTS.FOOD_MIN_RADIUS_FACTOR) * clampedRatio;
     this.radius = this.baseRadius * radiusFactor;
@@ -267,8 +264,6 @@ export class Organism extends Entity {
     this.radius = this.adultRadius * this.growthRatio;
     this.mass = this.radius;
     this.stuckTicks = 0;
-    this.velocity = { x: 0, y: 0, z: 0 };
-    this.acceleration = { x: 0, y: 0, z: 0 };
     this.targetPosition = { ...position };
     this.color = genome.color;
 
@@ -294,7 +289,7 @@ export class Organism extends Entity {
 
   /** Обчислення нормалізованого значення енергетичного запасу [0, 1]. */
   get normalizedEnergy(): number {
-    return Math.max(0, Math.min(1, this.energy / MAX_ENERGY));
+    return MathUtils.clampUnit(this.energy / MAX_ENERGY);
   }
 
   /** Обчислення скалярної величини швидкості (модуль вектора). */
@@ -322,15 +317,15 @@ export class Organism extends Entity {
   }
 
   public updateGrowthFromState(): void {
-    const maturity = Math.max(0, Math.min(1, this.age / ENTITY_CONSTANTS.GROWTH_AGE_CAP_TICKS));
+    const maturity = MathUtils.clampUnit(this.age / ENTITY_CONSTANTS.GROWTH_AGE_CAP_TICKS);
     this.maturityRatio = maturity;
 
-    const normalizedEnergy = Math.max(0, Math.min(1, this.energy / MAX_ENERGY));
+    const normalizedEnergy = MathUtils.clampUnit(this.energy / MAX_ENERGY);
 
     const penalty = ENTITY_CONSTANTS.GROWTH_ENERGY_PENALTY_THRESHOLD;
     const recovery = ENTITY_CONSTANTS.GROWTH_ENERGY_RECOVERY_THRESHOLD;
     const energyWindow = Math.max(PHYSICS.EPSILON, recovery - penalty);
-    const energyGrowth = Math.max(0, Math.min(1, (normalizedEnergy - penalty) / energyWindow));
+    const energyGrowth = MathUtils.clampUnit((normalizedEnergy - penalty) / energyWindow);
 
     const growthWindow = maturity * energyGrowth;
     this.growthRatio = ENTITY_CONSTANTS.NEWBORN_RADIUS_FACTOR + (1 - ENTITY_CONSTANTS.NEWBORN_RADIUS_FACTOR) * growthWindow;
