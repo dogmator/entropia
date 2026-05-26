@@ -15,9 +15,6 @@ import { WORLD_SIZE } from '../config';
  * Статичний клас-контейнер для математичних утиліт.
  */
 export class MathUtils {
-  /** Половина лінійного розміру світу (кешоване значення для оптимізації). */
-  // private static readonly HALF_WORLD = WORLD_SIZE / 2; // unused
-
   // ============================================================================
   // ТОРОЇДАЛЬНА ГЕОМЕТРІЯ (TOROIDAL GEOMETRY)
   // ============================================================================
@@ -224,6 +221,16 @@ export class MathUtils {
     return { x, y, z };
   }
 
+  /**
+   * Онулення всіх компонент вектора на місці (In-place zero reset).
+   * Використовується для скидання акумуляторів прискорення та швидкості.
+   */
+  public static zero(v: MutableVector3): void {
+    v.x = 0;
+    v.y = 0;
+    v.z = 0;
+  }
+
   // ============================================================================
   // АЛГОРИТМИ ІНТЕРПОЛЯЦІЇ (INTERPOLATION)
   // ============================================================================
@@ -269,6 +276,14 @@ export class MathUtils {
    */
   static clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
+  }
+
+  /**
+   * Обмеження значення в одиничному інтервалі [0, 1] (Unit Clamp / Saturate).
+   * Семантичний скоротець для нормалізованих раціо та коефіцієнтів.
+   */
+  static clampUnit(value: number): number {
+    return value < 0 ? 0 : value > 1 ? 1 : value;
   }
 
   /**
