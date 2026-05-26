@@ -77,8 +77,8 @@ export class PerformanceMonitor {
   private memoryRingIndex: number = 0;
 
   // Таймери для управління
-  private fpsUpdateTimer: NodeJS.Timeout | null = null;
-  private memoryTimer: NodeJS.Timeout | null = null;
+  private fpsUpdateTimer: ReturnType<typeof setInterval> | null = null;
+  private memoryTimer: ReturnType<typeof setInterval> | null = null;
   private isCollectingMemory: boolean = false;
   private memoryCollectionInterval: number = PERFORMANCE_CONSTANTS.MEMORY_COLLECTION_INTERVAL;
   private isMonitoringEnabled: boolean = true;

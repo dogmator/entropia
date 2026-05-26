@@ -15,10 +15,7 @@ import { App } from './App';
 
 // Dev: remote logging увімкнено за замовчуванням.
 // Override: localStorage['entropia:remoteLogging']='0' (disable) або '1' (enable).
-const isDevelopment =
-  typeof process !== 'undefined' &&
-  process.env &&
-  process.env['NODE_ENV'] === 'development';
+const isDevelopment = import.meta.env.DEV === true;
 const shouldEnableRemoteLogging = resolveRemoteLoggingEnabled(localStorage, isDevelopment);
 logger.setRemoteLogging(shouldEnableRemoteLogging);
 
