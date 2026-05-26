@@ -40,9 +40,6 @@ export class PhysicsSystem {
   /**
    * Виконання ітерації числового інтегрування для одного об'єкта.
    */
-  /**
-   * Виконання ітерації числового інтегрування для одного об'єкта.
-   */
   private integrate(org: Organism): void {
     // 1. Обмеження результуючої сили прискорення
     this.limitAcceleration(org);
@@ -56,9 +53,7 @@ export class PhysicsSystem {
     // Validation: Check for NaN velocity
     if (Number.isNaN(org.velocity.x) || Number.isNaN(org.velocity.y) || Number.isNaN(org.velocity.z)) {
       console.error(`PhysicsSystem: NaN velocity detected for organism ${org.id}`);
-      org.velocity.x = 0;
-      org.velocity.y = 0;
-      org.velocity.z = 0;
+      MathUtils.zero(org.velocity);
     }
 
     // 4. Трансляція позиції у тороїдальному просторі
@@ -133,9 +128,7 @@ export class PhysicsSystem {
    * Онулення вектора сил для підготовки до нового циклу обчислень.
    */
   private resetAcceleration(org: Organism): void {
-    org.acceleration.x = 0;
-    org.acceleration.y = 0;
-    org.acceleration.z = 0;
+    MathUtils.zero(org.acceleration);
   }
 
   /**
