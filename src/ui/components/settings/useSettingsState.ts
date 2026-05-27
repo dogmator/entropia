@@ -4,12 +4,12 @@ import { GRAPHICS_PRESETS } from '@/config';
 import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 import type { GraphicsQuality, SimulationConfig } from '@/types';
 
-import { parseConfigFromSearch, type UrlHistoryMode, updateUrlFromConfig } from './urlConfigSync';
+import { type MutableSimulationConfig, parseConfigFromSearch, type UrlHistoryMode, updateUrlFromConfig } from './urlConfigSync';
 
+/** Затримка дебаунсу для replaceState при частих змінах (слайдери). */
 const URL_SYNC_DEBOUNCE_MS = 180;
 
-type MutableSimulationConfig = { -readonly [K in keyof SimulationConfig]: SimulationConfig[K] };
-type SimulationConfigRecord = Record<keyof SimulationConfig, SimulationConfig[keyof SimulationConfig]>;
+type WritableConfigRecord = Record<keyof SimulationConfig, SimulationConfig[keyof SimulationConfig]>;
 
 const CONFIG_LIMITS: Partial<Record<keyof SimulationConfig, { min: number; max: number }>> = {
     foodSpawnRate: { min: 0, max: 1 },
@@ -41,6 +41,10 @@ const isGraphicsQuality = (value: string): value is GraphicsQuality => {
     return Object.hasOwn(GRAPHICS_PRESETS, value);
 };
 
+/**
+ * Санітизація окремого поля конфігурації: перевіряє тип, скидає на default
+ * при невалідних значеннях, застосовує обмеження CONFIG_LIMITS для числових полів.
+ */
 const sanitizeConfigValue = <K extends keyof SimulationConfig>(
     key: K,
     value: SimulationConfig[K],
@@ -72,12 +76,16 @@ const sanitizeConfigValue = <K extends keyof SimulationConfig>(
     return value;
 };
 
+/**
+ * Повна санітизація SimulationConfig: застосовує sanitizeConfigValue до кожного поля.
+ * Гарантує, що повернутий об'єкт не містить невалідних або виходячих за межі значень.
+ */
 const sanitizeConfig = (config: SimulationConfig, defaultConfig: SimulationConfig): SimulationConfig => {
-    const nextConfig: MutableSimulationConfig = { ...defaultConfig };
-    const writableConfig = nextConfig as SimulationConfigRecord;
+    const nextConfig = { ...defaultConfig } as MutableSimulationConfig;
+    const writable = nextConfig as WritableConfigRecord;
 
     (Object.keys(defaultConfig) as (keyof SimulationConfig)[]).forEach((key) => {
-        writableConfig[key] = sanitizeConfigValue(key, config[key], defaultConfig[key]);
+        writable[key] = sanitizeConfigValue(key, config[key], defaultConfig[key]);
     });
 
     return nextConfig;
