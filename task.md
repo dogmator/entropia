@@ -142,3 +142,11 @@
 - Етап 4: децимувати UI state updates та додати adaptive degrade для дорогих VFX.
 - Етап 5: виконати повний regression, build, lint, browser smoke та оновити документацію після кожного етапу.
 - Після кожного кодового етапу запускати tests + quality gates згідно з user instruction.
+
+## task_boundary (2026-03-26): URL ↔ state synchronization for SimulationConfig
+- Реалізувати strict-typed ініціалізацію `SimulationConfig` з `window.location.search`.
+- Забезпечити clean URL (лише відхилення від default; очистка `?` при повному збігу).
+- Для frequent updates застосувати debounced `history.replaceState`, для дискретних — `history.pushState`.
+- Підтримати browser navigation (`popstate`) з миттєвим оновленням UI-стану.
+- Ігнорувати невідомі ключі URL і падати на default для невалідних значень.
+- Додати unit-тести для URL-sync утиліт і прогнати quality gates.
