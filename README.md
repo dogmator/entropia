@@ -256,3 +256,9 @@ docker compose up -d
 - `SimulationEngine` тепер агрегує population metrics і список `deadIds` в одному проході по `organisms`, замість окремих повторних обходів для statistics/death collection.
 - `StatisticsManager` переведено на роботу з агрегованим payload, тож середні енергії, counts, max-age/max-generation та extinction-risk більше не вимагають кількох повних scan-pass.
 - Додано unit-тест `StatisticsManager.test.ts`, а також оновлено persistence path для коректної реагрегації після `importState`.
+
+## 🔗 URL-driven конфігурація (2026-03-26)
+- Налаштування `SimulationConfig` тепер синхронізуються з query-параметрами URL у дві сторони.
+- Підтримано clean URL: у рядок запиту потрапляють лише значення, що відрізняються від дефолтних.
+- Некоректні або невідомі параметри в URL ігноруються або безпечно повертаються до дефолтів.
+- Підтримано коректну поведінку `Back/Forward` через `popstate`-синхронізацію стану.
