@@ -1,6 +1,6 @@
 /**
- * Точка входу в аплікаційне середовище Entropia 3D.
- * Виконує ініціалізацію віртуальної структури вузлів React та монтування кореневого компонента в DOM.
+ * Entry point for the Entropia 3D application environment.
+ * Performs initialization of the React virtual node structure and mounts the root component to the DOM.
  */
 
 import './index.css';
@@ -9,25 +9,26 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 
 import { logger } from '@/core';
+import { t } from '@/i18n';
 import { resolveRemoteLoggingEnabled } from '@/ui/utils/remoteLogging';
 
 import { App } from './App';
 
-// Dev: remote logging увімкнено за замовчуванням.
-// Override: localStorage['entropia:remoteLogging']='0' (disable) або '1' (enable).
-const isDevelopment = import.meta.env.DEV === true;
+// Dev: remote logging enabled by default.
+// Override: localStorage['entropia:remoteLogging']='0' (disable) or '1' (enable).
+const isDevelopment = import.meta.env.DEV;
 const shouldEnableRemoteLogging = resolveRemoteLoggingEnabled(localStorage, isDevelopment);
 logger.setRemoteLogging(shouldEnableRemoteLogging);
 
-/** Пошук кореневого контейнера в структурі документа. */
+/** Search for root container in document structure. */
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  /** Критична помилка ініціалізації при відсутності цільового контейнера. */
-  throw new Error("Системна помилка: цільовий DOM-елемент 'root' не ідентифіковано.");
+  /** Critical initialization error if target container is missing. */
+  throw new Error(t.errors.rootNotFound);
 }
 
-/** Створення екземпляра React Root та активація StrictMode для виявлення потенційних дефектів життєвого циклу. */
+/** Creating React Root instance and activating StrictMode to detect potential lifecycle defects. */
 const root = ReactDOM.createRoot(rootElement);
 
 root.render(

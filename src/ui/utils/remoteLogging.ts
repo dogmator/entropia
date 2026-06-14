@@ -3,12 +3,12 @@ const REMOTE_LOGGING_KEY = 'entropia:remoteLogging';
 type StorageLike = Pick<Storage, 'getItem'>;
 
 /**
- * Dev: remote logging увімкнено за замовчуванням (manual step не потрібен).
+ * Dev: remote logging enabled by default (manual step not required).
  * Optional override:
  * - '0' => force disable
  * - '1' => force enable
  *
- * Production: увімкнення лише через explicit opt-in ('1').
+ * Production: enable only via explicit opt-in ('1').
  */
 export const resolveRemoteLoggingEnabled = (
   storage: StorageLike,

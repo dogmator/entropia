@@ -1,33 +1,27 @@
 /**
- * Entropia 3D — Конфігураційні параметри системи дебагу та логування.
+ * Entropia 3D — Configuration parameters for debug and logging systems.
  */
 
 export const DEBUG_CONFIG = {
-    /** Увімкнення віддаленого логування за замовчуванням у DEV режимі. */
+    /** Enable remote logging by default in DEV mode. */
     remoteLoggingEnabled: false,
 
-    /** Порт сервера логів. */
+    /** Log server port. */
     remotePort: 3013,
 
-    /** Хост сервера логів. */
+    /** Log server host. */
     remoteHost: '127.0.0.1',
 
-    /** Шлях до кінцевої точки логування. */
+    /** Logging endpoint path. */
     remotePath: '/log',
 
-    /** Конструктор повного URL для віддаленого логування (HTTP). */
+    /** Constructor for full remote logging URL (HTTP). */
     get remoteEndpoint(): string {
-        return `http://${this.remoteHost}:${this.remotePort}${this.remotePath}`;
+        return `http://${this.remoteHost}:${String(this.remotePort)}${this.remotePath}`;
     },
 
-    /** Конструктор повного URL для віддаленого логування (WebSocket). */
+    /** Constructor for full remote logging URL (WebSocket). */
     get remoteWsEndpoint(): string {
-        return `ws://${this.remoteHost}:${this.remotePort}`;
+        return `ws://${this.remoteHost}:${String(this.remotePort)}`;
     }
 } as const;
-
-/**
- * Інтервал перевірки та оновлення об'ємів (bounding volumes) для raycasting.
- * (Збігається з RENDER.interaction.hoverInterval, якщо він доступний)
- */
-export const DEBUG_RAYCAST_UPDATE_INTERVAL = 0.5; // Секунди

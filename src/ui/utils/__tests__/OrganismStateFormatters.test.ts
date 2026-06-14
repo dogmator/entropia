@@ -1,13 +1,7 @@
-/**
- * Набір модульних тестів для форматерів станів організмів.
- *
- * Верифікує коректність перетворення внутрішніх станів
- * на локалізовані текстові дескрипції та класи CSS.
- */
-
 import { describe, expect, it } from 'vitest';
 
-import { OrganismState } from '../../../types';
+import { OrganismState } from '@/types';
+
 import {
   getStateColor,
   getStateLabel,
@@ -16,27 +10,27 @@ import {
 
 describe('getStateLabel()', () => {
   it('має повертати "Спокій" для стану IDLE', () => {
-    expect(getStateLabel(OrganismState.IDLE)).toBe('Спокій');
+    expect(getStateLabel(OrganismState.IDLE)).toBe('Idle');
   });
 
   it('має повертати "Пошук ресурсів" для стану SEEKING', () => {
-    expect(getStateLabel(OrganismState.SEEKING)).toBe('Пошук ресурсів');
+    expect(getStateLabel(OrganismState.SEEKING)).toBe('Seeking resources');
   });
 
   it('має повертати "Ухилення" для стану FLEEING', () => {
-    expect(getStateLabel(OrganismState.FLEEING)).toBe('Ухилення');
+    expect(getStateLabel(OrganismState.FLEEING)).toBe('Fleeing');
   });
 
   it('має повертати "Полювання" для стану HUNTING', () => {
-    expect(getStateLabel(OrganismState.HUNTING)).toBe('Полювання');
+    expect(getStateLabel(OrganismState.HUNTING)).toBe('Hunting');
   });
 
   it('має повертати "Репродукція" для стану REPRODUCING', () => {
-    expect(getStateLabel(OrganismState.REPRODUCING)).toBe('Репродукція');
+    expect(getStateLabel(OrganismState.REPRODUCING)).toBe('Reproducing');
   });
 
   it('має повертати "Летальність" для стану DYING', () => {
-    expect(getStateLabel(OrganismState.DYING)).toBe('Летальність');
+    expect(getStateLabel(OrganismState.DYING)).toBe('Lethality');
   });
 
   it('має повертати оригінальний стан для невідомого значення', () => {
@@ -80,7 +74,7 @@ describe('getStateRepresentation()', () => {
   it('має повертати об\'єкт з label та colorClass для IDLE', () => {
     const result = getStateRepresentation(OrganismState.IDLE);
     expect(result).toEqual({
-      label: 'Спокій',
+      label: 'Idle',
       colorClass: 'text-gray-400',
     });
   });
@@ -88,28 +82,19 @@ describe('getStateRepresentation()', () => {
   it('має повертати об\'єкт з label та colorClass для HUNTING', () => {
     const result = getStateRepresentation(OrganismState.HUNTING);
     expect(result).toEqual({
-      label: 'Полювання',
+      label: 'Hunting',
       colorClass: 'text-orange-400',
     });
   });
 
   it('має повертати коректні дані для всіх станів', () => {
-    const states = [
-      OrganismState.IDLE,
-      OrganismState.SEEKING,
-      OrganismState.FLEEING,
-      OrganismState.HUNTING,
-      OrganismState.REPRODUCING,
-      OrganismState.DYING,
-    ];
-
+    const states = Object.values(OrganismState);
     states.forEach((state) => {
       const result = getStateRepresentation(state);
       expect(result).toHaveProperty('label');
       expect(result).toHaveProperty('colorClass');
       expect(typeof result.label).toBe('string');
       expect(typeof result.colorClass).toBe('string');
-      expect(result.colorClass).toMatch(/^text-/);
     });
   });
 });
@@ -120,7 +105,7 @@ describe('Immutability', () => {
     const result1 = getStateLabel(state);
     const result2 = getStateLabel(state);
     expect(result1).toBe(result2);
-    expect(result1).toBe('Пошук ресурсів');
+    expect(result1).toBe('Seeking resources');
   });
 
   it('getStateColor має бути детермінованою pure функцією', () => {

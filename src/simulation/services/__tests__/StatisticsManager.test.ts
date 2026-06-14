@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import { createWorldConfig } from '@/config';
+import type { EcologicalZone } from '@/types';
 
-import { type PopulationStatsAggregation,StatisticsManager } from '../StatisticsManager';
+import { type PopulationStatsAggregation,StatisticsManager } from '../StatisticsManager.manager';
 
-const EMPTY_ZONES = new Map();
+const EMPTY_ZONES = new Map<string, EcologicalZone>();
 const GRID_MANAGER_STUB = {
   getStats: () => ({ totalCells: 0, maxEntitiesInCell: 0, avgEntitiesPerCell: 0 }),
 } as const;

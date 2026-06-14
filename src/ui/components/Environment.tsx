@@ -2,8 +2,8 @@
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
 
-import { COLORS, ENVIRONMENT_RENDERING, WORLD_SIZE, ZONE_DEFAULTS } from '../../config';
-import { Obstacle } from '../../simulation';
+import { COLORS, ENVIRONMENT_RENDERING, ZONE_DEFAULTS } from '../../config';
+import type { Obstacle } from '../../simulation/Entity';
 import type { IEntityInfo,ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import type { EcologicalZone } from '../../types';
 import { useSimulation } from '../context/SimulationContext';
@@ -38,9 +38,9 @@ const EcologicalZones = ({ engine }: { engine: ISimulationEngine }) => {
     const zones = useMemo(() => {
         const zoneValues = Array.from(engine.zones.values());
         return zoneValues.map((zone: EcologicalZone, index: number) => {
-            const zoneColor = ZONE_DEFAULTS[zone.type as keyof typeof ZONE_DEFAULTS]?.color || ENVIRONMENT_RENDERING.DEFAULT_ZONE_COLOR;
+            const zoneColor = ZONE_DEFAULTS[zone.type as keyof typeof ZONE_DEFAULTS].color;
             return (
-                <mesh key={`zone-${index}`} position={[zone.center.x, zone.center.y, zone.center.z]}>
+                <mesh key={`zone-${String(index)}`} position={[zone.center.x, zone.center.y, zone.center.z]}>
                     <sphereGeometry args={[zone.radius, ENVIRONMENT_RENDERING.ZONE_SEGMENTS, ENVIRONMENT_RENDERING.ZONE_SEGMENTS]} />
                     <meshBasicMaterial
                         color={zoneColor}
@@ -61,8 +61,8 @@ const StaticObstacles = ({ engine }: { engine: ISimulationEngine }) => {
     const { setHoveredEntity, setTooltipPos } = useSimulation();
 
     const obstacles = useMemo(() => {
-        const obstacleValues = Array.from(engine.obstacles.values());
-        return obstacleValues.map((obs: Obstacle) => (
+        const obstacleValues = Array.from(engine.obstacles.values()) as Obstacle[];
+        return obstacleValues.map((obs) => (
             <mesh
                 key={obs.id}
                 position={[obs.position.x, obs.position.y, obs.position.z]}
@@ -89,7 +89,7 @@ const StaticObstacles = ({ engine }: { engine: ISimulationEngine }) => {
 };
 
 export const Environment: React.FC<EnvironmentProps> = ({ engine }) => {
-    const ws = engine.worldConfig?.WORLD_SIZE ?? WORLD_SIZE;
+    const ws = engine.worldConfig.WORLD_SIZE;
 
     return (
         <group>

@@ -1,5 +1,5 @@
 /**
- * Entropia 3D — Базові типи та перерахування системи логування.
+ * Entropia 3D — Base types and enums for the logging system.
  */
 
 export enum LogLevel {

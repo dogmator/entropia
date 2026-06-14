@@ -97,7 +97,7 @@ export default defineConfig(async ({ mode }) => {
     server: SERVER_CONFIG,
     plugins: [react(), checkerPlugin, createResponseHeadersPlugin()].filter(Boolean),
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.GEMINI_API_KEY': JSON.stringify(env['GEMINI_API_KEY']),
     },
     resolve: RESOLVE_CONFIG,
     build: BUILD_CONFIG,

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 /**
  * Юніт-тести для BehaviorSystem — розширені тести для steering behaviors.
  *
@@ -10,12 +12,12 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { EcologicalZone, Genome, SimulationConfig, WorldConfig, PreyGenome, PredatorGenome } from '../../../types';
-import { createOrganismId, EntityType, ZoneType, createGenomeId, PredatorSubtype } from '../../../types';
-
+import type { EcologicalZone, Genome, PredatorGenome,PreyGenome, SimulationConfig, WorldConfig } from '../../../types';
+import { createGenomeId, createOrganismId, EntityType, PredatorSubtype,ZoneType } from '../../../types';
+import type { Food } from '../../Entity';
 import { Organism } from '../../Entity';
-import { GridManager } from '../../managers/GridManager';
-import { BehaviorSystem } from '../BehaviorSystem';
+import { GridManager } from '../../managers/GridManager.manager';
+import { BehaviorSystem } from '../Behavior.system';
 
 /**
  * Мінімальна конфігурація для тестування.
@@ -103,7 +105,7 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         worldConfig = createWorldConfig();
         gridManager = new GridManager(worldConfig.WORLD_SIZE, 50);
         zones = new Map();
-        behavior = new BehaviorSystem(gridManager, config, zones, worldConfig);
+        behavior = new BehaviorSystem(gridManager, { config, zones, worldConfig });
     });
 
     describe('separation force', () => {
@@ -146,8 +148,8 @@ describe('BehaviorSystem — Steering Behaviors', () => {
                 radius: 1,
             };
 
-            const foodMap = new Map();
-            foodMap.set(food.id, food);
+            const foodMap = new Map<string, Food>();
+            foodMap.set(food.id, food as unknown as Food);
             gridManager.initializeStatic(new Map());
             gridManager.rebuild(organisms, foodMap);
 
@@ -193,7 +195,7 @@ describe('BehaviorSystem — Steering Behaviors', () => {
             zones.set(fertileZone.id, fertileZone);
 
             // Новий behavior з зоною
-            behavior = new BehaviorSystem(gridManager, config, zones, worldConfig);
+            behavior = new BehaviorSystem(gridManager, { config, zones, worldConfig });
 
             const organisms = new Map<string, Organism>();
             const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
@@ -207,8 +209,8 @@ describe('BehaviorSystem — Steering Behaviors', () => {
                 radius: 1,
             };
 
-            const foodMap = new Map();
-            foodMap.set(food.id, food);
+            const foodMap = new Map<string, Food>();
+            foodMap.set(food.id, food as unknown as Food);
             gridManager.initializeStatic(new Map());
             gridManager.rebuild(organisms, foodMap);
 

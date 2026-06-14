@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { EntityType } from '@/types';
 
-import { SimulationEngine } from '../../Engine';
-import { BufferManager } from '../BufferManager';
+import { SimulationEngine } from '../../engine/Engine';
+import { BufferManager } from '../BufferManager.manager';
 
 const FOOD_ID = 900_001;
 const ORGANISM_STRIDE = 13;

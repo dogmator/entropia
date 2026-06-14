@@ -24,19 +24,25 @@ afterEach(() => {
 describe('log-file-utils', () => {
   it('appends entry without trimming when file is below limit', () => {
     const filePath = createTempLogFile('abc');
+    const LIMIT_100 = 100;
+    const TRIM_80 = 80;
 
-    appendLogEntryWithLimit(filePath, 'def', 100, 80);
+    appendLogEntryWithLimit(filePath, 'def', { maxBytes: LIMIT_100, trimToBytes: TRIM_80 });
 
     expect(fs.readFileSync(filePath, 'utf8')).toBe('abcdef');
   });
 
   it('trims old data and keeps file under limit', () => {
-    const filePath = createTempLogFile('0123456789'.repeat(20)); // 200 bytes
+    const REPEAT_COUNT = 20;
+    const LIMIT_120 = 120;
+    const TRIM_60 = 60;
+    const EXPECTED_MAX_BYTES = 123;
+    const filePath = createTempLogFile('0123456789'.repeat(REPEAT_COUNT)); // 200 bytes
 
-    appendLogEntryWithLimit(filePath, 'XYZ', 120, 60);
+    appendLogEntryWithLimit(filePath, 'XYZ', { maxBytes: LIMIT_120, trimToBytes: TRIM_60 });
 
     const content = fs.readFileSync(filePath, 'utf8');
-    expect(Buffer.byteLength(content)).toBeLessThanOrEqual(123); // 120 + 3 bytes append
+    expect(Buffer.byteLength(content)).toBeLessThanOrEqual(EXPECTED_MAX_BYTES); // 120 + 3 bytes append
     expect(content.endsWith('XYZ')).toBe(true);
     expect(content.includes('0123456789')).toBe(true);
   });

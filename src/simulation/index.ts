@@ -1,52 +1,34 @@
 /**
- * Entropia 3D — Центральний експорт simulation модуля.
+ * Entropia 3D — Central export of the simulation module.
  *
- * Містить основний двигун симуляції, сутності та системи.
- * Цей модуль може працювати незалежно від React (Web Worker ready).
+ * Contains main simulation engine, entities, and systems.
+ * This module can work independently of React (Web Worker ready).
  *
  * @module simulation
  */
 
-// Головний двигун симуляції
-export { SimulationEngine } from './Engine';
+// Main simulation engine
+export { SimulationEngine } from './engine/Engine';
 
-// Сутності
-export {
-  Entity,
-  Food,
-  GenomeFactory,
-  isFood,
-  isObstacle,
-  isOrganism,
-  isPredator,
-  isPrey,
-  Obstacle,
-  Organism,
-  OrganismFactory,
-} from './Entity';
+// Entities
+export { Entity, Food, Obstacle, Organism } from './Entity';
 
-// Просторова сітка
-export { SpatialHashGrid } from './SpatialHashGrid';
+// Spatial grid
+export { SpatialHashGrid } from './SpatialHashGrid.service';
 
-// Математичні утиліти
-export * from './MathUtils';
+// Mathematical utilities
+export { MathUtils } from './MathUtils.utils';
 
-// Системи
-export { BehaviorSystem } from './systems/BehaviorSystem';
-export { CollisionSystem } from './systems/CollisionSystem';
-export { MetabolismSystem } from './systems/MetabolismSystem';
-export { PhysicsSystem } from './systems/PhysicsSystem';
-export { ReproductionSystem } from './systems/ReproductionSystem';
+// Systems
+export { BehaviorSystem } from './systems/Behavior.system';
+export { CollisionSystem } from './systems/Collision.system';
+export { MetabolismSystem } from './systems/Metabolism.system';
+export { PhysicsSystem } from './systems/Physics.system';
+export { ReproductionSystem } from './systems/Reproduction.system';
 
-// Сервіси
-export { SpawnService } from './services/SpawnService';
+// Services
+export { BufferManager } from './services/BufferManager.manager';
+export { SpawnService } from './services/Spawn.service';
 
-// Web Worker інтерфейс
-export { EngineProxy } from './EngineProxy';
-export type {
-  InitCommand,
-  ResetCommand,
-  UpdateCommand,
-  WorkerCommand,
-  WorkerResponse,
-} from './WorkerMessages';
+// Web Worker interface
+export * from './WorkerMessages';

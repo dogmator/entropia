@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import type { EntitySpawnedEvent } from '@/types';
 import { createFoodId, EntityType, vec3 } from '@/types';
 
-import { EventBus } from '../EventBus';
+import { EventBus } from '../EventBus.service';
 
 const TEST_POSITION = vec3(1, 1, 1);
 const HISTORY_CAPACITY = 100;
@@ -13,7 +14,7 @@ function createSpawnEvent(index: number) {
   return {
     type: 'EntitySpawned' as const,
     entityType: EntityType.FOOD,
-    id: createFoodId(`food-${index}`),
+    id: createFoodId(`food-${String(index)}`),
     position: TEST_POSITION,
   };
 }
@@ -40,8 +41,8 @@ describe('EventBus', () => {
     const history = eventBus.getHistory();
 
     expect(history).toHaveLength(HISTORY_CAPACITY);
-    expect(history[0]?.id).toBe(createFoodId(`food-${FIRST_RETAINED_EVENT}`));
-    expect(history.at(-1)?.id).toBe(createFoodId(`food-${EMITTED_EVENTS}`));
-    expect(eventBus.getLastEvent('EntitySpawned')?.id).toBe(createFoodId(`food-${EMITTED_EVENTS}`));
+    expect((history[0] as EntitySpawnedEvent | undefined)?.id).toBe(createFoodId(`food-${String(FIRST_RETAINED_EVENT)}`));
+    expect((history.at(-1) as EntitySpawnedEvent | undefined)?.id).toBe(createFoodId(`food-${String(EMITTED_EVENTS)}`));
+    expect((eventBus.getLastEvent('EntitySpawned') as EntitySpawnedEvent | undefined)?.id).toBe(createFoodId(`food-${String(EMITTED_EVENTS)}`));
   });
 });

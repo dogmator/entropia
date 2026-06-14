@@ -1,15 +1,15 @@
-import { LogEntry } from '../types';
+import type { LogEntry } from '../types';
 
 /**
- * Інтерфейс для транспортів віддаленого логування.
+ * Interface for remote logging transports.
  */
 export interface RemoteTransport {
-    /** Надсилає запис логу до віддаленого пункту призначення. */
+    /** Sends log entry to a remote destination. */
     send(entry: LogEntry): void;
 
-    /** Активує або деактивує транспорт. */
+    /** Activates or deactivates the transport. */
     setEnabled(enabled: boolean): void;
 
-    /** Закриває з'єднання та звільняє ресурси. */
+    /** Closes connection and releases resources. */
     close(): void;
 }
