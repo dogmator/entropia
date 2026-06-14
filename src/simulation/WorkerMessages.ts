@@ -42,6 +42,27 @@ export interface GetStatsCommand {
     readonly type: 'getStats';
 }
 
+export interface FindEntityAtCommand {
+    readonly type: 'findEntityAt';
+    readonly requestId: string;
+    readonly position: Vector3;
+    readonly tolerance: number;
+}
+
+export interface GetEntityByInstanceIdCommand {
+    readonly type: 'getEntityByInstanceId';
+    readonly requestId: string;
+    readonly entityType: 'prey' | 'predator' | 'food';
+    readonly instanceId: number;
+    readonly isDead?: boolean;
+}
+
+export interface GetGeneticNodeCommand {
+    readonly type: 'getGeneticNode';
+    readonly requestId: string;
+    readonly genomeId: string;
+}
+
 export interface SyncCameraCommand {
     readonly type: 'syncCamera';
     readonly position: Vector3;
@@ -92,6 +113,9 @@ export type WorkerCommand =
     | ResetCommand
     | SetConfigCommand
     | GetStatsCommand
+    | FindEntityAtCommand
+    | GetEntityByInstanceIdCommand
+    | GetGeneticNodeCommand
     | SyncCameraCommand
     | AsyncCommand
     | GetGeneticRootsCommand
