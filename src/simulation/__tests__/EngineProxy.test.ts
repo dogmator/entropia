@@ -204,6 +204,45 @@ describe('EngineProxy command optimization', () => {
     expect(postedMessages.some((msg) => msg.type === 'importState')).toBe(true);
   });
 
+  it('sends getEntityByInstanceId command with correct fields', async () => {
+    const promise = proxy.getEntityByInstanceId('prey', 3, false).catch(() => null);
+
+    const cmd = postedMessages.find((msg) => msg.type === 'getEntityByInstanceId') as
+      | { requestId?: string; entityType?: string; instanceId?: number; isDead?: boolean }
+      | undefined;
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.entityType).toBe('prey');
+    expect(cmd?.instanceId).toBe(3);
+    expect(cmd?.isDead).toBe(false);
+    expect(cmd?.requestId).toBeDefined();
+
+    (proxy as unknown as { channel: WorkerChannel }).channel.dispatch({
+      data: { type: 'commandResponse', requestId: cmd?.requestId, result: null },
+    } as MessageEvent);
+
+    await expect(promise).resolves.toBeNull();
+  });
+
+  it('sends findEntityAt command with correct fields', async () => {
+    const pos = { x: 10, y: 0, z: 5 };
+    const promise = proxy.findEntityAt(pos, 2).catch(() => null);
+
+    const cmd = postedMessages.find((msg) => msg.type === 'findEntityAt') as
+      | { requestId?: string; position?: object; tolerance?: number }
+      | undefined;
+
+    expect(cmd).toBeDefined();
+    expect(cmd?.position).toEqual(pos);
+    expect(cmd?.tolerance).toBe(2);
+
+    (proxy as unknown as { channel: WorkerChannel }).channel.dispatch({
+      data: { type: 'commandResponse', requestId: cmd?.requestId, result: null },
+    } as MessageEvent);
+
+    await expect(promise).resolves.toBeNull();
+  });
+
   it('clears async timeout once command response arrives', async () => {
     const pendingRejection = vi.fn();
 
