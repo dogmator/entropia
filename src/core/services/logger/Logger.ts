@@ -1,7 +1,8 @@
 import { DEBUG_CONFIG } from '@/config';
 
 import { WebSocketTransport } from './transports/WebSocketTransport';
-import { LogEntry, LoggerStats, LogLevel } from './types';
+import type { LogEntry, LoggerStats} from './types';
+import { LogLevel } from './types';
 
 interface LogPayload {
     level: LogLevel;
@@ -31,7 +32,7 @@ const cloneStats = (stats: InternalStats): InternalStats => ({ ...stats });
 
 
 const safeStringify = (value: unknown): string => {
-    const seen = new WeakSet<object>();
+    const seen = new WeakSet();
 
     return JSON.stringify(value, (_key, currentValue: unknown) => {
         if (typeof currentValue !== 'object' || currentValue === null) {
@@ -57,27 +58,24 @@ const isSamePayload = (entry: LogEntry, payload: LogPayload): boolean =>
     safeStringify(entry.data) === safeStringify(payload.data);
 
 /**
- * Logger — Централізована система логування для Entropia 3D.
- * Підтримує локальне зберігання логів для UI та віддалену передачу через транспорти.
+ * Logger — Centralized logging system for Entropia 3D.
+ * Supports local storage of logs for UI and remote transmission through transports.
  */
 export class Logger {
-    private static instance: Logger;
+    private static instance: Logger | undefined;
     private logs: LogEntry[] = [];
-    private subscribers: Set<(logs: LogEntry[]) => void> = new Set();
-    private transport: WebSocketTransport;
+    private readonly subscribers = new Set<(logs: LogEntry[]) => void>();
+    private readonly transport: WebSocketTransport;
     private maxLogs: number = LOGGER_MAX_LOGS;
     private stats: InternalStats = { info: 0, warning: 0, error: 0 };
 
     private constructor() {
         this.transport = new WebSocketTransport();
-        this.transport.setEnabled(DEBUG_CONFIG.remoteLoggingEnabled && this.isDevelopment());
+        this.transport.setEnabled(DEBUG_CONFIG.remoteLoggingEnabled);
     }
 
     public static getInstance(): Logger {
-        if (!Logger.instance) {
-            Logger.instance = new Logger();
-        }
-
+        Logger.instance ??= new Logger();
         return Logger.instance;
     }
 
@@ -245,7 +243,7 @@ export class Logger {
 
     public logSimulationError(error: Error, context?: string): void {
         const source = context ?? SYSTEM_SOURCE;
-        this.error(`Simulation error: ${context}`, source, {
+        this.error(`Simulation error: ${context ?? ''}`, source, {
             error: error.message,
             stack: error.stack,
             context
@@ -268,11 +266,7 @@ export class Logger {
     }
 
     private isDevelopment(): boolean {
-        if (typeof import.meta !== 'undefined' && import.meta.env) {
-            return import.meta.env.DEV === true;
-        }
-
-        return false;
+        return import.meta.env.DEV;
     }
 }
 

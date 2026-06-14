@@ -1,22 +1,22 @@
 /**
- * Entropia 3D — Центральний експорт core модуля.
+ * Entropia 3D — Central export for core module.
  *
- * Містить утиліти, сервіси та інфраструктурні компоненти,
- * що не залежать від React або Three.js.
+ * Contains utilities, services, and infrastructure components
+ * independent of React or Three.js.
  *
  * @module core
  */
 
-// EventBus — система подій
-export { EventBus } from './EventBus';
+// EventBus — event system
+export { EventBus } from './EventBus.service';
 
-// ObjectPool — пул об'єктів для оптимізації
-export { ObjectPool } from './ObjectPool';
+// ObjectPool — object pool for optimization
+export { ObjectPool } from './ObjectPool.service';
 
-// Сервіси
-export { Logger,logger } from './services/Logger';
-export { PerformanceMonitor } from './services/PerformanceMonitor';
+// Services
+export { Logger,logger } from './services/Logger.service';
+export { PerformanceMonitor } from './services/PerformanceMonitor.service';
 
-// Утиліти
-export { type MemoryInfo,PerformanceHelpers } from './utils/PerformanceUtils';
-export { Random } from './utils/Random';
+// Utilities
+export { type MemoryInfo,PerformanceHelpers } from './utils/PerformanceUtils.utils';
+export { Random } from './utils/Random.utils';

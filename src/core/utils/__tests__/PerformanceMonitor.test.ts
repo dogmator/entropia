@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Модульні тести для PerformanceMonitor.
  */
@@ -6,7 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { PERFORMANCE_CONSTANTS } from '@/config';
 
-import { PerformanceMonitor } from "../../services/PerformanceMonitor";
+import { PerformanceMonitor } from "../../services/PerformanceMonitor.service";
 
 describe('PerformanceMonitor', () => {
   let monitor: PerformanceMonitor;
@@ -85,7 +88,7 @@ describe('PerformanceMonitor', () => {
     it('повинен відстежувати час виконання підсистем', () => {
       const endTimer = monitor.startSubsystemTimer('TestSystem');
       // Симулюємо роботу
-      for (let i = 0; i < 100000; i++) { }
+      for (let i = 0; i < 100000; i++) { /* busy wait */ }
       endTimer();
 
       const metrics = monitor.getSubsystemMetrics();

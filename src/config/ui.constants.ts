@@ -32,13 +32,6 @@ export const UI_CONFIG = {
   },
 } as const;
 
-export const AUDIO = {
-  enabled: false,
-  masterVolume: 0.5,
-  ambientVolume: 0.3,
-  effectsVolume: 0.7,
-} as const;
-
 export const UI_THRESHOLDS = {
   FPS: {
     HIGH: 55,
@@ -70,11 +63,6 @@ export const DASHBOARD_CONFIG = {
   PERCENT: 100,
 } as const;
 
-export const SETTINGS_PANEL_CONFIG = {
-  VERSION: 'v2.5',
-  MAX_HEIGHT: '1600px',
-} as const;
-
 export const DIAGNOSTICS_CONFIG = {
   CHART: {
     REFRESH_RATE: 1000,
@@ -98,17 +86,11 @@ export const UI_CONTROLS = {
     DEFAULT: 1,
     MIN: 0,
     MAX: 5,
-    STORAGE_KEY: 'entropia-speed',
   },
   WORLD_SCALE: {
     DEFAULT: 1.0,
     MIN: 0.1,
     MAX: 10,
-    STORAGE_KEY: 'entropia-scale',
-  },
-  AUTO_ROTATE: {
-    STORAGE_KEY_ENABLED: 'entropia-autorotate',
-    STORAGE_KEY_SPEED: 'entropia-rotationspeed',
   },
   LOADING_DELAY: 500,
   SERVER_LOG_INTERVAL: 300,

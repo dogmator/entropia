@@ -1,15 +1,17 @@
-import {
+import type {
+    EcologicalZone,
+    GeneticTreeNode,
+} from '@/types';
+import type {
     GenomeId,
     SimulationConfig,
     SimulationStats,
     Vector3,
 } from '@/types';
-import type {
-    EcologicalZone,
-    GeneticTreeNode,
-} from '@/types';
+
 import type { Food, Obstacle, Organism } from '../Entity';
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IPersistableEngine {
     readonly seed: number;
     readonly tick: number;

@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { UI_THRESHOLDS } from '@/config';
+import { t } from '@/i18n';
 import type { SimulationStats } from '@/types';
 
 import { MAX_PERCENTAGE, MetricCard } from './Shared';
@@ -19,33 +20,33 @@ const getExtinctionRiskColor = (risk: number) => {
 
 const PopulationStats = ({ currentStats, survivalRate }: { currentStats: SimulationStats, survivalRate: string }) => (
     <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-        <h3 className="text-sm font-medium text-gray-300 mb-4">Популяційна динаміка</h3>
+        <h3 className="text-sm font-medium text-gray-300 mb-4">{t.sidebar.populationDynamics}</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="space-y-2">
                 <div className="flex justify-between">
-                    <span className="text-gray-400">Народжень загалом:</span>
+                    <span className="text-gray-400">{t.stats.totalBirths}</span>
                     <span className="text-emerald-400 font-mono">{currentStats.totalBirths}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-gray-400">Смертей загалом:</span>
+                    <span className="text-gray-400">{t.stats.totalDeaths}</span>
                     <span className="text-red-400 font-mono">{currentStats.totalDeaths}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-gray-400">Макс. вік:</span>
+                    <span className="text-gray-400">{t.stats.maxAgeLabel}</span>
                     <span className="text-purple-400 font-mono">{currentStats.maxAge}</span>
                 </div>
             </div>
             <div className="space-y-2">
                 <div className="flex justify-between">
-                    <span className="text-gray-400">Макс. покоління:</span>
+                    <span className="text-gray-400">{t.stats.maxGeneration}:</span>
                     <span className="text-blue-400 font-mono">{currentStats.maxGeneration}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-gray-400">Середня енергія:</span>
+                    <span className="text-gray-400">{t.stats.avgEnergy}</span>
                     <span className="text-yellow-400 font-mono">{currentStats.avgEnergy.toFixed(1)}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span className="text-gray-400">Коефіцієнт виживання:</span>
+                    <span className="text-gray-400">{t.stats.survivalRate}</span>
                     <span className="text-cyan-400 font-mono">
                         {survivalRate}%
                     </span>
@@ -67,27 +68,27 @@ export const EntitiesTab: React.FC<EntitiesTabProps> = ({ currentStats }) => {
             {/* Entity Statistics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard
-                    title="Травоїдні"
+                    title={t.entity.herbivores}
                     value={currentStats.preyCount}
                     unit=""
                     color="text-emerald-400"
-                    subtitle={`Середня енергія: ${currentStats.avgPreyEnergy.toFixed(1)}`}
+                    subtitle={`${t.stats.avgEnergy} ${currentStats.avgPreyEnergy.toFixed(1)}`}
                 />
                 <MetricCard
-                    title="Хижаки"
+                    title={t.entity.predators}
                     value={currentStats.predatorCount}
                     unit=""
                     color="text-red-400"
-                    subtitle={`Середня енергія: ${currentStats.avgPredatorEnergy.toFixed(1)}`}
+                    subtitle={`${t.stats.avgEnergy} ${currentStats.avgPredatorEnergy.toFixed(1)}`}
                 />
                 <MetricCard
-                    title="Ресурси"
+                    title={t.settings.resources}
                     value={currentStats.foodCount}
                     unit=""
                     color="text-yellow-400"
                 />
                 <MetricCard
-                    title="Ризик вимирання"
+                    title={t.sidebar.extinctionRisk}
                     value={Math.round(currentStats.extinctionRisk * PERCENTAGE_MULTIPLIER)}
                     unit="%"
                     color={extinctionRiskColor}

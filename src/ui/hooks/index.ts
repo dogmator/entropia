@@ -1,8 +1,7 @@
 /**
- * Entropia 3D — Експорт React хуків.
+ * Entropia 3D — React hooks export.
  *
  * @module ui/hooks
  */
 
-export { type CameraState } from './useCameraState';
 export { useEntityHover } from './useEntityHover';

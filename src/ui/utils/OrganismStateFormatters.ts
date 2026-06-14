@@ -1,26 +1,27 @@
 /**
- * Модуль форматування та візуальної репрезентації станів організмів.
+ * Module for formatting and visual representation of organism states.
  *
- * Забезпечує централізовану логіку перетворення внутрішніх станів
- * на локалізовані текстові дескрипції та колірні індикатори.
+ * Provides centralized logic for converting internal states into localized
+ * text descriptions and color indicators.
  */
 
+import { t } from '@/i18n';
 import type { OrganismState } from '@/types';
 
 /**
- * Імутабельна карта відповідності станів організмів до локалізованих назв.
+ * Immutable map of organism states to localized names.
  */
 const STATE_LABELS: Readonly<Record<OrganismState, string>> = {
-  IDLE: 'Спокій',
-  SEEKING: 'Пошук ресурсів',
-  FLEEING: 'Ухилення',
-  HUNTING: 'Полювання',
-  REPRODUCING: 'Репродукція',
-  DYING: 'Летальність',
+  IDLE: t.status.idle,
+  SEEKING: t.status.seeking,
+  FLEEING: t.status.fleeing,
+  HUNTING: t.status.hunting,
+  REPRODUCING: t.status.reproducing,
+  DYING: t.status.dying,
 } as const;
 
 /**
- * Імутабельна карта відповідності станів до класів стилізації Tailwind CSS.
+ * Immutable map of states to Tailwind CSS styling classes.
  */
 const STATE_COLORS: Readonly<Record<OrganismState, string>> = {
   IDLE: 'text-gray-400',
@@ -32,30 +33,32 @@ const STATE_COLORS: Readonly<Record<OrganismState, string>> = {
 } as const;
 
 /**
- * Повертає локалізовану текстову дескрипцію поточного стану організму.
+ * Returns localized text description of current organism state.
  *
- * @param state - Внутрішній стан життєдіяльності організму
- * @returns Локалізована назва стану українською мовою
+ * @param state - Internal state of organism activity
+ * @returns Localized state name
  */
 export function getStateLabel(state: OrganismState): string {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for possible undefined state in production
   return STATE_LABELS[state] ?? state;
 }
 
 /**
- * Визначає клас CSS для візуальної індикації стану організму.
+ * Determines CSS class for visual indication of organism state.
  *
- * @param state - Внутрішній стан життєдіяльності організму
- * @returns Клас Tailwind CSS для колірної індикації
+ * @param state - Internal state of organism activity
+ * @returns Tailwind CSS class for color indication
  */
 export function getStateColor(state: OrganismState): string {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard for possible undefined state in production
   return STATE_COLORS[state] ?? 'text-gray-400';
 }
 
 /**
- * Комбінована функція для отримання повної візуальної репрезентації стану.
+ * Combined function to get full visual representation of a state.
  *
- * @param state - Внутрішній стан життєдіяльності організму
- * @returns Об'єкт з текстовою дескрипцією та класом стилізації
+ * @param state - Internal state of organism activity
+ * @returns Object with text description and styling class
  */
 export function getStateRepresentation(state: OrganismState): {
   label: string;

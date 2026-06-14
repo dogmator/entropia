@@ -88,7 +88,7 @@ describe('logger/WebSocketTransport', () => {
         transport.setEnabled(true);
 
         for (let index = 0; index < QUEUE_OVERFLOW_ITERATIONS; index += 1) {
-            transport.send(createEntry(`entry-${index}`));
+            transport.send(createEntry(`entry-${String(index)}`));
         }
 
         const socket = MockWebSocket.instances[0];

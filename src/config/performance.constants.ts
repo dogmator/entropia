@@ -71,6 +71,9 @@ export const POOL_CONSTANTS = {
   PARTICLE_MAX_SIZE: 20000,
 } as const;
 
+const CIRCLE_DEGREE_RATIO = 2;
+const SPHERE_PHI_MULT = 2;
+
 /**
  * Particle system constants for visual effects.
  * Used in ParticleSystem for death/birth/eat/hunt effects.
@@ -127,8 +130,9 @@ export const PARTICLE_CONSTANTS = {
   COLOR_DIVISOR: 255,
 
   // Geometry constants
-  TWO_PI: Math.PI * 2,
-  SPHERE_PHI_MULTIPLIER: 2,
+  CIRCLE_DEGREE_RATIO,
+  TWO_PI: Math.PI * CIRCLE_DEGREE_RATIO,
+  SPHERE_PHI_MULTIPLIER: SPHERE_PHI_MULT, // PHI multiplier for sphere sampling
   SPHERE_RANDOM_OFFSET: 1,
   VELOCITY_CENTER_OFFSET: 0.5,
 

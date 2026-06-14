@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 
 import { DIAGNOSTICS_CONFIG } from '@/config';
-import { PerformanceHelpers } from '@/core/utils/PerformanceUtils';
+import { PerformanceHelpers } from '@/core/utils/PerformanceUtils.utils';
+import { t } from '@/i18n';
 import type { MemoryStats, SystemMetrics } from '@/types';
 
 import { MAX_PERCENTAGE, MetricCard, PerformanceChart } from './Shared';
@@ -13,14 +14,17 @@ interface MemoryTabProps {
 
 const CHART_DISPLAY_DIVISOR = 2;
 const CHART_HEIGHT = 250;
+const MATCH_VALUE_INDEX = 1;
+const MATCH_UNIT_INDEX = 2;
+
 const formatValue = (formatted: string) => {
-    const match = formatted.match(/^([\d.]+)\s+([a-zA-Z]+)$/);
-    return match ? { value: match[1] || '', unit: match[2] || '' } : { value: formatted, unit: '' };
+    const match = /^([\d.]+)\s+([a-zA-Z]+)$/.exec(formatted);
+    return match ? { value: match[MATCH_VALUE_INDEX] ?? '', unit: match[MATCH_UNIT_INDEX] ?? '' } : { value: formatted, unit: '' };
 };
 
 export const MemoryTab: React.FC<MemoryTabProps> = ({ memoryStats, systemMetrics }) => {
-    const formatBytes = useMemo(() => PerformanceHelpers.format.formatBytes, []);
-    const getMemoryColor = useMemo(() => PerformanceHelpers.color.getMemoryColor, []);
+    const formatBytes = useMemo(() => (bytes: number) => PerformanceHelpers.format.formatBytes(bytes), []);
+    const getMemoryColor = useMemo(() => (pct: number) => PerformanceHelpers.color.getMemoryColor(pct), []);
 
     // Use specific chart config
     const chartData = systemMetrics.slice(-DIAGNOSTICS_CONFIG.CHART.HISTORY_LENGTH / CHART_DISPLAY_DIVISOR);
@@ -35,20 +39,20 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({ memoryStats, systemMetrics
             {/* Memory Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <MetricCard
-                    title="Використано"
+                    title={t.diagnostics.used}
                     value={used.value}
                     unit={used.unit}
                     color={getMemoryColor(usedPercentage)}
                     trend={usedPercentage}
                 />
                 <MetricCard
-                    title="Загалом виділено"
+                    title={t.diagnostics.totalAllocated}
                     value={total.value}
                     unit={total.unit}
                     color="text-blue-400"
                 />
                 <MetricCard
-                    title="Ліміт"
+                    title={t.settings.limit}
                     value={limit.value}
                     unit={limit.unit}
                     color="text-purple-400"
@@ -62,7 +66,7 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({ memoryStats, systemMetrics
                 area
                 height={CHART_HEIGHT}
                 lines={[{
-                    name: 'Memory', // Changed from "Memory %" as it shows bytes usually
+                    name: t.diagnostics.memory, // Changed from "Memory %" as it shows bytes usually
                     dataKey: 'memory',
                     stroke: '#8b5cf6'
                 }]}

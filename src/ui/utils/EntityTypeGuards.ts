@@ -1,18 +1,17 @@
 /**
- * Модуль типобезпечних предикатів для детермінації типів сутностей.
+ * Module for type-safe predicates to determine entity types.
  *
- * Забезпечує використання дискримінаційних об'єднань (discriminated unions)
- * для гарантованої безпеки типів на етапі компіляції.
+ * Ensures the use of discriminated unions for guaranteed type safety during compilation.
  */
 
-import type { Food, Obstacle,Organism } from '@/simulation';
+import type { Food, Obstacle, Organism } from '@/simulation/Entity';
 import { EntityType } from '@/types';
 
 /**
- * Типовий предикат для ідентифікації біологічних організмів.
+ * Type predicate to identify biological organisms.
  *
- * @param entity - Потенційна сутність невідомого типу
- * @returns true якщо сутність є екземпляром Organism
+ * @param entity - Potential entity of unknown type
+ * @returns true if the entity is an instance of Organism
  */
 export function isOrganism(entity: unknown): entity is Organism {
   if (entity === null || typeof entity !== 'object') {
@@ -27,10 +26,10 @@ export function isOrganism(entity: unknown): entity is Organism {
 }
 
 /**
- * Типовий предикат для ідентифікації енергетичних ресурсів.
+ * Type predicate to identify energy resources.
  *
- * @param entity - Потенційна сутність невідомого типу
- * @returns true якщо сутність є екземпляром Food
+ * @param entity - Potential entity of unknown type
+ * @returns true if the entity is an instance of Food
  */
 export function isFood(entity: unknown): entity is Food {
   if (entity === null || typeof entity !== 'object') {
@@ -42,10 +41,10 @@ export function isFood(entity: unknown): entity is Food {
 }
 
 /**
- * Типовий предикат для ідентифікації статичних перешкод.
+ * Type predicate to identify static obstacles.
  *
- * @param entity - Потенційна сутність невідомого типу
- * @returns true якщо сутність є екземпляром Obstacle
+ * @param entity - Potential entity of unknown type
+ * @returns true if the entity is an instance of Obstacle
  */
 export function isObstacle(entity: unknown): entity is Obstacle {
   if (entity === null || typeof entity !== 'object') {
@@ -57,10 +56,10 @@ export function isObstacle(entity: unknown): entity is Obstacle {
 }
 
 /**
- * Комбінований предикат для детермінації будь-якого типу сутності.
+ * Combined predicate to determine any entity type.
  *
- * @param entity - Потенційна сутність невідомого типу
- * @returns true якщо сутність є одним з визнаних типів
+ * @param entity - Potential entity of unknown type
+ * @returns true if the entity is one of the recognized types
  */
 export function isValidEntity(
   entity: unknown

@@ -9,40 +9,34 @@
  * - Testability (mock engine)
  */
 
-import type { Obstacle } from '@/simulation';
+import type { IEntityInfo } from '@/shared/interfaces/IEntityInfo';
+export type { IEntityInfo };
 import type {
   EcologicalZone,
-  EntityId,
-  EntityType,
   GenomeId,
   MemoryStats,
   RenderBuffers,
   SerializedSimulationStateV1,
   SimulationConfig,
+  SimulationEvent,
   SimulationStats,
   SystemMetrics,
   Vector3,
   WorldConfig,
 } from '@/types';
 
+import type { IEntity as ISimulationEntity } from './IEntity';
+
 /**
  * Camera data for rendering.
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ICameraData {
   position: Vector3;
   target: Vector3;
 }
 
-/**
- * Entity information for UI selection.
- */
-export interface IEntityInfo {
-  id: EntityId;
-  type: EntityType;
-  position: Vector3;
-  radius: number;
-}
-
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IPerformanceMonitor {
   getMemoryStats(): MemoryStats | null;
   getPerformanceHistory(): SystemMetrics[];
@@ -51,6 +45,7 @@ export interface IPerformanceMonitor {
 /**
  * Main engine interface - implemented by SimulationEngine and EngineProxy.
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ISimulationEngine {
   /** Current simulation configuration */
   readonly config: SimulationConfig;
@@ -63,7 +58,7 @@ export interface ISimulationEngine {
   readonly zones: Map<string, EcologicalZone>;
 
   /** Static obstacles */
-  readonly obstacles: Map<string, Obstacle>;
+  readonly obstacles: Map<string, ISimulationEntity>;
 
   /**
    * Initialize engine.
@@ -171,7 +166,7 @@ export interface ISimulationEngine {
    * @param callback - Event handler
    * @returns Unsubscribe function
    */
-  addEventListener(callback: (event: import('@/types').SimulationEvent) => void): () => void;
+  addEventListener(callback: (event: SimulationEvent) => void): () => void;
 
   /**
    * Pause simulation.

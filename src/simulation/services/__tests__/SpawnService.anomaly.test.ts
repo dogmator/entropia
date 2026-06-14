@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 import { describe, expect, it } from 'vitest';
 
 import { EventBus } from '@/core';
-import { EntityType, ZoneType, type EcologicalZone } from '@/types';
-
 import type { Obstacle } from '@/simulation/Entity';
-import { GridManager } from '@/simulation/managers/GridManager';
-import { OrganismSpawnStrategy, SpawnService } from '@/simulation/services/SpawnService';
+import { GridManager } from '@/simulation/managers/GridManager.manager';
+import { OrganismSpawnStrategy, SpawnService } from '@/simulation/services/Spawn.service';
+import { type EcologicalZone,EntityType, ZoneType } from '@/types';
 
 describe('SpawnService anomaly constraints', () => {
   it('не спавнит организмы внутри зон-аномалий', () => {

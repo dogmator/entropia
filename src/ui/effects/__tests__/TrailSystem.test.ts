@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+/* eslint-disable @typescript-eslint/no-magic-numbers */
 import * as THREE from 'three';
+import { describe, expect, it } from 'vitest';
 
 import { TrailSystem } from '../ParticleSystem';
 
@@ -20,10 +21,10 @@ describe('TrailSystem', () => {
     const system = new TrailSystem(scene, 3);
 
     system.beginFrame();
-    system.updateTrail('prey_1', { position: { x: 1, y: 0, z: 0 }, color: 0x00ff00, enabled: true });
-    system.updateTrail('prey_1', { position: { x: 2, y: 0, z: 0 }, color: 0x00ff00, enabled: true });
-    system.updateTrail('prey_1', { position: { x: 3, y: 0, z: 0 }, color: 0x00ff00, enabled: true });
-    system.updateTrail('prey_1', { position: { x: 4, y: 0, z: 0 }, color: 0x00ff00, enabled: true });
+    system.updateTrail('prey_1', { position: { x: 1, y: 0, z: 0 }, color: 0x00ff00, isEnabled: true });
+    system.updateTrail('prey_1', { position: { x: 2, y: 0, z: 0 }, color: 0x00ff00, isEnabled: true });
+    system.updateTrail('prey_1', { position: { x: 3, y: 0, z: 0 }, color: 0x00ff00, isEnabled: true });
+    system.updateTrail('prey_1', { position: { x: 4, y: 0, z: 0 }, color: 0x00ff00, isEnabled: true });
 
     const trail = getTrailDebug(system).trails.get('prey_1');
     expect(trail).toBeDefined();
@@ -45,7 +46,7 @@ describe('TrailSystem', () => {
     const system = new TrailSystem(scene, 8);
 
     system.beginFrame();
-    system.updateTrail('prey_2', { position: { x: 1, y: 1, z: 1 }, color: 0x00ff00, enabled: true });
+    system.updateTrail('prey_2', { position: { x: 1, y: 1, z: 1 }, color: 0x00ff00, isEnabled: true });
     expect(getTrailDebug(system).trails.size).toBe(1);
 
     system.beginFrame();

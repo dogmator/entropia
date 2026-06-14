@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { Logger, LogLevel } from '../Logger';
+import { Logger, LogLevel } from '../Logger.service';
 
 interface MockSocket {
   readyState: number;
@@ -108,7 +108,7 @@ describe('Logger refactor regression: local flow', () => {
     logger.setMaxLogs(TRIMMED_MAX_LOGS);
 
     for (let index = 0; index < TRIM_SOURCE_COUNT; index += 1) {
-      logger.info(`entry-${index}`, 'Trim');
+      logger.info(`entry-${String(index)}`, 'Trim');
     }
 
     expect(logger.getLogs().length).toBeLessThanOrEqual(TRIMMED_MAX_LOGS);
@@ -118,7 +118,7 @@ describe('Logger refactor regression: local flow', () => {
     logger.setMaxLogs(Number.POSITIVE_INFINITY);
 
     for (let index = 0; index < LARGE_TRIM_SOURCE_COUNT; index += 1) {
-      logger.info(`entry-${index}`, 'TrimInfinity');
+      logger.info(`entry-${String(index)}`, 'TrimInfinity');
     }
 
     expect(logger.getLogs()).toHaveLength(LARGE_TRIM_SOURCE_COUNT);
@@ -144,7 +144,7 @@ describe('Logger refactor regression: local flow', () => {
 
 describe('Logger refactor regression: remote flow reconnect/performance', () => {
   let logger: Logger;
-  let setTimeoutSpy: ReturnType<typeof vi.spyOn>;
+  let setTimeoutSpy: ReturnType<typeof setupLogger>['setTimeoutSpy'];
 
   beforeEach(() => {
     ({ logger, setTimeoutSpy } = setupLogger());
@@ -193,7 +193,7 @@ describe('Logger refactor regression: remote flow queue policies', () => {
     logger.setRemoteLogging(true);
 
     for (let index = 0; index < OVERFLOW_ITERATIONS; index += 1) {
-      logger.info(`overflow-${index}`, 'Remote');
+      logger.info(`overflow-${String(index)}`, 'Remote');
     }
 
     expect(warnSpy).toHaveBeenCalledWith('[Logger] Remote queue overflow. Old entries were dropped.');

@@ -31,7 +31,6 @@ interface EvolutionPulseProps {
 const MAX_PULSES = 60;
 const MAX_EVENTS_PER_TICK = 6;
 const SAMPLE_ATTEMPTS = 10;
-const WORLD_SIZE_FALLBACK = 100;
 const BIRTH_PULSE_OPACITY = 0.6;
 const DEATH_PULSE_OPACITY = 0.45;
 const PULSE_RENDER_ORDER = 20;
@@ -52,12 +51,12 @@ const readPositionAt = (data: Float32Array, offset: number): THREE.Vector3 => ne
 const sampleByRandom = (
   data: Float32Array,
   count: number,
-  acceptDead: boolean
+  shouldAcceptDead: boolean
 ): THREE.Vector3 | null => {
   for (let i = 0; i < SAMPLE_ATTEMPTS; i++) {
     const index = Math.floor(Math.random() * count); // eslint-disable-line sonarjs/pseudo-random
     const offset = index * BUFFER_LAYOUT.STRIDE;
-    if (isDeadAt(data, offset) === acceptDead) {
+    if (isDeadAt(data, offset) === shouldAcceptDead) {
       return readPositionAt(data, offset);
     }
   }
@@ -68,11 +67,11 @@ const sampleByRandom = (
 const sampleByScan = (
   data: Float32Array,
   count: number,
-  acceptDead: boolean
+  shouldAcceptDead: boolean
 ): THREE.Vector3 | null => {
   for (let index = 0; index < count; index++) {
     const offset = index * BUFFER_LAYOUT.STRIDE;
-    if (isDeadAt(data, offset) === acceptDead) {
+    if (isDeadAt(data, offset) === shouldAcceptDead) {
       return readPositionAt(data, offset);
     }
   }
@@ -83,14 +82,14 @@ const sampleByScan = (
 const samplePosition = (
   data: Float32Array,
   count: number,
-  acceptDead: boolean
+  shouldAcceptDead: boolean
 ): THREE.Vector3 | null => {
   if (count <= 0) {
     return null;
   }
 
-  return sampleByRandom(data, count, acceptDead) ?? sampleByScan(data, count, acceptDead);
-};
+  return sampleByRandom(data, count, shouldAcceptDead) ?? sampleByScan(data, count, shouldAcceptDead);
+  };
 
 const createFallbackPosition = (worldSize: number): THREE.Vector3 => new THREE.Vector3(
   Math.random() * worldSize, // eslint-disable-line sonarjs/pseudo-random
@@ -100,11 +99,11 @@ const createFallbackPosition = (worldSize: number): THREE.Vector3 => new THREE.V
 
 const getPulsePosition = (engine: ISimulationEngine, kind: PulseKind, worldSize: number): THREE.Vector3 => {
   const buffers = engine.getRenderData();
-  const acceptDead = kind === 'death';
+  const shouldAcceptDead = kind === 'death';
 
   return (
-    samplePosition(buffers.prey, buffers.preyCount, acceptDead)
-    ?? samplePosition(buffers.predators, buffers.predatorCount, acceptDead)
+    samplePosition(buffers.prey, buffers.preyCount, shouldAcceptDead)
+    ?? samplePosition(buffers.predators, buffers.predatorCount, shouldAcceptDead)
     ?? createFallbackPosition(worldSize)
   );
 };
@@ -222,7 +221,7 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
       return;
     }
 
-    const worldSize = engine.worldConfig?.WORLD_SIZE ?? WORLD_SIZE_FALLBACK;
+    const worldSize = engine.worldConfig.WORLD_SIZE;
     const birthDelta = Math.max(0, stats.totalBirths - totalsRef.current.births);
     const deathDelta = Math.max(0, stats.totalDeaths - totalsRef.current.deaths);
 
@@ -231,7 +230,7 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
       ...Array.from({ length: Math.min(MAX_EVENTS_PER_TICK, deathDelta) }, () => 'death' as const),
     ];
 
-    const nextId = () => `pulse_${counterRef.current++}`;
+    const nextId = () => `pulse_${String(counterRef.current++)}`;
     const records: PulseRecord[] = [];
 
     if (!totalsRef.current.introPlayed && (stats.preyCount + stats.predatorCount > 0)) {
