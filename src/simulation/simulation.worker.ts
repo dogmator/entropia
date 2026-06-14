@@ -263,6 +263,15 @@ self.onmessage = (event: MessageEvent): void => {
         case 'getStats':
             handleGetStats();
             break;
+        case 'findEntityAt':
+            void handleAsyncCommand(e => e.findEntityAt(data.position, data.tolerance), data.requestId);
+            break;
+        case 'getEntityByInstanceId':
+            void handleAsyncCommand(e => e.getEntityByInstanceId(data.entityType, data.instanceId, data.isDead), data.requestId);
+            break;
+        case 'getGeneticNode':
+            void handleAsyncCommand(e => e.getGeneticNode(data.genomeId as import('@/types').GenomeId), data.requestId);
+            break;
         case 'syncCamera':
             if (engine) {
                 engine.setCameraData({
