@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 
 import { DIAGNOSTICS_CONFIG } from '@/config';
+import { t } from '@/i18n';
 import type { PerformanceMetrics } from '@/types';
 
 export const MAX_PERCENTAGE = 100;
@@ -38,7 +39,7 @@ export const MetricCard = React.memo(({ title, value, unit, color, trend, subtit
         {trend !== undefined ? <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
             <div
                 className="h-full bg-gradient-to-r from-emerald-500 to-yellow-500 transition-all duration-300"
-                style={{ width: `${Math.min(MAX_PERCENTAGE, trend)}%` }}
+                style={{ width: `${String(Math.min(MAX_PERCENTAGE, trend))}%` }}
             />
         </div> : null}
     </div>
@@ -81,7 +82,7 @@ const LineChartContent = ({ data, lines }: { data: Partial<PerformanceMetrics>[]
         <YAxis hide />
         <Tooltip
             contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '8px' }}
-            labelFormatter={(value) => `Time: ${new Date(value).toLocaleTimeString()}`}
+            labelFormatter={(value: unknown) => `Time: ${new Date(Number(value)).toLocaleTimeString()}`}
         />
         {lines.map((line) => (
             <Line
@@ -114,7 +115,7 @@ export const PerformanceChart = React.memo(({
         <h3 className="text-sm font-medium text-gray-300 mb-4">{title}</h3>
         {data.length === 0 ? (
             <div className="h-[200px] flex items-center justify-center text-xs text-gray-500 border border-dashed border-white/10 rounded-lg">
-                Дані тимчасово недоступні. Зачекайте на перші тики симуляції.
+                {t.diagnostics.dataUnavailable}
             </div>
         ) : (
             <ResponsiveContainer width="100%" height={height}>

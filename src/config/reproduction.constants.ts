@@ -1,15 +1,15 @@
 /**
- * Механізми репродукції та онтогенезу.
- * Параметри реплікації організмів та життєвого циклу.
+ * Reproduction and ontogenesis mechanisms.
+ * Organism replication and life cycle parameters.
  */
 
 export const REPRODUCTION = {
-  /** Частка енергії, що зберігається батьківським організмом після поділу. */
+  /** Fraction of energy retained by parent organism after division. */
   energyCostMultiplier: 0.45,
 } as const;
 
-/** Критичний поріг енергії, необхідний для ініціації процесу реплікації (розмноження). */
+/** Critical energy threshold required to initiate replication (reproduction) process. */
 export const REPRODUCTION_ENERGY_THRESHOLD = 150;
 
-/** Мінімальна тривалість життєвого циклу (в ітераціях) перед набуттям репродуктивної здатності. */
+/** Minimum life cycle duration (in iterations) before acquiring reproductive capability. */
 export const MIN_REPRODUCTION_AGE = 40;

@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { t } from '@/i18n';
+
 export type TabKey = 'performance' | 'memory' | 'entities' | 'world' | 'logs';
 
 interface DiagnosticsNavigationProps {
@@ -36,11 +38,11 @@ const TAB_ICONS: Record<TabKey, React.ReactNode> = {
 };
 
 const TAB_NAMES: Record<TabKey, string> = {
-    performance: 'Продуктивність',
-    memory: 'Пам\'ять',
-    entities: 'Сутності',
-    world: 'Світ',
-    logs: 'Журнали'
+    performance: t.diagnostics.performance,
+    memory: t.diagnostics.memory,
+    entities: t.entity.entities,
+    world: t.diagnostics.world,
+    logs: t.diagnostics.logs
 };
 
 export const DiagnosticsNavigation: React.FC<DiagnosticsNavigationProps> = ({ activeTab, onTabChange }) => {
@@ -49,7 +51,7 @@ export const DiagnosticsNavigation: React.FC<DiagnosticsNavigationProps> = ({ ac
             {(Object.keys(TAB_ICONS) as TabKey[]).map((tab) => (
                 <button
                     key={tab}
-                    onClick={() => onTabChange(tab)}
+                    onClick={() => { onTabChange(tab); }}
                     className={`flex-shrink-0 px-3 sm:px-6 py-3 text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 sm:gap-2 ${activeTab === tab
                         ? 'text-emerald-400 border-b-2 border-emerald-400 bg-emerald-400/10'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'

@@ -126,11 +126,13 @@ export const RENDER = {
       prey: 30,
       predator: 40,
       food: 100,
+      dead: 5,
     },
     emissiveIntensity: {
       prey: 0.15,
       predator: 0.2,
       food: 0.5,
+      dead: 0.1,
     },
   },
 
@@ -206,7 +208,7 @@ export const COLORS = {
   prey: {
     base: 0x44ff88,
     glow: 0x88ffaa,
-    // дужче зменьшити яркость при загибели
+    // decrease brightness significantly on death
     death: 0x44ff44,
     trail: 0x66ff99,
   },
@@ -231,36 +233,6 @@ export const COLORS = {
     danger: 0xef4444,
     warning: 0xf59e0b,
   },
-} as const;
-
-/**
- * Cosmic background constants (star field and nebulae).
- */
-export const COSMIC_BACKGROUND_CONSTANTS = {
-  // Star field parameters
-  STAR_COUNT: 3000,
-  STAR_RADIUS: 2000,
-  STAR_RADIUS_MIN_FACTOR: 0.8,
-  STAR_RADIUS_VARIATION: 0.4,
-  STAR_SIZE_POWER: 3,
-  STAR_SIZE_MULTIPLIER: 3,
-  STAR_SIZE_BASE: 0.5,
-  STAR_BRIGHTNESS_BASE: 0.5,
-  STAR_BRIGHTNESS_VARIATION: 0.5,
-  STAR_TWINKLE_BASE: 1,
-  STAR_TWINKLE_VARIATION: 3,
-
-  // Nebula parameters
-  NEBULA_RADIUS: 1800,
-  NEBULA_SEGMENTS: 64,
-  NEBULA_ROTATION_Y: 0.01,
-  NEBULA_ROTATION_X: 0.005,
-
-  // 3D vector constants
-  VECTOR3_COMPONENTS: 3,
-  VECTOR2_MULTIPLIER: 2,
-  SINGLE_COMPONENT: 1,
-  TWO_PI: Math.PI * 2,
 } as const;
 
 /**
@@ -323,4 +295,11 @@ export const ENTITY_CONSTANTS = {
 
   // Subtype inheritance
   SUBTYPE_INHERITANCE_PROBABILITY: 0.9,
+
+  // Random centering and death scatter
+  RANDOM_CENTER_OFFSET: 0.5,
+  DEATH_POSITION_RANGE: 2,
+
+  // Mutation divisor for mutateTrait
+  MUTATION_DIVISOR: 2,
 } as const;

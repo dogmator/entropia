@@ -6,9 +6,41 @@ import { BUFFER_LAYOUT, COLORS, RENDER } from '../../config';
 import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { TrailSystem } from '../effects/ParticleSystem';
 
+interface TrailParams {
+    position: { x: number; y: number; z: number };
+    color: number;
+    isEnabled: boolean;
+}
+
 interface TrailsProps {
     engine: ISimulationEngine;
 }
+
+interface UpdateEntityTrailsParams {
+    data: Float32Array;
+    count: number;
+    prefix: string;
+    idCache: Map<number, string>;
+    params: TrailParams;
+    trailSystem: TrailSystem;
+}
+
+const updateEntityTrails = (options: UpdateEntityTrailsParams): void => {
+    const { data, count, prefix, idCache, params, trailSystem } = options;
+    for (let i = 0; i < count; i++) {
+        const offset = i * BUFFER_LAYOUT.STRIDE;
+        const numId = data[offset + BUFFER_LAYOUT.OFFSETS.ID] ?? 0;
+        let id = idCache.get(numId);
+        if (!id) {
+            id = `${prefix}${String(numId)}`;
+            idCache.set(numId, id);
+        }
+        params.position.x = data[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
+        params.position.y = data[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
+        params.position.z = data[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
+        trailSystem.updateTrail(id, params);
+    }
+};
 
 export const Trails: React.FC<TrailsProps> = ({ engine }) => {
     const { scene } = useThree();
@@ -17,13 +49,13 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
     const trailParamsRef = useRef({
         prey: {
             position: { x: 0, y: 0, z: 0 },
-            color: COLORS.prey.trail || 0x00ff00,
-            enabled: true
+            color: COLORS.prey.trail,
+            isEnabled: true
         },
         predator: {
             position: { x: 0, y: 0, z: 0 },
-            color: COLORS.predator.trail || 0xff0000,
-            enabled: true
+            color: COLORS.predator.trail,
+            isEnabled: true
         }
     });
 
@@ -47,44 +79,9 @@ export const Trails: React.FC<TrailsProps> = ({ engine }) => {
 
         const renderBuffers = engine.getRenderData();
         const { prey, predators, preyCount, predatorCount } = renderBuffers;
-        const preyIdCache = preyIdCacheRef.current;
-        const predatorIdCache = predatorIdCacheRef.current;
-        const preyParams = trailParamsRef.current.prey;
-        const predatorParams = trailParamsRef.current.predator;
 
-        // Update Prey Trails
-        for (let i = 0; i < preyCount; i++) {
-            const offset = i * BUFFER_LAYOUT.STRIDE;
-            const numId = prey[offset + BUFFER_LAYOUT.OFFSETS.ID] ?? 0;
-            let id = preyIdCache.get(numId);
-            if (!id) {
-                id = `prey_${numId}`;
-                preyIdCache.set(numId, id);
-            }
-
-            preyParams.position.x = prey[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
-            preyParams.position.y = prey[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
-            preyParams.position.z = prey[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
-
-            trailSystem.updateTrail(id, preyParams);
-        }
-
-        // Update Predator Trails
-        for (let i = 0; i < predatorCount; i++) {
-            const offset = i * BUFFER_LAYOUT.STRIDE;
-            const numId = predators[offset + BUFFER_LAYOUT.OFFSETS.ID] ?? 0;
-            let id = predatorIdCache.get(numId);
-            if (!id) {
-                id = `predator_${numId}`;
-                predatorIdCache.set(numId, id);
-            }
-
-            predatorParams.position.x = predators[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
-            predatorParams.position.y = predators[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
-            predatorParams.position.z = predators[offset + BUFFER_LAYOUT.OFFSETS.Z] ?? 0;
-
-            trailSystem.updateTrail(id, predatorParams);
-        }
+        updateEntityTrails({ data: prey, count: preyCount, prefix: 'prey_', idCache: preyIdCacheRef.current, params: trailParamsRef.current.prey, trailSystem });
+        updateEntityTrails({ data: predators, count: predatorCount, prefix: 'predator_', idCache: predatorIdCacheRef.current, params: trailParamsRef.current.predator, trailSystem });
 
         trailSystem.prune();
     });

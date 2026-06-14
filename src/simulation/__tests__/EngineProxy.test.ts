@@ -1,8 +1,11 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SerializedSimulationStateV1 } from '@/types';
 
-import { EngineProxy } from '../EngineProxy';
+import { EngineProxy } from '../engine/EngineProxy';
+import type { WorkerChannel } from '../engine/WorkerChannel.service';
 import type { WorkerCommand } from '../WorkerMessages';
 
 interface WorkerStub {
@@ -65,7 +68,7 @@ const createState = (): SerializedSimulationStateV1 => ({
 });
 
 describe('EngineProxy command optimization', () => {
-  let postedMessages: Array<WorkerCommand | Record<string, unknown>>;
+  let postedMessages: (WorkerCommand | Record<string, unknown>)[];
   let workerStub: WorkerStub;
   let proxy: EngineProxy;
 
@@ -204,7 +207,7 @@ describe('EngineProxy command optimization', () => {
   it('clears async timeout once command response arrives', async () => {
     const pendingRejection = vi.fn();
 
-    const requestPromise = proxy.getGeneticRoots().catch((error) => {
+    const requestPromise = proxy.getGeneticRoots().catch((error: unknown) => {
       pendingRejection(error);
       throw error;
     });
@@ -215,7 +218,7 @@ describe('EngineProxy command optimization', () => {
 
     expect(command?.requestId).toBeDefined();
 
-    (proxy as unknown as { handleMessage: (event: MessageEvent) => void }).handleMessage({
+    (proxy as unknown as { channel: WorkerChannel }).channel.dispatch({
       data: {
         type: 'commandResponse',
         requestId: command?.requestId,

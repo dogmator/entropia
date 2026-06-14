@@ -1,3 +1,5 @@
+import React from 'react';
+
 export interface SettingsSliderProps<T> {
     label: string;
     value: number;
@@ -9,6 +11,9 @@ export interface SettingsSliderProps<T> {
     colorClass?: string;
 }
 
+const PRECISION_INT = 0;
+const PRECISION_FLOAT = 2;
+
 export const SettingsSlider = <T,>({
     label,
     value,
@@ -18,12 +23,12 @@ export const SettingsSlider = <T,>({
     param,
     onChange,
     colorClass = 'accent-emerald-500',
-}: SettingsSliderProps<T>) => (
+}: SettingsSliderProps<T>): React.JSX.Element => (
     <div className="group flex flex-col gap-1.5 mb-4 last:mb-0">
         <div className="flex justify-between items-center text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 group-hover:text-white transition-colors">
             <span className="font-bold">{label}</span>
             <span className="font-mono font-black text-white bg-white/5 px-2 py-0.5 rounded text-[10px] sm:text-[9px] min-w-[36px] text-center">
-                {value.toFixed(step >= 1 ? 0 : 2)}
+                {value.toFixed(step >= 1 ? PRECISION_INT : PRECISION_FLOAT)}
             </span>
         </div>
         <input
@@ -32,7 +37,7 @@ export const SettingsSlider = <T,>({
             max={max}
             step={step}
             value={value}
-            onChange={(e) => onChange(param, parseFloat(e.target.value))}
+            onChange={(e) => { onChange(param, parseFloat(e.target.value)); }}
             className={`w-full h-2 sm:h-1 bg-white/10 rounded-lg appearance-none cursor-pointer ${colorClass} hover:bg-white/20 transition-all touch-manipulation`}
         />
     </div>

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 /**
  * Модульні тести для валідації адаптивного управління буферами у SimulationEngine.
  *
@@ -11,7 +13,7 @@ import { beforeEach,describe, expect, it, vi } from 'vitest';
 
 import { EntityType } from '@/types';
 
-import { SimulationEngine } from '../Engine';
+import { SimulationEngine } from '../engine/Engine';
 import { Food } from '../Entity';
 
 describe('SimulationEngine — Адаптивні буфери рендерингу', () => {
@@ -23,12 +25,11 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
   it('повинен створювати буфери з запасом при зростанні популяції', () => {
     // Початковий стан
-    const initialData = engine.getRenderData();
-    const initialCapacity = initialData.prey.length;
+    engine.getRenderData();
 
     // Спавн великої кількості організмів
     for (let i = 0; i < 100; i++) {
-      const org = engine['spawnService'].spawnOrganism(EntityType.PREY);
+      const org = engine.spawnService.spawnOrganism(EntityType.PREY);
       if (org) {engine.organisms.set(org.id, org);}
     }
 
@@ -43,7 +44,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
   it('повинен скорочувати буфери при значному зменшенні популяції (>75%)', () => {
     // Крок 1: Створення великої популяції
     for (let i = 0; i < 200; i++) {
-      const org = engine['spawnService'].spawnOrganism(EntityType.PREY);
+      const org = engine.spawnService.spawnOrganism(EntityType.PREY);
       if (org) {engine.organisms.set(org.id, org);}
     }
     engine.getRenderData();
@@ -64,7 +65,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
   it('повинен запобігати частим реалокаціям при незначних коливаннях', () => {
     // Створення базової популяції
     for (let i = 0; i < 100; i++) {
-      const org = engine['spawnService'].spawnOrganism(EntityType.PREDATOR);
+      const org = engine.spawnService.spawnOrganism(EntityType.PREDATOR);
       if (org) {engine.organisms.set(org.id, org);}
     }
     const baselineData = engine.getRenderData();
@@ -79,7 +80,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
       // Збільшення на 10
       for (let i = 0; i < 10; i++) {
-        const org = engine['spawnService'].spawnOrganism(EntityType.PREDATOR);
+        const org = engine.spawnService.spawnOrganism(EntityType.PREDATOR);
         if (org) {engine.organisms.set(org.id, org);}
       }
       const currentData = engine.getRenderData();
@@ -91,7 +92,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
   it('повинен коректно відновлювати буфери після reset()', () => {
     for (let i = 0; i < 50; i++) {
-      const org = engine['spawnService'].spawnOrganism(EntityType.PREY);
+      const org = engine.spawnService.spawnOrganism(EntityType.PREY);
       if (org) {engine.organisms.set(org.id, org);}
     }
     engine.getRenderData();
@@ -106,7 +107,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
   it('повинен підтримувати детермінованість експорту/імпорту стану', () => {
     for (let i = 0; i < 75; i++) {
-      const org = engine['spawnService'].spawnOrganism(EntityType.PREY);
+      const org = engine.spawnService.spawnOrganism(EntityType.PREY);
       if (org) {engine.organisms.set(org.id, org);}
     }
 
@@ -137,7 +138,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
     if (!validFood) {
       let spawned = null;
       for (let i = 0; i < 200 && !spawned; i++) {
-        spawned = engine['spawnService'].spawnFood(50_000 + i);
+        spawned = engine.spawnService.spawnFood(50_000 + i);
       }
 
       expect(spawned).not.toBeNull();
@@ -197,7 +198,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
     let validFood: Food | null = null;
     for (let i = 0; i < 200 && !validFood; i++) {
-      validFood = engine['spawnService'].spawnFood(80_000 + i);
+      validFood = engine.spawnService.spawnFood(80_000 + i);
     }
 
     expect(validFood).not.toBeNull();

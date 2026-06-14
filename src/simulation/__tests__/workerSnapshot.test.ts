@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { describe, expect, it } from 'vitest';
 
 import type { RenderBuffers } from '@/types';

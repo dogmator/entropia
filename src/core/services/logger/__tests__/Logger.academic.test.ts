@@ -33,7 +33,7 @@ describe('logger/Logger academic refactor', () => {
         logger.setMaxLogs(TEST_MAX_LOGS);
 
         for (let index = 0; index < TEST_ITERATIONS; index += 1) {
-            logger.info(`entry-${index}`, 'Stats');
+            logger.info(`entry-${String(index)}`, 'Stats');
         }
 
         const logs = logger.getLogs();

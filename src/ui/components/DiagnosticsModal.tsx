@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 
-import type { LogEntry } from '@/core/services/Logger';
+import { t } from '@/i18n';
+import type { LogEntry } from '@/core/services/Logger.service';
 import type { MemoryStats, PerformanceMetrics, SimulationStats, SystemMetrics } from '@/types';
 
 import { DiagnosticsNavigation, type TabKey } from './diagnostics/DiagnosticsNavigation';
@@ -57,10 +58,10 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
 const DiagnosticsHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
   <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/10">
     <div className="flex items-center gap-2 sm:gap-4">
-      <h2 className="text-lg sm:text-2xl font-black text-emerald-400">Діагностика системи</h2>
+      <h2 className="text-lg sm:text-2xl font-black text-emerald-400">{t.diagnostics.title}</h2>
       <div className="hidden sm:flex items-center gap-2 text-xs text-gray-400">
         <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-        <span>Реальний час</span>
+        <span>{t.stats.realTime}</span>
       </div>
     </div>
     <button

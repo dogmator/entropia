@@ -2,4 +2,4 @@
  * Simulation providers - data providers extracted from Engine.
  */
 
-export { CameraDataProvider } from './CameraDataProvider';
+export { CameraDataProvider } from './CameraDataProvider.provider';

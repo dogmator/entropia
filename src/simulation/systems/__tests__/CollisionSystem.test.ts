@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 /**
  * Юніт-тести для CollisionSystem.
  *
@@ -11,18 +13,18 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventBus } from '@/core';
-import type { Genome, OrganismId,WorldConfig } from '@/types';
-import { createOrganismId,EntityType } from '@/types';
+import type { EcologicalZone, Genome, WorldConfig } from '@/types';
+import { createGenomeId, createOrganismId, EntityType } from '@/types';
 
 import { Food, Obstacle, Organism } from '../../Entity';
-import { GridManager } from '../../managers/GridManager';
-import { CollisionSystem } from '../CollisionSystem';
+import { GridManager } from '../../managers/GridManager.manager';
+import { CollisionSystem } from '../Collision.system';
 
 /**
  * Мінімальний геном для тестування.
  */
 const createTestGenome = (type: EntityType = EntityType.PREY): Genome => ({
-    id: 'test-genome',
+    id: createGenomeId('test-genome'),
     type,
     subtype: 'default',
     size: 3,
@@ -33,11 +35,10 @@ const createTestGenome = (type: EntityType = EntityType.PREY): Genome => ({
     mutationRate: 0.05,
     reproductionEnergy: 50,
     parentGenomeId: null,
-});
+} as unknown as Genome);
 
 const createWorldConfig = (): WorldConfig => ({
     WORLD_SIZE: 100,
-    HALF_WORLD_SIZE: 50,
     MAX_TOTAL_ORGANISMS: 500,
     INITIAL_PREY: 10,
     INITIAL_PREDATOR: 5,
@@ -65,10 +66,10 @@ describe('CollisionSystem', () => {
             const b = { position: { x: 5, y: 0, z: 0 }, radius: 3 };
 
             // Доступаємося до приватного методу через any для тестування
-            const result = (collisionSystem as unknown as { isColliding: typeof collisionSystem['isColliding'] })
-            ['isColliding'](a, b);
+            const isCollidingResult = (collisionSystem as unknown as { isColliding: typeof collisionSystem['isColliding'] })
+            .isColliding(a, b);
 
-            expect(result).toBe(true);
+            expect(isCollidingResult).toBe(true);
         });
 
         it('повинен повертати false коли об\'єкти не перетинаються', () => {
@@ -76,10 +77,10 @@ describe('CollisionSystem', () => {
             const a = { position: { x: 0, y: 0, z: 0 }, radius: 3 };
             const b = { position: { x: 10, y: 0, z: 0 }, radius: 3 };
 
-            const result = (collisionSystem as unknown as { isColliding: typeof collisionSystem['isColliding'] })
-            ['isColliding'](a, b);
+            const isCollidingResult = (collisionSystem as unknown as { isColliding: typeof collisionSystem['isColliding'] })
+            .isColliding(a, b);
 
-            expect(result).toBe(false);
+            expect(isCollidingResult).toBe(false);
         });
     });
 
@@ -88,7 +89,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5); // Дуже близько до prey
@@ -120,7 +121,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
@@ -147,7 +148,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
             const prey = new Organism(createOrganismId('prey-1'), { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
@@ -176,7 +177,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             prey.velocity = { x: 5, y: 1, z: 0 }; // Має нормальну + тангенціальну компоненти
@@ -200,7 +201,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
@@ -236,7 +237,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
@@ -261,7 +262,7 @@ describe('CollisionSystem', () => {
             const organisms = new Map<string, Organism>();
             const food = new Map<string, Food>();
             const obstacles = new Map<string, Obstacle>();
-            const zones = new Map<string, import('@/types').EcologicalZone>();
+            const zones = new Map<string, EcologicalZone>();
 
             const prey = new Organism(createOrganismId('prey-zone-freeze'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
             prey.velocity = { x: 2, y: 1, z: -1 };

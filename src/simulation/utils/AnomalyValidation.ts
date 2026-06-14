@@ -1,6 +1,6 @@
 import type { Vector3 } from '@/types';
 
-import { MathUtils } from '../MathUtils';
+import { MathUtils } from '../MathUtils.utils';
 
 /** Safety buffer applied to food spawn/import/sanitation against obstacles and zones. */
 export const FOOD_ANOMALY_PADDING = 5;
@@ -26,9 +26,9 @@ export interface PositionAnomalyValidationParams {
 }
 
 /**
- * Уніфікована перевірка позиції щодо сферичних аномалій.
- * Застосовує тороїдальну метрику, щоб узгодити поведінку
- * у всіх шляхах (spawn, import, runtime sanitation).
+ * Unified position check regarding spherical anomalies.
+ * Applies toroidal metrics to align behavior across all paths
+ * (spawn, import, runtime sanitation).
  */
 export function isPositionBlockedByAnomalies({
   position,
@@ -59,9 +59,10 @@ export function isPositionBlockedByAnomalies({
 }
 
 /**
- * Базова перевірка "точка в забороненій сферичній області"
- * з урахуванням додаткового safety-buffer.
+ * Base check "point in forbidden spherical region"
+ * considering an additional safety buffer.
  */
+// eslint-disable-next-line max-params
 function isBlockedBySphericalAnomaly(
   position: Vector3,
   anomalyCenter: Vector3,

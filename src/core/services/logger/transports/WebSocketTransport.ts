@@ -1,7 +1,7 @@
 import { DEBUG_CONFIG } from '@/config';
 
-import { LogEntry } from '../types';
-import { RemoteTransport } from './RemoteTransport';
+import type { LogEntry } from '../types';
+import type { RemoteTransport } from './RemoteTransport';
 
 const RECONNECT_DELAY_MS = 3000;
 const MAX_QUEUE_SIZE = 300;
@@ -13,15 +13,15 @@ const isSocketOpen = (socket: WebSocket | null): socket is WebSocket =>
     socket !== null && socket.readyState === WebSocket.OPEN;
 
 /**
- * WebSocketTransport — реалізація транспорту логування через WebSocket.
- * Підтримує чергу повідомлень, backpressure та автоматичне перепідключення.
+ * WebSocketTransport — WebSocket implementation of logging transport.
+ * Supports message queuing, backpressure, and automatic reconnection.
  */
 export class WebSocketTransport implements RemoteTransport {
     private socket: WebSocket | null = null;
-    private messageQueue: LogEntry[] = [];
-    private isConnecting: boolean = false;
-    private enabled: boolean = false;
-    private endpoint: string;
+    private readonly messageQueue: LogEntry[] = [];
+    private isConnecting = false;
+    private enabled = false;
+    private readonly endpoint: string;
     private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(endpoint: string = DEBUG_CONFIG.remoteWsEndpoint) {
@@ -89,9 +89,9 @@ export class WebSocketTransport implements RemoteTransport {
             return;
         }
 
-        this.socket.onopen = () => this.handleOpen();
-        this.socket.onclose = () => this.handleClose();
-        this.socket.onerror = (error) => this.handleError(error);
+        this.socket.onopen = () => { this.handleOpen(); };
+        this.socket.onclose = () => { this.handleClose(); };
+        this.socket.onerror = (error) => { this.handleError(error); };
     }
 
     private handleOpen(): void {

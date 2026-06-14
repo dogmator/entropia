@@ -1,4 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { SimulationConfig } from '@/types';
 
@@ -48,7 +50,7 @@ describe('parseConfigFromSearch', () => {
 
         expect(parsed.maxFood).toBe(300);
         expect(parsed.showObstacles).toBe(false);
-        expect((parsed as Record<string, unknown>).unknownKey).toBeUndefined();
+        expect((parsed as unknown as Record<string, unknown>)['unknownKey']).toBeUndefined();
     });
 
     it('повертає defaults при порожньому рядку пошуку', () => {
@@ -96,6 +98,7 @@ describe('parseConfigFromSearch', () => {
             DEFAULT_CONFIG,
             {
                 graphicsQuality: (value, fallback) => (
+                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                     value === 'LOW' || value === 'MEDIUM' || value === 'HIGH' || value === 'ULTRA' || value === 'CUSTOM'
                         ? value
                         : fallback
@@ -209,6 +212,7 @@ describe('updateUrlFromConfig', () => {
         updateUrlFromConfig(DEFAULT_CONFIG, DEFAULT_CONFIG, 'replace');
 
         // URL ідентичний поточному (pathname без params) — history не викликається
+        expect(replaceSpy).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.stringContaining('maxFood'));
         replaceSpy.mockRestore();
         window.history.replaceState(null, '', '/');
     });

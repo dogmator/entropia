@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 /**
  * Юніт-тести для PhysicsSystem.
  *
@@ -10,41 +12,10 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import type { Genome, SimulationConfig, WorldConfig } from '../../../types';
-import { createOrganismId, EntityType, createGenomeId } from '../../../types';
-
+import type { Genome, WorldConfig } from '../../../types';
+import { createGenomeId,createOrganismId, EntityType } from '../../../types';
 import { Organism } from '../../Entity';
-import { PhysicsSystem } from '../PhysicsSystem';
-
-/**
- * Мінімальна конфігурація для тестування.
- */
-const createTestConfig = (): SimulationConfig => ({
-    drag: 0.98,
-    separationWeight: 1.5,
-    cohesionWeight: 1.0,
-    alignmentWeight: 1.0,
-    seekWeight: 2.0,
-    avoidWeight: 3.0,
-    foodSpawnRate: 0.1,
-    maxFood: 100,
-    maxOrganisms: 500,
-    showObstacles: true,
-    mutationFactor: 0.1,
-    reproductionThreshold: 100,
-    organismOpacity: 1,
-    foodOpacity: 1,
-    organismScale: 1,
-    foodScale: 1,
-    bloomIntensity: 1,
-    showGrid: true,
-    gridOpacity: 0.5,
-    trailLength: 10,
-    showEnergyGlow: true,
-    showTrails: true,
-    showParticles: true,
-    graphicsQuality: 'HIGH',
-});
+import { PhysicsSystem } from '../Physics.system';
 
 const createWorldConfig = (): WorldConfig => ({
     WORLD_SIZE: 100,
@@ -76,7 +47,6 @@ const createTestGenome = (): Genome => ({
 
 describe('PhysicsSystem', () => {
     let physics: PhysicsSystem;
-    let config: SimulationConfig;
     let worldConfig: WorldConfig;
 
     beforeEach(() => {

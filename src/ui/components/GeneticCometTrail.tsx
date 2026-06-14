@@ -74,37 +74,48 @@ const getAuraColor = (species: Species): number => (
   species === 'prey' ? PREY_AURA_COLOR : PREDATOR_AURA_COLOR
 );
 
-const scanAliveSnapshots = (
-  data: Float32Array,
-  count: number,
-  species: Species,
-  currentFrame: number,
-  knownAlive: Map<string, number>,
-  aliveMap: Map<string, AliveEntitySnapshot>,
-  aliveList: AliveEntitySnapshot[],
-  newbornCandidates: AliveEntitySnapshot[],
-  idCache: Map<number, string>,
-  snapshotCache: Map<string, AliveEntitySnapshot>,
-): void => {
+interface ScanAliveParams {
+  data: Float32Array;
+  count: number;
+  species: Species;
+  currentFrame: number;
+  knownAlive: Map<string, number>;
+  aliveMap: Map<string, AliveEntitySnapshot>;
+  aliveList: AliveEntitySnapshot[];
+  newbornCandidates: AliveEntitySnapshot[];
+  idCache: Map<number, string>;
+  snapshotCache: Map<string, AliveEntitySnapshot>;
+}
+
+const resolveEntityId = (numId: number, species: string, idCache: Map<number, string>): string => {
+  let id = idCache.get(numId);
+  if (!id) {
+    id = `${species}_${String(Math.round(numId))}`;
+    idCache.set(numId, id);
+  }
+  return id;
+};
+
+const getOrCreateSnapshot = (id: string, species: Species, snapshotCache: Map<string, AliveEntitySnapshot>): AliveEntitySnapshot => {
+  const existing = snapshotCache.get(id);
+  if (existing) return existing;
+
+  const snapshot: AliveEntitySnapshot = { id, species, x: 0, y: 0, z: 0 };
+  snapshotCache.set(id, snapshot);
+  return snapshot;
+};
+
+const scanAliveSnapshots = ({
+  data, count, species, currentFrame, knownAlive, aliveMap, aliveList, newbornCandidates, idCache, snapshotCache,
+}: ScanAliveParams): void => {
   for (let i = 0; i < count; i++) {
     const offset = i * BUFFER_LAYOUT.STRIDE;
     const isDead = (data[offset + BUFFER_LAYOUT.OFFSETS.IS_DEAD] ?? 0) > BUFFER_LAYOUT.DEAD_THRESHOLD;
-    if (isDead) {
-      continue;
-    }
+    if (isDead) continue;
 
     const numId = data[offset + BUFFER_LAYOUT.OFFSETS.ID] ?? 0;
-    let id = idCache.get(numId);
-    if (!id) {
-      id = `${species}_${Math.round(numId)}`;
-      idCache.set(numId, id);
-    }
-
-    let snapshot = snapshotCache.get(id);
-    if (!snapshot) {
-      snapshot = { id, species, x: 0, y: 0, z: 0 };
-      snapshotCache.set(id, snapshot);
-    }
+    const id = resolveEntityId(numId, species, idCache);
+    const snapshot = getOrCreateSnapshot(id, species, snapshotCache);
 
     snapshot.x = data[offset + BUFFER_LAYOUT.OFFSETS.X] ?? 0;
     snapshot.y = data[offset + BUFFER_LAYOUT.OFFSETS.Y] ?? 0;
@@ -113,8 +124,7 @@ const scanAliveSnapshots = (
     aliveMap.set(id, snapshot);
     aliveList.push(snapshot);
 
-    const previousSeen = knownAlive.get(id);
-    if (previousSeen === undefined) {
+    if (knownAlive.get(id) === undefined) {
       newbornCandidates.push(snapshot);
     }
     knownAlive.set(id, currentFrame);
@@ -148,7 +158,10 @@ const syncRenderItems = (
 ): void => {
   const next = Array.from(activeComets.values()).map(c => ({ id: c.id, species: c.species }));
   setRenderComets(prev => {
-    if (prev.length === next.length && prev.every((item, index) => item.id === next[index]?.id && item.species === next[index]?.species)) {
+    if (prev.length === next.length && prev.every((item, index) => {
+      const n = next[index];
+      return n !== undefined && item.id === n.id && item.species === n.species;
+    })) {
       return prev;
     }
     return next;
@@ -231,30 +244,16 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
     newbornCandidates.length = 0;
     spawnQueue.length = 0;
 
-    scanAliveSnapshots(
-      buffers.prey,
-      buffers.preyCount,
-      'prey',
-      frameRef.current,
-      knownAliveRef.current,
+    const scanParams = {
+      currentFrame: frameRef.current,
+      knownAlive: knownAliveRef.current,
       aliveMap,
-      alive,
+      aliveList: alive,
       newbornCandidates,
-      preyIdCacheRef.current,
-      snapshotCacheRef.current
-    );
-    scanAliveSnapshots(
-      buffers.predators,
-      buffers.predatorCount,
-      'predator',
-      frameRef.current,
-      knownAliveRef.current,
-      aliveMap,
-      alive,
-      newbornCandidates,
-      predatorIdCacheRef.current,
-      snapshotCacheRef.current
-    );
+      snapshotCache: snapshotCacheRef.current,
+    };
+    scanAliveSnapshots({ ...scanParams, data: buffers.prey, count: buffers.preyCount, species: 'prey', idCache: preyIdCacheRef.current });
+    scanAliveSnapshots({ ...scanParams, data: buffers.predators, count: buffers.predatorCount, species: 'predator', idCache: predatorIdCacheRef.current });
 
     if (frameRef.current % HISTORY_GC_INTERVAL_FRAMES === 0) {
       for (const [id, lastSeen] of knownAliveRef.current.entries()) {
@@ -287,19 +286,19 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
       spawnQueue.push(candidate);
     }
 
-    let activeCometsChanged = false;
+    let hasActiveCometsChanged = false;
     for (const entity of spawnQueue) {
       if (activeCometsRef.current.size >= COMET_MAX_ACTIVE) {
         break;
       }
-      const hadComet = activeCometsRef.current.has(entity.id);
+      const hasComet = activeCometsRef.current.has(entity.id);
       activeCometsRef.current.set(entity.id, {
         id: entity.id,
         species: entity.species,
         expiresAt: now + COMET_TTL_SECONDS
       });
-      if (!hadComet) {
-        activeCometsChanged = true;
+      if (!hasComet) {
+        hasActiveCometsChanged = true;
       }
     }
 
@@ -312,11 +311,11 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
         coreTrailSystem.removeTrail(`${id}_core`);
         headRefs.current.delete(id);
         auraRefs.current.delete(id);
-        activeCometsChanged = true;
+        hasActiveCometsChanged = true;
       }
     }
 
-    if (activeCometsChanged) {
+    if (hasActiveCometsChanged) {
       syncRenderItems(activeCometsRef.current, setRenderComets);
     }
 
@@ -329,12 +328,12 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
       trailSystem.updateTrail(comet.id, {
         position: { x: entity.x, y: entity.y, z: entity.z },
         color: getTrailColor(comet.species),
-        enabled: true
+        isEnabled: true
       });
       coreTrailSystem.updateTrail(`${comet.id}_core`, {
         position: { x: entity.x, y: entity.y, z: entity.z },
         color: COMET_CORE_TRAIL_COLOR,
-        enabled: true
+        isEnabled: true
       });
 
       const ttlRatio = Math.max(0, Math.min(1, (comet.expiresAt - now) / COMET_TTL_SECONDS));

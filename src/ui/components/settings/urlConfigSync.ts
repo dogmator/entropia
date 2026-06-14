@@ -1,24 +1,24 @@
 /**
- * Entropia 3D — Утиліта двосторонньої синхронізації SimulationConfig з URL.
+ * Entropia 3D — Two-way synchronization utility for SimulationConfig and URL.
  *
- * Забезпечує:
- * - Строго типізований парсинг query-параметрів у SimulationConfig.
- * - Серіалізацію лише відхилень від defaults (Clean URL).
- * - Оновлення history через replaceState / pushState.
+ * Provides:
+ * - Strictly typed parsing of query parameters into SimulationConfig.
+ * - Serialization of only deviations from defaults (Clean URL).
+ * - History updates via replaceState / pushState.
  */
 
 import type { SimulationConfig } from '@/types';
 
-/** Режим оновлення URL: 'push' додає запис в history, 'replace' — перезаписує поточний. */
+/** URL update mode: 'push' adds a history entry, 'replace' overwrites current. */
 export type UrlHistoryMode = 'push' | 'replace';
 
-/** SimulationConfig без readonly-модифікаторів для безпечної побудови об'єктів. */
+/** SimulationConfig without readonly modifiers for safe object construction. */
 export type MutableSimulationConfig = { -readonly [K in keyof SimulationConfig]: SimulationConfig[K] };
 
 type ConfigKey = keyof SimulationConfig;
 type WritableConfigRecord = Record<ConfigKey, SimulationConfig[ConfigKey]>;
 
-/** Словник опціональних валідаторів для конкретних ключів конфігурації. */
+/** Dictionary of optional validators for specific configuration keys. */
 type ConfigValidator = {
     [K in ConfigKey]?: (value: SimulationConfig[K], defaultValue: SimulationConfig[K]) => SimulationConfig[K];
 };
@@ -29,9 +29,34 @@ const BOOLEAN_FALSE_VALUES = new Set(['false', '0']);
 const isObjectValue = (value: unknown): value is Record<string, unknown> =>
     typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const parseBoolean = (rawValue: string): boolean | null => {
+    const normalized = rawValue.trim().toLowerCase();
+    if (BOOLEAN_TRUE_VALUES.has(normalized)) { return true; }
+    if (BOOLEAN_FALSE_VALUES.has(normalized)) { return false; }
+    return null;
+};
+
+const parseJsonArray = (rawValue: string): unknown[] | null => {
+    try {
+        const parsed: unknown = JSON.parse(rawValue);
+        return Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+};
+
+const parseJsonObject = (rawValue: string): Record<string, unknown> | null => {
+    try {
+        const parsed: unknown = JSON.parse(rawValue);
+        return isObjectValue(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+};
+
 /**
- * Перетворення рядкового значення URL-параметра у тип відповідного поля конфігурації.
- * Повертає null, якщо значення не може бути безпечно розпізнане.
+ * Converting URL parameter string value to corresponding configuration field type.
+ * Returns null if the value cannot be safely recognized.
  */
 const parseByDefaultType = <K extends ConfigKey>(
     rawValue: string,
@@ -42,40 +67,16 @@ const parseByDefaultType = <K extends ConfigKey>(
         return Number.isFinite(parsed) ? (parsed as SimulationConfig[K]) : null;
     }
 
-    if (typeof defaultValue === 'boolean') {
-        const normalized = rawValue.trim().toLowerCase();
-        if (BOOLEAN_TRUE_VALUES.has(normalized)) { return true as SimulationConfig[K]; }
-        if (BOOLEAN_FALSE_VALUES.has(normalized)) { return false as SimulationConfig[K]; }
-        return null;
-    }
-
-    if (typeof defaultValue === 'string') {
-        return rawValue as SimulationConfig[K];
-    }
-
-    if (Array.isArray(defaultValue)) {
-        try {
-            const parsed = JSON.parse(rawValue);
-            return Array.isArray(parsed) ? (parsed as unknown as SimulationConfig[K]) : null;
-        } catch {
-            return null;
-        }
-    }
-
-    if (isObjectValue(defaultValue)) {
-        try {
-            const parsed = JSON.parse(rawValue);
-            return isObjectValue(parsed) ? (parsed as unknown as SimulationConfig[K]) : null;
-        } catch {
-            return null;
-        }
-    }
+    if (typeof defaultValue === 'boolean') { return parseBoolean(rawValue) as SimulationConfig[K] | null; }
+    if (typeof defaultValue === 'string') { return rawValue as SimulationConfig[K]; }
+    if (Array.isArray(defaultValue)) { return parseJsonArray(rawValue) as SimulationConfig[K] | null; }
+    if (isObjectValue(defaultValue)) { return parseJsonObject(rawValue) as SimulationConfig[K] | null; }
 
     return null;
 };
 
 /**
- * Серіалізація значення поля конфігурації у рядок для URL-параметра.
+ * Serialization of configuration field value to string for URL parameter.
  */
 const serializeValue = (value: SimulationConfig[ConfigKey]): string => {
     if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'string') {
@@ -85,25 +86,25 @@ const serializeValue = (value: SimulationConfig[ConfigKey]): string => {
 };
 
 /**
- * Порівняння двох значень поля конфігурації на рівність.
- * Для примітивів — строге порівняння, для об'єктів — структурне через JSON.
+ * Comparing two configuration field values for equality.
+ * Strict comparison for primitives, structural comparison via JSON for objects.
  */
 const areValuesEqual = (
     left: SimulationConfig[ConfigKey],
     right: SimulationConfig[ConfigKey]
 ): boolean => {
-    if (typeof left !== 'object' || left === null || typeof right !== 'object' || right === null) {
+    if (typeof left !== 'object' || typeof right !== 'object') {
         return left === right;
     }
     return JSON.stringify(left) === JSON.stringify(right);
 };
 
 /**
- * Парсинг URL query-рядка у SimulationConfig.
+ * Parsing URL query string into SimulationConfig.
  *
- * Ключі, відсутні в URL, отримують значення з defaultConfig.
- * Невідомі ключі ігноруються. Невалідні значення відкидаються на користь defaults.
- * Опціональний словник validators дозволяє додаткову валідацію конкретних ключів.
+ * Missing keys in URL get values from defaultConfig.
+ * Unknown keys are ignored. Invalid values are discarded in favor of defaults.
+ * Optional validators dictionary allows extra validation for specific keys.
  */
 export const parseConfigFromSearch = (
     search: string,
@@ -131,10 +132,10 @@ export const parseConfigFromSearch = (
 };
 
 /**
- * Серіалізація відхилень config від defaultConfig у рядок query-параметрів.
+ * Serialization of config deviations from defaultConfig into a query parameter string.
  *
- * Ключі, значення яких збігаються з defaults, у результат не потрапляють (Clean URL).
- * Повертає порожній рядок, якщо config ідентичний defaultConfig.
+ * Keys with values identical to defaults are not included (Clean URL).
+ * Returns an empty string if config is identical to defaultConfig.
  */
 export const buildSearchFromConfigDiff = (
     config: SimulationConfig,
@@ -151,11 +152,11 @@ export const buildSearchFromConfigDiff = (
 };
 
 /**
- * Оновлення URL браузера відповідно до поточного стану конфігурації.
+ * Updating browser URL according to current configuration state.
  *
- * Використовує history.pushState для дискретних дій (тоггли, пресети)
- * або history.replaceState для частих оновлень (слайдери).
- * Не змінює URL, якщо нове значення ідентичне поточному.
+ * Uses history.pushState for discrete actions (toggles, presets)
+ * or history.replaceState for frequent updates (sliders).
+ * Does not change URL if the new value is identical to current.
  */
 export const updateUrlFromConfig = (
     config: SimulationConfig,

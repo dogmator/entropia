@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    /* Мова та середовище виконання */
+    /* Language and Environment */
     "target": "ES2022",
     "lib": [
       "ES2022",
@@ -11,7 +11,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "moduleDetection": "force",
-    /* Строгість типізації (КРИТИЧНО) */
+    /* Strictness (CRITICAL) */
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -21,7 +21,7 @@
     "noImplicitThis": true,
     "useUnknownInCatchVariables": true,
     "alwaysStrict": true,
-    /* Додаткові перевірки */
+    /* Additional Checks */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
@@ -30,10 +30,10 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "exactOptionalPropertyTypes": false,
-    /* JSX та React */
+    /* JSX and React */
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    /* Імпорти та модулі */
+    /* Imports and Modules */
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -41,50 +41,34 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    /* Шляхи (Path Aliases) */
+    /* Path Aliases */
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@core/*": [
-        "./src/core/*"
-      ],
-      "@simulation/*": [
-        "./src/simulation/*"
-      ],
-      "@ui/*": [
-        "./src/ui/*"
-      ],
-      "@shared/types": [
-        "./src/types.ts"
-      ],
-      "@shared/config": [
-        "./src/config/index.ts"
-      ],
-      "@shared/*": [
-        "./src/shared/*"
-      ],
-      "@renderer/*": [
-        "./src/renderer/*"
-      ]
+      "@/*": ["./src/*"],
+      "@core/*": ["./src/core/*"],
+      "@simulation/*": ["./src/simulation/*"],
+      "@ui/*": ["./src/ui/*"],
+      "@shared/types": ["./src/types.ts"],
+      "@shared/config": ["./src/config/index.ts"],
+      "@shared/*": ["./src/shared/*"],
+      "@renderer/*": ["./src/renderer/*"]
     },
-    /* Вивід */
+    /* Output */
     "noEmit": true,
     "skipLibCheck": true,
-    /* Експериментальні можливості */
+    /* Experimental */
     "experimentalDecorators": true,
     "useDefineForClassFields": false
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "scripts/**/*.ts",
+    "*.config.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "build",
-    "**/*.test.ts",
-    "**/*.spec.ts"
+    "build"
   ]
 }

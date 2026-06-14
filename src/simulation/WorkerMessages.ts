@@ -1,26 +1,28 @@
 /**
- * Entropia 3D — Типобезпечний протокол повідомлень для Web Worker.
+ * Entropia 3D — Type-safe message protocol for Web Worker.
  *
- * Визначає:
- * - WorkerCommand — повідомлення від main thread до worker
- * - WorkerResponse — повідомлення від worker до main thread
+ * Defines:
+ * - WorkerCommand — messages from main thread to worker
+ * - WorkerResponse — messages from worker to main thread
  */
 
 import type {
+    EcologicalZone,
     RenderBuffers,
     SimulationConfig,
     SimulationStats,
-    WorldConfig
+    Vector3,
+    WorldConfig,
 } from '@/types';
+import type { IEntity } from './interfaces/IEntity';
 
 // ============================================================================
-// КОМАНДИ (Main Thread → Worker)
+// COMMANDS (Main Thread → Worker)
 // ============================================================================
 
 export interface InitCommand {
     readonly type: 'init';
     readonly scale: number;
-    readonly config?: Partial<SimulationConfig>;
 }
 
 export interface UpdateCommand {
@@ -31,26 +33,44 @@ export interface ResetCommand {
     readonly type: 'reset';
 }
 
-export interface GetStatsCommand {
-    readonly type: 'getStats';
-}
-
 export interface SetConfigCommand {
     readonly type: 'setConfig';
     readonly config: Partial<SimulationConfig>;
 }
 
-export interface PauseCommand {
-    readonly type: 'pause';
+export interface GetStatsCommand {
+    readonly type: 'getStats';
 }
 
-export interface ResumeCommand {
-    readonly type: 'resume';
+export interface SyncCameraCommand {
+    readonly type: 'syncCamera';
+    readonly position: Vector3;
+    readonly target: Vector3;
+    readonly zoom: number;
+    readonly distance: number;
+    readonly fov: number;
+    readonly aspect: number;
 }
 
-export interface SetSpeedCommand {
-    readonly type: 'setSpeed';
-    readonly speed: number;
+export interface AsyncCommand {
+    readonly type: 'asyncCommand';
+    readonly requestId: string;
+    readonly commandName: string;
+    readonly payload?: unknown;
+}
+
+export interface GetGeneticRootsCommand {
+    readonly type: 'getGeneticRoots';
+}
+
+export interface ExportStateCommand {
+    readonly type: 'exportState';
+    readonly requestId: string;
+}
+
+export interface ImportStateCommand {
+    readonly type: 'importState';
+    readonly state: unknown;
 }
 
 export interface StartLoopCommand {
@@ -61,63 +81,28 @@ export interface StopLoopCommand {
     readonly type: 'stopLoop';
 }
 
-export interface FindEntityAtCommand {
-    readonly type: 'findEntityAt';
-    readonly position: { x: number; y: number; z: number };
-    readonly tolerance: number;
-    readonly requestId: string;
-}
-
-export interface GetEntityByInstanceIdCommand {
-    readonly type: 'getEntityByInstanceId';
-    readonly entityType: 'prey' | 'predator' | 'food';
-    readonly instanceId: number;
-    readonly isDead?: boolean;
-    readonly requestId: string;
-}
-
-export interface GetGeneticNodeCommand {
-    readonly type: 'getGeneticNode';
-    readonly genomeId: string;
-    readonly requestId: string;
-}
-
-export interface GetGeneticRootsCommand {
-    readonly type: 'getGeneticRoots';
-    readonly requestId: string;
-}
-
-export interface ExportStateCommand {
-    readonly type: 'exportState';
-    readonly requestId: string;
-}
-
-export interface ImportStateCommand {
-    readonly type: 'importState';
-    readonly requestId: string;
-    readonly state: import('@/types').SerializedSimulationStateV1;
+export interface SetSpeedCommand {
+    readonly type: 'setSpeed';
+    readonly speed: number;
 }
 
 export type WorkerCommand =
     | InitCommand
     | UpdateCommand
     | ResetCommand
-    | GetStatsCommand
     | SetConfigCommand
-    | PauseCommand
-    | ResumeCommand
-    | SetSpeedCommand
-    | StartLoopCommand
-    | StopLoopCommand
-    | FindEntityAtCommand
-    | GetEntityByInstanceIdCommand
-    | GetGeneticNodeCommand
+    | GetStatsCommand
+    | SyncCameraCommand
+    | AsyncCommand
     | GetGeneticRootsCommand
     | ExportStateCommand
-    | ImportStateCommand;
+    | ImportStateCommand
+    | StartLoopCommand
+    | StopLoopCommand
+    | SetSpeedCommand;
 
 // ============================================================================
-// ВІДПОВІДІ (Worker → Main Thread)
+// RESPONSES (Worker → Main Thread)
 // ============================================================================
 
 export interface InitializedResponse {
@@ -125,8 +110,8 @@ export interface InitializedResponse {
     readonly stats: SimulationStats;
     readonly config: SimulationConfig;
     readonly worldConfig: WorldConfig;
-    readonly zones: Map<string, import('@/types').EcologicalZone>;
-    readonly obstacles: Map<string, import('@/simulation').Obstacle>;
+    readonly zones: Map<string, EcologicalZone>;
+    readonly obstacles: Map<string, IEntity>;
 }
 
 export interface UpdatedResponse {
@@ -166,11 +151,11 @@ export type WorkerResponse =
     | CommandResponse;
 
 // ============================================================================
-// УТИЛІТИ
+// UTILITIES
 // ============================================================================
 
 /**
- * Type guard для перевірки типу команди.
+ * Type guard to check command type.
  */
 export function isWorkerCommand(msg: unknown): msg is WorkerCommand {
     return (
@@ -182,7 +167,7 @@ export function isWorkerCommand(msg: unknown): msg is WorkerCommand {
 }
 
 /**
- * Type guard для перевірки типу відповіді.
+ * Type guard to check response type.
  */
 export function isWorkerResponse(msg: unknown): msg is WorkerResponse {
     return (

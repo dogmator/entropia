@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
 import { describe, expect, it } from 'vitest';
 
-import { createFoodId, createOrganismId, EntityType, type Genome } from '@/types';
+import { createFoodId, createGenomeId, createOrganismId, EntityType, type Genome } from '@/types';
 
 import { Food, Organism } from '../Entity';
 
 const createGenome = (): Genome => ({
-  id: 'genome_test',
+  id: createGenomeId('genome_test'),
   type: EntityType.PREY,
   subtype: 'default',
   color: 0x00ff00,
@@ -21,7 +22,7 @@ const createGenome = (): Genome => ({
   reproductionEnergy: 100,
   parentId: null,
   flockingStrength: 0.4,
-});
+} as unknown as Genome);
 
 describe('Entity growth and food bite model', () => {
   it('новонароджений організм стартує з ~40% adult radius', () => {

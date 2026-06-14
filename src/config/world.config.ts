@@ -20,7 +20,7 @@ const VOLUME_EXPONENT = 3;
  * Generates world configuration with scaling factor.
  * @param scale Scale coefficient (default 1.0).
  */
-export function createWorldConfig(scale: number = 1.0): WorldConfig {
+export function createWorldConfig(scale = 1.0): WorldConfig {
   const volumeScale = Math.pow(scale, VOLUME_EXPONENT);
 
   return {

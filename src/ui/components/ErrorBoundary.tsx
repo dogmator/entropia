@@ -1,31 +1,32 @@
 /**
- * Розширений механізм обробки винятків (Enhanced Error Boundary).
+ * Enhanced Error Boundary mechanism.
  *
- * Спеціалізований компонент для перехоплення непередбачуваних помилок у життєвому циклі React:
- * - Глибоке діагностичне логування.
- * - Агрегація системних метрик та метаданих середовища.
- * - Генерація стандартизованих звітів для технічної підтримки.
- * - Візуалізація стеку викликів та ієрархії компонентів.
- * - Забезпечення ізоляції збоїв для збереження цілісності інтерфейсу.
+ * Specialized component for catching unpredictable errors in the React lifecycle:
+ * - Deep diagnostic logging.
+ * - Aggregation of system metrics and environment metadata.
+ * - Generation of standardized reports for technical support.
+ * - Visualization of call stacks and component hierarchy.
+ * - Ensuring failure isolation to preserve interface integrity.
  */
 
 import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
 
+import { t } from '@/i18n';
 import { TIME } from '../../config';
 import { Icons } from './shared/Icons';
 
-/* eslint-disable react/prop-types */
+/* eslint-disable react/prop-types, react-refresh/only-export-components */
 
 /**
- * Програмний інтерфейс для властивостей ErrorBoundary.
+ * Interface for ErrorBoundary properties.
  */
 interface ErrorBoundaryProps {
   children: ReactNode;
 }
 
 /**
- * Внутрішній стан механізму обробки винятків.
+ * Internal state of the error handling mechanism.
  */
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -35,7 +36,7 @@ interface ErrorBoundaryState {
 }
 
 /**
- * Структура форматованого звіту про системну помилку.
+ * Structure of a formatted system error report.
  */
 interface ErrorReport {
   timestamp: string;
@@ -52,7 +53,7 @@ interface ErrorReport {
 }
 
 /**
- * Розширений інтерфейс об'єкта performance для доступу до метрик Google Chrome.
+ * Extended performance object interface for access to Google Chrome metrics.
  */
 interface PerformanceWithMemory extends Performance {
   memory?: {
@@ -65,10 +66,10 @@ const BYTES_IN_MB = 1048576;
 const MAX_ERROR_HISTORY = 10;
 
 /**
- * Клас ErrorBoundary реалізує патерн Error Boundary для декларативної обробки помилок.
+ * ErrorBoundary class implements the Error Boundary pattern for declarative error handling.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  private sessionStartTime: number;
+  private readonly sessionStartTime: number;
 
   constructor(props: ErrorBoundaryProps) {
     super(props);
@@ -82,28 +83,27 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   /**
-   * Статичний метод для оновлення стану при виникненні винятку у дочірніх компонентах.
+   * Static method to update state when an exception occurs in child components.
    */
   public static getDerivedStateFromError(_error: Error): Partial<ErrorBoundaryState> {
     return { hasError: true, timestamp: Date.now() };
   }
 
   /**
-   * Життєвий цикл перехоплення помилки для реєстрації інциденту.
+   * Error catch lifecycle for incident registration.
    */
   public override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
     const errorReport = this.generateErrorReport(error, errorInfo);
 
-    // Розгорнута діагностика в консолі розробника
-
-    console.group('🚨 ErrorBoundary: Зафіксовано системний критичний збій');
-    console.error('Об\'єкт помилки:', error);
-    console.error('Метадані React:', errorInfo);
+    // Detailed diagnostics in the developer console
+    console.group(t.errors.boundaryLog);
+    console.error(t.errors.errorObject, error);
+    console.error(t.diagnostics.reactMetadata, errorInfo);
     console.table(errorReport);
     console.groupEnd();
 
 
-    // Персистентне збереження логів у локальному сховищі браузера
+    // Persistent log storage in the browser's local storage
     this.saveErrorToLocalStorage(errorReport);
 
     this.setState({
@@ -113,36 +113,33 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   /**
-   * Формування комплексного звіту про інцидент.
+   * Formation of a comprehensive incident report.
    */
   private generateErrorReport(error: Error, errorInfo: ErrorInfo): ErrorReport {
     const sessionDuration = Date.now() - this.sessionStartTime;
     const perf = performance as PerformanceWithMemory;
     const memory =
       perf.memory
-        ? `${Math.round(perf.memory.usedJSHeapSize / BYTES_IN_MB)} MB / ${Math.round(perf.memory.jsHeapSizeLimit / BYTES_IN_MB)} MB`
+        ? `${String(Math.round(perf.memory.usedJSHeapSize / BYTES_IN_MB))} MB / ${String(Math.round(perf.memory.jsHeapSizeLimit / BYTES_IN_MB))} MB`
         : null;
 
     return {
       timestamp: new Date().toISOString(),
       sessionDuration: this.formatDuration(sessionDuration),
       error: error.toString(),
-      stack: error.stack || 'Стек викликів відсутній',
-      componentStack: (errorInfo.componentStack || '').trim(),
+      stack: error.stack ?? t.diagnostics.callStack,
+      componentStack: (errorInfo.componentStack ?? '').trim(),
       userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      screenResolution: `${window.screen.width}x${window.screen.height}`,
-      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      platform: navigator.userAgent.toLowerCase().includes('mac') ? 'macOS' : 'Other',
+      screenResolution: `${String(window.screen.width)}x${String(window.screen.height)}`,
+      viewport: `${String(window.innerWidth)}x${String(window.innerHeight)}`,
       memory,
       url: window.location.href,
     };
   }
 
-  // ... (skipping some methods not shown in viewed lines, waiting to find render)
-
-
   /**
-   * Перетворення часового інтервалу у людиночитаний формат.
+   * Transformation of a time interval into a human-readable format.
    */
   private formatDuration(ms: number): string {
     const seconds = Math.floor(ms / TIME.MS_IN_SECOND);
@@ -150,33 +147,34 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     const hours = Math.floor(minutes / TIME.MINUTES_IN_HOUR);
 
     if (hours > 0) {
-      return `${hours}г ${minutes % TIME.MINUTES_IN_HOUR}хв ${seconds % TIME.SECONDS_IN_MINUTE}с`;
+      return `${String(hours)}${t.diagnostics.hours} ${String(minutes % TIME.MINUTES_IN_HOUR)}${t.diagnostics.minutes} ${String(seconds % TIME.SECONDS_IN_MINUTE)}${t.diagnostics.seconds}`;
     } else if (minutes > 0) {
-      return `${minutes}хв ${seconds % TIME.SECONDS_IN_MINUTE}с`;
+      return `${String(minutes)}${t.diagnostics.minutes} ${String(seconds % TIME.SECONDS_IN_MINUTE)}${t.diagnostics.seconds}`;
     } else {
-      return `${seconds}с`;
+      return `${String(seconds)}${t.diagnostics.seconds}`;
     }
   }
 
   /**
-   * Архівування звіту про помилку в localStorage із обмеженням глибини історії.
+   * Archiving an error report in localStorage with history depth limitation.
    */
   private saveErrorToLocalStorage(errorReport: ErrorReport): void {
     try {
-      const errors = JSON.parse(localStorage.getItem('entropia-errors') || '[]');
+      const stored = localStorage.getItem('entropia-errors') ?? '[]';
+      const errors = JSON.parse(stored) as ErrorReport[];
       errors.push(errorReport);
-      // Збереження лише останніх інцидентів для запобігання переповненню сховища
+      // Keep only recent incidents to prevent storage overflow
       const recentErrors = errors.slice(-MAX_ERROR_HISTORY);
       localStorage.setItem('entropia-errors', JSON.stringify(recentErrors));
-    } catch (e) {
-      console.warn('Неможливо здійснити запис інциденту в localStorage:', e);
+    } catch (e: unknown) {
+      console.warn(t.errors.localStorageError, e);
     }
   }
 
   /**
-   * Експорт звіту про помилку в буфер обміну для подальшої передачі розробникам.
+   * Export error report to clipboard for further submission to developers.
    */
-  private copyErrorReport = (): void => {
+  private readonly copyErrorReport = (): void => {
     if (!this.state.error || !this.state.errorInfo) { return; }
 
     const report = this.generateErrorReport(
@@ -185,51 +183,51 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     );
 
     const reportText = `
-ENTROPIA 3D: ЗВІТ ПРО СИСТЕМНИЙ ЗБІЙ
+${t.errors.reportTitle}
 ===================================
 
-📅 Часова мітка: ${report.timestamp}
-⏱️  Тривалість сесії: ${report.sessionDuration}
-🌐 Локація (URL): ${report.url}
+📅 ${t.errors.timestamp} ${report.timestamp}
+⏱️ ${t.sidebar.sessionDuration} ${report.sessionDuration}
+🌐 ${t.errors.url} ${report.url}
 
-ДЕТАЛІ ПОМИЛКИ
+${t.errors.errorDetails}
 --------------
 ${report.error}
 
-СТЕК ВИКЛИКІВ (STACK TRACE)
+${t.errors.stackTrace}
 ---------------------------
 ${report.stack}
 
-ІЄРАРХІЯ КОМПОНЕНТІВ (COMPONENT STACK)
+${t.errors.componentStack}
 --------------------------------------
 ${report.componentStack}
 
-СИСТЕМНІ МЕТАДАНІ
+${t.errors.systemMetadata}
 -----------------
-Середовище (User Agent): ${report.userAgent}
-Платформа: ${report.platform}
-Роздільна здатність: ${report.screenResolution}
-Область перегляду: ${report.viewport}
-${report.memory ? `Стан пам'яті: ${report.memory}` : ''}
+${t.errors.userAgent} ${report.userAgent}
+${t.diagnostics.platform} ${report.platform}
+${t.errors.resolution} ${report.screenResolution}
+${t.diagnostics.viewportLabel} ${report.viewport}
+${report.memory ? `${t.diagnostics.memoryUsage} ${report.memory}` : ''}
 
-Цей звіт сформовано автоматично модулем Error Boundary проекту Entropia 3D.
-Будь ласка, надішліть цей звіт за адресою: https://github.com/dogmator/entropia/issues
+${t.errors.autoGenerated}
+${t.errors.sendReportTo} https://github.com/dogmator/entropia/issues
     `.trim();
 
     navigator.clipboard
       .writeText(reportText)
       .then(() => {
-        alert('Діагностичний звіт успішно скопійовано до буфера обміну.');
+        alert(t.diagnostics.copySuccess);
       })
-      .catch((err) => {
-        console.error('Помилка операції копіювання:', err);
-        // Резервний механізм виводу тексту звіту
-        prompt('Будь ласка, скопіюйте звіт вручну:', reportText);
+      .catch((err: unknown) => {
+        console.error(t.diagnostics.copyError, err);
+        // Fallback report text output mechanism
+        prompt(t.diagnostics.copyReport, reportText);
       });
   };
 
   /**
-   * Скидання критичного стану та перезавантаження середовища.
+   * Reset critical state and reload environment.
    */
   public handleReset = (): void => {
     this.setState({
@@ -241,6 +239,7 @@ ${report.memory ? `Стан пам'яті: ${report.memory}` : ''}
     window.location.reload();
   };
 
+  // eslint-disable-next-line sonarjs/function-return-type -- React required structure with conditional UI
   public override render(): ReactNode {
     if (this.state.hasError && this.state.error && this.state.errorInfo) {
       const report = this.generateErrorReport(
@@ -264,12 +263,12 @@ ${report.memory ? `Стан пам'яті: ${report.memory}` : ''}
       );
     }
 
-    return this.props.children;
+    return this.props.children ?? null;
   }
 }
 
 /**
- * Секція заголовку критичного сповіщення
+ * Critical alert header section
  */
 const ErrorHeader: React.FC<{ timestamp: string }> = ({ timestamp }) => (
   <div className="flex items-center gap-4 mb-6">
@@ -277,8 +276,8 @@ const ErrorHeader: React.FC<{ timestamp: string }> = ({ timestamp }) => (
       <Icons.Alert />
     </div>
     <div className="flex-1">
-      <h1 className="text-2xl font-black text-red-400 tracking-wide">Виявлено критичний збій</h1>
-      <p className="text-sm text-gray-400 mt-1">Виконання симуляції призупинено через непередбачуваний виняток</p>
+      <h1 className="text-2xl font-black text-red-400 tracking-wide">{t.errors.criticalFailure}</h1>
+      <p className="text-sm text-gray-400 mt-1">{t.errors.simulationPaused}</p>
     </div>
     <div className="text-xs text-gray-600">
       {timestamp.split('T')[1]?.split('.')[0] ?? 'N/A'}
@@ -287,13 +286,13 @@ const ErrorHeader: React.FC<{ timestamp: string }> = ({ timestamp }) => (
 );
 
 /**
- * Блок системної телеметрії
+ * System telemetry block
  */
 const ErrorTelemetry: React.FC<{ report: ErrorReport }> = ({ report }) => (
   <div className="bg-black/30 rounded-xl p-4 mb-4 text-xs space-y-2">
-    <TelemetryRow label="Тривалість сесії:" value={report.sessionDuration} />
-    <TelemetryRow label="Viewport (Область перегляду):" value={report.viewport} />
-    {report.memory && <TelemetryRow label="Використання пам'яті:" value={report.memory} />}
+    <TelemetryRow label={t.sidebar.sessionDuration} value={report.sessionDuration} />
+    <TelemetryRow label={t.diagnostics.viewportLabel} value={report.viewport} />
+    {report.memory && <TelemetryRow label={t.diagnostics.memoryUsage} value={report.memory} />}
   </div>
 );
 
@@ -305,26 +304,26 @@ const TelemetryRow: React.FC<{ label: string, value: string }> = ({ label, value
 );
 
 /**
- * Деталізація ідентифікованої помилки
+ * Details of identified error
  */
 const ErrorDetails: React.FC<{ error: string }> = ({ error }) => (
   <div className="bg-black/50 rounded-xl p-4 mb-4 font-mono text-sm text-red-300 max-h-48 overflow-y-auto custom-scrollbar">
-    <div className="mb-2 text-xs text-gray-500 uppercase tracking-widest">Опис винятку:</div>
+    <div className="mb-2 text-xs text-gray-500 uppercase tracking-widest">{t.diagnostics.exceptionDesc}</div>
     <div className="whitespace-pre-wrap break-all">{error}</div>
   </div>
 );
 
 /**
- * Технічні звіти (Stacks)
+ * Technical reports (Stacks)
  */
 const ErrorStacks: React.FC<{ report: ErrorReport }> = ({ report }) => (
   <div className="space-y-3 mb-6">
-    <StackDetails title="📚 JavaScript Stack Trace" content={report.stack} />
-    <StackDetails title="🧩 React Component Stack" content={report.componentStack} />
-    <StackDetails title="💻 Системне оточення">
+    <StackDetails title={t.errors.jsStack} content={report.stack} />
+    <StackDetails title={t.errors.reactStack} content={report.componentStack} />
+    <StackDetails title={t.diagnostics.systemEnvironment}>
       <div className="space-y-1">
-        <div><span className="text-gray-600">Платформа:</span> {report.platform}</div>
-        <div className="break-all"><span className="text-gray-600">User Agent:</span> {report.userAgent}</div>
+        <div><span className="text-gray-600">{t.diagnostics.platform}</span> {report.platform}</div>
+        <div className="break-all"><span className="text-gray-600">{t.errors.userAgent}</span> {report.userAgent}</div>
       </div>
     </StackDetails>
   </div>
@@ -336,20 +335,20 @@ const StackDetails: React.FC<{ title: string, content?: string, children?: React
       {title}
     </summary>
     <div className="p-4 text-xs text-gray-500 font-mono overflow-x-auto whitespace-pre-wrap break-all">
-      {content || children}
+      {content ?? children}
     </div>
   </details>
 );
 
 /**
- * Керуючі елементи відновлення
+ * Recovery control elements
  */
 const ErrorActions: React.FC<{ onReset: () => void, onCopy: () => void }> = ({ onReset, onCopy }) => (
   <div className="flex gap-3 flex-wrap">
-    <ActionButton onClick={onReset} variant="emerald" label="Перезапустити середовище">
+    <ActionButton onClick={onReset} variant="emerald" label={t.controls.reset}>
       <Icons.Reset className="w-5 h-5" />
     </ActionButton>
-    <ActionButton onClick={onCopy} variant="blue" label="Експортувати звіт">
+    <ActionButton onClick={onCopy} variant="blue" label={t.diagnostics.exportReport}>
       <Icons.Copy />
     </ActionButton>
     <button
@@ -359,7 +358,7 @@ const ErrorActions: React.FC<{ onReset: () => void, onCopy: () => void }> = ({ o
       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
         <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
       </svg>
-      Повідомити про інцидент
+      {t.errors.reportIncident}
     </button>
   </div>
 );
@@ -373,4 +372,3 @@ const ActionButton: React.FC<{ onClick: () => void, variant: 'emerald' | 'blue',
     {label}
   </button>
 );
-

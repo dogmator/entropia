@@ -13,6 +13,7 @@ import type { EntityId, EntityType, MutableVector3 } from '@/types';
 /**
  * Core entity interface - implemented by all simulation objects.
  */
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IEntity {
   /** Unique identifier */
   readonly id: EntityId;

@@ -1,23 +1,23 @@
 /**
- * Entropia 3D — Web Worker для симуляції.
+ * Entropia 3D — Simulation Web Worker.
  *
- * Цей файл виконується в окремому потоці (worker thread).
- * Hosts SimulationEngine і обробляє команди від main thread.
+ * This file executes in a separate thread (worker thread).
+ * Hosts SimulationEngine and processes commands from the main thread.
  */
 
 import { logger } from '@/core';
 
-import { SimulationEngine } from './Engine';
+import { SimulationEngine } from './engine/Engine';
 import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
+import type { WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
 
 // ============================================================================
-// СТАН ВОРКЕРА
+// WORKER STATE
 // ============================================================================
 
 let engine: SimulationEngine | null = null;
@@ -34,11 +34,11 @@ const MAX_UPDATES_PER_LOOP = 10;
 const TIMESTEP = MILLISECONDS_PER_SECOND / WORKER_LOOP_FPS;
 
 // ============================================================================
-// ОБРОБКА ПОВІДОМЛЕНЬ
+// MESSAGE PROCESSING
 // ============================================================================
 
 /**
- * Надсилання відповіді до main thread.
+ * Sending response to main thread.
  */
 function sendResponse(response: WorkerResponse, transferables: Transferable[] = []): void {
     if (transferables.length > 0) {
@@ -50,7 +50,7 @@ function sendResponse(response: WorkerResponse, transferables: Transferable[] = 
 }
 
 /**
- * Обробка команди ініціалізації.
+ * Processing initialization command.
  */
 function handleInit(scale: number): void {
     try {
@@ -82,7 +82,7 @@ function handleInit(scale: number): void {
 }
 
 /**
- * Виконання одного тіку симуляції.
+ * Executing one simulation tick.
  */
 function handleUpdate(): void {
     if (!engine) return;
@@ -109,7 +109,7 @@ function handleUpdate(): void {
 }
 
 /**
- * Скидання симуляції.
+ * Resetting simulation.
  */
 function handleReset(): void {
     if (!engine) return;
@@ -126,7 +126,7 @@ function handleReset(): void {
 }
 
 /**
- * Отримання статистики.
+ * Getting statistics.
  */
 function handleGetStats(): void {
     if (!engine) return;
@@ -158,7 +158,7 @@ async function handleAsyncCommand(
 }
 
 /**
- * Оновлення конфігурації.
+ * Updating configuration.
  */
 function handleSetConfig(config: Partial<SimulationEngine['config']>): void {
     if (!engine) return;
@@ -168,7 +168,7 @@ function handleSetConfig(config: Partial<SimulationEngine['config']>): void {
 }
 
 /**
- * Автоматичний цикл оновлення (Fixed Time Step + Accumulator).
+ * Automatic update loop (Fixed Time Step + Accumulator).
  */
 function loop(): void {
     if (!isRunning || !engine) return;
@@ -178,19 +178,19 @@ function loop(): void {
     lastTime = now;
     accumulator += dt;
 
-    let updated = false;
-    // Захист від "спіралі смерті" (max 10 кроків за раз)
+    let isUpdated = false;
+    // Protection against "death spiral" (max 10 steps at once)
     let safetyCounter = 0;
     while (accumulator >= TIMESTEP && safetyCounter < MAX_UPDATES_PER_LOOP) {
         engine.update();
         accumulator -= TIMESTEP;
-        updated = true;
+        isUpdated = true;
         safetyCounter++;
     }
 
-    if (updated) {
+    if (isUpdated) {
         const shouldSendSnapshot = shouldDispatchRenderSnapshot({
-            updated,
+            updated: isUpdated,
             now,
             lastSnapshotTime,
             minIntervalMs: DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
@@ -219,15 +219,13 @@ function startAutoUpdate(): void {
     isRunning = true;
 
     if (engine && timeoutId === null) {
-        logger.info('Worker: Starting simulation loop', 'SimulationWorker');
         lastTime = performance.now();
         lastSnapshotTime = lastTime - DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS;
         accumulator = 0;
         engine.start();
         loop();
-    } else if (!engine) {
-        logger.info('Worker: Loop requested but engine not ready. it will start automatically after init.', 'SimulationWorker');
     }
+    // else: engine not ready yet — loop will start automatically in handleInit
 }
 
 function stopAutoUpdate(): void {
@@ -238,58 +236,88 @@ function stopAutoUpdate(): void {
     }
 }
 
-// ============================================================================
-// MESSAGE HANDLER
-// ============================================================================
-
-// eslint-disable-next-line complexity
-self.onmessage = (event: MessageEvent<WorkerCommand>): void => {
+/**
+ * Main command handler.
+ */
+self.onmessage = (event: MessageEvent): void => {
     const data = event.data;
 
     if (!isWorkerCommand(data)) {
-        sendResponse({ type: 'error', message: 'Invalid command format' });
         return;
     }
 
     switch (data.type) {
-        case 'init': handleInit(data.scale); break;
-        case 'update': handleUpdate(); break;
-        case 'reset': handleReset(); break;
-        case 'getStats': handleGetStats(); break;
-        case 'setConfig': handleSetConfig(data.config); break;
-        case 'pause':
-        case 'stopLoop': stopAutoUpdate(); break;
-        case 'resume':
-        case 'startLoop': startAutoUpdate(); break;
-        case 'setSpeed':
-            speedFactor = data.speed;
-            logger.debug(`Worker: Speed updated to ${speedFactor}`, 'SimulationWorker');
+        case 'init':
+            handleInit(data.scale);
             break;
-        case 'findEntityAt':
-            handleAsyncCommand(e => e.findEntityAt(data.position, data.tolerance), data.requestId);
+        case 'update':
+            // Manual update if auto-loop is off
+            if (!isRunning) handleUpdate();
             break;
-        case 'getEntityByInstanceId':
-            handleAsyncCommand(e => e.getEntityByInstanceId(data.entityType, data.instanceId, data.isDead), data.requestId);
+        case 'reset':
+            handleReset();
             break;
-        case 'getGeneticNode':
-            handleAsyncCommand(e => e.getGeneticNode(data.genomeId as import('@/types').GenomeId), data.requestId);
+        case 'setConfig':
+            handleSetConfig(data.config);
+            break;
+        case 'getStats':
+            handleGetStats();
+            break;
+        case 'syncCamera':
+            if (engine) {
+                engine.setCameraData({
+                    position: data.position,
+                    target: data.target,
+                    zoom: data.zoom,
+                    distance: data.distance,
+                    fov: data.fov,
+                    aspect: data.aspect,
+                    near: 0.1,
+                    far: 1000,
+                });
+            }
             break;
         case 'getGeneticRoots':
-            handleAsyncCommand(e => e.getGeneticRoots(), data.requestId);
+            if (engine) {
+                sendResponse({
+                    type: 'commandResponse',
+                    requestId: 'geneticRoots',
+                    result: engine.getGeneticRoots(),
+                });
+            }
             break;
         case 'exportState':
-            handleAsyncCommand(async e => e.exportState(), data.requestId);
+            if (engine) {
+                sendResponse({
+                    type: 'commandResponse',
+                    requestId: data.requestId,
+                    result: engine.exportState(),
+                });
+            }
             break;
         case 'importState':
-            handleAsyncCommand(async e => {
-                e.importState(data.state);
-                return true;
-            }, data.requestId);
+            if (engine) {
+                engine.importState(data.state as any);
+                sendResponse({ type: 'stats', stats: engine.getStats() });
+            }
+            break;
+        case 'startLoop':
+            startAutoUpdate();
+            break;
+        case 'stopLoop':
+            stopAutoUpdate();
+            break;
+        case 'setSpeed':
+            speedFactor = data.speed;
+            break;
+        case 'asyncCommand':
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            void handleAsyncCommand((engine) => (engine as any)[data.commandName](data.payload), data.requestId);
             break;
         default:
             sendResponse({ type: 'error', message: `Unknown command: ${JSON.stringify(data)}` });
     }
 };
 
-// Сигналізуємо про готовність воркера
+// Signal worker readiness
 sendResponse({ type: 'ready' });

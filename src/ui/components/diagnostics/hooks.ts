@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DIAGNOSTICS_CONFIG } from '@/config';
-import type { LogEntry } from '@/core/services/Logger';
-import { logger } from '@/core/services/Logger';
+import type { LogEntry } from '@/core/services/Logger.service';
+import { logger } from '@/core/services/Logger.service';
 import type { MemoryStats, PerformanceMetrics, SimulationStats, SystemMetrics } from '@/types';
 
 interface SystemMetricsOptions {
@@ -38,7 +38,7 @@ export const useSystemMetrics = ({
     performanceHistory,
     memoryStats,
     currentStats
-}: SystemMetricsOptions) => {
+}: SystemMetricsOptions): SystemMetrics[] => {
     const [systemMetrics, setSystemMetrics] = useState<SystemMetrics[]>([]);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -51,8 +51,8 @@ export const useSystemMetrics = ({
     useEffect(() => {
         if (!isOpen) {
             if (intervalRef.current) clearInterval(intervalRef.current);
-            const timer = setTimeout(() => setSystemMetrics([]), 0);
-            return () => clearTimeout(timer);
+            const timer = setTimeout(() => { setSystemMetrics([]); }, 0);
+            return () => { clearTimeout(timer); };
         }
 
         intervalRef.current = setInterval(() => {
@@ -68,13 +68,13 @@ export const useSystemMetrics = ({
     return systemMetrics;
 };
 
-export const useDetailedLogs = (isOpen: boolean) => {
+export const useDetailedLogs = (isOpen: boolean): LogEntry[] => {
     const [detailedLogs, setDetailedLogs] = useState<LogEntry[]>([]);
     const logsSubscriptionRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
         if (isOpen) {
-            const timer = setTimeout(() => setDetailedLogs(logger.getLogs()), 0);
+            const timer = setTimeout(() => { setDetailedLogs(logger.getLogs()); }, 0);
 
             logsSubscriptionRef.current = logger.subscribe((logs) => {
                 setDetailedLogs(logs.slice(-DIAGNOSTICS_CONFIG.LOGS.MAX_ENTRIES));

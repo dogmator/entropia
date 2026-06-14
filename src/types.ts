@@ -1,26 +1,26 @@
 /**
- * Entropia 3D — Центральний реєстр детермінованих визначень типів.
+ * Entropia 3D — Central registry of deterministic type definitions.
  *
- * Реалізує принципи академічно суворої типізації з використанням:
- * - Branded Types для забезпечення фізичної сегрегації ідентифікаторів.
- * - Модифікаторів імутабельності (Readonly) для гарантування цілісності даних.
- * - Дискримінаційних об'єднань (Discriminated Unions) для безпечного зіставлення за зразком.
- * - Статичних константних асерцій для детермінації літеральних просторів.
+ * Implements principles of academically strict typing using:
+ * - Branded Types to ensure physical segregation of identifiers.
+ * - Immutability modifiers (Readonly) to guarantee data integrity.
+ * - Discriminated Unions for safe pattern matching.
+ * - Static constant assertions to determine literal spaces.
  */
 
 // ============================================================================
-// BRANDED TYPES — ТИПОБЕЗПЕЧНІ ІДЕНТИФІКАТОРИ
+// BRANDED TYPES — TYPE-SAFE IDENTIFIERS
 // ============================================================================
 
 declare const __brand: unique symbol;
 
 /**
- * Патерн «Branded Type» — запобігає семантичному змішуванню ідентифікаторів різних доменів.
+ * "Branded Type" pattern — prevents semantic mixing of identifiers from different domains.
  * 
  * @example
  * const orgId: OrganismId = "123" as OrganismId;
  * const foodId: FoodId = "123" as FoodId;
- * // Операція (orgId === foodId) ініціює помилку компіляції!
+ * // Operation (orgId === foodId) triggers a compilation error!
  */
 type Brand<T, TBrand extends string> = T & { readonly [__brand]: TBrand };
 
@@ -30,14 +30,14 @@ export type ObstacleId = Brand<string, 'ObstacleId'>;
 export type GenomeId = Brand<string, 'GenomeId'>;
 export type EntityId = OrganismId | FoodId | ObstacleId;
 
-/** Фабричні методи для безпечної інстанціації типізованих дескрипторів. */
+/** Factory methods for safe instantiation of typed descriptors. */
 export const createOrganismId = (id: string): OrganismId => id as OrganismId;
 export const createFoodId = (id: string): FoodId => id as FoodId;
 export const createObstacleId = (id: string): ObstacleId => id as ObstacleId;
 export const createGenomeId = (id: string): GenomeId => id as GenomeId;
 
 // ============================================================================
-// ПЕРЕЛІКИ ТА ДЕТЕРМІНОВАНІ КОНСТАНТИ
+// ENUMS AND DETERMINISTIC CONSTANTS
 // ============================================================================
 
 export const EntityType = {
@@ -49,27 +49,27 @@ export const EntityType = {
 
 export type EntityType = typeof EntityType[keyof typeof EntityType];
 
-/** Класифікація еволюційних підтипів хижих суб'єктів. */
+/** Classification of evolutionary subtypes of predatory subjects. */
 export const PredatorSubtype = {
-  HUNTER: 'HUNTER',       // Спеціалізація: Швидкість / Низька витривалість
-  AMBUSHER: 'AMBUSHER',   // Спеціалізація: Латентність / Висока ударна потужність
-  PACK: 'PACK',           // Спеціалізація: Соціальна кооперування
+  HUNTER: 'HUNTER',       // Specialization: Speed / Low stamina
+  AMBUSHER: 'AMBUSHER',   // Specialization: Latency / High impact power
+  PACK: 'PACK',           // Specialization: Social cooperation
 } as const;
 
 export type PredatorSubtype = typeof PredatorSubtype[keyof typeof PredatorSubtype];
 
-/** Рівні інтенсивності графічної репрезентації. */
+/** Levels of intensity of graphical representation. */
 export const GraphicsQuality = {
   LOW: 'LOW',
   MEDIUM: 'MEDIUM',
   HIGH: 'HIGH',
   ULTRA: 'ULTRA',
-  CUSTOM: 'CUSTOM', // Параметри, визначені користувачем
+  CUSTOM: 'CUSTOM', // User-defined parameters
 } as const;
 
 export type GraphicsQuality = typeof GraphicsQuality[keyof typeof GraphicsQuality];
 
-/** Стани життєвого циклу рушія симуляції. */
+/** Life cycle states of the simulation engine. */
 export const EngineState = {
   INITIALIZING: 'INITIALIZING',
   READY: 'READY',
@@ -81,12 +81,12 @@ export const EngineState = {
 export type EngineState = typeof EngineState[keyof typeof EngineState];
 
 // ============================================================================
-// ОБ'ЄКТИ ВЕКТОРНОГО АНАЛІЗУ
+// VECTOR ANALYSIS OBJECTS
 // ============================================================================
 
 /**
- * Імутабельний тривимірний вектор (Euclidean Vector).
- * Усі математичні трансформації повертають нову проекцію.
+ * Immutable three-dimensional vector (Euclidean Vector).
+ * All mathematical transformations return a new projection.
  */
 export interface Vector3 {
   readonly x: number;
@@ -94,64 +94,62 @@ export interface Vector3 {
   readonly z: number;
 }
 
-/** Версія вектора з можливістю мутації для ітераційних обчислень (Engine Internal). */
+/** Vector version with mutation capability for iterative calculations (Engine Internal). */
 export interface MutableVector3 {
   x: number;
   y: number;
   z: number;
 }
 
-/** Конструктори векторів (Vector Constructors). */
+/** Vector Constructors. */
 export const vec3 = (x: number, y: number, z: number): Vector3 => ({ x, y, z });
 export const vec3Zero = (): MutableVector3 => ({ x: 0, y: 0, z: 0 });
-export const vec3Clone = (v: Vector3): MutableVector3 => ({ x: v.x, y: v.y, z: v.z });
-
 // ============================================================================
-// GENOME — ГЕНЕТИЧНА ДЕТЕРМІНАЦІЯ
+// GENOME — GENETIC DETERMINATION
 // ============================================================================
 
 /**
- * Базовий дескриптор геному з інваріантними характеристиками.
+ * Base genome descriptor with invariant characteristics.
  */
 interface BaseGenome {
   readonly id: GenomeId;
-  readonly parentId: GenomeId | null;  // Посилання для філогенетичного аналізу
-  readonly generation: number;          // Порядковий номер реплікації
+  readonly parentId: GenomeId | null;  // Reference for phylogenetic analysis
+  readonly generation: number;          // Replication ordinal number
   readonly color: number;
   readonly maxSpeed: number;
   readonly senseRadius: number;
   readonly metabolism: number;
   readonly size: number;
 
-  // Генетично обумовлені морфологічні ознаки
-  readonly asymmetry: number;     // Коефіцієнт деформації форми (0-1)
-  readonly spikiness: number;     // Ступінь вираженості структурних виступів (0-1)
-  readonly glowIntensity: number; // Амплітуда візуальної емісії енергії (0-1)
+  // Genetically determined morphological traits
+  readonly asymmetry: number;     // Shape deformation coefficient (0-1)
+  readonly spikiness: number;     // Degree of structural protrusion prominence (0-1)
+  readonly glowIntensity: number; // Amplitude of visual energy emission (0-1)
 }
 
 /**
- * Дискримінаційне об'єднання для забезпечення строгості генетичного коду.
+ * Discriminated union to ensure genetic code strictness.
  */
 export interface PreyGenome extends BaseGenome {
   readonly type: typeof EntityType.PREY;
-  readonly flockingStrength: number;  // Схильність до групової агрегації
+  readonly flockingStrength: number;  // Propensity for group aggregation
 }
 
 export interface PredatorGenome extends BaseGenome {
   readonly type: typeof EntityType.PREDATOR;
   readonly subtype: PredatorSubtype;
   readonly attackPower: number;
-  readonly packAffinity: number;      // Ступінь схильності до формування зграй
+  readonly packAffinity: number;      // Degree of propensity for forming packs
 }
 
 export type Genome = PreyGenome | PredatorGenome;
 
-/** Механізми предикатної перевірки типу геному. */
+/** Genome type predicate checking mechanisms. */
 export const isPreyGenome = (g: Genome): g is PreyGenome => g.type === EntityType.PREY;
 export const isPredatorGenome = (g: Genome): g is PredatorGenome => g.type === EntityType.PREDATOR;
 
 // ============================================================================
-// ФАЗОВІ СТАНИ СУТНОСТЕЙ (ENTITY STATES)
+// ENTITY PHASE STATES
 // ============================================================================
 
 export const OrganismState = {
@@ -166,23 +164,23 @@ export const OrganismState = {
 export type OrganismState = typeof OrganismState[keyof typeof OrganismState];
 
 // ============================================================================
-// МЕТРИКИ ТА СТАТИСТИЧНИЙ АНАЛІЗ
+// METRICS AND STATISTICAL ANALYSIS
 // ============================================================================
 
 /**
- * Показники продуктивності обчислювального конвеєра.
+ * Performance indicators of the computational pipeline.
  */
 export interface PerformanceMetrics {
-  readonly fps: number;              // Частота оновлення кадрів (Frames Per Second)
-  readonly tps: number;              // Частота оновлення фізики (Ticks Per Second)
-  readonly frameTime: number;        // Латентність рендерингу кадру (мс)
-  readonly simulationTime: number;   // Тривалість обчислювального такту (мс)
-  readonly entityCount: number;      // Сумарна популяційна чисельність
-  readonly drawCalls: number;        // Кількість викликів відмальовування
+  readonly fps: number;              // Frames Per Second
+  readonly tps: number;              // Ticks Per Second
+  readonly frameTime: number;        // Frame rendering latency (ms)
+  readonly simulationTime: number;   // Computational tick duration (ms)
+  readonly entityCount: number;      // Total population size
+  readonly drawCalls: number;        // Number of draw calls
 }
 
 /**
- * Комплексні статистичні показники стану біосфери.
+ * Complex statistical indicators of the biosphere state.
  */
 export interface SimulationStats {
   readonly preyCount: number;
@@ -196,16 +194,16 @@ export interface SimulationStats {
   readonly maxAge: number;
   readonly totalDeaths: number;
   readonly totalBirths: number;
-  readonly extinctionRisk: number;    // Імовірність колапсу екосистеми (0-1)
+  readonly extinctionRisk: number;    // Probability of ecosystem collapse (0-1)
   readonly performance?: PerformanceMetrics;
 
-  // Геометричний стан світу
+  // Geometric state of the world
   readonly worldSize?: number;
   readonly foodSpawnRate?: number;
   readonly obstacleCount?: number;
   readonly worldAge?: number;
 
-  // Стан камери
+  // Camera state
   readonly cameraX?: number;
   readonly cameraY?: number;
   readonly cameraZ?: number;
@@ -217,14 +215,14 @@ export interface SimulationStats {
   readonly cameraFov?: number;
   readonly cameraAspect?: number;
 
-  // Екологічні зони
+  // Ecological zones
   readonly growthZones?: number;
   readonly neutralZones?: number;
   readonly dangerZones?: number;
   readonly totalZones?: number;
   readonly activeZones?: number;
 
-  // Просторова сітка
+  // Spatial grid
   readonly cellSize?: number;
   readonly totalCells?: number;
   readonly occupiedCells?: number;
@@ -234,7 +232,7 @@ export interface SimulationStats {
 }
 
 /**
- * Дані камери для синхронізації з двигуном.
+ * Camera data for engine synchronization.
  */
 export interface CameraData {
   position: Vector3;
@@ -248,7 +246,7 @@ export interface CameraData {
 }
 
 /**
- * Структура даних для подій популяції.
+ * Data structure for population events.
  */
 export interface EngineEventData {
   deadCount?: number;
@@ -264,7 +262,7 @@ export interface PopulationSnapshot {
 }
 
 
-/** Структура порцій даних для динамічної візуалізації графіків. */
+/** Structure of data portions for dynamic chart visualization. */
 export interface PopulationDataPoint {
   readonly time: number;
   readonly prey: number;
@@ -408,7 +406,7 @@ export interface SerializedSimulationStateV1 {
 }
 
 // ============================================================================
-// ПАРАМЕТРИ КОНФІГУРАЦІЇ
+// CONFIGURATION PARAMETERS
 // ============================================================================
 
 export interface VisConfig {
@@ -421,8 +419,8 @@ export interface VisConfig {
   readonly gridOpacity: number;
   readonly trailLength: number;
   readonly showEnergyGlow: boolean;
-  readonly showTrails: boolean;         // Активація візуальних треків руху
-  readonly showParticles: boolean;      // Активація фонових та ефектних систем часток
+  readonly showTrails: boolean;         // Activation of visual movement tracks
+  readonly showParticles: boolean;      // Activation of background and effect particle systems
   readonly graphicsQuality: GraphicsQuality;
 }
 
@@ -445,7 +443,7 @@ export interface SimulationConfig extends VisConfig, PhysicsConfig {
 }
 
 // ============================================================================
-// EVENTS — СИСТЕМА ДИСКРИМІНАЦІЙНИХ ПОВІДОМЛЕНЬ
+// EVENTS — DISCRIMINATED MESSAGE SYSTEM
 // ============================================================================
 
 export type CauseOfDeath = 'starvation' | 'predation' | 'old_age';
@@ -498,7 +496,7 @@ export type SimulationEvent =
 export type SimulationEventCallback = (event: SimulationEvent) => void;
 
 // ============================================================================
-// SPATIAL GRID — ПРОСТОРОВА ДЕКОМПОЗИЦІЯ
+// SPATIAL GRID — SPATIAL DECOMPOSITION
 // ============================================================================
 
 export interface GridEntity {
@@ -551,7 +549,7 @@ export interface RenderBuffers {
 
 
 /**
- * Оптимізована структура даних для конфігурації InstancedMesh (GPU).
+ * Optimized data structure for InstancedMesh (GPU) configuration.
  */
 export interface OrganismRenderData {
   readonly id: OrganismId;
@@ -587,7 +585,7 @@ export interface ObstacleRenderData {
   readonly opacity: number;
 }
 
-/** Агрегований стан кадру для термінального рендерингу. */
+/** Aggregated frame state for terminal rendering. */
 export interface RenderFrame {
   readonly tick: number;
   readonly organisms: readonly OrganismRenderData[];
@@ -598,14 +596,14 @@ export interface RenderFrame {
 }
 
 // ============================================================================
-// ЕКОЛОГІЧНІ ЗОНИ ТА БІОМИ
+// ECOLOGICAL ZONES AND BIOMES
 // ============================================================================
 
 export const ZoneType = {
-  OASIS: 'OASIS',           // Регіон високої проліферації ресурсів
-  DESERT: 'DESERT',         // Регіон енергетичного дефіциту
-  HUNTING_GROUND: 'HUNTING_GROUND',  // Територія з перевагою для консументів
-  SANCTUARY: 'SANCTUARY',   // Рефугіум (захищена зона для травоїдних)
+  OASIS: 'OASIS',           // Region of high resource proliferation
+  DESERT: 'DESERT',         // Region of energy deficit
+  HUNTING_GROUND: 'HUNTING_GROUND',  // Territory with advantage for consumers
+  SANCTUARY: 'SANCTUARY',   // Refugium (protected zone for herbivores)
 } as const;
 
 export type ZoneType = typeof ZoneType[keyof typeof ZoneType];
@@ -620,7 +618,7 @@ export interface EcologicalZone {
 }
 
 // ============================================================================
-// ГЕНЕТИЧНА КОМПАРАТИВІСТИКА (GENETIC TREE)
+// GENETIC COMPARATIVE ANALYSIS (GENETIC TREE)
 // ============================================================================
 
 export interface GeneticTreeNode {
@@ -645,20 +643,20 @@ export interface GeneticTree {
 }
 
 /**
- * Конфігурація фізичних параметрів світу, що підтримує масштабування.
+ * World physical parameters configuration, supports scaling.
  */
 export interface WorldConfig {
-  /** Лінійна розмірність кубічного домену. */
+  /** Linear dimension of cubic domain. */
   readonly WORLD_SIZE: number;
-  /** Гранично допустима сумарна чисельність агентів. */
+  /** Maximum allowable total number of agents. */
   readonly MAX_TOTAL_ORGANISMS: number;
-  /** Початкова кількість травоїдних. */
+  /** Initial number of herbivores. */
   readonly INITIAL_PREY: number;
-  /** Початкова кількість хижаків. */
+  /** Initial number of predators. */
   readonly INITIAL_PREDATOR: number;
-  /** Максимальна кількість їжі. */
+  /** Maximum number of food items. */
   readonly MAX_FOOD: number;
-  /** Швидкість респавну їжі. */
+  /** Food respawn rate. */
   readonly FOOD_SPAWN_RATE: number;
 }
 

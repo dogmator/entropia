@@ -1,9 +1,10 @@
 import React from 'react';
 
+import { t } from '@/i18n';
 import { Icons } from './shared/Icons';
 
 /**
- * Програмний інтерфейс для властивостей компонента SimulationControls.
+ * Interface for SimulationControls component properties.
  */
 interface SimulationControlsProps {
   onReset: () => void;
@@ -25,7 +26,7 @@ const SPEED_STEPS = [
 ];
 
 /**
- * Компонент SimulationControls — інтерфейс керування темпоральними параметрами симуляції.
+ * SimulationControls component — interface for controlling simulation temporal parameters.
  */
 export const SimulationControls: React.FC<SimulationControlsProps> = ({
   onReset, speed, onSpeedChange, simulationState, onRun, onPause, onStop, disabled = false
@@ -54,7 +55,7 @@ const SpeedHeader: React.FC<{ speed: number }> = ({ speed }) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-2">
       <span className="text-[9px] sm:text-[8px] uppercase tracking-[0.2em] text-gray-500 font-black">
-        Темпоральний масштаб
+        {t.controls.speed}
       </span>
     </div>
     <div className={`flex items-center gap-2 ${getSpeedInfo(speed).bgColor} ${getSpeedInfo(speed).borderColor} border px-3 py-1.5 rounded-lg`}>
@@ -93,8 +94,8 @@ const SpeedSlider: React.FC<{ speed: number, onChange: (val: number) => void, di
         min={0} max={5.0} step={0.1}
         value={speed}
         disabled={disabled}
-        onInput={(e: React.ChangeEvent<HTMLInputElement>) => onChange(parseFloat(e.target.value))}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(parseFloat(e.target.value))}
+        onInput={(e: React.ChangeEvent<HTMLInputElement>) => { onChange(parseFloat(e.target.value)); }}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { onChange(parseFloat(e.target.value)); }}
         className="w-full h-2 sm:h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:bg-white/20 transition-colors touch-manipulation"
         style={{
           background: `linear-gradient(to right,
@@ -123,7 +124,7 @@ const SpeedQuickButtons: React.FC<{ speed: number, onChange: (val: number) => vo
       <button
         key={btn.value}
         disabled={disabled}
-        onClick={() => onChange(btn.value)}
+        onClick={() => { onChange(btn.value); }}
         className={`h-8 rounded-lg text-[10px] font-bold transition-all duration-200 touch-manipulation ${speed === btn.value
           ? `bg-${btn.color}-500/30 text-${btn.color}-400 ring-2 ring-${btn.color}-500/50`
           : 'bg-white/5 text-gray-500 hover:bg-white/10 hover:text-white'
@@ -140,10 +141,10 @@ const ResetButton: React.FC<{ onReset: () => void, disabled: boolean }> = ({ onR
     disabled={disabled}
     onClick={onReset}
     className="h-10 rounded-lg bg-rose-500/10 text-rose-400 flex items-center justify-center gap-2 hover:bg-rose-500/20 hover:shadow-[0_0_20px_rgba(244,63,94,0.2)] transition-all duration-300 border border-rose-500/20 hover:border-rose-500/40 touch-manipulation hover:scale-[1.02] active:scale-95 font-bold text-[11px] sm:text-[10px] uppercase tracking-widest"
-    title="Скинути симуляційну модель"
+    title={t.controls.resetModel}
   >
     <Icons.Reset />
-    Реініціалізувати Світ
+    {t.controls.reset}
   </button>
 );
 
@@ -155,9 +156,9 @@ const SimulationStateControls: React.FC<{
   disabled: boolean;
 }> = ({ simulationState, onRun, onPause, onStop, disabled }) => (
   <div className="grid grid-cols-3 gap-2">
-    <ControlButton label="▶ Запуск" onClick={onRun} active={simulationState === 'running'} disabled={disabled} />
-    <ControlButton label="⏸ Пауза" onClick={onPause} active={simulationState === 'paused'} disabled={disabled} />
-    <ControlButton label="⏹ Стоп" onClick={onStop} active={simulationState === 'stopped'} disabled={disabled} />
+    <ControlButton label={t.controls.run} onClick={onRun} active={simulationState === 'running'} disabled={disabled} />
+    <ControlButton label={t.controls.pause} onClick={onPause} active={simulationState === 'paused'} disabled={disabled} />
+    <ControlButton label={t.controls.stop} onClick={onStop} active={simulationState === 'stopped'} disabled={disabled} />
   </div>
 );
 
@@ -180,16 +181,16 @@ const ControlButton: React.FC<{
 );
 
 /**
- * Логіка визначення колірної індикації за швидкістю.
+ * Logic for determining color indication based on speed.
  */
 function getSpeedInfo(speed: number) {
   if (speed === 0) {
-    return { color: 'text-red-400', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30', label: 'ЗУПИНЕНО', icon: '⏸️' };
+    return { color: 'text-red-400', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30', label: t.status.stopped, icon: '⏸️' };
   } else if (speed < 1) {
-    return { color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/30', label: 'УПОВІЛЬНЕННЯ', icon: '🐢' };
+    return { color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/30', label: t.status.slowing, icon: '🐢' };
   } else if (speed === 1) {
-    return { color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', borderColor: 'border-emerald-500/30', label: 'НОРМАЛЬНО', icon: '▶️' };
+    return { color: 'text-emerald-400', bgColor: 'bg-emerald-500/20', borderColor: 'border-emerald-500/30', label: t.status.normal, icon: '▶️' };
   } else {
-    return { color: 'text-blue-400', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500/30', label: 'ПРИСКОРЕННЯ', icon: '⚡' };
+    return { color: 'text-blue-400', bgColor: 'bg-blue-500/20', borderColor: 'border-blue-500/30', label: t.status.accelerating, icon: '⚡' };
   }
 }

@@ -1,5 +1,7 @@
 
-export const SectionHeader = ({ title, colorClass = 'text-emerald-400', borderColorClass = 'bg-emerald-500/20' }: { title: string, colorClass?: string, borderColorClass?: string }) => (
+import type React from 'react';
+
+export const SectionHeader = ({ title, colorClass = 'text-emerald-400', borderColorClass = 'bg-emerald-500/20' }: { title: string, colorClass?: string, borderColorClass?: string }): React.JSX.Element => (
     <h3 className={`text-[10px] sm:text-[9px] ${colorClass} font-black uppercase tracking-[0.4em] mb-4 flex items-center gap-3`}>
         <div className={`h-px flex-1 ${borderColorClass}`} />
         {title}
@@ -7,7 +9,7 @@ export const SectionHeader = ({ title, colorClass = 'text-emerald-400', borderCo
     </h3>
 );
 
-export const ToggleButton = ({ label, description, active, onToggle, colorClass = 'bg-emerald-500' }: { label: string, description?: string, active: boolean, onToggle: () => void, colorClass?: string }) => (
+export const ToggleButton = ({ label, description, active, onToggle, colorClass = 'bg-emerald-500' }: { label: string, description?: string, active: boolean, onToggle: () => void, colorClass?: string }): React.JSX.Element => (
     <div className="flex justify-between items-center mb-4 last:mb-0">
         <div className="flex flex-col">
             <span className="text-[11px] sm:text-[10px] uppercase tracking-widest text-gray-400 font-bold">{label}</span>

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
+/* eslint-disable max-lines-per-function */
 /**
  * Модульні тести для верифікації коректної інтеграції WorldConfig у BehaviorSystem.
  *
@@ -9,21 +11,17 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { createWorldConfig, WORLD_SIZE, CELL_SIZE } from '../../../config';
-import { Random } from '../../../core/utils/Random';
-import type { EcologicalZone, EntityId, GenomeId, SimulationConfig, WorldConfig, ZoneType } from '../../../types';
-import { EntityType, createOrganismId } from '../../../types';
+import { CELL_SIZE,createWorldConfig } from '../../../config';
+import type { EcologicalZone, GenomeId, SimulationConfig, WorldConfig, ZoneType } from '../../../types';
+import { createOrganismId,EntityType } from '../../../types';
 import { Organism } from '../../Entity';
-import { GridManager } from '../../managers/GridManager';
-import { SpatialHashGrid } from '../../SpatialHashGrid';
-import { BehaviorSystem } from '../BehaviorSystem';
+import { GridManager } from '../../managers/GridManager.manager';
+import { BehaviorSystem } from '../Behavior.system';
 
 describe('BehaviorSystem — Інтеграція WorldConfig', () => {
   let gridManager: GridManager;
-  let spatialGrid: SpatialHashGrid;
   let zones: Map<string, EcologicalZone>;
   let config: SimulationConfig;
-  const rng = new Random(12345);
 
   beforeEach(() => {
     zones = new Map();
@@ -57,9 +55,8 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
 
   it('повинен використовувати worldSize із WorldConfig (стандартний масштаб)', () => {
     const worldConfig: WorldConfig = createWorldConfig(1.0);
-    spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE, CELL_SIZE);
     gridManager = new GridManager(worldConfig.WORLD_SIZE, CELL_SIZE);
-    const behaviorSystem = new BehaviorSystem(gridManager, config, zones, worldConfig);
+    const behaviorSystem = new BehaviorSystem(gridManager, { config, zones, worldConfig });
 
     // Доступ до приватного поля через type assertion (тільки для тестів)
     const worldSize = (behaviorSystem as unknown as { worldSize: number }).worldSize;
@@ -69,9 +66,8 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
 
   it('повинен коректно працювати з масштабованим світом (scale=2.0)', () => {
     const worldConfig: WorldConfig = createWorldConfig(2.0);
-    spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE, CELL_SIZE);
     gridManager = new GridManager(worldConfig.WORLD_SIZE, CELL_SIZE);
-    const behaviorSystem = new BehaviorSystem(gridManager, config, zones, worldConfig);
+    const behaviorSystem = new BehaviorSystem(gridManager, { config, zones, worldConfig });
 
     const worldSize = (behaviorSystem as unknown as { worldSize: number }).worldSize;
 
@@ -80,9 +76,8 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
 
   it('повинен коректно обчислювати тороїдальні вектори для масштабованого світу', () => {
     const worldConfig: WorldConfig = createWorldConfig(1.5);
-    spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE, CELL_SIZE);
     gridManager = new GridManager(worldConfig.WORLD_SIZE, CELL_SIZE);
-    const behaviorSystem = new BehaviorSystem(gridManager, config, zones, worldConfig);
+    const behaviorSystem = new BehaviorSystem(gridManager, { config, zones, worldConfig });
 
     const genome = {
       id: 'genome_1' as GenomeId,
@@ -100,7 +95,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
       flockingStrength: 0.5,
     };
 
-    const organism = new Organism(createOrganismId('org_1'), { x: 10, y: 10, z: 10 }, genome as unknown as Organism['genome'], null, rng);
+    const organism = new Organism(createOrganismId('org_1'), { x: 10, y: 10, z: 10 }, genome as unknown as Organism['genome'], null);
 
     // Оновлення — має відпрацювати без помилок
     const organisms = new Map<string, Organism>();
@@ -113,7 +108,6 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
 
   it('повинен коректно обчислювати модифікатори зон з урахуванням worldSize', () => {
     const worldConfig: WorldConfig = createWorldConfig(1.0);
-    spatialGrid = new SpatialHashGrid(worldConfig.WORLD_SIZE, CELL_SIZE);
     gridManager = new GridManager(worldConfig.WORLD_SIZE, CELL_SIZE);
 
     zones.set('test_oasis', {
@@ -125,10 +119,10 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
       dangerMultiplier: 0.5,
     });
 
-    const behaviorSystem = new BehaviorSystem(gridManager, config, zones, worldConfig);
+    const behaviorSystem = new BehaviorSystem(gridManager, { config, zones, worldConfig });
 
     const genome = {
-      id: 'genome_1' as any,
+      id: 'genome_1' as GenomeId,
       parentId: null,
       generation: 1,
       type: EntityType.PREY,
@@ -143,7 +137,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
       flockingStrength: 0.5,
     };
 
-    const organismInZone = new Organism(createOrganismId('org_1'), { x: 200, y: 200, z: 200 }, genome as unknown as Organism['genome'], null, rng);
+    const organismInZone = new Organism(createOrganismId('org_1'), { x: 200, y: 200, z: 200 }, genome as unknown as Organism['genome'], null);
     const organisms = new Map<string, Organism>();
     organisms.set(organismInZone.id, organismInZone);
 

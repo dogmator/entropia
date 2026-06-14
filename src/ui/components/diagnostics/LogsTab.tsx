@@ -1,6 +1,7 @@
 import React from 'react';
 
-import type { LogEntry } from '@/core/services/Logger';
+import { t } from '@/i18n';
+import type { LogEntry } from '@/core/services/Logger.service';
 
 interface LogsTabProps {
     detailedLogs: LogEntry[];
@@ -19,10 +20,10 @@ export const LogsTab: React.FC<LogsTabProps> = ({ detailedLogs }) => {
     return (
         <div className="space-y-4">
             <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                <h3 className="text-sm font-medium text-gray-300 mb-4">Системні журнали</h3>
+                <h3 className="text-sm font-medium text-gray-300 mb-4">{t.diagnostics.systemLogs}</h3>
                 <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
                     {detailedLogs.length === 0 ? (
-                        <div className="text-gray-500 text-sm">Журнали тимчасово недоступні</div>
+                        <div className="text-gray-500 text-sm">{t.diagnostics.logsUnavailable}</div>
                     ) : (
                         detailedLogs.map((log, index) => (
                             <div key={index} className={`text-xs p-2 rounded ${getLogStyle(log.level)}`}>

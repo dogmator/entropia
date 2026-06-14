@@ -1,4 +1,5 @@
 import { WebSocket, WebSocketServer } from 'ws';
+
 import {
     appendLogEntryWithLimit,
     DEFAULT_MAX_LOG_FILE_BYTES,
@@ -128,7 +129,7 @@ const printColoredLog = (payload: LogPayload): void => {
 };
 
 const isValidCommand = (command: CommandPayload): boolean =>
-    command.type === COMMAND_TYPE && command.action.length > 0;
+    command.action.length > 0;
 
 const broadcast = (wss: WebSocketServer, command: CommandPayload): void => {
     if (!isValidCommand(command)) {
@@ -168,7 +169,7 @@ const handleServerError = (error: unknown): never => {
     }
 
     if (error.code === ERROR_CODE_ADDRESS_IN_USE) {
-        console.error(`${ANSI_COLORS.red}[CRITICAL]${ANSI_COLORS.reset} Port ${PORT} is already in use.`);
+        console.error(`${ANSI_COLORS.red}[CRITICAL]${ANSI_COLORS.reset} Port ${String(PORT)} is already in use.`);
         process.exit(1);
     }
 
@@ -187,8 +188,10 @@ wss.on('connection', (ws: WebSocket) => {
             appendLogEntryWithLimit(
                 LOG_FILE_PATH,
                 createLogEntryText(payload),
-                MAX_LOG_FILE_BYTES,
-                TRIM_TO_BYTES
+                {
+                    maxBytes: MAX_LOG_FILE_BYTES,
+                    trimToBytes: TRIM_TO_BYTES
+                }
             );
             printColoredLog(payload);
         } catch (error: unknown) {
@@ -218,9 +221,9 @@ wss.on('error', (error: unknown) => {
 console.log(`\n${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
 console.log(`${ANSI_COLORS.cyan}    ENTROPIA 3D DIAGNOSTIC SERVER     ${ANSI_COLORS.reset}`);
 console.log(`${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
-console.log(`Address:   ws://localhost:${PORT}`);
+console.log(`Address:   ws://localhost:${String(PORT)}`);
 console.log(`Log File:  ${LOG_FILE_PATH}`);
-console.log(`File cap:  ${MAX_LOG_FILE_BYTES} bytes (trim to ${TRIM_TO_BYTES} bytes)`);
+console.log(`File cap:  ${String(MAX_LOG_FILE_BYTES)} bytes (trim to ${String(TRIM_TO_BYTES)} bytes)`);
 console.log('Runtime:   TypeScript (tsx)');
 console.log('Status:    Running and waiting for connections...');
 console.log(`${ANSI_COLORS.magenta}----------------------------------------${ANSI_COLORS.reset}\n`);

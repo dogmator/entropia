@@ -1,13 +1,28 @@
 import fs from 'fs';
 
-export const DEFAULT_MAX_LOG_FILE_BYTES = 5 * 1024 * 1024; // 5 MB
-export const DEFAULT_TRIM_TO_BYTES = 4 * 1024 * 1024; // keep latest 4 MB
+const BYTES_PER_KB = 1024;
+const BYTES_PER_MB = BYTES_PER_KB * BYTES_PER_KB;
+
+const DEFAULT_MAX_MB = 5;
+const DEFAULT_TRIM_MB = 4;
+
+export const DEFAULT_MAX_LOG_FILE_BYTES = DEFAULT_MAX_MB * BYTES_PER_MB; // 5 MB
+export const DEFAULT_TRIM_TO_BYTES = DEFAULT_TRIM_MB * BYTES_PER_MB; // keep latest 4 MB
+
+interface LogSizeOptions {
+  maxBytes?: number;
+  trimToBytes?: number;
+}
 
 export const enforceLogFileSizeLimit = (
   logFilePath: string,
-  maxBytes: number = DEFAULT_MAX_LOG_FILE_BYTES,
-  trimToBytes: number = DEFAULT_TRIM_TO_BYTES
+  options: LogSizeOptions = {}
 ): void => {
+  const { 
+    maxBytes = DEFAULT_MAX_LOG_FILE_BYTES, 
+    trimToBytes = DEFAULT_TRIM_TO_BYTES 
+  } = options;
+
   if (!fs.existsSync(logFilePath)) {
     return;
   }
@@ -40,10 +55,9 @@ export const enforceLogFileSizeLimit = (
 export const appendLogEntryWithLimit = (
   logFilePath: string,
   entry: string,
-  maxBytes: number = DEFAULT_MAX_LOG_FILE_BYTES,
-  trimToBytes: number = DEFAULT_TRIM_TO_BYTES
+  options: LogSizeOptions = {}
 ): void => {
-  enforceLogFileSizeLimit(logFilePath, maxBytes, trimToBytes);
+  enforceLogFileSizeLimit(logFilePath, options);
   fs.appendFileSync(logFilePath, entry);
 };
 

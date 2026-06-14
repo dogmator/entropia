@@ -20,9 +20,9 @@ function snapshotTypedArray(
     transferables: Transferable[]
 ): Float32Array {
     const boundedView = source.subarray(0, usedLength);
-    const supportsSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
+    const isSharedArrayBufferSupported = typeof SharedArrayBuffer !== 'undefined';
 
-    if (supportsSharedArrayBuffer && boundedView.buffer instanceof SharedArrayBuffer) {
+    if (isSharedArrayBufferSupported && boundedView.buffer instanceof SharedArrayBuffer) {
         return boundedView;
     }
 

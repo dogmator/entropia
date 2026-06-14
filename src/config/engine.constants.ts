@@ -9,7 +9,7 @@ export const ENGINE_CONSTANTS = {
   FOOD_BUFFER_SIZE: 5,
   MAX_DEPTH: 3,
   MAX_CELL_SIZE: 80,
-  SPATIAL_GRID_CELL_SIZE: 80, // Оптимальний розмір комірки для хеш-сітки
+  SPATIAL_GRID_CELL_SIZE: 80, // Optimal cell size for hash grid
   DEFAULT_CAMERA_FOV: 60,
   DEFAULT_ZOOM: 1,
   TICK_RATE: 60,
