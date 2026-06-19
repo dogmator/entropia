@@ -31,10 +31,11 @@ const BUILD_CONFIG = {
   },
   rollupOptions: {
     output: {
-      manualChunks: {
-        'three-core': ['three'],
-        charts: ['recharts'],
-        'react-vendor': ['react', 'react-dom'],
+      manualChunks: (id: string) => {
+        if (id.includes('/node_modules/three')) return 'three-core';
+        if (id.includes('/node_modules/recharts')) return 'charts';
+        if (id.includes('/node_modules/react')) return 'react-vendor';
+        return undefined;
       },
       chunkFileNames: 'assets/[name]-[hash].js',
       entryFileNames: 'assets/[name]-[hash].js',
