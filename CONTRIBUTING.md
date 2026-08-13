@@ -42,15 +42,14 @@ Existing `interfaces/` directories use the `I`-prefix convention (for example `I
 - Keep modules focused and prefer one primary responsibility per file.
 - Treat files around 200 lines as a review signal, not a mechanically enforced hard limit. Decompose when size reflects mixed responsibilities or poor locality.
 - Do not introduce `any` or `@ts-ignore`.
-- Do not introduce dead code; `knip` is part of the repository quality gate.
 - Prefer named constants for non-obvious domain/configuration values.
 - Avoid new barrel files. Existing compatibility/export barrels may remain until removing them provides a concrete locality or dependency benefit.
 
 ## Verification
 
-`pnpm run check` is the canonical code-quality gate. It runs type checking, ESLint, dead-code/tooling checks, dependency-cruiser, and the test suite in deterministic run mode.
+`pnpm run check` is the enforced repository gate. It runs type checking, the full unit-test suite in deterministic run mode, dependency-cruiser, and a production build. CI and the current Husky pre-commit hook cover the same baseline.
 
-`pnpm run check:ci` extends that gate with a production build and is the canonical pre-merge verification command.
+`pnpm run check:strict` is the cleanup audit. It additionally runs ESLint, knip, and tooling checks and currently reports pre-existing quality debt that should be removed in focused follow-up changes.
 
 Individual commands remain available for focused diagnostics:
 
@@ -81,7 +80,7 @@ Prerequisites: Node.js LTS and pnpm.
 ```bash
 pnpm install
 pnpm dev
-pnpm run check:ci
+pnpm run check
 ```
 
 Tests live in `__tests__/` directories adjacent to the source they cover.
