@@ -12,7 +12,7 @@ import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { WorkerResponse } from './WorkerMessages';
+import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
 
@@ -137,7 +137,7 @@ function handleGetStats(): void {
  * Generic handler for async commands.
  */
 async function handleAsyncCommand(
-    command: (engine: SimulationEngine) => Promise<unknown>,
+    command: (simulationEngine: SimulationEngine) => Promise<unknown>,
     requestId: string
 ): Promise<void> {
     if (!engine) {
@@ -163,7 +163,6 @@ async function handleAsyncCommand(
 function handleSetConfig(config: Partial<SimulationEngine['config']>): void {
     if (!engine) return;
     Object.assign(engine.config, config);
-    // Notify about updated stats
     sendResponse({ type: 'stats', stats: engine.getStats() });
 }
 
@@ -179,7 +178,6 @@ function loop(): void {
     accumulator += dt;
 
     let isUpdated = false;
-    // Protection against "death spiral" (max 10 steps at once)
     let safetyCounter = 0;
     while (accumulator >= TIMESTEP && safetyCounter < MAX_UPDATES_PER_LOOP) {
         engine.update();
@@ -225,7 +223,6 @@ function startAutoUpdate(): void {
         engine.start();
         loop();
     }
-    // else: engine not ready yet — loop will start automatically in handleInit
 }
 
 function stopAutoUpdate(): void {
@@ -236,97 +233,92 @@ function stopAutoUpdate(): void {
     }
 }
 
-/**
- * Main command handler.
- */
-self.onmessage = (event: MessageEvent): void => {
-    const data = event.data;
+function handleSyncCamera(command: Extract<WorkerCommand, { type: 'syncCamera' }>): void {
+    if (!engine) return;
+    engine.setCameraData({
+        position: command.position,
+        target: command.target,
+        zoom: command.zoom,
+        distance: command.distance,
+        fov: command.fov,
+        aspect: command.aspect,
+        near: 0.1,
+        far: 1000,
+    });
+}
 
-    if (!isWorkerCommand(data)) {
-        return;
-    }
+function handleGeneticRoots(): void {
+    if (!engine) return;
+    sendResponse({
+        type: 'commandResponse',
+        requestId: 'geneticRoots',
+        result: engine.getGeneticRoots(),
+    });
+}
 
-    switch (data.type) {
-        case 'init':
-            handleInit(data.scale);
-            break;
+function handleExportState(requestId: string): void {
+    if (!engine) return;
+    sendResponse({
+        type: 'commandResponse',
+        requestId,
+        result: engine.exportState(),
+    });
+}
+
+function handleImportState(command: Extract<WorkerCommand, { type: 'importState' }>): void {
+    if (!engine) return;
+    engine.importState(command.state);
+    sendResponse({ type: 'stats', stats: engine.getStats() });
+}
+
+function handleLifecycleCommand(command: WorkerCommand): boolean {
+    switch (command.type) {
+        case 'init': handleInit(command.scale); return true;
         case 'update':
-            // Manual update if auto-loop is off
             if (!isRunning) handleUpdate();
-            break;
-        case 'reset':
-            handleReset();
-            break;
-        case 'setConfig':
-            handleSetConfig(data.config);
-            break;
-        case 'getStats':
-            handleGetStats();
-            break;
-        case 'findEntityAt':
-            void handleAsyncCommand(e => e.findEntityAt(data.position, data.tolerance), data.requestId);
-            break;
-        case 'getEntityByInstanceId':
-            void handleAsyncCommand(e => e.getEntityByInstanceId(data.entityType, data.instanceId, data.isDead), data.requestId);
-            break;
-        case 'getGeneticNode':
-            void handleAsyncCommand(e => e.getGeneticNode(data.genomeId as import('@/types').GenomeId), data.requestId);
-            break;
-        case 'syncCamera':
-            if (engine) {
-                engine.setCameraData({
-                    position: data.position,
-                    target: data.target,
-                    zoom: data.zoom,
-                    distance: data.distance,
-                    fov: data.fov,
-                    aspect: data.aspect,
-                    near: 0.1,
-                    far: 1000,
-                });
-            }
-            break;
-        case 'getGeneticRoots':
-            if (engine) {
-                sendResponse({
-                    type: 'commandResponse',
-                    requestId: 'geneticRoots',
-                    result: engine.getGeneticRoots(),
-                });
-            }
-            break;
-        case 'exportState':
-            if (engine) {
-                sendResponse({
-                    type: 'commandResponse',
-                    requestId: data.requestId,
-                    result: engine.exportState(),
-                });
-            }
-            break;
-        case 'importState':
-            if (engine) {
-                engine.importState(data.state as any);
-                sendResponse({ type: 'stats', stats: engine.getStats() });
-            }
-            break;
-        case 'startLoop':
-            startAutoUpdate();
-            break;
-        case 'stopLoop':
-            stopAutoUpdate();
-            break;
-        case 'setSpeed':
-            speedFactor = data.speed;
-            break;
-        case 'asyncCommand':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            void handleAsyncCommand((engine) => (engine as any)[data.commandName](data.payload), data.requestId);
-            break;
-        default:
-            sendResponse({ type: 'error', message: `Unknown command: ${JSON.stringify(data)}` });
+            return true;
+        case 'reset': handleReset(); return true;
+        case 'setConfig': handleSetConfig(command.config); return true;
+        case 'getStats': handleGetStats(); return true;
+        default: return false;
     }
+}
+
+function handleQueryCommand(command: WorkerCommand): boolean {
+    switch (command.type) {
+        case 'findEntityAt':
+            void handleAsyncCommand(e => e.findEntityAt(command.position, command.tolerance), command.requestId);
+            return true;
+        case 'getEntityByInstanceId':
+            void handleAsyncCommand(e => e.getEntityByInstanceId(command.entityType, command.instanceId, command.isDead), command.requestId);
+            return true;
+        case 'getGeneticNode':
+            void handleAsyncCommand(e => e.getGeneticNode(command.genomeId), command.requestId);
+            return true;
+        case 'getGeneticRoots': handleGeneticRoots(); return true;
+        case 'exportState': handleExportState(command.requestId); return true;
+        case 'importState': handleImportState(command); return true;
+        default: return false;
+    }
+}
+
+function handleControlCommand(command: WorkerCommand): void {
+    switch (command.type) {
+        case 'syncCamera': handleSyncCamera(command); break;
+        case 'startLoop': startAutoUpdate(); break;
+        case 'stopLoop': stopAutoUpdate(); break;
+        case 'setSpeed': speedFactor = command.speed; break;
+        default:
+            sendResponse({ type: 'error', message: `Unknown command: ${JSON.stringify(command)}` });
+    }
+}
+
+self.onmessage = (event: MessageEvent<unknown>): void => {
+    const data = event.data;
+    if (!isWorkerCommand(data)) return;
+    if (handleLifecycleCommand(data)) return;
+    if (handleQueryCommand(data)) return;
+    handleControlCommand(data);
 };
 
-// Signal worker readiness
 sendResponse({ type: 'ready' });
