@@ -8,12 +8,15 @@
 
 import type {
     EcologicalZone,
+    GenomeId,
     RenderBuffers,
+    SerializedSimulationStateV1,
     SimulationConfig,
     SimulationStats,
     Vector3,
     WorldConfig,
 } from '@/types';
+
 import type { IEntity } from './interfaces/IEntity';
 
 // ============================================================================
@@ -60,7 +63,7 @@ export interface GetEntityByInstanceIdCommand {
 export interface GetGeneticNodeCommand {
     readonly type: 'getGeneticNode';
     readonly requestId: string;
-    readonly genomeId: string;
+    readonly genomeId: GenomeId;
 }
 
 export interface SyncCameraCommand {
@@ -71,13 +74,6 @@ export interface SyncCameraCommand {
     readonly distance: number;
     readonly fov: number;
     readonly aspect: number;
-}
-
-export interface AsyncCommand {
-    readonly type: 'asyncCommand';
-    readonly requestId: string;
-    readonly commandName: string;
-    readonly payload?: unknown;
 }
 
 export interface GetGeneticRootsCommand {
@@ -91,7 +87,7 @@ export interface ExportStateCommand {
 
 export interface ImportStateCommand {
     readonly type: 'importState';
-    readonly state: unknown;
+    readonly state: SerializedSimulationStateV1;
 }
 
 export interface StartLoopCommand {
@@ -117,7 +113,6 @@ export type WorkerCommand =
     | GetEntityByInstanceIdCommand
     | GetGeneticNodeCommand
     | SyncCameraCommand
-    | AsyncCommand
     | GetGeneticRootsCommand
     | ExportStateCommand
     | ImportStateCommand

@@ -30,13 +30,11 @@ import type { IEntity as ISimulationEntity } from './IEntity';
 /**
  * Camera data for rendering.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ICameraData {
   position: Vector3;
   target: Vector3;
 }
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface IPerformanceMonitor {
   getMemoryStats(): MemoryStats | null;
   getPerformanceHistory(): SystemMetrics[];
@@ -45,7 +43,6 @@ export interface IPerformanceMonitor {
 /**
  * Main engine interface - implemented by SimulationEngine and EngineProxy.
  */
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export interface ISimulationEngine {
   /** Current simulation configuration */
   readonly config: SimulationConfig;
