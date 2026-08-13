@@ -28,6 +28,10 @@ import { MathUtils } from '../MathUtils.utils';
 const REFLECT_DOT_FACTOR = 2;
 /** Midpoint factor used for stuck-release impulse centring. */
 const STUCK_RELEASE_CENTER = 0.5;
+/** Tick cadence for verbose food-consumption diagnostics. */
+const FOOD_DEBUG_INTERVAL_TICKS = 60;
+/** Decimal precision for food-radius diagnostics. */
+const FOOD_RADIUS_LOG_PRECISION = 2;
 
 /**
  * Class implementing physical spatial interactions.
@@ -92,15 +96,12 @@ export class CollisionSystem {
 
     const searchRadius = organism.radius + PHYSICS.COLLISION_SEARCH_RADIUS_OFFSET;
 
-    // Using cached buffer
     this.gridManager.getNearby(organism.position, searchRadius, this.nearbyBuffer);
     const neighbors = this.nearbyBuffer;
 
     for (const neighbor of neighbors) {
-      // Exclude self-intersection
       if (neighbor.id === organism.id) { continue; }
 
-      // Logic differentiation based on intersection object type
       switch (neighbor.type) {
         case EntityType.OBSTACLE:
           this.handleObstacleCollision(organism, neighbor, obstacles);
@@ -119,7 +120,6 @@ export class CollisionSystem {
           break;
 
         case EntityType.PREDATOR:
-          // Predator-predator collisions are not handled
           break;
       }
     }
@@ -258,16 +258,17 @@ export class CollisionSystem {
       const radiusBefore = foodItem.radius;
       const absorbedEnergy = foodItem.applyBite(ENTITY_CONSTANTS.FOOD_BITE_ENERGY, tick);
       organism.addEnergy(absorbedEnergy);
-      if (absorbedEnergy > 0 && tick % 60 === 0) {
-        logger.debug(`Food bite: id=${foodItem.id} r ${String(radiusBefore.toFixed(2))}→${String(foodItem.radius.toFixed(2))} energy=${String(foodItem.currentEnergy.toFixed(1))} absorbed=${String(absorbedEnergy.toFixed(1))}`, 'CollisionSystem');
+      if (absorbedEnergy > 0 && tick % FOOD_DEBUG_INTERVAL_TICKS === 0) {
+        logger.debug(
+          `Food bite: id=${foodItem.id} r ${radiusBefore.toFixed(FOOD_RADIUS_LOG_PRECISION)}→${foodItem.radius.toFixed(FOOD_RADIUS_LOG_PRECISION)} energy=${foodItem.currentEnergy.toFixed(1)} absorbed=${absorbedEnergy.toFixed(1)}`,
+          'CollisionSystem'
+        );
       }
 
-      // applyBite may set foodItem.consumed; check the field via an unnarrowed reference
       const ref: { consumed: boolean } = foodItem;
       if (ref.consumed) {
         food.delete(neighborEntity.id);
 
-        // System event generation for resource elimination
         this.eventBus.emit({
           type: 'EntityDied',
           entityType: EntityType.FOOD,
@@ -293,7 +294,6 @@ export class CollisionSystem {
     if (!prey || prey.isDead) { return; }
 
     if (this.isColliding(predator, prey)) {
-      // Calculation of energy gain based on prey state
       const energyGain = Math.max(
         INTERACTION.minEnergyGain,
         prey.energy * INTERACTION.predatorEnergyEfficiency
@@ -301,8 +301,6 @@ export class CollisionSystem {
 
       predator.addEnergy(energyGain);
       predator.huntSuccessCount++;
-
-      // Termination of prey life cycle
       prey.die('predation');
       deadIds.push(prey.id);
     }
