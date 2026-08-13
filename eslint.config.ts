@@ -50,7 +50,6 @@ export default tseslint.config(
       react: { version: 'detect' },
     },
     rules: {
-
       ...reactHooks.configs.recommended.rules,
       ...react.configs.recommended.rules,
       ...react.configs['jsx-runtime'].rules,
@@ -71,23 +70,14 @@ export default tseslint.config(
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/no-shadow': 'error',
 
-      // Naming conventions aligned with sankey
       '@typescript-eslint/naming-convention': [
         'error',
-        // No Hungarian I-prefix on interfaces
-        {
-          selector: 'interface',
-          format: ['PascalCase'],
-          custom: { regex: '^I[A-Z]', match: false },
-        },
-        // Boolean variables: is*/has*/should*/can*
         {
           selector: 'variable',
           types: ['boolean'],
           format: ['PascalCase'],
           prefix: ['is', 'has', 'should', 'can'],
         },
-        // Event handler functions: handle*
         {
           selector: 'function',
           filter: { regex: '^handle', match: true },
@@ -95,10 +85,8 @@ export default tseslint.config(
         },
       ],
 
-      // Explicit return types on exported module-level functions
       '@typescript-eslint/explicit-module-boundary-types': 'error',
 
-      // HARDCORE MODE
       'complexity': ['error', { max: MAX_COMPLEXITY }],
       'max-lines-per-function': ['error', { max: MAX_LINES_PER_FUNCTION, skipBlankLines: true, skipComments: true }],
       'max-depth': ['error', MAX_DEPTH],
@@ -127,7 +115,6 @@ export default tseslint.config(
           message: 'Avoid using "as any". Use proper types or "unknown" if necessary.',
         },
       ],
-      // UPDATED LIST WITH R3F PROPS
       'react/no-unknown-property': ['error', { ignore: ['args', 'attach', 'position', 'rotation', 'scale', 'intensity', 'groundColor', 'object', 'geometry', 'material', 'castShadow', 'receiveShadow', 'decay', 'penumbra', 'angle', 'target', 'transparent', 'opacity', 'side', 'map', 'emissive', 'emissiveIntensity', 'shininess', 'specular', 'frustumCulled', 'onPointerMissed', 'depthWrite', 'flatShading'] }],
     },
   }
