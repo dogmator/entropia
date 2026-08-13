@@ -8,12 +8,12 @@ This document tracks verified technical debt, planned improvements, and architec
 - [x] Web Worker isolation with transferable render snapshots.
 - [x] URL-driven simulation and camera state.
 - [x] Circular dependency removal with dependency-cruiser rules.
-- [x] Dead-code/tooling checks added to the repository verification scripts.
 
 ## Repository Baseline
 
-- The canonical code-quality command is `pnpm run check`.
-- `pnpm run check:ci` extends it with a production build for pre-merge verification.
+- `pnpm run check` is the enforced repository gate: typecheck, deterministic tests, dependency-cruiser, and production build.
+- `pnpm run check:strict` is the debt-audit gate and additionally runs ESLint, knip, and tooling checks.
+- The strict gate currently exposes pre-existing cleanup debt; keep that work separate from behavior changes and remove it incrementally before promoting the strict gate to the enforced baseline.
 - `.pnpm-store/` must not be tracked. Historical blobs may remain in Git history until an explicit history-rewrite decision is made.
 
 ## Technical Debt & Known Bugs
@@ -25,6 +25,7 @@ This document tracks verified technical debt, planned improvements, and architec
 
 ### Medium Priority
 
+- **Strict quality debt**: remove the legacy ESLint/knip/tooling violations exposed by `pnpm run check:strict` in focused, behavior-preserving slices.
 - **SharedArrayBuffer path**: evaluate a true shared-memory render path once deployment headers and browser constraints are verified. The current non-SAB snapshot path still copies the used TypedArray range before transfer.
 - **GPU particles**: evaluate moving evolution effects to GPU-backed rendering only if profiling shows material UI-thread cost.
 
