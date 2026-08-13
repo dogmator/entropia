@@ -1,30 +1,36 @@
 # Entropia Project Backlog
 
-This document tracks identified technical debt, planned improvements, and architectural milestones.
+This document tracks verified technical debt, planned improvements, and architectural milestones. Items that have not been reproduced against the current `main` branch are explicitly marked as needing verification.
 
-## 🧹 Completed Refactorings (v2.5.0)
+## Completed Refactorings (v2.5.0)
 
-- [x] **Engine.ts SOLID Decomposition**: Engine decomposed into Facade, TickLoop, and EntityQuery.
-- [x] **200-line Limit Enforcement**: Decomposed large files like `SimulationContext.tsx` and `useSimulationSettings.ts`.
-- [x] **Web Worker Migration**: Computational core fully isolated with Transferable Buffer support.
-- [x] **URL-Driven State**: All critical simulation and UI parameters synchronized with browser query parameters.
-- [x] **Circular Dependency Removal**: Elimination of cyclic imports across all layers via `dependency-cruiser`.
-- [x] **Dead Code Removal**: Removed unused graphics, stale interfaces, and redundant index files.
+- [x] Engine decomposition into Facade, TickLoop, and EntityQuery.
+- [x] Web Worker isolation with transferable render snapshots.
+- [x] URL-driven simulation and camera state.
+- [x] Circular dependency removal with dependency-cruiser rules.
+- [x] Dead-code/tooling checks added to the repository verification scripts.
 
-## ⚠️ Technical Debt & Known Bugs
+## Repository Baseline
 
-### High Priority
-- **ESLint Compliance**: 84 violations remain across 39 files. `pnpm run lint` is temporarily disabled in the pre-commit hook.
-- **Food Render Inconsistency**: The simulation correctly calculates food radius shrinkage (bites), but the instanced renderer in `Entities.tsx` does not reflect these changes in real-time (likely using `initialRadius` in the buffer snapshot).
-- **Camera Orbit Sync**: While position and target are synced to the URL, the full orbit state (pan offset, specific zoom levels) may reset on page reload.
+- The canonical code-quality command is `pnpm run check`.
+- `pnpm run check:ci` extends it with a production build for pre-merge verification.
+- `.pnpm-store/` must not be tracked. Historical blobs may remain in Git history until an explicit history-rewrite decision is made.
+
+## Technical Debt & Known Bugs
+
+### High Priority — Reproduction Required
+
+- **Food Render Inconsistency**: verify whether food radius shrinkage after bites is reflected by the current instanced renderer. Do not treat this as confirmed until reproduced on current `main`.
+- **Camera Orbit Sync**: verify whether all orbit state needed for a faithful reload is represented by the current URL state. Position and target are already synchronized.
 
 ### Medium Priority
-- **SharedArrayBuffer Migration**: Prepare infrastructure for SAB-based zero-latency shared memory (requires COOP/COEP headers).
-- **GPU Particles**: Move `EvolutionPulse` and `GeneticCometTrail` to pure GPU-based systems to reduce CPU overhead in the UI thread.
 
-## 🚀 Future Roadmap
+- **SharedArrayBuffer path**: evaluate a true shared-memory render path once deployment headers and browser constraints are verified. The current non-SAB snapshot path still copies the used TypedArray range before transfer.
+- **GPU particles**: evaluate moving evolution effects to GPU-backed rendering only if profiling shows material UI-thread cost.
 
-- [ ] **Phase 5**: Advanced genetics (recessive traits, complex mutation masks).
-- [ ] **Phase 6**: Environmental interactions (weather, terrain-based speed modifiers).
-- [ ] **Phase 7**: Social behaviors (schooling/flocking, pack hunting).
-- [ ] **Phase 8**: Persistence v2 (Cloud sync, community preset library).
+## Future Roadmap
+
+- [ ] Phase 5: advanced genetics (recessive traits, complex mutation masks).
+- [ ] Phase 6: environmental interactions (weather, terrain-based speed modifiers).
+- [ ] Phase 7: social behaviors (schooling/flocking, pack hunting).
+- [ ] Phase 8: persistence v2 (cloud sync, community preset library).
