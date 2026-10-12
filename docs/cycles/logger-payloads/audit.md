@@ -293,3 +293,8 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
     infrequent for fast smoke markers. Consider a shorter dev-mode interval (or an explicit startup marker).
 12. **Endpoint mismatch resolved** in fix/log-transport (3013 → 3011, plus `VITE_LOG_WS_PORT`/`LOG_SERVER_PORT`
     overrides). Question 2 above is now answered; keep for history.
+13. **Worker forwarding refactor (PR #52 review #1/#2):** worker console/logger forwarding no longer depends
+    on `console.*` (which Terser `drop_console` strips in prod) or on import order. The worker now uses an
+    explicit `postLog` transport; `console.*` calls are bridged to it for DevTools, and the shared `Logger`
+    exposes `setOutputSink` so worker `logger.warn/error` output is routed through `postLog` instead of the
+    native console the logger bound at construction time.
