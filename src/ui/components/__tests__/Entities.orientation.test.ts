@@ -14,6 +14,9 @@ import { RENDER } from '../../../config';
  */
 
 const FORWARD = new THREE.Vector3(0, 0, 1);
+const HALF_DIVISOR = 2;
+const DIAGONAL_COMPONENT = Math.SQRT1_2;
+const ASSERTION_PRECISION = 4;
 
 describe('Organism cone orientation', () => {
     it('ConeGeometry.rotateX(PI/2) puts the tip at +Z', () => {
@@ -22,44 +25,45 @@ describe('Organism cone orientation', () => {
             RENDER.geometry.organism.height,
             RENDER.geometry.organism.segments
         );
-        // eslint-disable-next-line @typescript-eslint/no-magic-numbers
-        geo.rotateX(Math.PI / 2);
+        geo.rotateX(Math.PI / HALF_DIVISOR);
         geo.computeBoundingBox();
-        const bb = geo.boundingBox!;
+        const bb = geo.boundingBox;
+        if (bb === null) {
+            throw new Error('Cone geometry bounding box was not computed');
+        }
 
         const sizeZ = bb.max.z - bb.min.z;
         const sizeY = bb.max.y - bb.min.y;
         // After X-rotation the cone height lies along Z, not Y
         expect(sizeZ).toBeGreaterThan(sizeY);
         // Tip is at +Z: max.z should be approximately height/2
-        expect(bb.max.z).toBeCloseTo(RENDER.geometry.organism.height / 2, 1);
+        expect(bb.max.z).toBeCloseTo(RENDER.geometry.organism.height / HALF_DIVISOR, 1);
     });
 
     it('setFromUnitVectors(FORWARD, vel) rotates cone tip to face velocity', () => {
-        const testCases: Array<{ vel: THREE.Vector3; label: string }> = [
-            { vel: new THREE.Vector3(1, 0, 0), label: '+X' },
-            { vel: new THREE.Vector3(0, 0, 1), label: '+Z (no rotation)' },
-            { vel: new THREE.Vector3(-1, 0, 0), label: '-X' },
-            { vel: new THREE.Vector3(0.707, 0, 0.707), label: 'diagonal XZ' },
+        const testCases: { vel: THREE.Vector3 }[] = [
+            { vel: new THREE.Vector3(1, 0, 0) },
+            { vel: new THREE.Vector3(0, 0, 1) },
+            { vel: new THREE.Vector3(-1, 0, 0) },
+            { vel: new THREE.Vector3(DIAGONAL_COMPONENT, 0, DIAGONAL_COMPONENT) },
         ];
 
         const dummy = new THREE.Object3D();
 
-        testCases.forEach(({ vel, label }) => {
+        testCases.forEach(({ vel }) => {
             const normalized = vel.clone().normalize();
             dummy.quaternion.setFromUnitVectors(FORWARD, normalized);
             dummy.updateMatrix();
 
             // After rotation, local +Z should point in the velocity direction
             const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(dummy.quaternion);
-            expect(localZ.x).toBeCloseTo(normalized.x, 4);
-            expect(localZ.y).toBeCloseTo(normalized.y, 4);
-            expect(localZ.z).toBeCloseTo(normalized.z, 4);
+            expect(localZ.x).toBeCloseTo(normalized.x, ASSERTION_PRECISION);
+            expect(localZ.y).toBeCloseTo(normalized.y, ASSERTION_PRECISION);
+            expect(localZ.z).toBeCloseTo(normalized.z, ASSERTION_PRECISION);
 
             // For a cone rotated by PI/2 on X: tip is at local +Z.
             // After the quaternion rotation, the tip now points toward velocity. ✓
             expect(true).toBe(true); // explicit intent marker
-            void label; // suppress unused var in loop
         });
     });
 
@@ -69,8 +73,8 @@ describe('Organism cone orientation', () => {
         dummy.updateMatrix();
 
         const localZ = new THREE.Vector3(0, 0, 1).applyQuaternion(dummy.quaternion);
-        expect(localZ.x).toBeCloseTo(0, 4);
-        expect(localZ.y).toBeCloseTo(0, 4);
-        expect(localZ.z).toBeCloseTo(1, 4);
+        expect(localZ.x).toBeCloseTo(0, ASSERTION_PRECISION);
+        expect(localZ.y).toBeCloseTo(0, ASSERTION_PRECISION);
+        expect(localZ.z).toBeCloseTo(1, ASSERTION_PRECISION);
     });
 });
