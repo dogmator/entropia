@@ -280,3 +280,16 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
    (сейчас info, потенциально шумно) или понизить до debug?
 7. **Потеря соединения:** ожидаемое поведение при обрыве WS — только тихий retry (текущее) или warn/уведомление?
 8. **`no-console`:** вводить ли ESLint-правило (35 прямых `console.*`), или это осознанно?
+
+### Findings from the automated smoke (2026-10-12, PR fix/log-transport)
+
+9. **Vite HMR hardcoded `hmr.clientPort: 3000`** (`vite.config.ts` `SERVER_CONFIG.hmr`) — breaks HMR when the
+   app runs on any non-default port (observed as `ws://localhost:3000/... 400` in the smoke). Debt: derive the
+   HMR client port from the actual server port.
+10. **WebGL in headless Chromium needs the SwiftShader fallback** (`--enable-unsafe-swiftshader` / full
+    `channel: chromium`). Headless-shell cannot create a WebGL context; this is an environment limitation
+    handled by the smoke harness, not a product bug.
+11. **`Stats` log cadence is very low** (`UI_CONTROLS.SERVER_LOG_INTERVAL = 300` tick events ≈ 30s) — too
+    infrequent for fast smoke markers. Consider a shorter dev-mode interval (or an explicit startup marker).
+12. **Endpoint mismatch resolved** in fix/log-transport (3013 → 3011, plus `VITE_LOG_WS_PORT`/`LOG_SERVER_PORT`
+    overrides). Question 2 above is now answered; keep for history.
