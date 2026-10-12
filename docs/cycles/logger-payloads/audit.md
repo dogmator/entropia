@@ -298,3 +298,7 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
     explicit `postLog` transport; `console.*` calls are bridged to it for DevTools, and the shared `Logger`
     exposes `setOutputSink` so worker `logger.warn/error` output is routed through `postLog` instead of the
     native console the logger bound at construction time.
+14. **Potential refactor (future):** `Logger.setOutputSink` is a runtime mutation applied *after* construction.
+    A cleaner design injects the transport/output-sink via the constructor (e.g. `createLogger({ outputSink })`),
+    removing the post-construction mutation and making the dependency explicit. Out of scope for PR #52;
+    track for a future logger-cycle PR.
