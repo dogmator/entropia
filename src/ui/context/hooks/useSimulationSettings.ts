@@ -36,10 +36,17 @@ const clamp = (v: number, min: number, max: number): number => Math.max(min, Mat
 
 const CAM_KEYS = ['camX', 'camY', 'camZ', 'camTX', 'camTY', 'camTZ'] as const;
 
+interface NumericParamOptions {
+    min: number;
+    max: number;
+    fallback: number;
+}
+
 const readUIFromUrl = (): UIConfig => {
     const params = new URLSearchParams(window.location.search);
 
-    const parseNum = (key: string, min: number, max: number, fallback: number): number => {
+    const parseNum = (key: string, options: NumericParamOptions): number => {
+        const { min, max, fallback } = options;
         const raw = params.get(key);
         if (raw === null) return fallback;
         const v = Number(raw);
@@ -73,10 +80,10 @@ const readUIFromUrl = (): UIConfig => {
             : null;
 
     return {
-        speed: parseNum('speed', UI_CONTROLS.SPEED.MIN, UI_CONTROLS.SPEED.MAX, UI_DEFAULTS.speed),
-        worldScale: parseNum('worldScale', UI_CONTROLS.WORLD_SCALE.MIN, UI_CONTROLS.WORLD_SCALE.MAX, UI_DEFAULTS.worldScale),
+        speed: parseNum('speed', { min: UI_CONTROLS.SPEED.MIN, max: UI_CONTROLS.SPEED.MAX, fallback: UI_DEFAULTS.speed }),
+        worldScale: parseNum('worldScale', { min: UI_CONTROLS.WORLD_SCALE.MIN, max: UI_CONTROLS.WORLD_SCALE.MAX, fallback: UI_DEFAULTS.worldScale }),
         autoRotate: parseBool('autoRotate', UI_DEFAULTS.autoRotate),
-        autoRotateSpeed: parseNum('autoRotateSpeed', CAMERA.AUTO_ROTATE.SPEED_MIN, CAMERA.AUTO_ROTATE.SPEED_MAX, UI_DEFAULTS.autoRotateSpeed),
+        autoRotateSpeed: parseNum('autoRotateSpeed', { min: CAMERA.AUTO_ROTATE.SPEED_MIN, max: CAMERA.AUTO_ROTATE.SPEED_MAX, fallback: UI_DEFAULTS.autoRotateSpeed }),
         cameraSnapshot,
     };
 };
@@ -103,7 +110,9 @@ const syncUIToUrl = (config: UIConfig): void => {
         params.set('camTY', String(Math.round(ty)));
         params.set('camTZ', String(Math.round(tz)));
     } else {
-        CAM_KEYS.forEach(key => params.delete(key));
+        CAM_KEYS.forEach((key) => {
+            params.delete(key);
+        });
     }
 
     const search = params.toString();
@@ -132,7 +141,7 @@ export interface SimulationSettings {
 }
 
 export const useSimulationSettings = (engine: ISimulationEngine): SimulationSettings => {
-    const [{ speed, worldScale, autoRotate, autoRotateSpeed, cameraSnapshot }, setState] = useState<UIConfig>(readUIFromUrl);
+    const [{ speed, worldScale, autoRotate: isAutoRotate, autoRotateSpeed, cameraSnapshot }, setState] = useState<UIConfig>(readUIFromUrl);
 
     const setWorldScale = useCallback((val: number) => {
         setState(prev => ({ ...prev, worldScale: val }));
@@ -160,13 +169,13 @@ export const useSimulationSettings = (engine: ISimulationEngine): SimulationSett
     }, []);
 
     useEffect(() => {
-        syncUIToUrl({ speed, worldScale, autoRotate, autoRotateSpeed, cameraSnapshot });
-    }, [speed, worldScale, autoRotate, autoRotateSpeed, cameraSnapshot]);
+        syncUIToUrl({ speed, worldScale, autoRotate: isAutoRotate, autoRotateSpeed, cameraSnapshot });
+    }, [speed, worldScale, isAutoRotate, autoRotateSpeed, cameraSnapshot]);
 
     return {
         worldScale, setWorldScale,
         speed, setSpeed,
-        isAutoRotate: autoRotate, setAutoRotate,
+        isAutoRotate, setAutoRotate,
         autoRotateSpeed, setAutoRotateSpeed,
         cameraSnapshot, setCameraSnapshot,
     };

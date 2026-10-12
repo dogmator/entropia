@@ -9,8 +9,9 @@
  * - Chronometry of biological aging.
  */
 
-import { METABOLIC_CONSTANTS, METABOLIC_THRESHOLDS } from '../../config';
 import { logger } from '@/core';
+
+import { METABOLIC_CONSTANTS, METABOLIC_THRESHOLDS } from '../../config';
 import type { Organism } from '../Entity';
 
 /**
@@ -25,6 +26,10 @@ const SIZE_COST_MULTIPLIER = METABOLIC_CONSTANTS.size;
 const EXIST_RADIUS_SCALE = 0.5;
 /** Scale factor for sensory costs relative to perception radius. */
 const SENSE_RADIUS_SCALE = 0.01;
+/** Interval between aggregate radius diagnostics. */
+const METABOLISM_DEBUG_INTERVAL_TICKS = 120;
+/** Decimal precision used in radius diagnostics. */
+const RADIUS_LOG_PRECISION = 2;
 
 /**
  * Detailed energy cost report structure.
@@ -67,10 +72,13 @@ export class MetabolismSystem {
       }
     });
 
-    if (tick % 120 === 0 && organisms.size > 0) {
+    if (tick % METABOLISM_DEBUG_INTERVAL_TICKS === 0 && organisms.size > 0) {
       let minR = Infinity, maxR = 0, sumR = 0, count = 0;
       organisms.forEach(o => { if (!o.isDead) { minR = Math.min(minR, o.radius); maxR = Math.max(maxR, o.radius); sumR += o.radius; count++; } });
-      logger.debug(`Organism radius: min=${String(minR.toFixed(2))} max=${String(maxR.toFixed(2))} avg=${String((sumR/count).toFixed(2))} n=${String(count)}`, 'MetabolismSystem');
+      logger.debug(
+        `Organism radius: min=${minR.toFixed(RADIUS_LOG_PRECISION)} max=${maxR.toFixed(RADIUS_LOG_PRECISION)} avg=${(sumR / count).toFixed(RADIUS_LOG_PRECISION)} n=${String(count)}`,
+        'MetabolismSystem'
+      );
     }
   }
 
