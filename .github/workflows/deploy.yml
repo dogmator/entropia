@@ -35,17 +35,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # SAFETY CHECK 1: Types
-      - name: TypeScript Check
-        run: pnpm run typecheck
-
-      # SAFETY CHECK 2: Tests
-      # Якщо тести впадуть, деплой буде скасовано автоматично.
-      - name: Run Unit Tests
-        run: pnpm run test
-
-      - name: Build
-        run: pnpm run build
+      - name: Run repository quality gate
+        run: pnpm run check
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
