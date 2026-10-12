@@ -170,6 +170,24 @@ export type WorkerResponse =
     | CommandResponse;
 
 // ============================================================================
+// WORKER CONSOLE FORWARDING (Worker → Main Thread)
+// ============================================================================
+
+export type WorkerConsoleLevel = 'log' | 'info' | 'warn' | 'error' | 'debug';
+
+/**
+ * Console output captured inside the worker and forwarded to the main thread
+ * so it can be logged (and shipped to the remote sink). Kept separate from
+ * WorkerResponse so existing worker response types stay unchanged.
+ */
+export interface WorkerConsoleMessage {
+    readonly type: 'worker-console';
+    readonly level: WorkerConsoleLevel;
+    readonly args: readonly string[];
+    readonly timestamp: number;
+}
+
+// ============================================================================
 // UTILITIES
 // ============================================================================
 
@@ -194,5 +212,16 @@ export function isWorkerResponse(msg: unknown): msg is WorkerResponse {
         msg !== null &&
         'type' in msg &&
         typeof (msg as WorkerResponse).type === 'string'
+    );
+}
+
+/**
+ * Type guard for forwarded worker console messages.
+ */
+export function isWorkerConsoleMessage(msg: unknown): msg is WorkerConsoleMessage {
+    return (
+        typeof msg === 'object' &&
+        msg !== null &&
+        (msg as { type?: unknown }).type === 'worker-console'
     );
 }

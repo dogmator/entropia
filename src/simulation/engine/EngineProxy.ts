@@ -3,7 +3,8 @@ import type { EcologicalZone, GenomeId, RenderBuffers, SerializedSimulationState
 
 import type { IEntity } from '../interfaces/IEntity';
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../interfaces/ISimulationEngine';
-import type { InitializedResponse, WorkerResponse } from '../WorkerMessages';
+import type { InitializedResponse, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
+import { isWorkerConsoleMessage } from '../WorkerMessages';
 import { ConfigBatcher } from './ConfigBatcher.service';
 import { buildFallbackExportState } from './EngineProxy.utils';
 import { WorkerChannel } from './WorkerChannel.service';
@@ -11,6 +12,7 @@ import { WorkerChannel } from './WorkerChannel.service';
 export interface EngineProxyOptions { scale?: number; tickRate?: number; }
 interface CameraPayload { position: Vector3; target: Vector3; }
 const DEFAULT_TICK_RATE = 60;
+const WORKER_SOURCE = 'Worker';
 
 export class EngineProxy implements ISimulationEngine {
     private worker: Worker | null = null;
@@ -107,7 +109,10 @@ export class EngineProxy implements ISimulationEngine {
                     else if (r.type === 'initialized') { this.handleInitialized(r); resolve(); }
                     else if (r.type === 'error') { logger.error(`Proxy: Init error: ${r.message}`, 'EngineProxy'); reject(new Error(r.message)); }
                 };
-                this.worker.onmessage = (e) => { if (!this.isInitialized) bootHandler(e); else this.channel.dispatch(e); };
+                this.worker.onmessage = (e: MessageEvent) => {
+                    if (isWorkerConsoleMessage(e.data)) { this.handleWorkerConsole(e.data); return; }
+                    if (!this.isInitialized) bootHandler(e); else this.channel.dispatch(e);
+                };
                 this.worker.onerror = (e) => { logger.error(`Worker error: ${e.message}`, 'EngineProxy'); reject(new Error(e.message)); };
             } catch (e) { reject(e instanceof Error ? e : new Error(String(e))); }
         });
@@ -117,6 +122,14 @@ export class EngineProxy implements ISimulationEngine {
     private handleInitialized(r: InitializedResponse): void {
         this.isInitialized = true; this.lastStats = r.stats; this._worldConfig = r.worldConfig; this._zones = r.zones; this._obstacles = r.obstacles; this._config = r.config;
         logger.info('Proxy: Worker initialized', 'EngineProxy');
+    }
+    private handleWorkerConsole(msg: WorkerConsoleMessage): void {
+        const message = msg.args.join(' ');
+        const data = { args: msg.args, timestamp: msg.timestamp };
+        if (msg.level === 'error') { logger.error(message, WORKER_SOURCE, data); return; }
+        if (msg.level === 'warn') { logger.warning(message, WORKER_SOURCE, data); return; }
+        if (msg.level === 'debug') { logger.debug(message, WORKER_SOURCE, data); return; }
+        logger.info(message, WORKER_SOURCE, data);
     }
     private isCameraPayloadEqual(a: CameraPayload, b: CameraPayload): boolean {
         return a.position.x === b.position.x && a.position.y === b.position.y && a.position.z === b.position.z && a.target.x === b.target.x && a.target.y === b.target.y && a.target.z === b.target.z;

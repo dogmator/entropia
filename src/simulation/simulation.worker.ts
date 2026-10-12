@@ -12,9 +12,67 @@ import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
+import type { WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
+
+// ============================================================================
+// CONSOLE FORWARDING (Worker → Main Thread)
+// ============================================================================
+
+/**
+ * Serializes a console argument into a string safe to postMessage.
+ */
+const serializeConsoleArg = (arg: unknown): string => {
+    if (arg instanceof Error) {
+        return arg.stack ?? `${arg.name}: ${arg.message}`;
+    }
+    if (typeof arg === 'string') {
+        return arg;
+    }
+    if (arg === null || typeof arg !== 'object') {
+        return String(arg);
+    }
+    try {
+        return JSON.stringify(arg);
+    } catch {
+        return '[Unserializable]';
+    }
+};
+
+const originalConsole = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    debug: console.debug.bind(console),
+};
+
+/**
+ * Wraps a console method so output is both kept locally (worker DevTools) and
+ * forwarded to the main thread, where the remote logger can ship it onward.
+ */
+const forwardConsole = (level: WorkerConsoleLevel) => (...args: unknown[]): void => {
+    originalConsole[level](...args);
+
+    try {
+        const payload: WorkerConsoleMessage = {
+            type: 'worker-console',
+            level,
+            args: args.map(serializeConsoleArg),
+            timestamp: Date.now(),
+        };
+        self.postMessage(payload);
+    } catch {
+        // Never let console forwarding break worker execution.
+    }
+};
+
+console.log = forwardConsole('log');
+console.info = forwardConsole('info');
+console.warn = forwardConsole('warn');
+console.error = forwardConsole('error');
+console.debug = forwardConsole('debug');
 
 // ============================================================================
 // WORKER STATE
