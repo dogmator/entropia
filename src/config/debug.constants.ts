@@ -6,8 +6,8 @@ export const DEBUG_CONFIG = {
     /** Enable remote logging by default in DEV mode. */
     remoteLoggingEnabled: false,
 
-    /** Log server port. */
-    remotePort: 3013,
+    /** Log server port (matches scripts/log-server.ts). */
+    remotePort: 3011,
 
     /** Log server host. */
     remoteHost: '127.0.0.1',
