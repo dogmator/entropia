@@ -143,6 +143,7 @@ export class Logger {
   private readonly commandSubscribers = new Set<(command: RemoteCommand) => void>();
   private lastLogDedupKey: string | null = null;
   private isHandlingTransportEvent = false;
+  private outputSink: ((message: string, level: LogLevel, data?: Record<string, unknown>) => void) | null = null;
   private readonly originalConsole = {
     log: console.log.bind(console),
     warn: console.warn.bind(console),
@@ -200,6 +201,15 @@ export class Logger {
   public setMaxLogs(maxLogs: number): void {
     this.maxLogs = normalizeMaxLogs(maxLogs);
     this.cleanupOldLogs();
+  }
+
+  /**
+   * Overrides where warning/error output is written. Used by the worker to
+   * forward logger output through postMessage instead of the (pre-bound)
+   * native console, which Terser's `drop_console` would otherwise strip.
+   */
+  public setOutputSink(sink: ((message: string, level: LogLevel, data?: Record<string, unknown>) => void) | null): void {
+    this.outputSink = sink;
   }
 
   public debug(message: string, source?: string, data?: Record<string, unknown>): void {
@@ -276,6 +286,11 @@ export class Logger {
   }
 
   private outputToConsole(payload: LogPayload): void {
+    if (this.outputSink) {
+      this.outputSink(payload.message, payload.level, payload.data);
+      return;
+    }
+
     const consoleMethod = payload.level === LogLevel.ERROR ? this.originalConsole.error : this.originalConsole.warn;
     const message = buildConsoleMessage(payload);
 

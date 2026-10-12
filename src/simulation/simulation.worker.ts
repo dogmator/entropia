@@ -17,13 +17,13 @@ import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
 
 // ============================================================================
-// CONSOLE FORWARDING (Worker → Main Thread)
+// LOG TRANSPORT (Worker → Main Thread)
 // ============================================================================
 
 /**
- * Serializes a console argument into a string safe to postMessage.
+ * Serializes a log argument into a string safe to postMessage.
  */
-const serializeConsoleArg = (arg: unknown): string => {
+const serializeLogArg = (arg: unknown): string => {
     if (arg instanceof Error) {
         return arg.stack ?? `${arg.name}: ${arg.message}`;
     }
@@ -40,7 +40,27 @@ const serializeConsoleArg = (arg: unknown): string => {
     }
 };
 
-const originalConsole = {
+/**
+ * Explicit transport to the main thread. Relies only on `self.postMessage`
+ * (never on `console.*`), so Terser's `drop_console` cannot strip it in
+ * production builds.
+ */
+const postLog = (level: WorkerConsoleLevel, args: readonly unknown[]): void => {
+    try {
+        const payload: WorkerConsoleMessage = {
+            type: 'worker-console',
+            level,
+            args: args.map(serializeLogArg),
+            timestamp: Date.now(),
+        };
+        self.postMessage(payload);
+    } catch {
+        // Never let log forwarding break worker execution.
+    }
+};
+
+// Keep the native console for worker DevTools, and forward direct console.* calls.
+const nativeConsole = {
     log: console.log.bind(console),
     info: console.info.bind(console),
     warn: console.warn.bind(console),
@@ -48,31 +68,26 @@ const originalConsole = {
     debug: console.debug.bind(console),
 };
 
-/**
- * Wraps a console method so output is both kept locally (worker DevTools) and
- * forwarded to the main thread, where the remote logger can ship it onward.
- */
-const forwardConsole = (level: WorkerConsoleLevel) => (...args: unknown[]): void => {
-    originalConsole[level](...args);
+console.log = (...args: unknown[]): void => { nativeConsole.log(...args); postLog('log', args); };
+console.info = (...args: unknown[]): void => { nativeConsole.info(...args); postLog('info', args); };
+console.warn = (...args: unknown[]): void => { nativeConsole.warn(...args); postLog('warn', args); };
+console.error = (...args: unknown[]): void => { nativeConsole.error(...args); postLog('error', args); };
+console.debug = (...args: unknown[]): void => { nativeConsole.debug(...args); postLog('debug', args); };
 
-    try {
-        const payload: WorkerConsoleMessage = {
-            type: 'worker-console',
-            level,
-            args: args.map(serializeConsoleArg),
-            timestamp: Date.now(),
-        };
-        self.postMessage(payload);
-    } catch {
-        // Never let console forwarding break worker execution.
-    }
-};
+// Route the shared logger's warning/error output through postLog as well. Set
+// after construction, so it does not depend on import order and does not use the
+// native console the logger bound at construction time.
+logger.setOutputSink((message, level, data) => {
+    const workerLevel: WorkerConsoleLevel = String(level) === 'error' ? 'error' : 'warn';
+    postLog(workerLevel, data === undefined ? [message] : [message, data]);
+});
 
-console.log = forwardConsole('log');
-console.info = forwardConsole('info');
-console.warn = forwardConsole('warn');
-console.error = forwardConsole('error');
-console.debug = forwardConsole('debug');
+// Dev-only hook so the smoke test can exercise the logger → main path.
+if (import.meta.env.DEV) {
+    (globalThis as unknown as { __entropiaSmoke?: { warnViaLogger: (msg: string) => void } }).__entropiaSmoke = {
+        warnViaLogger: (msg: string): void => { logger.warn(msg, 'Smoke'); },
+    };
+}
 
 // ============================================================================
 // WORKER STATE
