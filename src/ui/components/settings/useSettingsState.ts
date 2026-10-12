@@ -18,16 +18,18 @@ export interface SettingsState {
     applyPreset: (quality: GraphicsQuality) => void;
 }
 
+const getInitialState = (engine: ISimulationEngine): SimulationConfig => {
+    const parsed = getInitialConfig(engine.config);
+    logger.info('URL-first init', 'useSettingsState', { url: window.location.search, config: parsed });
+    return parsed;
+};
+
 export const useSettingsState = (engine: ISimulationEngine): SettingsState => {
     const defaultConfigRef = useRef<SimulationConfig>({ ...engine.config });
     const didApplyInitialUrlStateRef = useRef(false);
     const urlSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const [config, setConfig] = useState<SimulationConfig>(() => {
-        const parsed = getInitialConfig(engine.config);
-        logger.info('URL-first init', 'useSettingsState', { url: window.location.search, config: parsed });
-        return parsed;
-    });
+    const [config, setConfig] = useState<SimulationConfig>(() => getInitialState(engine));
 
     const applyConfig = useCallback((nextConfig: SimulationConfig, mode: UrlHistoryMode, isUrlEvent: boolean) => {
         const sanitizedConfig = sanitizeConfig(nextConfig, defaultConfigRef.current);

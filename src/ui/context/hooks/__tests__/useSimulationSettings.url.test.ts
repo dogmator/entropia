@@ -30,10 +30,17 @@ const UI_DEFAULTS: UIConfig = {
     cameraSnapshot: null,
 };
 
+interface NumericParamOptions {
+    min: number;
+    max: number;
+    fallback: number;
+}
+
 const readUIFromUrl = (search: string): UIConfig => {
     const params = new URLSearchParams(search);
 
-    const parseNum = (key: string, min: number, max: number, fallback: number): number => {
+    const parseNum = (key: string, options: NumericParamOptions): number => {
+        const { min, max, fallback } = options;
         const raw = params.get(key);
         if (raw === null) return fallback;
         const v = Number(raw);
@@ -67,10 +74,10 @@ const readUIFromUrl = (search: string): UIConfig => {
             : null;
 
     return {
-        speed: parseNum('speed', UI_CONTROLS.SPEED.MIN, UI_CONTROLS.SPEED.MAX, UI_DEFAULTS.speed),
-        worldScale: parseNum('worldScale', UI_CONTROLS.WORLD_SCALE.MIN, UI_CONTROLS.WORLD_SCALE.MAX, UI_DEFAULTS.worldScale),
+        speed: parseNum('speed', { min: UI_CONTROLS.SPEED.MIN, max: UI_CONTROLS.SPEED.MAX, fallback: UI_DEFAULTS.speed }),
+        worldScale: parseNum('worldScale', { min: UI_CONTROLS.WORLD_SCALE.MIN, max: UI_CONTROLS.WORLD_SCALE.MAX, fallback: UI_DEFAULTS.worldScale }),
         autoRotate: parseBool('autoRotate', UI_DEFAULTS.autoRotate),
-        autoRotateSpeed: parseNum('autoRotateSpeed', CAMERA.AUTO_ROTATE.SPEED_MIN, CAMERA.AUTO_ROTATE.SPEED_MAX, UI_DEFAULTS.autoRotateSpeed),
+        autoRotateSpeed: parseNum('autoRotateSpeed', { min: CAMERA.AUTO_ROTATE.SPEED_MIN, max: CAMERA.AUTO_ROTATE.SPEED_MAX, fallback: UI_DEFAULTS.autoRotateSpeed }),
         cameraSnapshot,
     };
 };
@@ -99,7 +106,9 @@ const syncUIToUrl = (config: UIConfig): void => {
         params.set('camTY', String(Math.round(ty)));
         params.set('camTZ', String(Math.round(tz)));
     } else {
-        CAM_KEYS.forEach(key => params.delete(key));
+        CAM_KEYS.forEach((key) => {
+            params.delete(key);
+        });
     }
 
     const search = params.toString();
@@ -125,7 +134,9 @@ describe('readUIFromUrl', () => {
         expect(result.autoRotate).toBe(false);
         expect(result.autoRotateSpeed).toBe(5);
     });
+});
 
+describe('readUIFromUrl — clamping and fallbacks', () => {
     it('клампить speed в межах MIN–MAX', () => {
         expect(readUIFromUrl('?speed=-1').speed).toBe(UI_CONTROLS.SPEED.MIN);
         expect(readUIFromUrl('?speed=999').speed).toBe(UI_CONTROLS.SPEED.MAX);
@@ -172,7 +183,9 @@ describe('readUIFromUrl', () => {
         expect(result.autoRotate).toBe(UI_DEFAULTS.autoRotate);
         expect(result.autoRotateSpeed).toBe(UI_DEFAULTS.autoRotateSpeed);
     });
+});
 
+describe('readUIFromUrl — camera snapshot', () => {
     it('парсить повний cameraSnapshot з усіх 6 params', () => {
         const result = readUIFromUrl('?camX=1200&camY=800&camZ=1200&camTX=400&camTY=400&camTZ=400');
         expect(result.cameraSnapshot).toEqual({ px: 1200, py: 800, pz: 1200, tx: 400, ty: 400, tz: 400 });
@@ -230,6 +243,12 @@ describe('syncUIToUrl', () => {
         expect(params.get('graphicsQuality')).toBe('LOW');
         expect(params.get('speed')).toBe('2');
     });
+});
+
+describe('syncUIToUrl — complete UI and camera state', () => {
+    beforeEach(() => {
+        window.history.replaceState(null, '', '/');
+    });
 
     it('записує всі 4 параметри при повному відхиленні від defaults', () => {
         syncUIToUrl({ speed: 3, worldScale: 2, autoRotate: false, autoRotateSpeed: 10, cameraSnapshot: null });
@@ -256,7 +275,9 @@ describe('syncUIToUrl', () => {
         window.history.replaceState(null, '', '/?camX=100&camY=200&camZ=300&camTX=0&camTY=0&camTZ=0');
         syncUIToUrl(UI_DEFAULTS);
         const params = new URLSearchParams(window.location.search);
-        CAM_KEYS.forEach(key => expect(params.get(key)).toBeNull());
+        CAM_KEYS.forEach((key) => {
+            expect(params.get(key)).toBeNull();
+        });
     });
 });
 

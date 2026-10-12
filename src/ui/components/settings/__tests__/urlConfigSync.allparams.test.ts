@@ -109,7 +109,9 @@ describe('URL round-trip — всі 24 параметри SimulationConfig', () 
         expect(parsed.showTrails).toBe(false);
         expect(parsed.showParticles).toBe(false);
     });
+});
 
+describe('URL round-trip — enum and clean URL', () => {
     it('graphicsQuality — всі валідні enum значення', () => {
         const qualities = ['LOW', 'MEDIUM', 'HIGH', 'ULTRA', 'CUSTOM'] as const;
         for (const q of qualities) {

@@ -14,7 +14,8 @@
     "check:dead-code": "knip",
     "check:tooling": "jiti scripts/ensure-typescript-tooling.ts",
     "check:canon": "pnpm run check:dead-code && pnpm run depcruise && pnpm run check:tooling",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run check:canon && pnpm run test",
+    "check": "pnpm run typecheck && pnpm run test --run && pnpm run depcruise && pnpm run build",
+    "check:strict": "pnpm run typecheck && pnpm run lint && pnpm run check:canon && pnpm run test --run && pnpm run build",
     "prepare": "husky",
     "test": "vitest",
     "test:ui": "vitest --ui",
@@ -25,7 +26,6 @@
     "docker:logs": "docker compose logs -f",
     "docker:typecheck": "docker compose exec dev pnpm run typecheck",
     "docker:test": "docker compose exec dev pnpm run test --run",
-    "ne:sratb": "jscpd ./src",
     "depcruise": "depcruise src --config .dependency-cruiser.mjs --output-type err"
   },
   "dependencies": {

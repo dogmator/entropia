@@ -28,15 +28,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # КРОК 1: Статичний аналіз (найшвидший)
-      - name: TypeScript Lint
-        run: pnpm run typecheck
-
-      # КРОК 2: Логічний аналіз (Unit Tests)
-      # Критично важливо для вашого рефакторингу Three.js
-      - name: Run Unit Tests
-        run: pnpm run test
-
-      # КРОК 3: Перевірка збірки
-      - name: Build Dry-Run
-        run: pnpm run build
+      - name: Run repository quality gate
+        run: pnpm run check

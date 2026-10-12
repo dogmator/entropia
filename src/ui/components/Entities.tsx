@@ -203,6 +203,22 @@ const useEntitiesAnimation = (params: AnimationHookParams): void => {
     });
 };
 
+const useBoundingSphereUpdates = (refs: AnimationRefs): void => {
+    const lastBoundingUpdateRef = useRef(0);
+
+    useFrame((state) => {
+        const now = state.clock.getElapsedTime();
+        if (now - lastBoundingUpdateRef.current < RENDER.interaction.hoverInterval) return;
+
+        lastBoundingUpdateRef.current = now;
+        [refs.prey, refs.deadPrey, refs.pred, refs.deadPred, refs.food].forEach((ref) => {
+            if (ref.current && ref.current.count > 0) {
+                ref.current.computeBoundingSphere();
+            }
+        });
+    });
+};
+
 export const Entities: React.FC = () => {
     const { engine, setHoveredEntity, setTooltipPos } = useSimulation();
 
@@ -219,17 +235,7 @@ export const Entities: React.FC = () => {
     }), []);
 
     useEntitiesAnimation({ refs, engine });
-
-    // Periodically recompute bounding spheres so r3f raycasting stays accurate for instanced meshes
-    const lastBoundingUpdateRef = useRef(0);
-    useFrame((state) => {
-        const now = state.clock.getElapsedTime();
-        if (now - lastBoundingUpdateRef.current < RENDER.interaction.hoverInterval) return;
-        lastBoundingUpdateRef.current = now;
-        [preyRef, deadPreyRef, predRef, deadPredRef, foodRef].forEach(ref => {
-            if (ref.current && ref.current.count > 0) ref.current.computeBoundingSphere();
-        });
-    });
+    useBoundingSphereUpdates(refs);
 
     const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>, entityType: string) => {
         e.stopPropagation();
