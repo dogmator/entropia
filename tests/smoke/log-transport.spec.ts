@@ -259,13 +259,20 @@ test('7. worker console forwarded', async () => {
     expect(workers.length, 'no web worker found').toBeGreaterThan(0);
 
     await workers[0]!.evaluate(() => { console.log('smoke-worker-test-msg'); });
+    await workers[0]!.evaluate(() => {
+        (globalThis as { __entropiaSmoke?: { warnViaLogger: (m: string) => void } })
+            .__entropiaSmoke?.warnViaLogger('smoke-via-logger');
+    });
     await sleep(WORKER_FORWARD_WAIT_MS);
 
     const text = readNewLog();
-    const hasMsg = text.includes('smoke-worker-test-msg');
+    const hasConsole = text.includes('smoke-worker-test-msg');
+    const hasLogger = text.includes('smoke-via-logger');
     const hasWorkerSource = text.includes('Worker');
-    record('worker console forwarded to remote', hasMsg && hasWorkerSource, `msg=${String(hasMsg)} sourceWorker=${String(hasWorkerSource)}`);
-    expect(hasMsg, 'worker console message not found in remote log').toBe(true);
+    record('worker console forwarded to remote', hasConsole && hasWorkerSource, `msg=${String(hasConsole)} sourceWorker=${String(hasWorkerSource)}`);
+    record('worker logger.* forwarded to remote', hasLogger, `msg=${String(hasLogger)}`);
+    expect(hasConsole, 'worker console message not found in remote log').toBe(true);
+    expect(hasLogger, 'worker logger.warn not found in remote log').toBe(true);
 });
 
 test('8. WS close is logged', async () => {
