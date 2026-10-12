@@ -56,3 +56,11 @@ existing strictness/architecture rules. Run via `pnpm run lint` (part of `check:
 4. **Stage 4** — make `check:strict` a required check.
 
 See `2026-10-12-strict-debt-audit.md` for the current debt inventory.
+
+## Known limitations (2026-10-12)
+
+- Husky pre-commit blocks commits to legacy files that contain pre-existing lint
+  debt (unrelated to the change). Workaround: `--no-verify` with an explicit
+  justification in the commit body.
+  Long-term fix: clear the strict debt (see the audit) OR scope pre-commit to
+  changed regions only (separate PR).
