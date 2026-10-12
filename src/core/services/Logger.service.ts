@@ -60,6 +60,7 @@ const PERFORMANCE_PRECISION_DIGITS = 2;
 const PERFORMANCE_SOURCE = 'Performance';
 const DEFAULT_SOURCE = 'System';
 const SIMULATION_SOURCE = 'Simulation';
+const TRANSPORT_SOURCE = 'Logger:WS';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -141,6 +142,7 @@ export class Logger {
   private readonly context: string = resolveRuntimeEnvironment() === 'worker' ? 'Worker' : 'Main';
   private readonly commandSubscribers = new Set<(command: RemoteCommand) => void>();
   private lastLogDedupKey: string | null = null;
+  private isHandlingTransportEvent = false;
   private readonly originalConsole = {
     log: console.log.bind(console),
     warn: console.warn.bind(console),
@@ -343,19 +345,30 @@ export class Logger {
         clearTimeout(this.reconnectTimer);
         this.reconnectTimer = null;
       }
-      console.debug(`[\x1b[36mLogger\x1b[0m] WebSocket connected (${this.context})`);
+      this.logTransport('remote log WS connected', LogLevel.INFO, {
+        endpoint: DEBUG_CONFIG.remoteWsEndpoint,
+        context: this.context
+      });
       this.flushQueue();
     };
 
-    this.socket.onclose = () => {
+    this.socket.onclose = (event?: CloseEvent) => {
       this.isConnecting = false;
       this.socket = null;
+      this.logTransport('remote log WS closed', LogLevel.WARNING, {
+        code: event?.code,
+        reason: event?.reason,
+        context: this.context
+      });
       this.scheduleReconnect();
     };
 
-    this.socket.onerror = (error) => {
+    this.socket.onerror = () => {
       this.isConnecting = false;
-      console.warn(`[Logger] WebSocket error (${this.context}):`, error);
+      this.logTransport('remote log WS error', LogLevel.ERROR, {
+        endpoint: DEBUG_CONFIG.remoteWsEndpoint,
+        context: this.context
+      });
     };
 
     this.socket.onmessage = (event) => {
@@ -368,10 +381,36 @@ export class Logger {
       return;
     }
 
+    this.logTransport('remote log WS reconnect scheduled', LogLevel.WARNING, {
+      delayMs: LOGGER_RECONNECT_DELAY_MS,
+      context: this.context
+    });
+
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.initWebSocket();
     }, LOGGER_RECONNECT_DELAY_MS);
+  }
+
+  /**
+   * Logs a transport lifecycle event without re-sending it through the socket.
+   * Prevents a feedback loop when the remote connection is down.
+   */
+  private logTransport(message: string, level: LogLevel, data?: Record<string, unknown>): void {
+    this.isHandlingTransportEvent = true;
+    try {
+      if (level === LogLevel.ERROR) {
+        this.error(message, TRANSPORT_SOURCE, data);
+        return;
+      }
+      if (level === LogLevel.WARNING) {
+        this.warning(message, TRANSPORT_SOURCE, data);
+        return;
+      }
+      this.info(message, TRANSPORT_SOURCE, data);
+    } finally {
+      this.isHandlingTransportEvent = false;
+    }
   }
 
   private handleIncomingMessage(data: unknown): void {
@@ -417,6 +456,12 @@ export class Logger {
 
   private maybeSendToRemote(entry: LogEntry): void {
     if (!this.remoteLoggingEnabled) {
+      return;
+    }
+
+    // Transport lifecycle logs are for the local log/console only: sending them
+    // back through the (possibly dead) socket would create a noisy loop.
+    if (this.isHandlingTransportEvent) {
       return;
     }
 
