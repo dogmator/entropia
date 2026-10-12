@@ -21,7 +21,7 @@
 - `.github/workflows/deploy.yml` — job `build-and-test` runs `pnpm run check`, then Pages upload/deploy on push to `main`.
 - Toolchain pinned per-repo: `packageManager: pnpm@10.34.7`, `.nvmrc` = 22, `engines` node `>=22 <23` / pnpm `>=10 <11`; `pnpm-workspace.yaml` `onlyBuiltDependencies: [esbuild]`.
 
-`pnpm run check` = `typecheck && test --run && depcruise && build` (no ESLint).
+`pnpm run check` = `typecheck && test --run --coverage && depcruise && build` (no ESLint; coverage thresholds enforced).
 
 ### Husky (local feedback, not a gate)
 
