@@ -6,7 +6,15 @@ import {
     DEFAULT_TRIM_TO_BYTES
 } from './log-file-utils';
 
-const PORT = 3011;
+const DEFAULT_PORT = 3011;
+
+const resolvePort = (): number => {
+    const raw = process.env['LOG_SERVER_PORT'];
+    const parsed = raw ? Number(raw) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : DEFAULT_PORT;
+};
+
+const PORT = resolvePort();
 const LOG_FILE = 'remote_debug.log';
 const LOG_FILE_PATH = `${process.cwd()}/${LOG_FILE}`;
 const MAX_LOG_FILE_BYTES = DEFAULT_MAX_LOG_FILE_BYTES;

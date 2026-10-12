@@ -12,9 +12,82 @@ import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { WorkerCommand, WorkerResponse } from './WorkerMessages';
+import type { WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
+
+// ============================================================================
+// LOG TRANSPORT (Worker → Main Thread)
+// ============================================================================
+
+/**
+ * Serializes a log argument into a string safe to postMessage.
+ */
+const serializeLogArg = (arg: unknown): string => {
+    if (arg instanceof Error) {
+        return arg.stack ?? `${arg.name}: ${arg.message}`;
+    }
+    if (typeof arg === 'string') {
+        return arg;
+    }
+    if (arg === null || typeof arg !== 'object') {
+        return String(arg);
+    }
+    try {
+        return JSON.stringify(arg);
+    } catch {
+        return '[Unserializable]';
+    }
+};
+
+/**
+ * Explicit transport to the main thread. Relies only on `self.postMessage`
+ * (never on `console.*`), so Terser's `drop_console` cannot strip it in
+ * production builds.
+ */
+const postLog = (level: WorkerConsoleLevel, args: readonly unknown[]): void => {
+    try {
+        const payload: WorkerConsoleMessage = {
+            type: 'worker-console',
+            level,
+            args: args.map(serializeLogArg),
+            timestamp: Date.now(),
+        };
+        self.postMessage(payload);
+    } catch {
+        // Never let log forwarding break worker execution.
+    }
+};
+
+// Keep the native console for worker DevTools, and forward direct console.* calls.
+const nativeConsole = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    debug: console.debug.bind(console),
+};
+
+console.log = (...args: unknown[]): void => { nativeConsole.log(...args); postLog('log', args); };
+console.info = (...args: unknown[]): void => { nativeConsole.info(...args); postLog('info', args); };
+console.warn = (...args: unknown[]): void => { nativeConsole.warn(...args); postLog('warn', args); };
+console.error = (...args: unknown[]): void => { nativeConsole.error(...args); postLog('error', args); };
+console.debug = (...args: unknown[]): void => { nativeConsole.debug(...args); postLog('debug', args); };
+
+// Route the shared logger's warning/error output through postLog as well. Set
+// after construction, so it does not depend on import order and does not use the
+// native console the logger bound at construction time.
+logger.setOutputSink((message, level, data) => {
+    const workerLevel: WorkerConsoleLevel = String(level) === 'error' ? 'error' : 'warn';
+    postLog(workerLevel, data === undefined ? [message] : [message, data]);
+});
+
+// Dev-only hook so the smoke test can exercise the logger → main path.
+if (import.meta.env.DEV) {
+    (globalThis as unknown as { __entropiaSmoke?: { warnViaLogger: (msg: string) => void } }).__entropiaSmoke = {
+        warnViaLogger: (msg: string): void => { logger.warn(msg, 'Smoke'); },
+    };
+}
 
 // ============================================================================
 // WORKER STATE
