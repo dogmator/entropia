@@ -19,7 +19,7 @@
     "check:dead-code": "knip",
     "check:tooling": "jiti scripts/ensure-typescript-tooling.ts",
     "check:canon": "pnpm run check:dead-code && pnpm run depcruise && pnpm run check:tooling",
-    "check": "pnpm run typecheck && pnpm run test --run && pnpm run depcruise && pnpm run build",
+    "check": "pnpm run typecheck && pnpm run test --run --coverage && pnpm run depcruise && pnpm run build",
     "check:strict": "pnpm run typecheck && pnpm run lint && pnpm run check:canon && pnpm run test --run && pnpm run build",
     "prepare": "husky",
     "test": "vitest",
@@ -71,6 +71,7 @@
     "jscpd": "^4.0.5",
     "jsdom": "^25.0.1",
     "knip": "^6.16.1",
+    "lint-staged": "16.2.7",
     "postcss": "8.5.10",
     "tailwindcss": "^4.1.18",
     "terser": "^5.44.1",
@@ -82,5 +83,10 @@
     "vite-plugin-checker": "^0.12.0",
     "vitest": "^2.1.8",
     "ws": "^8.18.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0"
+    ]
   }
 }

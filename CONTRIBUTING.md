@@ -47,7 +47,14 @@ Existing `interfaces/` directories use the `I`-prefix convention (for example `I
 
 ## Verification
 
-`pnpm run check` is the enforced repository gate. It runs type checking, the full unit-test suite in deterministic run mode, dependency-cruiser, and a production build. CI and the current Husky pre-commit hook cover the same baseline.
+`pnpm run check` is the enforced repository gate. It runs type checking, the full unit-test suite in deterministic run mode (with coverage thresholds), dependency-cruiser, and a production build. CI runs this same baseline for every PR to `main`.
+
+Local Husky hooks are split for fast feedback and are **not** the gate:
+
+- `pre-commit` → `lint-staged` (ESLint `--fix --max-warnings 0`, staged `*.{ts,tsx}` only) — fast, so commits stay quick.
+- `pre-push` → `pnpm run check` (the full baseline) — catches everything before it leaves the machine.
+
+The non-bypassable gate is GitHub Branch Protection on `main` (required `Verification` check); local hooks may be absent in clean/agent containers.
 
 `pnpm run check:strict` is the cleanup audit. It additionally runs ESLint, knip, and tooling checks and currently reports pre-existing quality debt that should be removed in focused follow-up changes.
 

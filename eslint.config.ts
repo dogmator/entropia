@@ -14,7 +14,7 @@ const MAX_LINES_PER_FUNCTION = 50;
 const MAX_DEPTH = 3;
 const MAX_PARAMS = 3;
 const MAX_COGNITIVE_COMPLEXITY = 15;
-const DUPLICATE_STRING_THRESHOLD = 5;
+const DUPLICATE_STRING_THRESHOLD = 3;
 
 // eslint-disable-next-line sonarjs/deprecation, @typescript-eslint/no-deprecated -- requires migration to tseslint.defineConfig
 export default tseslint.config(
@@ -69,6 +69,7 @@ export default tseslint.config(
       '@typescript-eslint/prefer-readonly': 'error',
       '@typescript-eslint/switch-exhaustiveness-check': 'error',
       '@typescript-eslint/no-shadow': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error',
 
       '@typescript-eslint/naming-convention': [
         'error',
@@ -91,6 +92,7 @@ export default tseslint.config(
       'max-lines-per-function': ['error', { max: MAX_LINES_PER_FUNCTION, skipBlankLines: true, skipComments: true }],
       'max-depth': ['error', MAX_DEPTH],
       'max-params': ['error', MAX_PARAMS],
+      'no-warning-comments': ['warn', { terms: ['todo', 'fixme', 'xxx'], location: 'anywhere' }],
 
       'sonarjs/no-duplicate-string': ['error', { threshold: DUPLICATE_STRING_THRESHOLD }],
       'sonarjs/cognitive-complexity': ['error', MAX_COGNITIVE_COMPLEXITY],
