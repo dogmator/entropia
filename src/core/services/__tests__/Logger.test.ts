@@ -38,7 +38,7 @@ const setupGlobalSpies = () => {
 
 const createLogger = (): Logger => {
   const loggerClass = Logger as unknown as { instance?: Logger };
-  loggerClass.instance = undefined;
+  delete loggerClass.instance;
   return Logger.getInstance();
 };
 

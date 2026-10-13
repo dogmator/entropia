@@ -11,14 +11,14 @@ export interface LogEntry {
   timestamp: number;
   level: LogLevel;
   message: string;
-  source?: string;
+  source: string;
   data?: Record<string, unknown>;
 }
 
 interface LogPayload {
   level: LogLevel;
   message: string;
-  source?: string;
+  source: string;
   data?: Record<string, unknown>;
 }
 
@@ -40,7 +40,7 @@ interface RemoteCommand {
 interface DedupComparable {
   level: LogLevel;
   message: string;
-  source?: string;
+  source: string;
   data?: Record<string, unknown>;
 }
 
@@ -106,7 +106,18 @@ const normalizeMaxLogs = (maxLogs: number): number => {
 };
 
 const getDedupKey = (payload: DedupComparable): string =>
-  [payload.level, payload.message, payload.source ?? '', safeStringify(payload.data ?? null)].join('|');
+  [payload.level, payload.message, payload.source, safeStringify(payload.data ?? null)].join('|');
+
+const buildPayload = (
+  base: { level: LogLevel; message: string; source: string },
+  data?: Record<string, unknown>
+): LogPayload => {
+  const payload: LogPayload = { ...base };
+  if (data !== undefined) {
+    payload.data = data;
+  }
+  return payload;
+};
 
 const shouldOutputToConsole = (level: LogLevel): boolean =>
   level === LogLevel.WARNING || level === LogLevel.ERROR;
@@ -212,24 +223,29 @@ export class Logger {
     this.outputSink = sink;
   }
 
-  public debug(message: string, source?: string, data?: Record<string, unknown>): void {
-    this.addLog({ level: LogLevel.DEBUG, message, source, data });
+  /**
+   * Emits a DEBUG entry. All log methods (`debug`/`info`/`warning`/`warn`/`error`)
+   * require an explicit `source`; pass the literal `'unknown'` when the origin is
+   * genuinely unknown.
+   */
+  public debug(message: string, source: string, data?: Record<string, unknown>): void {
+    this.addLog(buildPayload({ level: LogLevel.DEBUG, message, source }, data));
   }
 
-  public info(message: string, source?: string, data?: Record<string, unknown>): void {
-    this.addLog({ level: LogLevel.INFO, message, source, data });
+  public info(message: string, source: string, data?: Record<string, unknown>): void {
+    this.addLog(buildPayload({ level: LogLevel.INFO, message, source }, data));
   }
 
-  public warning(message: string, source?: string, data?: Record<string, unknown>): void {
-    this.addLog({ level: LogLevel.WARNING, message, source, data });
+  public warning(message: string, source: string, data?: Record<string, unknown>): void {
+    this.addLog(buildPayload({ level: LogLevel.WARNING, message, source }, data));
   }
 
-  public warn(message: string, source?: string, data?: Record<string, unknown>): void {
+  public warn(message: string, source: string, data?: Record<string, unknown>): void {
     this.warning(message, source, data);
   }
 
-  public error(message: string, source?: string, data?: Record<string, unknown>): void {
-    this.addLog({ level: LogLevel.ERROR, message, source, data });
+  public error(message: string, source: string, data?: Record<string, unknown>): void {
+    this.addLog(buildPayload({ level: LogLevel.ERROR, message, source }, data));
   }
 
   private addLog(payload: LogPayload, options: AddLogOptions = {}): void {
@@ -259,13 +275,18 @@ export class Logger {
   }
 
   private createLogEntry(payload: LogPayload): LogEntry {
-    return {
+    const entry: LogEntry = {
       timestamp: Date.now(),
       level: payload.level,
       message: payload.message,
-      source: payload.source,
-      data: payload.data
+      source: payload.source
     };
+
+    if (payload.data !== undefined) {
+      entry.data = payload.data;
+    }
+
+    return entry;
   }
 
   private cleanupOldLogs(): void {
@@ -503,13 +524,18 @@ export class Logger {
       source = entry.source.includes(this.context) ? entry.source : `${this.context}:${entry.source}`;
     }
 
-    return {
+    const remoteEntry: LogEntry = {
       timestamp: entry.timestamp,
       level: entry.level,
       message: entry.message,
-      source,
-      data: entry.data
+      source
     };
+
+    if (entry.data !== undefined) {
+      remoteEntry.data = entry.data;
+    }
+
+    return remoteEntry;
   }
 
   private enqueueRemoteEntry(entry: LogEntry): void {

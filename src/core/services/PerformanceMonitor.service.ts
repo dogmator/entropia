@@ -159,9 +159,13 @@ export class PerformanceMonitor {
       frameTime,
       simulationTime: 0, // Will be updated from Engine
       entityCount,
-      drawCalls,
-      memoryUsage: this.getCurrentMemoryInfo()
+      drawCalls
     };
+
+    const memoryUsage = this.getCurrentMemoryInfo();
+    if (memoryUsage !== undefined) {
+      entry.memoryUsage = memoryUsage;
+    }
 
     this.storeEntry(entry);
   }

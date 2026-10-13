@@ -302,3 +302,30 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
     A cleaner design injects the transport/output-sink via the constructor (e.g. `createLogger({ outputSink })`),
     removing the post-construction mutation and making the dependency explicit. Out of scope for PR #52;
     track for a future logger-cycle PR.
+
+### Findings from PR-B (logger cleanup, `refactor/logger-cleanup`)
+
+15. **[DONE] Removed dead `logger/Logger.ts` + `transports/` (PR-B).** The parallel, non-barrel-wired
+    implementation (and its private tests) is deleted. `Logger.service.ts` is now the single logger; `LogEntry`
+    has one definition, exported via `@/core`. knip no longer reports the `logger` unused export.
+16. **[DONE] `source: string` is mandatory (PR-B).** `LogEntry.source` / `LogPayload.source` are no longer
+    optional; logger methods take `source: string` with a default of `'unknown'`. This clears the 13
+    Logger-related `exactOptionalPropertyTypes` errors (18 → 5 repo-wide; remaining 5 are other groups).
+17. **[DONE] Cyclic/bigint-safe serialization (PR-B).** The active Logger already serialized through a
+    `try/catch` `safeStringify` with a `WeakSet` replacer (`[Circular]` / `[Unserializable]`); removing the dead
+    implementation leaves this as the single guard. Any future `JSON.stringify` on payloads must go through it.
+18. **[FUTURE] `MAX_LOG_PAYLOAD_BYTES`** — cap the serialized payload size before queueing/sending, to bound
+    memory and wire usage (the server already refuses > 100 kB, the client does not).
+19. **[FUTURE] PII review** — logs may carry user IDs, API keys, filesystem paths and IPs. Define a redaction
+    policy / allow-list before any log leaves the machine.
+20. **[FUTURE] Prod levels** — decide whether `debug` is emitted in production or stripped, and whether the
+    remote sink is enabled outside dev. Currently `debug` entries are produced unconditionally.
+21. **[FUTURE] `setOutputSink` via constructor** — fold into the constructor-injection refactor tracked in
+    item 14 (avoid post-construction mutation).
+22. **[P1] Vite HMR `clientPort` hardcoded 3000** (`vite.config.ts` `SERVER_CONFIG.hmr.clientPort`). This makes
+    the smoke test `tests/smoke/log-transport.spec.ts` falsely-green on `main`: it fails whenever the app runs on
+    a non-default port (the smoke harness uses 13000 → HMR WS `ws://localhost:3000/...` → `ERR_CONNECTION_REFUSED`,
+    aborts test 1). Required: make `clientPort` configurable via env (`VITE_HMR_PORT`). Separate PR — not the
+    Logger group.
+
+
