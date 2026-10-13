@@ -16,11 +16,13 @@ import { EntityType } from '@/types';
 import { SimulationEngine } from '../engine/Engine';
 import { Food } from '../Entity';
 
+const TEST_SEED = 1337;
+
 describe('SimulationEngine — Адаптивні буфери рендерингу', () => {
   let engine: SimulationEngine;
 
   beforeEach(() => {
-    engine = new SimulationEngine(1.0);
+    engine = new SimulationEngine(1.0, { seed: TEST_SEED });
   });
 
   it('повинен створювати буфери з запасом при зростанні популяції', () => {
@@ -112,7 +114,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
     }
 
     const exportedState = engine.exportState();
-    const newEngine = new SimulationEngine(1.0);
+    const newEngine = new SimulationEngine(1.0, { seed: TEST_SEED });
     newEngine.importState(exportedState);
 
     const originalData = engine.getRenderData();
@@ -176,7 +178,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
       },
     ];
 
-    const restoredEngine = new SimulationEngine(1.0);
+    const restoredEngine = new SimulationEngine(1.0, { seed: TEST_SEED });
     restoredEngine.importState(state);
 
     expect(restoredEngine.food.has('food-inside-zone')).toBe(false);
@@ -221,7 +223,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
     }
 
     const exportedState = engine.exportState();
-    const rehydratedEngine = new SimulationEngine(1.0);
+    const rehydratedEngine = new SimulationEngine(1.0, { seed: TEST_SEED });
     rehydratedEngine.importState(exportedState);
     const reExportedState = rehydratedEngine.exportState();
 
@@ -236,11 +238,11 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
     const state1 = engine.exportState();
 
-    const engine2 = new SimulationEngine(1.0);
+    const engine2 = new SimulationEngine(1.0, { seed: TEST_SEED });
     engine2.importState(state1);
     const exportedFromEngine2 = engine2.exportState();
 
-    const engine3 = new SimulationEngine(1.0);
+    const engine3 = new SimulationEngine(1.0, { seed: TEST_SEED });
     engine3.importState(exportedFromEngine2);
     const state2 = engine3.exportState();
 

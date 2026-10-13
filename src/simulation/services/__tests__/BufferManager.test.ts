@@ -8,10 +8,11 @@ import { BufferManager } from '../BufferManager.manager';
 const FOOD_ID = 900_001;
 const ORGANISM_STRIDE = 13;
 const FOOD_STRIDE = 5;
+const TEST_SEED = 1337;
 
 describe('BufferManager', () => {
   it('returns exact counts while over-allocating capacity from upper bounds', () => {
-    const engine = new SimulationEngine(1);
+    const engine = new SimulationEngine(1, { seed: TEST_SEED });
     const manager = new BufferManager();
 
     const prey = engine.spawnService.spawnOrganism(EntityType.PREY);
