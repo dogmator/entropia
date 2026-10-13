@@ -123,6 +123,14 @@ function sendResponse(response: WorkerResponse, transferables: Transferable[] = 
 }
 
 /**
+ * Builds a structured, postMessage-safe error payload for logger calls.
+ */
+const describeError = (error: unknown): Record<string, unknown> => ({
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+});
+
+/**
  * Processing initialization command.
  */
 function handleInit(scale: number): void {
@@ -146,6 +154,7 @@ function handleInit(scale: number): void {
             startAutoUpdate();
         }
     } catch (error) {
+        logger.error('worker init failed', 'Worker:Init', describeError(error));
         sendResponse({
             type: 'error',
             message: error instanceof Error ? error.message : 'Failed to initialize engine',
@@ -173,6 +182,7 @@ function handleUpdate(): void {
             tick,
         }, transferables);
     } catch (error) {
+        logger.error('worker update failed', 'Worker:Update', describeError(error));
         sendResponse({
             type: 'error',
             message: error instanceof Error ? error.message : 'Update failed',
@@ -187,10 +197,13 @@ function handleUpdate(): void {
 function handleReset(): void {
     if (!engine) return;
 
+    logger.info('worker reset', 'Worker:Reset');
+
     try {
         engine.reset();
         sendResponse({ type: 'stats', stats: engine.getStats() });
     } catch (error) {
+        logger.error('worker reset failed', 'Worker:Reset', describeError(error));
         sendResponse({
             type: 'error',
             message: error instanceof Error ? error.message : 'Reset failed',
@@ -222,6 +235,7 @@ async function handleAsyncCommand(
         const result = await command(engine);
         sendResponse({ type: 'commandResponse', requestId, result });
     } catch (error) {
+        logger.error('worker async command failed', 'Worker:AsyncCommand', describeError(error));
         sendResponse({
             type: 'error',
             message: error instanceof Error ? error.message : 'Command failed',
@@ -236,6 +250,7 @@ async function handleAsyncCommand(
 function handleSetConfig(config: Partial<SimulationEngine['config']>): void {
     if (!engine) return;
     Object.assign(engine.config, config);
+    logger.info('worker config updated', 'Worker:Config', { keys: Object.keys(config) });
     sendResponse({ type: 'stats', stats: engine.getStats() });
 }
 
@@ -389,6 +404,7 @@ function handleControlCommand(command: WorkerCommand): void {
 self.onmessage = (event: MessageEvent<unknown>): void => {
     const data = event.data;
     if (!isWorkerCommand(data)) return;
+    logger.debug('worker received message', 'Worker:Message', { type: data.type });
     if (handleLifecycleCommand(data)) return;
     if (handleQueryCommand(data)) return;
     handleControlCommand(data);
