@@ -322,4 +322,10 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
     remote sink is enabled outside dev. Currently `debug` entries are produced unconditionally.
 21. **[FUTURE] `setOutputSink` via constructor** — fold into the constructor-injection refactor tracked in
     item 14 (avoid post-construction mutation).
+22. **[P1] Vite HMR `clientPort` hardcoded 3000** (`vite.config.ts` `SERVER_CONFIG.hmr.clientPort`). This makes
+    the smoke test `tests/smoke/log-transport.spec.ts` falsely-green on `main`: it fails whenever the app runs on
+    a non-default port (the smoke harness uses 13000 → HMR WS `ws://localhost:3000/...` → `ERR_CONNECTION_REFUSED`,
+    aborts test 1). Required: make `clientPort` configurable via env (`VITE_HMR_PORT`). Separate PR — not the
+    Logger group.
+
 
