@@ -73,8 +73,10 @@ export class SimulationEngine implements IPersistableEngine {
     private readonly entityQuery: EntityQuery;
 
     // eslint-disable-next-line max-lines-per-function
-    constructor(scale = 1.0) {
-        this.seed = (Math.random() * ENGINE_CONSTANTS.SEED_LIMIT) >>> 0; // eslint-disable-line sonarjs/pseudo-random
+    constructor(scale = 1.0, options?: { seed?: number }) {
+        const seed = options?.seed ?? ((Math.random() * ENGINE_CONSTANTS.SEED_LIMIT) >>> 0); // eslint-disable-line sonarjs/pseudo-random
+        this.seed = seed >>> 0;
+        Random.reset(this.seed);
         this.worldConfig = createWorldConfig(scale);
         this.config = this.buildDefaultConfig();
 
