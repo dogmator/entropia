@@ -10,6 +10,7 @@ import { clampToLimits, getInitialConfig, sanitizeConfig, syncUrlDebounced } fro
 import { useUrlSync } from './useUrlSync';
 
 const URL_SYNC_DEBOUNCE_MS = 180;
+const SETTINGS_SOURCE = 'UI:Settings';
 
 export interface SettingsState {
     config: SimulationConfig;
@@ -63,17 +64,20 @@ export const useSettingsState = (engine: ISimulationEngine): SettingsState => {
         if (typeof currentValue !== 'number') return;
         const safeValue = clampToLimits(key, val);
         if (currentValue === safeValue) return;
+        logger.info('setting changed', SETTINGS_SOURCE, { key, from: currentValue, to: safeValue });
         applyConfig({ ...config, [key]: safeValue, graphicsQuality: 'CUSTOM' }, 'replace', false);
     }, [applyConfig, config]);
 
     const toggle = useCallback((key: keyof SimulationConfig) => {
         const currentVal = config[key];
         if (typeof currentVal !== 'boolean') return;
+        logger.info('setting toggled', SETTINGS_SOURCE, { key, from: currentVal, to: !currentVal });
         applyConfig({ ...config, [key]: !currentVal, graphicsQuality: 'CUSTOM' }, 'push', false);
     }, [applyConfig, config]);
 
     const applyPreset = useCallback((quality: GraphicsQuality) => {
         if (quality === 'CUSTOM') return;
+        logger.info('graphics preset applied', SETTINGS_SOURCE, { quality });
         applyConfig({ ...config, ...GRAPHICS_PRESETS[quality], graphicsQuality: quality }, 'push', false);
     }, [applyConfig, config]);
 

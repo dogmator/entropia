@@ -173,6 +173,8 @@ export class SimulationEngine implements IPersistableEngine {
     }
 
     public reset(): void {
+        logger.info('engine reset requested', 'Engine:Reset');
+
         this.entityManager.clear();
         this.zones.clear();
         this.geneticTree.clear();
@@ -194,6 +196,12 @@ export class SimulationEngine implements IPersistableEngine {
             entityManager: this.entityManager,
             reproductionSystem: this.reproductionSystem,
             worldConfig: this.worldConfig
+        });
+
+        logger.info('engine reset complete', 'Engine:Reset', {
+            organisms: this.entityManager.organisms.size,
+            food: this.entityManager.food.size,
+            obstacles: this.entityManager.obstacles.size,
         });
     }
 
