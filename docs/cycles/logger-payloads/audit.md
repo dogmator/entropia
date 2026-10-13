@@ -328,4 +328,25 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
     aborts test 1). Required: make `clientPort` configurable via env (`VITE_HMR_PORT`). Separate PR — not the
     Logger group.
 
+### Findings from PR-C (runtime observability, `feat/runtime-observability`)
+
+23. **[DONE] P1 — Worker lifecycle logs (PR-C).** `simulation.worker.ts`: `onmessage` logs the incoming command
+    type (`Worker:Message`, debug); `handleInit`/`handleUpdate`/`handleReset`/`handleAsyncCommand` now log an
+    error on their previously-silent `catch` (`Worker:Init`/`Worker:Update`/`Worker:Reset`/`Worker:AsyncCommand`)
+    via a shared `describeError` helper; `handleReset` logs `Worker:Reset` (info); `handleSetConfig` logs the
+    changed keys only — never values — (`Worker:Config`, info).
+24. **[DONE] P1 — `Engine.reset()` lifecycle (PR-C).** `Engine.ts::reset()` logs `Engine:Reset` info at the start
+    and, on completion, the resulting `{ organisms, food, obstacles }` counts. (No `try/catch` in `reset()`, so
+    no error path; failures surface through the worker's `handleReset` catch.)
+25. **[DONE] P2 — Camera + settings observability (PR-C).** `SceneContainer.tsx` logs camera restore and save as
+    `UI:Camera` (debug) via a module-level helper; `onEnd` is already discrete (fires per interaction end), so no
+    throttle is needed. `useSettingsState.ts` now logs `UI:Settings` with `{ key, from, to }` for `update` and
+    `toggle`, and `{ quality }` for `applyPreset`. Existing `url-first` logs (`useSettingsState` source) are left
+    as-is, not duplicated.
+26. **[NOTE] Worker `debug`/`info` visibility (PR-C).** In the worker, `logger.setOutputSink` forwards only
+    `warning`/`error` to the main thread; `debug`/`info` (e.g. `Worker:Message`, `Worker:Reset`, `Worker:Config`)
+    live in the worker's own ring buffer and reach the UI only via the remote sink if enabled. This is a
+    pre-existing transport characteristic, not changed in PR-C.
+
+
 
