@@ -28,6 +28,7 @@ const MAX_MESSAGE_SIZE = 8192;
 const MAX_SOURCE_SIZE = 128;
 const MAX_PAYLOAD_BYTES = 100_000;
 const RELOAD_INPUT = 'reload';
+const UNKNOWN_SOURCE = 'unknown';
 
 const ANSI_COLORS = {
     reset: '\x1b[0m',
@@ -51,7 +52,7 @@ interface LogPayload {
     timestamp: number;
     level: LogLevel;
     message: string;
-    source?: string;
+    source: string;
     data?: Record<string, unknown>;
 }
 
@@ -107,16 +108,21 @@ const parseLogPayload = (rawMessage: Buffer): LogPayload => {
 
     const timestamp = typeof parsed['timestamp'] === 'number' ? parsed['timestamp'] : Date.now();
     const level = resolveLogLevel(parsed['level']);
-    const source = sanitizeText(parsed['source'], MAX_SOURCE_SIZE);
+    const source = sanitizeText(parsed['source'], MAX_SOURCE_SIZE) ?? UNKNOWN_SOURCE;
     const data = isRecord(parsed['data']) ? parsed['data'] : undefined;
 
-    return {
+    const payload: LogPayload = {
         timestamp,
         level,
         message,
-        source,
-        data
+        source
     };
+
+    if (data !== undefined) {
+        payload.data = data;
+    }
+
+    return payload;
 };
 
 const createLogEntryText = (payload: LogPayload): string => {
