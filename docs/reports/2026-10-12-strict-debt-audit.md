@@ -8,8 +8,14 @@ only disabled strict flag is `exactOptionalPropertyTypes`.
 | Tool | Errors | Warnings |
 |---|---|---|
 | ESLint (`eslint src/`, strengthened rules) | 13 | 0 |
-| TypeScript (`exactOptionalPropertyTypes: true`) | 18 | — |
-| knip | 19 (3 files, 2 devDeps, 5 exports, 9 types) | — |
+| TypeScript (`exactOptionalPropertyTypes: true`) | 5 | — |
+| knip | 18 (3 files, 2 devDeps, 4 exports, 9 types) | — |
+
+> Updated after PR-B (`refactor/logger-cleanup`, Logger group): the 13 Logger-related
+> `exactOptionalPropertyTypes` errors are fixed (18 → 5) and the `logger` unused export is gone
+> (knip 19 → 18). Remaining strict errors are non-Logger groups:
+> `BufferManager.manager.ts:55`, `workerSnapshot.ts:41` (`RenderBuffers.sharedBuffer`) and
+> `simulation.worker.ts:149/176/225` (`WorkerResponse.stack`).
 
 ## ESLint — by rule
 
@@ -42,18 +48,21 @@ threshold lowered 5 → 3. `@typescript-eslint/no-explicit-any` was already `err
 `switch-exhaustiveness-check` (all in `simulation.worker.ts`, lines 275/288/306):
 worker command dispatch switches do not handle every member of the command union.
 
-## TypeScript — `exactOptionalPropertyTypes` (18 errors)
+## TypeScript — `exactOptionalPropertyTypes` (5 errors after PR-B)
 
 | Code | Count | Typical cause |
 |---|---|---|
-| TS2379 | 7 | optional prop passed `source: string \| undefined` / `data: ... \| undefined` to `LogPayload` |
-| TS2375 | 7 | object literal with `undefined` values assigned to `LogEntry` / `PerformanceEntry` |
-| TS2345 | 3 | argument of type `... \| undefined` not assignable (optional property) |
-| TS2412 | 1 | `Logger.test.ts` — property typed `Logger` assigned `undefined` |
+| TS2375 | 3 | object literal with `undefined` values assigned to `ErrorResponse` / `RenderBuffers` optional field |
+| TS2345 | 2 | argument of type `... \| undefined` not assignable (optional property) |
 
-Concentration: `src/core/services/Logger.service.ts`, `logger/Logger.ts`,
-`PerformanceMonitor.service.ts`, `scripts/log-server.ts`. Root fix: widen the
-optional payload fields to include `undefined` (or omit when undefined).
+Concentration (remaining): `src/simulation/simulation.worker.ts` (`WorkerResponse.stack`),
+`src/simulation/services/BufferManager.manager.ts` + `src/simulation/workerSnapshot.ts`
+(`RenderBuffers.sharedBuffer`). These belong to the worker/buffers groups, not Logger.
+
+Resolved by PR-B (Logger group): the 13 Logger-related errors in `Logger.service.ts`,
+`logger/Logger.ts` (now deleted), `PerformanceMonitor.service.ts`, `scripts/log-server.ts`
+and `Logger.test.ts` — root cause was optional payload fields (`source?`/`data?`) receiving
+explicit `undefined`.
 
 The other strict flags (`noUnusedLocals`, `noUnusedParameters`,
 `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`)
@@ -65,7 +74,7 @@ are already enabled in `tsconfig.json` and currently pass — they are not separ
 |---|---|---|
 | Unused files | 3 | `src/simulation/index.ts`, `src/simulation/services/index.ts`, `src/simulation/systems/index.ts` |
 | Unused devDependencies | 2 | `jscpd`, `ts-node` |
-| Unused exports | 5 | `logger`, `isPrey`, `isPredator`, `isEntity`, `ParticleSystem` |
+| Unused exports | 4 | `isPrey`, `isPredator`, `isEntity`, `ParticleSystem` |
 | Unused exported types | 9 | `PerformanceThresholds`, `Translations`, `ICameraData`, `EngineEventData`, `PopulationSnapshot`, `SimulationEventCallback`, `RenderFrame`, `GeneticTree`, `ParticleEffect` |
 
 ## Recommended cleanup order
@@ -74,7 +83,9 @@ are already enabled in `tsconfig.json` and currently pass — they are not separ
 2. ESLint: `sonarjs/no-duplicate-string` (define constants) — 1 iteration.
 3. ESLint: `switch-exhaustiveness-check` in `simulation.worker.ts` (behavior-sensitive; add default/never guard).
 4. TS: enable `exactOptionalPropertyTypes`; fix Logger/Performance payload types — 1–2 iterations.
+   *(Logger group done in PR-B: 18 → 5; remaining worker/buffers errors tracked separately.)*
 5. knip: remove/adjust unused files/exports/deps — after the above.
+   *(Logger `logger` export removed in PR-B: 19 → 18.)*
 6. Finally: promote `check:strict` to a required Branch Protection check.
 
 > Note: `check` (enforced in CI) intentionally does not run ESLint; these findings
