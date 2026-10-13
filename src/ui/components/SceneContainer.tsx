@@ -4,9 +4,11 @@ import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
+import { logger } from '@/core';
+
 import { WORLD_SIZE } from '../../config';
-import { useSimulation } from '../context/SimulationContext';
 import type { CameraSnapshot } from '../context/hooks/useSimulationSettings';
+import { useSimulation } from '../context/SimulationContext';
 
 const CAMERA_ZOOM_DIVISOR = 0.5;
 const CAMERA_FOV = 60;
@@ -24,6 +26,15 @@ const DIR_LIGHT_1_Y_FACTOR = 1.5;
 const DIR_LIGHT_2_INTENSITY = 0.3;
 const DIR_LIGHT_2_Y_FACTOR = 0.5;
 
+const CAMERA_SOURCE = 'UI:Camera';
+
+const logCamera = (event: 'restored from URL' | 'saved to URL', snapshot: CameraSnapshot): void => {
+    logger.debug(`camera ${event}`, CAMERA_SOURCE, {
+        position: [snapshot.px, snapshot.py, snapshot.pz],
+        target: [snapshot.tx, snapshot.ty, snapshot.tz],
+    });
+};
+
 const CameraTracker: React.FC = () => {
     const { camera, controls } = useThree();
     const { setCameraState, cameraSnapshot, setCameraSnapshot } = useSimulation();
@@ -39,6 +50,8 @@ const CameraTracker: React.FC = () => {
         orbitControls.target.set(cameraSnapshot.tx, cameraSnapshot.ty, cameraSnapshot.tz);
         camera.updateProjectionMatrix();
         orbitControls.update();
+
+        logCamera('restored from URL', cameraSnapshot);
     }, [camera, controls, cameraSnapshot]);
 
     // Sync full camera state to URL when user finishes zooming/orbiting
@@ -52,6 +65,8 @@ const CameraTracker: React.FC = () => {
             if (!Number.isFinite(px) || !Number.isFinite(py) || !Number.isFinite(pz)) return;
             const snapshot: CameraSnapshot = { px, py, pz, tx, ty, tz };
             setCameraSnapshot(snapshot);
+
+            logCamera('saved to URL', snapshot);
         };
 
         orbitControls.addEventListener('end', onEnd);
