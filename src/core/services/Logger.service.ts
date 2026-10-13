@@ -59,7 +59,6 @@ const CONSOLE_DEBUG_SOURCE = 'Console (Debug)';
 const PERFORMANCE_PRECISION_DIGITS = 2;
 const PERFORMANCE_SOURCE = 'Performance';
 const DEFAULT_SOURCE = 'System';
-const UNKNOWN_SOURCE = 'unknown';
 const SIMULATION_SOURCE = 'Simulation';
 const TRANSPORT_SOURCE = 'Logger:WS';
 
@@ -224,23 +223,28 @@ export class Logger {
     this.outputSink = sink;
   }
 
-  public debug(message: string, source: string = UNKNOWN_SOURCE, data?: Record<string, unknown>): void {
+  /**
+   * Emits a DEBUG entry. All log methods (`debug`/`info`/`warning`/`warn`/`error`)
+   * require an explicit `source`; pass the literal `'unknown'` when the origin is
+   * genuinely unknown.
+   */
+  public debug(message: string, source: string, data?: Record<string, unknown>): void {
     this.addLog(buildPayload({ level: LogLevel.DEBUG, message, source }, data));
   }
 
-  public info(message: string, source: string = UNKNOWN_SOURCE, data?: Record<string, unknown>): void {
+  public info(message: string, source: string, data?: Record<string, unknown>): void {
     this.addLog(buildPayload({ level: LogLevel.INFO, message, source }, data));
   }
 
-  public warning(message: string, source: string = UNKNOWN_SOURCE, data?: Record<string, unknown>): void {
+  public warning(message: string, source: string, data?: Record<string, unknown>): void {
     this.addLog(buildPayload({ level: LogLevel.WARNING, message, source }, data));
   }
 
-  public warn(message: string, source: string = UNKNOWN_SOURCE, data?: Record<string, unknown>): void {
+  public warn(message: string, source: string, data?: Record<string, unknown>): void {
     this.warning(message, source, data);
   }
 
-  public error(message: string, source: string = UNKNOWN_SOURCE, data?: Record<string, unknown>): void {
+  public error(message: string, source: string, data?: Record<string, unknown>): void {
     this.addLog(buildPayload({ level: LogLevel.ERROR, message, source }, data));
   }
 
