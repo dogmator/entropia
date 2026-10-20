@@ -1,20 +1,21 @@
-import { WebSocket, WebSocketServer } from 'ws';
+import { type RawData, WebSocket, WebSocketServer } from 'ws';
 
 import {
     appendLogEntryWithLimit,
     DEFAULT_MAX_LOG_FILE_BYTES,
     DEFAULT_TRIM_TO_BYTES
 } from './log-file-utils';
+import { type LogPayload, parseLogPayload } from './log-payload';
+import {
+    evaluateHandshake,
+    extractToken,
+    isLoopbackHost,
+    type ListenConfig,
+    MAX_CLIENTS,
+    MAX_PAYLOAD_BYTES,
+    resolveListenConfig
+} from './log-server-policy';
 
-const DEFAULT_PORT = 3011;
-
-const resolvePort = (): number => {
-    const raw = process.env['LOG_SERVER_PORT'];
-    const parsed = raw ? Number(raw) : Number.NaN;
-    return Number.isFinite(parsed) ? parsed : DEFAULT_PORT;
-};
-
-const PORT = resolvePort();
 const LOG_FILE = 'remote_debug.log';
 const LOG_FILE_PATH = `${process.cwd()}/${LOG_FILE}`;
 const MAX_LOG_FILE_BYTES = DEFAULT_MAX_LOG_FILE_BYTES;
@@ -24,11 +25,7 @@ const COMMAND_RELOAD = 'RELOAD';
 const COMMAND_CLEAR = 'clear';
 const COMMAND_UNKNOWN_PREFIX = 'Unknown command:';
 const ERROR_CODE_ADDRESS_IN_USE = 'EADDRINUSE';
-const MAX_MESSAGE_SIZE = 8192;
-const MAX_SOURCE_SIZE = 128;
-const MAX_PAYLOAD_BYTES = 100_000;
 const RELOAD_INPUT = 'reload';
-const UNKNOWN_SOURCE = 'unknown';
 
 const ANSI_COLORS = {
     reset: '\x1b[0m',
@@ -40,90 +37,18 @@ const ANSI_COLORS = {
     gray: '\x1b[90m'
 } as const;
 
-type LogLevel = 'info' | 'warning' | 'error';
-
-const LOG_LEVEL_COLORS: Record<LogLevel, string> = {
+const LOG_LEVEL_COLORS: Record<LogPayload['level'], string> = {
     info: ANSI_COLORS.green,
     warning: ANSI_COLORS.yellow,
     error: ANSI_COLORS.red
 };
-
-interface LogPayload {
-    timestamp: number;
-    level: LogLevel;
-    message: string;
-    source: string;
-    data?: Record<string, unknown>;
-}
 
 interface CommandPayload {
     type: typeof COMMAND_TYPE;
     action: string;
 }
 
-interface ErrorWithCode {
-    message: string;
-    code?: string;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-    typeof value === 'object' && value !== null;
-
-const isErrorWithCode = (value: unknown): value is ErrorWithCode =>
-    isRecord(value) && typeof value['message'] === 'string';
-
-const resolveLogLevel = (value: unknown): LogLevel =>
-    value === 'warning' || value === 'error' ? value : 'info';
-
-const formatLevel = (level: LogLevel): string => level.toUpperCase();
-
-const sanitizeText = (value: unknown, maxLength: number): string | undefined => {
-    if (typeof value !== 'string') {
-        return undefined;
-    }
-
-    return value.slice(0, maxLength).trim();
-};
-
-const parseLogPayload = (rawMessage: Buffer): LogPayload => {
-    if (rawMessage.byteLength > MAX_PAYLOAD_BYTES) {
-        throw new Error('Payload size exceeds allowed limit');
-    }
-
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(rawMessage.toString());
-    } catch {
-        throw new Error('Invalid JSON payload');
-    }
-
-    if (!isRecord(parsed)) {
-        throw new Error('Invalid log payload structure');
-    }
-
-    const message = sanitizeText(parsed['message'], MAX_MESSAGE_SIZE);
-    if (!message) {
-        throw new Error('Log payload must include non-empty message');
-    }
-
-    const timestamp = typeof parsed['timestamp'] === 'number' ? parsed['timestamp'] : Date.now();
-    const level = resolveLogLevel(parsed['level']);
-    const source = sanitizeText(parsed['source'], MAX_SOURCE_SIZE) ?? UNKNOWN_SOURCE;
-    const data = isRecord(parsed['data']) ? parsed['data'] : undefined;
-
-    const payload: LogPayload = {
-        timestamp,
-        level,
-        message,
-        source
-    };
-
-    if (data !== undefined) {
-        payload.data = data;
-    }
-
-    return payload;
-};
+const formatLevel = (level: LogPayload['level']): string => level.toUpperCase();
 
 const createLogEntryText = (payload: LogPayload): string => {
     const timestamp = new Date(payload.timestamp).toISOString();
@@ -142,11 +67,16 @@ const printColoredLog = (payload: LogPayload): void => {
     console.log(`${color}[${level}]${ANSI_COLORS.reset} ${source}${payload.message}`);
 };
 
-const isValidCommand = (command: CommandPayload): boolean =>
-    command.action.length > 0;
+const toBuffer = (data: RawData): Buffer => {
+    if (Array.isArray(data)) {
+        return Buffer.concat(data);
+    }
+
+    return data instanceof ArrayBuffer ? Buffer.from(data) : data;
+};
 
 const broadcast = (wss: WebSocketServer, command: CommandPayload): void => {
-    if (!isValidCommand(command)) {
+    if (command.action.length === 0) {
         return;
     }
 
@@ -176,43 +106,86 @@ const handleStdinInput = (input: string, wss: WebSocketServer): void => {
     }
 };
 
-const handleServerError = (error: unknown): never => {
-    if (!isErrorWithCode(error)) {
-        console.error(`${ANSI_COLORS.red}[CRITICAL]${ANSI_COLORS.reset} Unknown server error.`);
-        process.exit(1);
+const handleLogMessage = (data: RawData): void => {
+    try {
+        const payload = parseLogPayload(toBuffer(data), MAX_PAYLOAD_BYTES);
+        appendLogEntryWithLimit(
+            LOG_FILE_PATH,
+            createLogEntryText(payload),
+            {
+                maxBytes: MAX_LOG_FILE_BYTES,
+                trimToBytes: TRIM_TO_BYTES
+            }
+        );
+        printColoredLog(payload);
+    } catch (error: unknown) {
+        const reason = error instanceof Error ? error.message : 'Unknown parse failure';
+        console.error(`${ANSI_COLORS.red}[Error]${ANSI_COLORS.reset} Failed to process log bundle: ${reason}`);
     }
+};
 
-    if (error.code === ERROR_CODE_ADDRESS_IN_USE) {
-        console.error(`${ANSI_COLORS.red}[CRITICAL]${ANSI_COLORS.reset} Port ${String(PORT)} is already in use.`);
-        process.exit(1);
+const describeListenAddress = (config: ListenConfig): string => {
+    const host = config.host.includes(':') ? `[${config.host}]` : config.host;
+    return `ws://${host}:${String(config.port)}`;
+};
+
+const printBanner = (config: ListenConfig): void => {
+    console.log(`\n${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
+    console.log(`${ANSI_COLORS.cyan}    ENTROPIA 3D DIAGNOSTIC SERVER     ${ANSI_COLORS.reset}`);
+    console.log(`${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
+    console.log(`Address:   ${describeListenAddress(config)}`);
+    console.log(`Log File:  ${LOG_FILE_PATH}`);
+    console.log(`File cap:  ${String(MAX_LOG_FILE_BYTES)} bytes (trim to ${String(TRIM_TO_BYTES)} bytes)`);
+    console.log(`Limits:    ${String(MAX_PAYLOAD_BYTES)} bytes per message, ${String(MAX_CLIENTS)} clients`);
+    if (!isLoopbackHost(config.host)) {
+        console.log(`${ANSI_COLORS.yellow}Access:    REMOTE ENABLED — token required on every connection${ANSI_COLORS.reset}`);
     }
+    console.log('Runtime:   TypeScript (tsx)');
+    console.log('Status:    Running and waiting for connections...');
+    console.log(`${ANSI_COLORS.magenta}----------------------------------------${ANSI_COLORS.reset}\n`);
+};
 
-    console.error(`${ANSI_COLORS.red}[CRITICAL]${ANSI_COLORS.reset} Server error: ${error.message}`);
+const exitWithCritical = (message: string): never => {
+    console.error(`${ANSI_COLORS.red}[CRITICAL]${ANSI_COLORS.reset} ${message}`);
     process.exit(1);
 };
 
-const wss = new WebSocketServer({ port: PORT });
+const loadConfigOrExit = (): ListenConfig => {
+    try {
+        return resolveListenConfig(process.env);
+    } catch (error: unknown) {
+        return exitWithCritical(error instanceof Error ? error.message : 'Invalid configuration.');
+    }
+};
+
+const config = loadConfigOrExit();
+
+const wss = new WebSocketServer({
+    host: config.host,
+    port: config.port,
+    maxPayload: MAX_PAYLOAD_BYTES,
+    verifyClient: ({ req }, done) => {
+        const decision = evaluateHandshake({
+            origin: req.headers.origin,
+            providedToken: extractToken(req.url),
+            requiredToken: config.token,
+            activeClients: wss.clients.size
+        });
+
+        if (decision.accepted) {
+            done(true);
+            return;
+        }
+
+        console.warn(`${ANSI_COLORS.yellow}[Rejected]${ANSI_COLORS.reset} ${decision.reason} (origin: ${req.headers.origin ?? 'none'})`);
+        done(false, decision.status, decision.reason);
+    }
+});
 
 wss.on('connection', (ws: WebSocket) => {
     console.log(`${ANSI_COLORS.green}[Connected]${ANSI_COLORS.reset} New diagnostic client established`);
 
-    ws.on('message', (message: Buffer) => {
-        try {
-            const payload = parseLogPayload(message);
-            appendLogEntryWithLimit(
-                LOG_FILE_PATH,
-                createLogEntryText(payload),
-                {
-                    maxBytes: MAX_LOG_FILE_BYTES,
-                    trimToBytes: TRIM_TO_BYTES
-                }
-            );
-            printColoredLog(payload);
-        } catch (error: unknown) {
-            const reason = isErrorWithCode(error) ? error.message : 'Unknown parse failure';
-            console.error(`${ANSI_COLORS.red}[Error]${ANSI_COLORS.reset} Failed to process log bundle: ${reason}`);
-        }
-    });
+    ws.on('message', handleLogMessage);
 
     ws.on('close', () => {
         console.log(`${ANSI_COLORS.yellow}[Disconnected]${ANSI_COLORS.reset} Diagnostic client closed session`);
@@ -228,19 +201,16 @@ process.stdin.on('data', (data) => {
     handleStdinInput(data.toString().trim(), wss);
 });
 
-wss.on('error', (error: unknown) => {
-    handleServerError(error);
+wss.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === ERROR_CODE_ADDRESS_IN_USE) {
+        exitWithCritical(`Port ${String(config.port)} is already in use.`);
+    }
+
+    exitWithCritical(`Server error: ${error.message}`);
 });
 
-console.log(`\n${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
-console.log(`${ANSI_COLORS.cyan}    ENTROPIA 3D DIAGNOSTIC SERVER     ${ANSI_COLORS.reset}`);
-console.log(`${ANSI_COLORS.magenta}========================================${ANSI_COLORS.reset}`);
-console.log(`Address:   ws://localhost:${String(PORT)}`);
-console.log(`Log File:  ${LOG_FILE_PATH}`);
-console.log(`File cap:  ${String(MAX_LOG_FILE_BYTES)} bytes (trim to ${String(TRIM_TO_BYTES)} bytes)`);
-console.log('Runtime:   TypeScript (tsx)');
-console.log('Status:    Running and waiting for connections...');
-console.log(`${ANSI_COLORS.magenta}----------------------------------------${ANSI_COLORS.reset}\n`);
+// The banner is the readiness signal for operators and tests, so it is printed only once the socket is bound.
+wss.on('listening', () => { printBanner(config); });
 
 const cleanup = (): void => {
     console.log(`\n${ANSI_COLORS.yellow}Stopping Entropia diagnostic server...${ANSI_COLORS.reset}`);
