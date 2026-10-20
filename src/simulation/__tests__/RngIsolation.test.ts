@@ -70,6 +70,24 @@ describe('RNG isolation: construction and reset', () => {
   });
 });
 
+describe('RNG isolation: snapshots', () => {
+  it('importing a snapshot restores the importing engine\'s stream and leaves another engine untouched', () => {
+    const expectedBystander = runAlone(SEED_B);
+    const source = createStarted(SEED_A);
+    advance(source, HALF_TICKS);
+    const snapshot = source.exportState();
+
+    const bystander = createStarted(SEED_B);
+    advance(bystander, HALF_TICKS);
+    const restored = new SimulationEngine(1, { seed: SEED_C });
+    restored.importState(snapshot);
+    advance(bystander, TICKS - HALF_TICKS);
+
+    expect(restored.random.getState()).toBe(snapshot.rngState);
+    expect(serialize(bystander)).toBe(expectedBystander);
+  });
+});
+
 describe('RNG isolation: interleaved advancement', () => {
   it.each(SEED_PAIRS)('seeds %i and %i each match their solo run under strict alternation', (seedA, seedB) => {
     const expectedA = runAlone(seedA);
