@@ -1,6 +1,6 @@
  
 /* eslint-disable max-lines-per-function */
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
@@ -8,6 +8,8 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WebSocket } from 'ws';
+
+import { spawnOwned, stopOwned } from '../smoke-harness';
 
 const SERVER_SCRIPT = path.join(process.cwd(), 'scripts', 'log-server.ts');
 const TSX_BIN = path.join(process.cwd(), 'node_modules', '.bin', 'tsx');
@@ -47,13 +49,12 @@ const startServer = async (env: Record<string, string>): Promise<RunningServer> 
   const port = await freePort();
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'entropia-log-server-'));
   let output = '';
-  const child = spawn(TSX_BIN, [SERVER_SCRIPT], {
+  const child = spawnOwned(TSX_BIN, [SERVER_SCRIPT], {
     cwd: tempDir,
     env: { ...process.env, LOG_SERVER_PORT: String(port), ...env },
-    stdio: ['ignore', 'pipe', 'pipe'],
   });
-  child.stdout.on('data', (chunk: Buffer) => { output += chunk.toString(); });
-  child.stderr.on('data', (chunk: Buffer) => { output += chunk.toString(); });
+  child.stdout?.on('data', (chunk: Buffer) => { output += chunk.toString(); });
+  child.stderr?.on('data', (chunk: Buffer) => { output += chunk.toString(); });
 
   const server: RunningServer = { child, output: () => output, port, tempDir };
   running.push(server);
@@ -67,10 +68,7 @@ const startServer = async (env: Record<string, string>): Promise<RunningServer> 
 };
 
 const stopServer = async (server: RunningServer): Promise<void> => {
-  if (server.child.exitCode === null && server.child.signalCode === null) {
-    server.child.kill('SIGTERM');
-    await new Promise<void>((resolve) => { server.child.once('exit', () => { resolve(); }); });
-  }
+  await stopOwned(server.child);
   fs.rmSync(server.tempDir, { recursive: true, force: true });
 };
 
@@ -178,12 +176,11 @@ describe('log server — running process', () => {
     const port = await freePort();
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'entropia-log-server-'));
     let stderr = '';
-    const child = spawn(TSX_BIN, [SERVER_SCRIPT], {
+    const child = spawnOwned(TSX_BIN, [SERVER_SCRIPT], {
       cwd: tempDir,
       env: { ...process.env, LOG_SERVER_PORT: String(port), LOG_SERVER_HOST: '0.0.0.0' },
-      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
 
     const exitCode = await new Promise<number | null>((resolve) => { child.once('exit', (code) => { resolve(code); }); });
     fs.rmSync(tempDir, { recursive: true, force: true });
