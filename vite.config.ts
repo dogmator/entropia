@@ -13,9 +13,6 @@ const SERVER_CONFIG = {
   watch: {
     usePolling: true,
   },
-  hmr: {
-    clientPort: 3000,
-  },
 };
 
 const BUILD_CONFIG = {
