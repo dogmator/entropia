@@ -3,123 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CAMERA, UI_CONTROLS } from '@/config';
 
-// Extract the pure URL helpers by re-implementing them here using the same
-// constants — this keeps tests fast (no React/jsdom render overhead) and
-// focuses on the parsing/serialisation contract rather than hook mechanics.
+import { readUIFromUrl, syncUIToUrl, UI_DEFAULTS } from '../simulationUrlState';
 
-const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
-
-interface CameraSnapshot {
-    px: number; py: number; pz: number;
-    tx: number; ty: number; tz: number;
-}
-
-interface UIConfig {
-    speed: number;
-    worldScale: number;
-    autoRotate: boolean;
-    autoRotateSpeed: number;
-    cameraSnapshot: CameraSnapshot | null;
-}
-
-const UI_DEFAULTS: UIConfig = {
-    speed: UI_CONTROLS.SPEED.DEFAULT,
-    worldScale: UI_CONTROLS.WORLD_SCALE.DEFAULT,
-    autoRotate: CAMERA.AUTO_ROTATE.ENABLED,
-    autoRotateSpeed: CAMERA.AUTO_ROTATE.SPEED,
-    cameraSnapshot: null,
-};
-
-interface NumericParamOptions {
-    min: number;
-    max: number;
-    fallback: number;
-}
-
-const readUIFromUrl = (search: string): UIConfig => {
-    const params = new URLSearchParams(search);
-
-    const parseNum = (key: string, options: NumericParamOptions): number => {
-        const { min, max, fallback } = options;
-        const raw = params.get(key);
-        if (raw === null) return fallback;
-        const v = Number(raw);
-        return Number.isFinite(v) ? clamp(v, min, max) : fallback;
-    };
-
-    const parseBool = (key: string, fallback: boolean): boolean => {
-        const raw = params.get(key);
-        if (raw === 'true' || raw === '1') return true;
-        if (raw === 'false' || raw === '0') return false;
-        return fallback;
-    };
-
-    const parseFinite = (key: string): number | null => {
-        const raw = params.get(key);
-        if (raw === null) return null;
-        const v = Number(raw);
-        return Number.isFinite(v) ? v : null;
-    };
-
-    const px = parseFinite('camX');
-    const py = parseFinite('camY');
-    const pz = parseFinite('camZ');
-    const tx = parseFinite('camTX');
-    const ty = parseFinite('camTY');
-    const tz = parseFinite('camTZ');
-    const cameraSnapshot: CameraSnapshot | null =
-        px !== null && py !== null && pz !== null &&
-        tx !== null && ty !== null && tz !== null
-            ? { px, py, pz, tx, ty, tz }
-            : null;
-
-    return {
-        speed: parseNum('speed', { min: UI_CONTROLS.SPEED.MIN, max: UI_CONTROLS.SPEED.MAX, fallback: UI_DEFAULTS.speed }),
-        worldScale: parseNum('worldScale', { min: UI_CONTROLS.WORLD_SCALE.MIN, max: UI_CONTROLS.WORLD_SCALE.MAX, fallback: UI_DEFAULTS.worldScale }),
-        autoRotate: parseBool('autoRotate', UI_DEFAULTS.autoRotate),
-        autoRotateSpeed: parseNum('autoRotateSpeed', { min: CAMERA.AUTO_ROTATE.SPEED_MIN, max: CAMERA.AUTO_ROTATE.SPEED_MAX, fallback: UI_DEFAULTS.autoRotateSpeed }),
-        cameraSnapshot,
-    };
-};
-
-const CAM_KEYS = ['camX', 'camY', 'camZ', 'camTX', 'camTY', 'camTZ'] as const;
-
-const syncUIToUrl = (config: UIConfig): void => {
-    const params = new URLSearchParams(window.location.search);
-
-    const setOrDelete = (key: string, value: unknown, defaultValue: unknown): void => {
-        if (value === defaultValue) params.delete(key);
-        else params.set(key, String(value));
-    };
-
-    setOrDelete('speed', config.speed, UI_DEFAULTS.speed);
-    setOrDelete('worldScale', config.worldScale, UI_DEFAULTS.worldScale);
-    setOrDelete('autoRotate', config.autoRotate, UI_DEFAULTS.autoRotate);
-    setOrDelete('autoRotateSpeed', config.autoRotateSpeed, UI_DEFAULTS.autoRotateSpeed);
-
-    if (config.cameraSnapshot !== null) {
-        const { px, py, pz, tx, ty, tz } = config.cameraSnapshot;
-        params.set('camX', String(Math.round(px)));
-        params.set('camY', String(Math.round(py)));
-        params.set('camZ', String(Math.round(pz)));
-        params.set('camTX', String(Math.round(tx)));
-        params.set('camTY', String(Math.round(ty)));
-        params.set('camTZ', String(Math.round(tz)));
-    } else {
-        CAM_KEYS.forEach((key) => {
-            params.delete(key);
-        });
-    }
-
-    const search = params.toString();
-    const { pathname, hash } = window.location;
-    const nextUrl = search ? `${pathname}?${search}${hash}` : `${pathname}${hash}`;
-    const currentUrl = `${pathname}${window.location.search}${hash}`;
-
-    if (nextUrl !== currentUrl) window.history.replaceState(null, '', nextUrl);
-};
-
-// ============================================================================
+const CAM_KEYS = ['camX', 'camY', 'camZ', 'camTX', 'camTY', 'camTZ'];
 
 describe('readUIFromUrl', () => {
     it('повертає всі defaults для порожнього search', () => {
@@ -295,5 +181,25 @@ describe('readUIFromUrl — fallback до defaults при відсутності
         expect(result.speed).toBe(3);
         expect(result.worldScale).toBe(UI_DEFAULTS.worldScale);
         expect(result.autoRotate).toBe(UI_DEFAULTS.autoRotate);
+    });
+});
+
+describe('camera state round trip through the URL', () => {
+    beforeEach(() => {
+        window.history.replaceState(null, '', '/');
+    });
+
+    it('restores the camera snapshot written to the URL, rounded to whole units', () => {
+        syncUIToUrl({ ...UI_DEFAULTS, cameraSnapshot: { px: 12.4, py: -30.6, pz: 500, tx: 0, ty: 1, tz: -2 } });
+
+        expect(readUIFromUrl(window.location.search).cameraSnapshot).toEqual({ px: 12, py: -31, pz: 500, tx: 0, ty: 1, tz: -2 });
+    });
+
+    it('keeps speed and camera together across a simulated reload', () => {
+        syncUIToUrl({ ...UI_DEFAULTS, speed: 2, cameraSnapshot: { px: 1, py: 2, pz: 3, tx: 4, ty: 5, tz: 6 } });
+
+        const restored = readUIFromUrl(window.location.search);
+        expect(restored.speed).toBe(2);
+        expect(restored.cameraSnapshot).toEqual({ px: 1, py: 2, pz: 3, tx: 4, ty: 5, tz: 6 });
     });
 });
