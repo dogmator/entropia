@@ -6,6 +6,7 @@
  */
 
 import { logger } from '@/core';
+import { LogLevel } from '@/core/services/Logger.service';
 
 import { SimulationEngine } from './engine/Engine';
 import {
@@ -78,7 +79,7 @@ console.debug = (...args: unknown[]): void => { nativeConsole.debug(...args); po
 // after construction, so it does not depend on import order and does not use the
 // native console the logger bound at construction time.
 logger.setOutputSink((message, level, data) => {
-    const workerLevel: WorkerConsoleLevel = String(level) === 'error' ? 'error' : 'warn';
+    const workerLevel: WorkerConsoleLevel = level === LogLevel.ERROR ? 'error' : 'warn';
     postLog(workerLevel, data === undefined ? [message] : [message, data]);
 });
 
@@ -321,6 +322,15 @@ function stopAutoUpdate(): void {
     }
 }
 
+function handleSetSpeed(command: Extract<WorkerCommand, { type: 'setSpeed' }>): void {
+    // A non-finite factor would make the loop accumulator NaN and silently stop the simulation.
+    if (!Number.isFinite(command.speed) || command.speed < 0) {
+        sendResponse({ type: 'error', message: `Invalid speed: ${String(command.speed)}` });
+        return;
+    }
+    speedFactor = command.speed;
+}
+
 function handleSyncCamera(command: Extract<WorkerCommand, { type: 'syncCamera' }>): void {
     if (!engine) return;
     engine.setCameraData({
@@ -359,45 +369,58 @@ function handleImportState(command: Extract<WorkerCommand, { type: 'importState'
     sendResponse({ type: 'stats', stats: engine.getStats() });
 }
 
-function handleLifecycleCommand(command: WorkerCommand): boolean {
+type LifecycleCommand = Extract<WorkerCommand, { type: 'init' | 'update' | 'reset' | 'setConfig' | 'getStats' }>;
+type QueryCommand = Extract<
+    WorkerCommand,
+    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' }
+>;
+type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' }>;
+
+const LIFECYCLE_TYPES: ReadonlySet<string> = new Set<LifecycleCommand['type']>(['init', 'update', 'reset', 'setConfig', 'getStats']);
+const QUERY_TYPES: ReadonlySet<string> = new Set<QueryCommand['type']>([
+    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState',
+]);
+const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed']);
+
+const isLifecycleCommand = (command: WorkerCommand): command is LifecycleCommand => LIFECYCLE_TYPES.has(command.type);
+const isQueryCommand = (command: WorkerCommand): command is QueryCommand => QUERY_TYPES.has(command.type);
+const isControlCommand = (command: WorkerCommand): command is ControlCommand => CONTROL_TYPES.has(command.type);
+
+function handleLifecycleCommand(command: LifecycleCommand): void {
     switch (command.type) {
-        case 'init': handleInit(command.scale); return true;
+        case 'init': handleInit(command.scale); break;
         case 'update':
             if (!isRunning) handleUpdate();
-            return true;
-        case 'reset': handleReset(); return true;
-        case 'setConfig': handleSetConfig(command.config); return true;
-        case 'getStats': handleGetStats(); return true;
-        default: return false;
+            break;
+        case 'reset': handleReset(); break;
+        case 'setConfig': handleSetConfig(command.config); break;
+        case 'getStats': handleGetStats(); break;
     }
 }
 
-function handleQueryCommand(command: WorkerCommand): boolean {
+function handleQueryCommand(command: QueryCommand): void {
     switch (command.type) {
         case 'findEntityAt':
             void handleAsyncCommand(e => e.findEntityAt(command.position, command.tolerance), command.requestId);
-            return true;
+            break;
         case 'getEntityByInstanceId':
             void handleAsyncCommand(e => e.getEntityByInstanceId(command.entityType, command.instanceId, command.isDead), command.requestId);
-            return true;
+            break;
         case 'getGeneticNode':
             void handleAsyncCommand(e => e.getGeneticNode(command.genomeId), command.requestId);
-            return true;
-        case 'getGeneticRoots': handleGeneticRoots(); return true;
-        case 'exportState': handleExportState(command.requestId); return true;
-        case 'importState': handleImportState(command); return true;
-        default: return false;
+            break;
+        case 'getGeneticRoots': handleGeneticRoots(); break;
+        case 'exportState': handleExportState(command.requestId); break;
+        case 'importState': handleImportState(command); break;
     }
 }
 
-function handleControlCommand(command: WorkerCommand): void {
+function handleControlCommand(command: ControlCommand): void {
     switch (command.type) {
         case 'syncCamera': handleSyncCamera(command); break;
         case 'startLoop': startAutoUpdate(); break;
         case 'stopLoop': stopAutoUpdate(); break;
-        case 'setSpeed': speedFactor = command.speed; break;
-        default:
-            sendResponse({ type: 'error', message: `Unknown command: ${JSON.stringify(command)}` });
+        case 'setSpeed': handleSetSpeed(command); break;
     }
 }
 
@@ -405,9 +428,15 @@ self.onmessage = (event: MessageEvent<unknown>): void => {
     const data = event.data;
     if (!isWorkerCommand(data)) return;
     logger.debug('worker received message', 'Worker:Message', { type: data.type });
-    if (handleLifecycleCommand(data)) return;
-    if (handleQueryCommand(data)) return;
-    handleControlCommand(data);
+    if (isLifecycleCommand(data)) {
+        handleLifecycleCommand(data);
+    } else if (isQueryCommand(data)) {
+        handleQueryCommand(data);
+    } else if (isControlCommand(data)) {
+        handleControlCommand(data);
+    } else {
+        sendResponse({ type: 'error', message: `Unknown command: ${JSON.stringify(data)}` });
+    }
 };
 
 sendResponse({ type: 'ready' });
