@@ -20,11 +20,13 @@
     "check:tooling": "jiti scripts/ensure-typescript-tooling.ts",
     "check:canon": "pnpm run check:dead-code && pnpm run depcruise && pnpm run check:tooling",
     "check": "pnpm run typecheck && pnpm run test --run --coverage && pnpm run depcruise && pnpm run build",
-    "check:strict": "pnpm run typecheck && pnpm run lint && pnpm run check:canon && pnpm run test --run && pnpm run build",
+    "check:strict": "pnpm run typecheck && pnpm run lint && pnpm run check:canon && pnpm run test --run --coverage && pnpm run build",
     "prepare": "husky",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:smoke": "playwright test",
+    "audit:prod": "pnpm audit --prod --audit-level=high",
     "docker:up": "docker compose up -d",
     "docker:rebuild": "docker compose up -d --build",
     "docker:down": "docker compose down",
@@ -78,10 +80,10 @@
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.50.1",
-    "vite": "8.0.5",
+    "vite": "8.1.6",
     "vite-plugin-checker": "^0.12.0",
     "vitest": "^2.1.8",
-    "ws": "^8.18.3"
+    "ws": "^8.21.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
