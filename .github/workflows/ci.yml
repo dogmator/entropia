@@ -20,11 +20,36 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: 'pnpm'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # check:strict = typecheck, ESLint, knip, tooling validation, dependency-cruiser,
+      # unit tests with coverage thresholds, production build.
       - name: Run repository quality gate
-        run: pnpm run check
+        run: pnpm run check:strict
+
+  audit:
+    name: Dependency audit (production)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Gates only the shipped dependency tree. Dev-tool advisories are tracked in docs/reports, not gated here.
+      - name: Audit production dependencies
+        run: pnpm run audit:prod

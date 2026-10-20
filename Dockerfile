@@ -1,7 +1,8 @@
-FROM node:22-slim
+# Pinned to the same Node and pnpm versions as .nvmrc and package.json (packageManager).
+FROM node:22.22.0-slim
 
-# Install pnpm via npm for better compatibility
-RUN npm install -g pnpm
+# pnpm is pinned, so the image does not change when the registry publishes a new release.
+RUN npm install -g pnpm@10.34.7
 
 WORKDIR /app
 

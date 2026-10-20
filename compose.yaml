@@ -5,6 +5,6 @@ services:
       - .:/app:z
     ports:
       - "3000:3000"
-    command: sh -c "pnpm install && pnpm run dev"
+    command: sh -c "pnpm install --frozen-lockfile && pnpm run dev"
     tty: true
     stdin_open: true
