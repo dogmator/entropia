@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
-import { UI_CONTROLS } from '@/config';
 import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 
 import { SPEED_KEYS } from '../simulation.constants';
@@ -9,7 +8,6 @@ import type { SimulationSettings } from './useSimulationSettings';
 interface LifecycleParams {
     engine: ISimulationEngine;
     settings: SimulationSettings;
-    sync: { setIsLoading: (v: boolean) => void };
     resetHistory: () => void;
 }
 
@@ -23,7 +21,7 @@ export interface SimulationLifecycle {
 }
 
 export const useSimulationLifecycle = (params: LifecycleParams): SimulationLifecycle => {
-    const { engine, settings, sync, resetHistory } = params;
+    const { engine, settings, resetHistory } = params;
     const [simulationState, setSimulationState] = useState<'running' | 'paused' | 'stopped'>(
         settings.speed > 0 ? 'running' : 'paused'
     );
@@ -39,11 +37,6 @@ export const useSimulationLifecycle = (params: LifecycleParams): SimulationLifec
             return next;
         });
     }, [settings]);
-
-    useEffect(() => {
-        const timer = setTimeout(() => { sync.setIsLoading(false); }, UI_CONTROLS.LOADING_DELAY);
-        return () => { clearTimeout(timer); };
-    }, [sync]);
 
     const runSimulation = useCallback(() => {
         const nextSpeed = lastNonZeroSpeedRef.current > 0 ? lastNonZeroSpeedRef.current : SPEED_KEYS.NORMAL;

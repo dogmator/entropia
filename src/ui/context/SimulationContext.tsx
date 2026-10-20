@@ -65,7 +65,6 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
     const lifecycle = useSimulationLifecycle({
         engine,
         settings,
-        sync,
         resetHistory: statsInfo.resetHistory
     });
 
