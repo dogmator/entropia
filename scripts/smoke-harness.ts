@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import net from 'node:net';
 import path from 'node:path';
 
@@ -68,16 +68,35 @@ export const spawnOwned = (command: string, args: readonly string[], options: { 
     return child;
 };
 
+const killWindowsTree = (pid: number): void => {
+    try {
+        // taskkill is a fixed Windows system tool. /T takes the whole tree, which process groups do not exist for here.
+        // eslint-disable-next-line sonarjs/no-os-command-from-path -- fixed system tool, PID is ours
+        execFileSync('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {
+        /* the tree has already exited */
+    }
+};
+
+// Signals the whole process group on POSIX. Windows has no process groups, and a negative PID throws there,
+// so the direct child is signalled instead. Falling back to child.kill also guarantees that the child's
+// 'exit' event fires, so stopOwned can never wait forever.
 const signalGroup = (child: ChildProcess, signal: NodeJS.Signals): void => {
     if (child.pid === undefined) {
         return;
     }
 
-    try {
-        process.kill(-child.pid, signal);
-    } catch {
-        /* the group has already exited */
+    if (process.platform === 'win32') {
+        killWindowsTree(child.pid);
+    } else {
+        try {
+            process.kill(-child.pid, signal);
+        } catch {
+            /* the group has already exited, or was never created */
+        }
     }
+
+    child.kill(signal);
 };
 
 /** Stops one owned process group: SIGTERM first, SIGKILL after the timeout. */
