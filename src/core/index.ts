@@ -19,4 +19,4 @@ export { PerformanceMonitor } from './services/PerformanceMonitor.service';
 
 // Utilities
 export { type MemoryInfo,PerformanceHelpers } from './utils/PerformanceUtils.utils';
-export { Random } from './utils/Random.utils';
+export { RandomStream } from './utils/Random.utils';

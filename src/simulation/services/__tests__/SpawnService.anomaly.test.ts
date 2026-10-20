@@ -3,10 +3,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { EventBus } from '@/core';
+import { RandomStream } from '@/core/utils/Random.utils';
 import type { Obstacle } from '@/simulation/Entity';
 import { GridManager } from '@/simulation/managers/GridManager.manager';
 import { OrganismSpawnStrategy, SpawnService } from '@/simulation/services/Spawn.service';
 import { type EcologicalZone,EntityType, ZoneType } from '@/types';
+
+const rng = new RandomStream(1);
 
 const CENTER_ZONE_ID = 'center-zone';
 
@@ -26,7 +29,7 @@ describe('SpawnService anomaly constraints', () => {
       dangerMultiplier: 1,
     });
 
-    const spawnService = new SpawnService(eventBus, gridManager, zones, obstacles, {
+    const spawnService = new SpawnService(eventBus, gridManager, zones, obstacles, rng, {
       organismStrategy: OrganismSpawnStrategy.RANDOM,
       maxSpawnAttempts: 200,
       minOrganismDistance: 1,
@@ -68,7 +71,7 @@ describe('SpawnService anomaly constraints', () => {
       dangerMultiplier: 1,
     });
 
-    const spawnService = new SpawnService(eventBus, gridManager, zones, obstacles, {
+    const spawnService = new SpawnService(eventBus, gridManager, zones, obstacles, rng, {
       maxSpawnAttempts: 200,
       minOrganismDistance: 1,
     }, {

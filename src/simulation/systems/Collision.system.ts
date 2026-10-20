@@ -15,7 +15,7 @@ import { ENTITY_CONSTANTS, INTERACTION, PHYSICS } from '@/config';
 import type { EventBus } from '@/core';
 import { logger } from '@/core';
 import { Vector3Pool } from '@/core/ObjectPool.service';
-import { Random } from '@/core/utils/Random.utils';
+import type { RandomStream } from '@/core/utils/Random.utils';
 import type { EcologicalZone, GridEntity, Vector3 } from '@/types';
 import type { WorldConfig } from '@/types';
 import { EntityType } from '@/types';
@@ -40,10 +40,12 @@ export class CollisionSystem {
   /** Cached neighbors buffer to avoid allocations. */
   private readonly nearbyBuffer: GridEntity[] = [];
 
+  // eslint-disable-next-line max-params
   constructor(
     private readonly gridManager: GridManager,
     private readonly eventBus: EventBus,
-    private readonly worldConfig: WorldConfig
+    private readonly worldConfig: WorldConfig,
+    private readonly rng: RandomStream
   ) { }
 
   /**
@@ -231,9 +233,9 @@ export class CollisionSystem {
     if (postSpeedSq < INTERACTION.obstacleMinSlideSpeed * INTERACTION.obstacleMinSlideSpeed) {
       organism.stuckTicks += 1;
       if (organism.stuckTicks >= ENTITY_CONSTANTS.STUCK_TICKS_THRESHOLD) {
-        organism.velocity.x += (Random.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
-        organism.velocity.y += (Random.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
-        organism.velocity.z += (Random.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+        organism.velocity.x += (this.rng.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+        organism.velocity.y += (this.rng.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+        organism.velocity.z += (this.rng.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
         organism.stuckTicks = 0;
       }
     } else {

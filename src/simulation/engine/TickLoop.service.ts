@@ -14,8 +14,8 @@ import type { ReproductionSystem } from '@simulation/systems/Reproduction.system
 import { ENGINE_CONSTANTS } from '@/config';
 import type { EventBus } from '@/core';
 import type { PerformanceMonitor } from '@/core';
+import type { RandomStream } from '@/core';
 import { logger } from '@/core';
-import { Random } from '@/core';
 import type { EcologicalZone, SimulationConfig, SimulationEvent } from '@/types';
 
 const MAX_ORGANISM_AGE_TICKS = 5000;
@@ -32,6 +32,7 @@ export interface EngineCtx {
     readonly food: Map<string, Food>;
     readonly obstacles: Map<string, Obstacle>;
     readonly zones: Map<string, EcologicalZone>;
+    readonly random: RandomStream;
     readonly deadOrganisms: Map<string, Organism>;
     readonly config: SimulationConfig;
     readonly entityManager: EntityManager;
@@ -193,7 +194,7 @@ export class TickLoop {
     private spawnFood(): void {
         const { food, config, spawnService, entityManager } = this.ctx;
         if (food.size >= config.maxFood) return;
-        if (Random.next() < config.foodSpawnRate) {
+        if (this.ctx.random.next() < config.foodSpawnRate) {
             const item = spawnService.spawnFood(++this.ctx.foodIdCounter);
             if (item) entityManager.addFood(item);
         }

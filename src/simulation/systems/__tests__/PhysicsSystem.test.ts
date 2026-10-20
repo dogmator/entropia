@@ -12,10 +12,14 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { RandomStream } from '@/core/utils/Random.utils';
+
 import type { Genome, WorldConfig } from '../../../types';
 import { createGenomeId,createOrganismId, EntityType } from '../../../types';
 import { Organism } from '../../Entity';
 import { PhysicsSystem } from '../Physics.system';
+
+const rng = new RandomStream(1);
 
 const createWorldConfig = (): WorldConfig => ({
     WORLD_SIZE: 100,
@@ -57,9 +61,9 @@ describe('PhysicsSystem', () => {
     describe('update', () => {
         it('повинен обробляти всі живі організми', () => {
             const organisms = new Map<string, Organism>();
-            const org1 = new Organism(createOrganismId('org-1'), { x: 10, y: 10, z: 10 }, createTestGenome());
-            const org2 = new Organism(createOrganismId('org-2'), { x: 20, y: 20, z: 20 }, createTestGenome());
-            const deadOrg = new Organism(createOrganismId('org-dead'), { x: 30, y: 30, z: 30 }, createTestGenome());
+            const org1 = new Organism(createOrganismId('org-1'), { x: 10, y: 10, z: 10 }, createTestGenome(), rng);
+            const org2 = new Organism(createOrganismId('org-2'), { x: 20, y: 20, z: 20 }, createTestGenome(), rng);
+            const deadOrg = new Organism(createOrganismId('org-dead'), { x: 30, y: 30, z: 30 }, createTestGenome(), rng);
             deadOrg.die('starvation');
 
             organisms.set(org1.id, org1);
@@ -90,7 +94,7 @@ describe('PhysicsSystem', () => {
             const genome = createTestGenome();
             (genome as { maxSpeed: number }).maxSpeed = 2;
 
-            const organism = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
+            const organism = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome, rng);
             organisms.set(organism.id, organism);
 
             const highSpeedVector = { x: 10, y: 0, z: 0 };
@@ -119,7 +123,7 @@ describe('PhysicsSystem', () => {
     describe('toroidal wrapping', () => {
         it('повинен обгортати позицію при виході за межі світу', () => {
             const organisms = new Map<string, Organism>();
-            const org = new Organism(createOrganismId('org-1'), { x: 99, y: 99, z: 99 }, createTestGenome());
+            const org = new Organism(createOrganismId('org-1'), { x: 99, y: 99, z: 99 }, createTestGenome(), rng);
             org.velocity = { x: 5, y: 5, z: 5 }; // Виведе за межі 100
 
             organisms.set(org.id, org);
@@ -134,7 +138,7 @@ describe('PhysicsSystem', () => {
 
         it('повинен обгортати негативні координати', () => {
             const organisms = new Map<string, Organism>();
-            const org = new Organism(createOrganismId('org-1'), { x: 2, y: 2, z: 2 }, createTestGenome());
+            const org = new Organism(createOrganismId('org-1'), { x: 2, y: 2, z: 2 }, createTestGenome(), rng);
             org.velocity = { x: -5, y: -5, z: -5 }; // Виведе в негативну область
 
             organisms.set(org.id, org);
@@ -149,7 +153,7 @@ describe('PhysicsSystem', () => {
     describe('drag application', () => {
         it('повинен зменшувати швидкість на коефіцієнт drag', () => {
             const organisms = new Map<string, Organism>();
-            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, createTestGenome());
+            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, createTestGenome(), rng);
             org.velocity = { x: 1, y: 0, z: 0 };
 
             organisms.set(org.id, org);
@@ -166,7 +170,7 @@ describe('PhysicsSystem', () => {
             const genome = createTestGenome();
             (genome as { size: number }).size = 2;
 
-            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome);
+            const org = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, genome, rng);
             org.velocity = { x: 3, y: 4, z: 0 }; // speed = 5
 
             const energy = physics.getKineticEnergy(org);
