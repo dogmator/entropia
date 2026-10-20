@@ -27,14 +27,6 @@ import type {
 
 import type { IEntity as ISimulationEntity } from './IEntity';
 
-/**
- * Camera data for rendering.
- */
-export interface ICameraData {
-  position: Vector3;
-  target: Vector3;
-}
-
 export interface IPerformanceMonitor {
   getMemoryStats(): MemoryStats | null;
   getPerformanceHistory(): SystemMetrics[];

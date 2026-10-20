@@ -211,5 +211,3 @@ export const en = {
         reportIncident: 'Report Incident',
     },
 } as const;
-
-export type Translations = typeof en;

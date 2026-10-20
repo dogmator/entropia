@@ -26,17 +26,3 @@ export interface IEntity {
   /** Collision radius */
   radius: number;
 }
-
-/**
- * Type guard to check if object implements IEntity.
- */
-export function isEntity(obj: unknown): obj is IEntity {
-  return (
-    typeof obj === 'object' &&
-    obj !== null &&
-    'id' in obj &&
-    'type' in obj &&
-    'position' in obj &&
-    'radius' in obj
-  );
-}

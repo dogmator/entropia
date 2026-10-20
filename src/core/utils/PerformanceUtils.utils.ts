@@ -257,11 +257,6 @@ export interface MemoryInfo {
   jsHeapSizeLimit: number;
 }
 
-export interface PerformanceThresholds {
-  good: number;
-  warning: number;
-}
-
 // Combined utilities for convenience
 export const PerformanceHelpers = {
   format: FormatUtils,
