@@ -45,5 +45,6 @@ export interface IPersistableEngine {
 
     readonly gridManager: {
         clear(): void;
+        initializeStatic(obstacles: Map<string, Obstacle>): void;
     };
 }

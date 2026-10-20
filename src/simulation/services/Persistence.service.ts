@@ -257,6 +257,8 @@ export class PersistenceService {
             );
             engine.obstacles.set(o.id, obstacle);
         });
+        // The static grid still holds the obstacles of the previous world. Rebuild it from the imported ones.
+        engine.gridManager.initializeStatic(engine.obstacles);
 
         const worldSize = PersistenceService.resolveWorldSize(engine);
 
