@@ -29,7 +29,7 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
-    "exactOptionalPropertyTypes": false,
+    "exactOptionalPropertyTypes": true,
     /* JSX and React */
     "jsx": "react-jsx",
     "jsxImportSource": "react",
