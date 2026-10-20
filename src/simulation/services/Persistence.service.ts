@@ -1,4 +1,5 @@
 import { WORLD_SIZE } from '@/config';
+import { logger } from '@/core';
 import type {
     EcologicalZone,
     GeneticTreeNode,
@@ -111,6 +112,8 @@ export class PersistenceService {
                 currentEnergy: f.currentEnergy,
                 spawnTime: f.spawnTime,
                 consumed: f.consumed,
+                // JSON cannot represent -Infinity, the value of a food item that was never bitten.
+                lastBiteTick: Number.isFinite(f.lastBiteTick) ? f.lastBiteTick : null,
             })),
             organisms: Array.from(engine.organisms.values()).map(o => {
                 const persistedOrganism = o as Organism & PersistedOrganismRuntime;
@@ -263,6 +266,8 @@ export class PersistenceService {
         const worldSize = PersistenceService.resolveWorldSize(engine);
 
         engine.food.clear();
+        let droppedFood = 0;
+        let legacyFood = 0;
         state.food.forEach(f => {
             if (PersistenceService.isFoodBlockedByAnomaly({
                 position: f.position,
@@ -270,6 +275,7 @@ export class PersistenceService {
                 obstacles: engine.obstacles.values(),
                 worldSize,
             })) {
+                droppedFood++;
                 return;
             }
 
@@ -282,8 +288,16 @@ export class PersistenceService {
             food.radius = f.radius;
             food.currentEnergy = f.currentEnergy;
             food.consumed = f.consumed;
+            if (f.lastBiteTick === undefined) legacyFood++;
+            food.lastBiteTick = f.lastBiteTick ?? Number.NEGATIVE_INFINITY;
             engine.food.set(f.id, food);
         });
+        if (droppedFood > 0) {
+            logger.warn('Snapshot food inside an obstacle or outside the world was dropped', 'Persistence', { count: droppedFood });
+        }
+        if (legacyFood > 0) {
+            logger.warn('Snapshot has no food bite cooldown; restoring it as never bitten', 'Persistence', { count: legacyFood });
+        }
 
         engine.organisms.clear();
         state.organisms.forEach(o => {

@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { WORLD_SIZE } from '@/config';
+import { logger } from '@/core';
 import type { GridEntity } from '@/types';
 import { EntityType } from '@/types';
 
@@ -59,5 +60,41 @@ describe('derived spatial state after snapshot import and reset', () => {
     engine.reset();
 
     expect(staticGridSignature(engine)).toEqual(obstacleSignature(engine));
+  });
+});
+
+describe('food bite cooldown across snapshots', () => {
+  const BITE_CHECK = 100;
+
+  it('keeps the last bite tick of every food item, including items never bitten', () => {
+    const source = createStarted(SEED_A);
+    advance(source, BITE_CHECK);
+    const sourceFood = [...source.food.values()];
+    // Precondition: the snapshot must contain both bitten and never-bitten food to make the check meaningful.
+    expect(sourceFood.some(f => Number.isFinite(f.lastBiteTick))).toBe(true);
+    expect(sourceFood.some(f => f.lastBiteTick === Number.NEGATIVE_INFINITY)).toBe(true);
+
+    const restored = new SimulationEngine(1, { seed: SEED_B });
+    restored.importState(source.exportState());
+
+    for (const f of sourceFood) {
+      expect(restored.food.get(f.id)?.lastBiteTick).toBe(f.lastBiteTick);
+    }
+  });
+
+  it('restores a snapshot written without the cooldown as never bitten, and warns', () => {
+    const source = createStarted(SEED_A);
+    advance(source, BITE_CHECK);
+    const legacy = structuredClone(source.exportState());
+    for (const f of legacy.food) delete f.lastBiteTick;
+
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    const restored = new SimulationEngine(1, { seed: SEED_B });
+    restored.importState(legacy);
+
+    expect(restored.food.size).toBeGreaterThan(0);
+    expect([...restored.food.values()].every(f => f.lastBiteTick === Number.NEGATIVE_INFINITY)).toBe(true);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no food bite cooldown'), 'Persistence', expect.anything());
+    warn.mockRestore();
   });
 });
