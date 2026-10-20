@@ -1,6 +1,7 @@
 import type React from 'react';
 
 import { t } from '@/i18n';
+
 import { SettingsSlider } from '../SettingsSlider';
 import { useSettings } from './SettingsContext';
 import { SectionHeader } from './Shared';

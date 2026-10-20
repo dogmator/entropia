@@ -39,9 +39,11 @@ describe('getStateLabel()', () => {
   });
 });
 
+const GRAY_400_CLASS = 'text-gray-400';
+
 describe('getStateColor()', () => {
   it('має повертати "text-gray-400" для стану IDLE', () => {
-    expect(getStateColor(OrganismState.IDLE)).toBe('text-gray-400');
+    expect(getStateColor(OrganismState.IDLE)).toBe(GRAY_400_CLASS);
   });
 
   it('має повертати "text-yellow-400" для стану SEEKING', () => {
@@ -66,7 +68,7 @@ describe('getStateColor()', () => {
 
   it('має повертати fallback клас для невідомого стану', () => {
     const unknownState = 'UNKNOWN' as OrganismState;
-    expect(getStateColor(unknownState)).toBe('text-gray-400');
+    expect(getStateColor(unknownState)).toBe(GRAY_400_CLASS);
   });
 });
 
@@ -75,7 +77,7 @@ describe('getStateRepresentation()', () => {
     const result = getStateRepresentation(OrganismState.IDLE);
     expect(result).toEqual({
       label: 'Idle',
-      colorClass: 'text-gray-400',
+      colorClass: GRAY_400_CLASS,
     });
   });
 

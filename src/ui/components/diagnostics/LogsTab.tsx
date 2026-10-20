@@ -1,7 +1,7 @@
 import React from 'react';
 
-import { t } from '@/i18n';
 import type { LogEntry } from '@/core/services/Logger.service';
+import { t } from '@/i18n';
 
 interface LogsTabProps {
     detailedLogs: LogEntry[];

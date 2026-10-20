@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 
-import { t } from '@/i18n';
 import type { LogEntry } from '@/core/services/Logger.service';
+import { t } from '@/i18n';
 import type { MemoryStats, PerformanceMetrics, SimulationStats, SystemMetrics } from '@/types';
 
 import { DiagnosticsNavigation, type TabKey } from './diagnostics/DiagnosticsNavigation';

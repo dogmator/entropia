@@ -13,6 +13,7 @@ import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
 
 import { t } from '@/i18n';
+
 import { TIME } from '../../config';
 import { Icons } from './shared/Icons';
 

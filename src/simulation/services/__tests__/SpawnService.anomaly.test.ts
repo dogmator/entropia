@@ -8,6 +8,8 @@ import { GridManager } from '@/simulation/managers/GridManager.manager';
 import { OrganismSpawnStrategy, SpawnService } from '@/simulation/services/Spawn.service';
 import { type EcologicalZone,EntityType, ZoneType } from '@/types';
 
+const CENTER_ZONE_ID = 'center-zone';
+
 describe('SpawnService anomaly constraints', () => {
   it('не спавнит организмы внутри зон-аномалий', () => {
     const eventBus = new EventBus();
@@ -15,8 +17,8 @@ describe('SpawnService anomaly constraints', () => {
     const zones = new Map<string, EcologicalZone>();
     const obstacles = new Map<string, Obstacle>();
 
-    zones.set('center-zone', {
-      id: 'center-zone',
+    zones.set(CENTER_ZONE_ID, {
+      id: CENTER_ZONE_ID,
       type: ZoneType.OASIS,
       center: { x: 50, y: 50, z: 50 },
       radius: 20,
@@ -57,8 +59,8 @@ describe('SpawnService anomaly constraints', () => {
     const zones = new Map<string, EcologicalZone>();
     const obstacles = new Map<string, Obstacle>();
 
-    zones.set('center-zone', {
-      id: 'center-zone',
+    zones.set(CENTER_ZONE_ID, {
+      id: CENTER_ZONE_ID,
       type: ZoneType.OASIS,
       center: { x: 50, y: 50, z: 50 },
       radius: 20,
