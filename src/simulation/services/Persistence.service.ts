@@ -178,8 +178,55 @@ export class PersistenceService {
         return state;
     }
 
+    /**
+     * Rejects snapshots this version cannot import. Runs before the engine is touched, and checks every field that
+     * importState reads, so a rejected snapshot leaves the active engine unchanged.
+     */
+    private static assertImportable(state: unknown): asserts state is SerializedSimulationStateV1 {
+        const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+        const isFiniteNumber = (value: unknown): boolean => typeof value === 'number' && Number.isFinite(value);
+        const isVector = (value: unknown): boolean => isRecord(value) && isFiniteNumber(value['x']) && isFiniteNumber(value['y']) && isFiniteNumber(value['z']);
+        const requireArray = (container: Record<string, unknown>, key: string): unknown[] => {
+            const value = container[key];
+            if (!Array.isArray(value)) throw new Error(`Invalid simulation snapshot: ${key} must be an array`);
+            return value;
+        };
+
+        if (!isRecord(state)) throw new Error('Invalid simulation snapshot: not an object');
+        if (state['version'] !== 1) throw new Error(`Unsupported simulation snapshot version: ${String(state['version'])}`);
+        for (const key of ['seed', 'rngState', 'tick']) {
+            if (!isFiniteNumber(state[key])) throw new Error(`Invalid simulation snapshot: ${key} must be a finite number`);
+        }
+        for (const section of ['counters', 'stats'] as const) {
+            if (!isRecord(state[section])) throw new Error(`Invalid simulation snapshot: ${section} is missing`);
+        }
+        if (!isRecord(state['geneticTree'])) throw new Error('Invalid simulation snapshot: geneticTree is missing');
+
+        requireArray(state, 'zones').forEach((z, i) => {
+            if (!isRecord(z) || typeof z['id'] !== 'string' || !isVector(z['center']) || !isFiniteNumber(z['radius'])) {
+                throw new Error(`Invalid zone at index ${String(i)}`);
+            }
+        });
+        requireArray(state, 'obstacles').forEach((o, i) => {
+            if (!isRecord(o) || typeof o['id'] !== 'string' || !isVector(o['position']) || !isFiniteNumber(o['radius'])) {
+                throw new Error(`Invalid obstacle at index ${String(i)}`);
+            }
+        });
+        requireArray(state, 'food').forEach((f, i) => {
+            if (!isRecord(f) || typeof f['id'] !== 'string' || !isVector(f['position']) || !isFiniteNumber(f['currentEnergy'])) {
+                throw new Error(`Invalid food at index ${String(i)}`);
+            }
+        });
+        requireArray(state, 'organisms').forEach((o, i) => {
+            const isValid = isRecord(o) && typeof o['id'] === 'string' && isVector(o['position'])
+                && isVector(o['velocity']) && isVector(o['acceleration']) && isFiniteNumber(o['energy']) && isRecord(o['genome']);
+            if (!isValid) throw new Error(`Invalid organism at index ${String(i)}`);
+        });
+    }
+
     // eslint-disable-next-line max-lines-per-function
     public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
+        PersistenceService.assertImportable(state);
         type EngineMutableShape = IPersistableEngine & {
             seed: number;
             tick: number;
