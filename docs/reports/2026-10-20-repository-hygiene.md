@@ -13,6 +13,7 @@ The mandated gates now pass from a clean clone on Node 22.22.0 (see *Before / af
 1. **Branch protection is not effective on `main`** (P0, owner action). The ruleset named `main` targets `refs/heads/mian`, a typo. Its only rules are deletion and non-fast-forward. There are no required checks and no PR requirement. See *Open items*.
 2. **Critical and high advisories remain in the dev toolchain** (4 critical, 43 high). The fix requires a major Vitest upgrade, which is outside this pass.
 3. **The simulation RNG is one module-level stream.** Two engines in one realm interfere. Refactoring the simulation core cannot be verified against a reproducible baseline until this is fixed. The limitation is pinned by a test (`Determinism.test.ts`).
+4. **Snapshot continuation is not exact** (P1). Importing a snapshot and continuing does not reproduce the uninterrupted run. The export/import round trip is exact, but the first ticks after import diverge. The cause is not isolated. Save/load-based refactoring cannot be verified until this is fixed.
 
 Refactoring of UI, tooling, and rendering can start now. Simulation-core refactoring should wait for blockers 1 and 3.
 
@@ -30,8 +31,8 @@ Before is `origin/main` at `7ce2c6b`, measured in a clean checkout with the froz
 | ESLint | FAIL, 14 errors, 3 warnings | PASS, 0 errors, 0 warnings |
 | knip | FAIL, 18 findings (3 files, 2 devDeps, 4 exports, 9 types) | PASS, 0 findings |
 | dependency-cruiser | PASS | PASS |
-| Unit tests | 188 pass (26 files) | 259 pass (36 files) |
-| Coverage (lines / branches / functions / statements) | 48.15 / 78.69 / 58.40 / 48.15 | 53.27 / 80.93 / 63.23 / 53.27 |
+| Unit tests | 188 pass (26 files) | 262 pass (37 files) |
+| Coverage (lines / branches / functions / statements) | 48.15 / 78.69 / 58.40 / 48.15 | 54.71 / 82.83 / 64.50 / 54.71 |
 | Coverage thresholds (44 / 54 / 74 / 44) | PASS, not enforced in `check:strict` | PASS, enforced in `check:strict` |
 | Production build | PASS | PASS |
 | Smoke (Playwright, isolated) | FAIL, 1 failed + 9 not run (HMR socket refused on 3000; browser not found without path) | PASS, 10/10 with `SMOKE_CHROMIUM_PATH` |
@@ -57,6 +58,7 @@ Dev advisories fell by 7 (high 46 → 43, moderate 26 → 22) after the `vite` a
   - Only processes started by the harness are stopped, each in its own process group.
   - Dedicated ports are checked before use. A busy port fails the run. Nothing is freed by force.
   - Cleanup runs at the end of the run and on exit, SIGINT, and SIGTERM.
+  - Windows: the harness stops the process tree with `taskkill /T /F`, and falls back to the direct child when a group signal fails. This avoids a hang found in review. It has **not been run on Windows**; the verification here is Linux only.
   - Output goes to `test-results/smoke/`. The tracked `docs/cycles/...` report is written only with `SMOKE_REPORT_PATH`.
   - Regression tests run on real processes: a busy port is not touched, a foreign process survives `stopAllOwned`, and SIGTERM escalates to SIGKILL.
 - **Dev server** (`vite.config.ts`). The HMR client port is no longer pinned to 3000. Dev servers on other ports used to point HMR at a closed socket.
@@ -86,14 +88,14 @@ Dev advisories fell by 7 (high 46 → 43, moderate 26 → 22) after the `vite` a
 
 | Scenario from the brief | Coverage | Result on previous code |
 |---|---|---|
-| 1. Same seed gives a reproducible result | `Determinism.test.ts`: same seed identical, different seed different, snapshot continuation identical | Passes. The RNG limitation is pinned and documented. |
+| 1. Same seed gives a reproducible result | `Determinism.test.ts`: the run advances the requested ticks; same seed gives an identical state, ignoring the wall-clock `spawnTime` metadata; a different seed differs. `SnapshotRoundTrip.test.ts`: export, import, export is exact for the hunt counter and cause of death. | Round trip fails on the previous import (hunt counter reset to 0). Snapshot continuation is an open defect, pinned (see *Open items*). |
 | 2. Worker handles and rejects commands | `simulation.worker.test.ts` (11 tests) | `setSpeed(NaN)` test fails: the simulation stalls. |
 | 3. Lifecycle: start, stop, reset, re-init | Worker lifecycle tests, snapshot continuation | Passes. |
 | 4. Camera state restored from the URL | `useSimulationSettings.url.test.ts`, camera round-trip | Passes against the real module. |
 | 5. Food size consistent across model, buffer, render | `FoodSizeConsistency.test.ts`, `foodVisuals.test.ts` | Culling test fails: bounding radius was the instance scale. |
 | 6. WebSocket diagnostics errors do not break the app | `Logger.websocket-errors.test.ts` (5 tests) | Passes; the paths were not covered before. |
 
-The coverage threshold was not lowered and the target of 80% was not forced. Coverage rose from 48.15% to 53.27% by covering the critical paths above.
+The coverage threshold was not lowered and the target of 80% was not forced. Coverage rose from 48.15% to 54.71% by covering the critical paths above.
 
 ## Behavioural changes
 
@@ -108,7 +110,8 @@ These are the changes a reviewer or operator might notice.
 7. **CI.** Runs the stricter `check:strict` on every PR, and adds an audit job. PRs with new lint or knip findings will now fail.
 8. **Dependencies.** `vite` 8.1.6 and `ws` 8.22.0. CSS output is the same size before and after the bump (74 508 bytes).
 9. **Removed code.** `ParticleSystem`, `OrganismShader.ts`, `ParticlePool`, three barrel files, the `LOADING_DELAY` constant, `Translations`, and unused types. None had a consumer in the repo.
-10. **Seed.** `f3d5007` makes a seed passed to the engine constructor reach the RNG. When no seed is passed, behaviour is unchanged.
+10. **Snapshot import.** Restores the organism hunt counter and cause of death, which the export already wrote but import dropped. Snapshots written before this change load as before, with those two fields reset.
+11. **Seed.** `f3d5007` makes a seed passed to the engine constructor reach the RNG. When no seed is passed, behaviour is unchanged.
 
 Not changed, but worth knowing: `resourceScale` (a user setting) changes only the rendered food size. Bite range and collisions still use the model radius. That may be intended. It is a product decision and is recorded as debt.
 
@@ -123,18 +126,19 @@ Each item has evidence. Priority is P0 (blocks merging safely), P1 (blocks refac
 3. **P1 — Two Vite versions in the tree.** Evidence: `pnpm why vite` shows `vite@8.1.6` at the root and `vite@5.4.21` under Vitest 2. Plugins and config may drift. Resolved by the Vitest upgrade.
 4. **P1 — Dependency-cruiser and PostCSS configs stay JavaScript.** Evidence: see *Tooling* above. Documented exceptions, not migrations. Re-check when dependency-cruiser or Vitest adds TypeScript config support.
 5. **P1 — Browser smoke is not in CI.** Evidence: `@playwright/test@1.64.0` expects `chromium-1248`, but the sandbox has `chromium-1194`. Running in CI needs `playwright install`. The suite passed locally with `SMOKE_CHROMIUM_PATH=/opt/pw-browsers/chromium` (10/10).
+6. **P1 — Snapshot continuation is not exact** (`src/simulation/__tests__/Determinism.test.ts`, pinned). The export/import round trip is exact after the import fix, but continuing an imported snapshot diverges within one tick: 167 organisms differ in position, velocity, energy, or radius, and the food count is 69 against 72. Ruled out by measurement: RNG state (identical after the step), organism and food iteration order (identical after import), the food anomaly sanitiser (removes nothing after import), the dead-organism map (render-only), and `targetPosition` (not exported, and it does not explain the divergence). Not yet isolated. Fix: find the state that the step reads and the snapshot omits. Refactoring save/load paths depends on this.
 
 ### Technical debt
 
-6. **P1 — Global RNG stream** (`src/core/utils/Random.utils.ts`). Two engines in one realm interfere. Pinned by `Determinism.test.ts`. Fix: a per-engine RNG. This is architectural, so it is out of scope here.
-7. **P1 — The seed is not reachable from the UI.** Evidence: `grep -rn seed src` shows the worker always constructs `new SimulationEngine(scale)`. A run cannot be replayed from the URL or the UI. Persistence restores the seed from saved state.
-8. **P2 — `resourceScale` affects only rendering.** See *Behavioural changes*. Needs a product decision.
-9. **P2 — Coverage 53.27%** against a long-term target of 80%. Thresholds kept at 44/54/74/44.
-10. **P2 — Vite bundle warning.** Evidence: build reports `three-core` at 737 kB, above the 600 kB limit. The limit is in `vite.config.ts`, and code splitting is not done.
-11. **P2 — Dev server binds `0.0.0.0`** (`vite.config.ts`, `SERVER_CONFIG.host`), which exposes the app on the LAN during development. Kept for Docker. Residual risk.
-12. **P2 — Diagnostic server has no authentication on loopback.** Origin checks stop browser pages, not local processes. A local process can write to `remote_debug.log`. Residual risk, documented in `docs/DEVELOPMENT.md`.
-13. **P2 — Stale tracked smoke report.** `docs/cycles/logger-payloads/smoke-report.md` is a historical artefact from the old run. Left unchanged on purpose.
-14. **P2 — Tracked CI action versions** (`actions/checkout@v7`, `pnpm/action-setup@v6`, `setup-node@v7`) are not pinned to commit SHAs. Dependabot will propose updates weekly.
+7. **P1 — Global RNG stream** (`src/core/utils/Random.utils.ts`). Two engines in one realm interfere. Pinned by `Determinism.test.ts`. Fix: a per-engine RNG. This is architectural, so it is out of scope here.
+8. **P1 — The seed is not reachable from the UI.** Evidence: `grep -rn seed src` shows the worker always constructs `new SimulationEngine(scale)`. A run cannot be replayed from the URL or the UI. Persistence restores the seed from saved state.
+9. **P2 — `resourceScale` affects only rendering.** See *Behavioural changes*. Needs a product decision.
+10. **P2 — Coverage 54.71%** against a long-term target of 80%. Thresholds kept at 44/54/74/44.
+11. **P2 — Vite bundle warning.** Evidence: build reports `three-core` at 737 kB, above the 600 kB limit. The limit is in `vite.config.ts`, and code splitting is not done.
+12. **P2 — Dev server binds `0.0.0.0`** (`vite.config.ts`, `SERVER_CONFIG.host`), which exposes the app on the LAN during development. Kept for Docker. Residual risk.
+13. **P2 — Diagnostic server has no authentication on loopback.** Origin checks stop browser pages, not local processes. A local process can write to `remote_debug.log`. Residual risk, documented in `docs/DEVELOPMENT.md`.
+14. **P2 — Stale tracked smoke report.** `docs/cycles/logger-payloads/smoke-report.md` is a historical artefact from the old run. Left unchanged on purpose.
+15. **P2 — Tracked CI action versions** (`actions/checkout@v7`, `pnpm/action-setup@v6`, `setup-node@v7`) are not pinned to commit SHAs. Dependabot will propose updates weekly.
 
 ## Verification performed
 
