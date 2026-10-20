@@ -16,6 +16,10 @@ test-results/
 playwright-report/
 blob-report/
 *.local
+# Environment files may hold local secrets. Commit only the template.
+.env
+.env.*
+!.env.example
 .tmp/
 
 # Editor directories and files

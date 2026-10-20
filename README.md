@@ -1,7 +1,7 @@
 # Entropia 3D: Evolutionary Sandbox
 
 [![Build](https://img.shields.io/github/actions/workflow/status/dogmator/entropia/ci.yml?branch=main&label=build)](https://github.com/dogmator/entropia/actions)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19.0-61dafb)](https://react.dev/)
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-▶%20Try%20it-brightgreen)](https://dogmator.github.io/entropia/)
 
@@ -126,11 +126,16 @@ pnpm dev
 ```
 Starts the Vite dev server and the remote logging server.
 
+Requirements: Node.js 22.22.0 (`.nvmrc`) and pnpm 10.34.7. Install with `pnpm install --frozen-lockfile`.
+
 ### Scripts
-- `pnpm dev`: Start development environment.
-- `pnpm test`: Run unit tests via Vitest.
-- `pnpm build`: Build for production.
-- `pnpm tsc --noEmit`: Strict type checking.
+- `pnpm dev`: Start the Vite dev server and the diagnostic log server (loopback only).
+- `pnpm run typecheck`: TypeScript with `exactOptionalPropertyTypes`.
+- `pnpm run lint`: ESLint.
+- `pnpm test`: Unit tests via Vitest (`pnpm run test --run` for a single run).
+- `pnpm run check`: Fast quality gate. `pnpm run check:strict`: full quality gate (see `CONTRIBUTING.md`).
+- `pnpm run test:smoke`: Browser smoke tests (see `docs/DEVELOPMENT.md`).
+- `pnpm build`: Production build.
 
 ## 🔗 URL Configuration (29 Parameters)
 

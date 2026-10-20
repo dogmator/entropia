@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { BUFFER_LAYOUT, COLORS, RENDER } from '../../config';
 import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { useSimulation } from '../context/SimulationContext';
+import { foodBoundingRadius, foodInstanceScale } from './foodVisuals';
 
 const FORWARD = new THREE.Vector3(0, 0, 1);
 const DUMMY = new THREE.Object3D();
@@ -84,13 +85,13 @@ const updateFoodMesh = (params: UpdateMeshParams): void => {
 
     for (let i = 0; i < count; i++) {
         const offset = i * BUFFER_LAYOUT.FOOD_STRIDE;
-        const radius = (data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.RADIUS] ?? DEFAULT_RADIUS) * scaleMultiplier;
+        const instanceScale = foodInstanceScale(data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.RADIUS] ?? DEFAULT_RADIUS, scaleMultiplier);
         TMP_POS.set(data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.X] ?? 0, data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.Y] ?? 0, data[offset + BUFFER_LAYOUT.FOOD_OFFSETS.Z] ?? 0);
-        TMP_SPHERE.set(TMP_POS, radius);
+        TMP_SPHERE.set(TMP_POS, foodBoundingRadius(instanceScale));
         if (!FRUSTUM.intersectsSphere(TMP_SPHERE)) continue;
 
         DUMMY.position.copy(TMP_POS);
-        DUMMY.scale.setScalar(radius);
+        DUMMY.scale.setScalar(instanceScale);
         DUMMY.rotation.set(rotationTime, rotationTime * ROTATION_OFFSET, 0);
         DUMMY.updateMatrix();
         mesh.setMatrixAt(visibleCount++, DUMMY.matrix);

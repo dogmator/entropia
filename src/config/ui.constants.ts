@@ -92,6 +92,5 @@ export const UI_CONTROLS = {
     MIN: 0.1,
     MAX: 10,
   },
-  LOADING_DELAY: 500,
   SERVER_LOG_INTERVAL: 300,
 } as const;

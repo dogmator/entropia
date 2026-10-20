@@ -1,38 +1,56 @@
 import { readdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { extname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const FORBIDDEN_TOOLING_EXTENSIONS = new Set(['.js', '.cjs', '.mjs', '.mts']);
 const IGNORED_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules', '.idea', '.pnpm-store']);
 
-const violations = findForbiddenFiles(process.cwd());
+/**
+ * Root-level tooling files that must stay JavaScript because their tool cannot load a TypeScript config.
+ * Each entry names the limitation; remove the entry as soon as the tool supports a `.ts` config.
+ */
+export const DOCUMENTED_EXCEPTIONS: ReadonlyMap<string, string> = new Map([
+  [
+    '.dependency-cruiser.mjs',
+    'dependency-cruiser 17 imports only .js/.cjs/.mjs configs; any other extension is parsed as JSON5, so TypeScript is not supported.',
+  ],
+  [
+    'postcss.config.mjs',
+    'Vitest bundles Vite 5, which loads a .ts PostCSS config through ts-node as CJS; this package is "type": "module", so it fails with ERR_REQUIRE_ESM.',
+  ],
+]);
 
-if (violations.length > 0) {
-  console.error('Violations found:');
-  violations.forEach(v => { console.error(`- ${v}`); });
-  process.exit(1);
-} else {
-  console.log('No forbidden tooling files found.');
+export function isForbiddenTooling(relativePath: string): boolean {
+  if (DOCUMENTED_EXCEPTIONS.has(relativePath)) {
+    return false;
+  }
+
+  return FORBIDDEN_TOOLING_EXTENSIONS.has(extname(relativePath));
 }
 
-function findForbiddenFiles(directory: string): string[] {
+export function findForbiddenFiles(directory: string, root: string = directory): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolutePath = join(directory, entry.name);
 
     if (entry.isDirectory()) {
-      return IGNORED_DIRECTORIES.has(entry.name) ? [] : findForbiddenFiles(absolutePath);
+      return IGNORED_DIRECTORIES.has(entry.name) ? [] : findForbiddenFiles(absolutePath, root);
     }
 
-    return hasForbiddenExtension(entry.name) ? [relative(process.cwd(), absolutePath)] : [];
+    const relativePath = relative(root, absolutePath);
+    return isForbiddenTooling(relativePath) ? [relativePath] : [];
   });
 }
 
-function hasForbiddenExtension(fileName: string): boolean {
-  // Allow certain common JS files if they are absolutely necessary, 
-  // but according to Canon, we want to eliminate them.
-  // Exceptions for now (like postcss.config.js) might need to be converted to .ts if supported
-  // or added to ignored list if they are standard.
-  const allowedExceptions = new Set(['postcss.config.js', 'eslint.config.js', 'postcss.config.js']);
-  if (allowedExceptions.has(fileName)) return false;
+const isEntryPoint = process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1];
 
-  return [...FORBIDDEN_TOOLING_EXTENSIONS].some((extension) => fileName.endsWith(extension));
+if (isEntryPoint) {
+  const violations = findForbiddenFiles(process.cwd());
+
+  if (violations.length > 0) {
+    console.error('Violations found:');
+    violations.forEach(v => { console.error(`- ${v}`); });
+    process.exit(1);
+  } else {
+    console.log('No forbidden tooling files found.');
+  }
 }

@@ -245,22 +245,6 @@ export interface CameraData {
   far: number;
 }
 
-/**
- * Data structure for population events.
- */
-export interface EngineEventData {
-  deadCount?: number;
-  newbornCount?: number;
-}
-
-export interface PopulationSnapshot {
-  readonly tick: number;
-  readonly prey: number;
-  readonly predators: number;
-  readonly food: number;
-  readonly avgEnergy: number;
-}
-
 
 /** Structure of data portions for dynamic chart visualization. */
 export interface PopulationDataPoint {
@@ -493,8 +477,6 @@ export type SimulationEvent =
   | TickUpdatedEvent
   | CollisionEvent;
 
-export type SimulationEventCallback = (event: SimulationEvent) => void;
-
 // ============================================================================
 // SPATIAL GRID — SPATIAL DECOMPOSITION
 // ============================================================================
@@ -544,7 +526,7 @@ export interface RenderBuffers {
    * Optional SharedArrayBuffer backing these typed arrays.
    * If present, communication uses SAB logic.
    */
-  sharedBuffer?: SharedArrayBuffer;
+  sharedBuffer?: SharedArrayBuffer | undefined;
 }
 
 
@@ -567,32 +549,6 @@ export interface OrganismRenderData {
   readonly genome: Genome;
   readonly trailEnabled: boolean;
   readonly age: number;
-}
-
-export interface FoodRenderData {
-  readonly id: FoodId;
-  readonly position: Vector3;
-  readonly radius: number;
-  readonly energyValue: number;
-  readonly currentEnergy: number;
-}
-
-export interface ObstacleRenderData {
-  readonly id: ObstacleId;
-  readonly position: Vector3;
-  readonly radius: number;
-  readonly color: number;
-  readonly opacity: number;
-}
-
-/** Aggregated frame state for terminal rendering. */
-export interface RenderFrame {
-  readonly tick: number;
-  readonly organisms: readonly OrganismRenderData[];
-  readonly food: readonly FoodRenderData[];
-  readonly obstacles: readonly ObstacleRenderData[];
-  readonly events: readonly SimulationEvent[];
-  readonly stats: SimulationStats;
 }
 
 // ============================================================================
@@ -634,12 +590,6 @@ export interface GeneticTreeNode {
     readonly sense: number;
     readonly size: number;
   };
-}
-
-export interface GeneticTree {
-  readonly nodes: ReadonlyMap<GenomeId, GeneticTreeNode>;
-  readonly roots: readonly GenomeId[];
-  readonly maxGeneration: number;
 }
 
 /**

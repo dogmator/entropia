@@ -25,6 +25,8 @@ export const useEngineSync = (engine: ISimulationEngine, speed: number, worldSca
     const lastCameraStateRef = useRef<CameraState | null>(null);
 
     useEffect(() => {
+        // The loader hides only when the worker reports `initialized`. The viewport reads
+        // engine.worldConfig during render and throws until then, so no timer may hide it earlier.
         engine.init(worldScale)
             .then(() => { setIsLoading(false); })
             .catch((err: unknown) => {

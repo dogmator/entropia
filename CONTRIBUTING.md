@@ -47,23 +47,32 @@ Existing `interfaces/` directories use the `I`-prefix convention (for example `I
 
 ## Verification
 
-`pnpm run check` is the enforced repository gate. It runs type checking, the full unit-test suite in deterministic run mode (with coverage thresholds), dependency-cruiser, and a production build. CI runs this same baseline for every PR to `main`.
+Two commands cover the repository. Run the first one before every push. Run the second one when you touch lint, types, dead code, or tooling:
 
-Local Husky hooks are split for fast feedback and are **not** the gate:
+```bash
+pnpm run check         # fast gate: typecheck, unit tests with coverage thresholds, dependency-cruiser, build
+pnpm run check:strict  # full gate: check plus ESLint, knip, tooling validation, and the production build
+```
 
-- `pre-commit` → `lint-staged` (ESLint `--fix --max-warnings 0`, staged `*.{ts,tsx}` only) — fast, so commits stay quick.
-- `pre-push` → `pnpm run check` (the full baseline) — catches everything before it leaves the machine.
+CI (`.github/workflows/ci.yml`, required check `Verification`) runs `check:strict` on every PR to `main`. The deploy workflow runs the same gate before publishing. A separate `audit` job fails on high or critical advisories in production dependencies.
 
-The non-bypassable gate is GitHub Branch Protection on `main` (required `Verification` check); local hooks may be absent in clean/agent containers.
+Browser smoke tests are not part of the CI gate, because they need a Chromium binary. Run them locally with `pnpm run test:smoke` (see `docs/DEVELOPMENT.md`).
 
-`pnpm run check:strict` is the cleanup audit. It additionally runs ESLint, knip, and tooling checks and currently reports pre-existing quality debt that should be removed in focused follow-up changes.
+Local Husky hooks give fast feedback and are **not** the gate:
+
+- `pre-commit` → `lint-staged` (ESLint `--fix --max-warnings 0`, staged `*.{ts,tsx}` only).
+- `pre-push` → `pnpm run check`.
+
+The non-bypassable gate is GitHub Branch Protection on `main` (required `Verification` check). Local hooks may be absent in clean or agent containers.
 
 Individual commands remain available for focused diagnostics:
 
 ```bash
 pnpm run typecheck
 pnpm run lint
-pnpm run check:canon
+pnpm run check:dead-code
+pnpm run depcruise
+pnpm run check:tooling
 pnpm run test --run
 pnpm run build
 ```
@@ -82,12 +91,12 @@ For a bug fix, establish the root cause before changing behavior. Reproduce the 
 
 ## Getting Started
 
-Prerequisites: Node.js LTS and pnpm.
+Prerequisites: Node.js 22.22.0 (see `.nvmrc`) and pnpm 10.34.7 (see `packageManager` in `package.json`).
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
-pnpm run check
+pnpm run check:strict
 ```
 
 Tests live in `__tests__/` directories adjacent to the source they cover.

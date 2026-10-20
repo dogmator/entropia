@@ -148,7 +148,7 @@ export interface StatsResponse {
 export interface ErrorResponse {
     readonly type: 'error';
     readonly message: string;
-    readonly stack?: string;
+    readonly stack?: string | undefined;
 }
 
 export interface ReadyResponse {

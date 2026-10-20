@@ -18,7 +18,8 @@ const DUPLICATE_STRING_THRESHOLD = 3;
 
 // eslint-disable-next-line sonarjs/deprecation, @typescript-eslint/no-deprecated -- requires migration to tseslint.defineConfig
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // Generated output must never be linted: coverage/ and Playwright artifacts are rebuilt by test runs.
+  { ignores: ['dist', 'coverage', 'test-results', 'playwright-report', 'blob-report'] },
   {
     extends: [
       js.configs.recommended,

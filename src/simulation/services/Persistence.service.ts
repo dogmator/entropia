@@ -301,6 +301,8 @@ export class PersistenceService {
             organism.trailEnabled = o.trailEnabled;
             organism.lastActiveAt = o.lastActiveAt;
             organism.stuckTicks = o.stuckTicks;
+            organism.huntSuccessCount = o.huntSuccessCount;
+            organism.causeOfDeath = o.causeOfDeath;
             organism.updateGrowthFromState();
 
             engine.organisms.set(o.id, organism);

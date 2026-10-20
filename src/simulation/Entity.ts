@@ -610,15 +610,3 @@ export class OrganismFactory {
     this.genomeFactory.reset();
   }
 }
-
-// ============================================================================
-// TYPE GUARDS
-// ============================================================================
-
-export function isPrey(entity: Entity): entity is Organism {
-  return entity.type === EntityType.PREY;
-}
-
-export function isPredator(entity: Entity): entity is Organism {
-  return entity.type === EntityType.PREDATOR;
-}
