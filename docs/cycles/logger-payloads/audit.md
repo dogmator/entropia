@@ -24,13 +24,13 @@ in the "Logger payloads" group. No code was changed; this file is the only artif
   while the target declares `source?: string`. Runtime is unaffected (`JSON.stringify` drops `undefined`;
   console path checks truthiness) → fix is type-level.
 
-## 1. Что такое Logger
+## 1. What the Logger is
 
-### 1.1 Файлы
+### 1.1 Files
 ```
 src/core/services/Logger.service.ts                      # ACTIVE logger (562 lines) — exported via @/core
 src/core/services/__tests__/Logger.test.ts
-src/core/services/logger/Logger.ts                       # parallel impl (273 lines), NOT barrel-wired
+src/core/services/logger/Logger.ts                       # parallel implementation (273 lines), NOT barrel-wired
 src/core/services/logger/types.ts                        # LogEntry, LoggerStats, LogLevel (INFO/WARN/ERROR)
 src/core/services/logger/transports/RemoteTransport.ts   # interface
 src/core/services/logger/transports/WebSocketTransport.ts
@@ -42,20 +42,22 @@ scripts/log-file-utils.ts
 src/ui/components/diagnostics/LogsTab.tsx, hooks.ts      # UI consumers
 ```
 
-### 1.2 Архитектура
-- **Singleton** (`Logger.getInstance()`), экспортируется как `const logger`.
-- Активный `Logger.service.ts`: `enum LogLevel { DEBUG, INFO, WARNING, ERROR }`; методы
+### 1.2 Architecture
+- **Singleton** (`Logger.getInstance()`), exported as `const logger`.
+- Active `Logger.service.ts`: `enum LogLevel { DEBUG, INFO, WARNING, ERROR }`; methods
   `debug/info/warning/warn/error`, `logPerformance`, `logSimulationError`, `logSimulationEvent`.
-  Хранит ring-buffer (`LOGGER_MAX_LOGS = 1000`), дедуп по последней записи, Listener-pattern (`subscribe`),
-  встроенный WebSocket-remote (свой, без transport-класса) + приём команд (`subscribeToCommands`).
-- Неактивный `logger/Logger.ts`: `enum LogLevel { INFO, WARNING, ERROR }` (без `debug`), вынесенный
-  `WebSocketTransport`, нет приёма входящих команд. **knip: `logger` (Logger.ts:273) — unused export.**
-- **Вывод:** активный Logger пишет в (a) in-memory ring-buffer для UI (`DiagnosticsModal`/`LogsTab`),
-  (b) `console` (только WARNING/ERROR через `outputToConsole`), (c) remote WebSocket (если включён).
-- **Перехват console:** активный Logger подменяет `console.log/info/warn/error/debug`, оборачивая их в
-  логи (`source: 'Console'`). Перехват **отключён в worker** (`resolveRuntimeEnvironment() === 'worker'` → return).
+  It keeps a ring buffer (`LOGGER_MAX_LOGS = 1000`), deduplicates against the last entry, uses a listener
+  pattern (`subscribe`), has a built-in WebSocket remote channel (its own, without a transport class), and
+  accepts incoming commands (`subscribeToCommands`).
+- Inactive `logger/Logger.ts`: `enum LogLevel { INFO, WARNING, ERROR }` (no `debug`), a separate
+  `WebSocketTransport`, and no incoming command handling. **knip: `logger` (Logger.ts:273) — unused export.**
+- **Conclusion:** the active Logger writes to (a) an in-memory ring buffer for the UI (`DiagnosticsModal`/`LogsTab`),
+  (b) `console` (only WARNING/ERROR via `outputToConsole`), (c) the remote WebSocket (if enabled).
+- **Console interception:** the active Logger replaces `console.log/info/warn/error/debug` with wrappers that
+  record the calls as logs (`source: 'Console'`). Interception is **disabled in the worker**
+  (`resolveRuntimeEnvironment() === 'worker'` → return).
 
-### 1.3 Типы payload (полностью)
+### 1.3 Payload types (complete)
 
 `src/core/services/logger/types.ts`:
 ```ts
@@ -70,7 +72,7 @@ export interface LogEntry {
 export interface LoggerStats { total: number; info: number; warning: number; error: number; recent: number; }
 ```
 
-`src/core/services/Logger.service.ts` (активный) — собственные копии:
+`src/core/services/Logger.service.ts` (active) — its own copies:
 ```ts
 export enum LogLevel { DEBUG='debug', INFO='info', WARNING='warning', ERROR='error' }
 export interface LogEntry { timestamp: number; level: LogLevel; message: string; source?: string; data?: Record<string, unknown>; }
@@ -79,49 +81,53 @@ interface ConsoleCapturePayload { level: LogLevel; source: string; args: unknown
 interface RemoteCommand { type: 'COMMAND'; [key: string]: unknown; }
 ```
 
-`src/core/services/logger/Logger.ts` (неактивный):
+`src/core/services/logger/Logger.ts` (inactive):
 ```ts
 interface LogPayload { level: LogLevel; message: string; source?: string; data?: Record<string, unknown>; }
 ```
 
-`scripts/log-server.ts` (сервер):
+`scripts/log-server.ts` (server):
 ```ts
 type LogLevel = 'info' | 'warning' | 'error';
 interface LogPayload { timestamp: number; level: LogLevel; message: string; source?: string; data?: Record<string, unknown>; }
 interface CommandPayload { type: 'COMMAND'; action: string; }
 ```
 
-## 2. Socket-транспорт
+## 2. Socket transport
 
-### 2.1 Слой
-- Активный: WebSocket-логика **внутри** `Logger.service.ts` (`initWebSocket`, `flushQueue`, `maybeSendToRemote`).
-- Неактивный: `logger/transports/WebSocketTransport.ts` (queue 300, reconnect 3000ms), общий интерфейс `RemoteTransport`.
-- Сервер: `scripts/log-server.ts` (`new WebSocketServer({ port: 3011 })`).
+### 2.1 Layer
+- Active: the WebSocket logic is **inside** `Logger.service.ts` (`initWebSocket`, `flushQueue`, `maybeSendToRemote`).
+- Inactive: `logger/transports/WebSocketTransport.ts` (queue 300, reconnect 3000ms), shared interface `RemoteTransport`.
+- Server: `scripts/log-server.ts` (`new WebSocketServer({ port: 3011 })`).
 
-### 2.2 Что отправляется (front → server)
-- `JSON.stringify(entry)` где `entry = LogEntry` → `{"timestamp","level","message","source"?,"data"?}`.
-- Отправка **по одному событию** (не батчами); при закрытом сокете — очередь (активный: max 500, drop 50; transport: max 300, trim 30).
-- Reconnect: 3000 ms. При `send` ошибке — re-queue + reconnect.
-- Формат `level` — строки `info|warning|error` (в worker-контексте DEBUG-уровень существует в активном enum, но сервер `resolveLogLevel` низводит всё, кроме warning/error, в `info`).
+### 2.2 What is sent (front → server)
+- `JSON.stringify(entry)`, where `entry = LogEntry` → `{"timestamp","level","message","source"?,"data"?}`.
+- Sent **one event at a time** (not in batches). While the socket is closed, events are queued
+  (active: max 500, drop 50; transport: max 300, trim 30).
+- Reconnect: 3000 ms. On a `send` error: re-queue and reconnect.
+- `level` format: the strings `info|warning|error`. In the worker context the active enum does have DEBUG, but
+  the server's `resolveLogLevel` lowers everything other than warning/error to `info`.
 
-### 2.3 Обратный путь (server → client)
-- Сервер читает stdin: `reload` → broadcast `{type:'COMMAND', action:'RELOAD'}`; `clear` → локальная очистка. (log-server.ts:148-163).
-- Клиент (активный Logger) парсит входящее и уведомляет `subscribeToCommands`; подписка есть в `src/ui/context/hooks/useEngineSync.ts:56`.
-- Неактивный `logger/Logger.ts` **не имеет `onmessage`** — обратный путь не поддерживает.
+### 2.3 Return path (server → client)
+- The server reads stdin: `reload` → broadcast `{type:'COMMAND', action:'RELOAD'}`; `clear` → local clear.
+  (log-server.ts:148-163).
+- The client (active Logger) parses incoming messages and notifies `subscribeToCommands`. The subscription exists
+  in `src/ui/context/hooks/useEngineSync.ts:56`.
+- The inactive `logger/Logger.ts` **has no `onmessage`**, so it does not support the return path.
 
-### 2.4 Известное расхождение
-| | Значение |
+### 2.4 Known mismatch
+| | Value |
 |---|---|
-| Сервер `scripts/log-server.ts` | **PORT = 3011** (`ws://0.0.0.0:3011`) |
-| Клиент `DEBUG_CONFIG.remoteWsEndpoint` | `ws://127.0.0.1:**3013**` (`remotePort: 3013`) |
-| `debug.constants.ts` | `remoteLoggingEnabled: false` (в dev включается через `resolveRemoteLoggingEnabled`) |
+| Server `scripts/log-server.ts` | **PORT = 3011** (`ws://0.0.0.0:3011`) |
+| Client `DEBUG_CONFIG.remoteWsEndpoint` | `ws://127.0.0.1:**3013**` (`remotePort: 3013`) |
+| `debug.constants.ts` | `remoteLoggingEnabled: false` (in dev it is enabled through `resolveRemoteLoggingEnabled`) |
 
-→ При запуске `pnpm dev:logs` (tsx log-server.ts) клиент подключается к порту, где никто не слушает.
+→ When `pnpm dev:logs` (tsx log-server.ts) is started, the client connects to a port where nothing is listening.
 
-## 3. Карта вызовов Logger
+## 3. Map of Logger call sites
 
-Всего `logger.*` (src/): **59** (вкл. тесты). Без тестов — 44.
-| Метод | Кол-во |
+Total `logger.*` calls (src/): **59** (including tests). Without tests: 44.
+| Method | Count |
 |---|---|
 | `logger.info` | 28 |
 | `logger.warning` | 11 |
@@ -129,10 +135,10 @@ interface CommandPayload { type: 'COMMAND'; action: string; }
 | `logger.warn` | 6 |
 | `logger.debug` | 5 |
 
-По подсистемам (вкл. тесты): `/simulation/` 33 · `/core/` 20 · `/ui/` 6 · `/shared/` 0 · worker 0 · transport 0.
+By subsystem (including tests): `/simulation/` 33 · `/core/` 20 · `/ui/` 6 · `/shared/` 0 · worker 0 · transport 0.
 
-Топ файлов:
-| Файл | Вызовов |
+Top files:
+| File | Calls |
 |---|---|
 | `src/core/services/__tests__/Logger.test.ts` | 9 |
 | `src/simulation/engine/EngineProxy.ts` | 8 |
@@ -142,64 +148,64 @@ interface CommandPayload { type: 'COMMAND'; action: string; }
 | `src/simulation/engine/TickLoop.service.ts` | 5 |
 | `src/core/services/PerformanceMonitor.service.ts` | 5 |
 
-Что логируется (non-test, выжимка):
+What is logged (non-test, excerpt):
 - Engine: `Initializing`, `READY`, `STARTED`, `PAUSED`, `CRITICAL: Entity collections undefined`, `Direct updateWorldScale not supported`.
 - TickLoop: `Engine tick N: X organisms, Y food`, `Population: ... [P/Pr/F]`, `Critical population drop`, `Fail-safe: extinction detected`, `Fail-safe: resource depletion`.
 - DeathProcessor: `Engine: N organisms died...` (**debug**).
 - EnvironmentBuilder: `Spawned N/M entities of type ...` (**info**).
 - FoodAnomalyGuard: `Runtime food anomaly sanitation...` (**warn**).
-- Worker: `Worker: Engine initialized, starting deferred loop` (**info**, единственный).
-- Proxy/WorkerChannel: команды, `exportState/importState`, ошибки.
+- Worker: `Worker: Engine initialized, starting deferred loop` (**info**, the only one).
+- Proxy/WorkerChannel: commands, `exportState/importState`, errors.
 - UI: `useSettingsState` (`URL-first init`, `URL-first applyConfig`), `Diagnostics modal opened`, `Hovered over ...`, `Stats`, `Failed to init engine`.
 - Collision/Metabolism: radius/diagnostics (**debug**).
 
-## 4. Слепые пятна
+## 4. Blind spots
 
-### 4.1 Симуляция
-| Что | Где должно логироваться | Уровень | Контекст | Риск |
+### 4.1 Simulation
+| What | Where it should be logged | Level | Context | Risk |
 |---|---|---|---|---|
-| **`reset()`** (очистка entity/zones/genetic/grid + rebuild) | `Engine.reset()` `Engine.ts:175` | info | tick, counts до/после | Destructive-путь невидим; «пустая сцена» после reset неотличима от сбоя. **P1** |
-| **Рождение/репродукция** | `Entity.createOffspring` `Entity.ts:587` / `Reproduction.system.ts` | debug | parentId, genomeId, tick | Только смерти (debug) и начальный spawn (info) логируются; динамика рождаемости слепа. **P2** |
-| Изменение параметров (diff) | `useSettingsState.applyConfig` `:36` | info | `{key: value}` | Логируется только `mode/isUrlEvent/url`, **без изменённого ключа и значения**. **P2** |
-| Изменение speed/tick rate (UI) | `useSimulationSettings.setSpeed` / worker `setSpeed` | info | старое→новое | speed меняется в `simulation.worker.ts:310` без лога. **P2** |
-| Массовая смерть/вымирание | TickLoop покрывает (`Fail-safe: extinction`, `Critical population drop`) | — | — | ✅ покрыто |
-| Ошибки систем (NaN, отсутствие entity) | частично (Collision/Metabolism debug, Engine CRITICAL) | warn | tick, entityId | FoodAnomalyGuard покрыт; прочие системы — нет. **P3** |
+| **`reset()`** (clearing entities, zones, genetic data and grid, then rebuild) | `Engine.reset()` `Engine.ts:175` | info | tick, counts before/after | The destructive path is invisible. An "empty scene" after reset cannot be told apart from a failure. **P1** |
+| **Births / reproduction** | `Entity.createOffspring` `Entity.ts:587` / `Reproduction.system.ts` | debug | parentId, genomeId, tick | Only deaths (debug) and the initial spawn (info) are logged. Birth dynamics are invisible. **P2** |
+| Parameter changes (diff) | `useSettingsState.applyConfig` `:36` | info | `{key: value}` | Only `mode/isUrlEvent/url` is logged, **without the changed key or value**. **P2** |
+| Speed / tick rate change (UI) | `useSimulationSettings.setSpeed` / worker `setSpeed` | info | old→new | Speed changes in `simulation.worker.ts:310` without a log. **P2** |
+| Mass death / extinction | TickLoop covers it (`Fail-safe: extinction`, `Critical population drop`) | — | — | ✅ covered |
+| System errors (NaN, missing entity) | partially (Collision/Metabolism debug, Engine CRITICAL) | warn | tick, entityId | FoodAnomalyGuard is covered; other systems are not. **P3** |
 
 ### 4.2 Worker (`simulation.worker.ts`)
-| Что | Где | Уровень | Контекст | Риск |
+| What | Where | Level | Context | Risk |
 |---|---|---|---|---|
-| **Приём команды** (`self.onmessage` `:316`) | `:316` | debug | `command.type` | Нет трассировки команд (кроме `Unknown command`). **P1** |
-| **Ошибки init/update/async** | catch `:75`, `:102`, `:151` | error | message, stack, command | Возвращают `error`-response, но **не пишут в logger**; stack уходит только в postMessage. **P1** |
-| `handleReset` `:114` | `:114` | info | — | reset невидим. **P1** |
-| `handleSetConfig` `:163` | `:163` | info/debug | config patch | setConfig невидим (главная сторона логирует, воркер — нет). **P2** |
-| `start/stopAutoUpdate`, `setSpeed`, `syncCamera` | `:215/:228/:310/:236` | info/debug | — | Lifecycle loop нелогирован. **P2** |
-| **console.* в worker** | везде | — | — | Перехват console отключён в worker → любой `console.*` теряется (не уходит в remote). **P1** |
+| **Command receipt** (`self.onmessage` `:316`) | `:316` | debug | `command.type` | No command tracing (except `Unknown command`). **P1** |
+| **Init/update/async errors** | catch `:75`, `:102`, `:151` | error | message, stack, command | They return an `error` response but **do not write to the logger**. The stack goes only to postMessage. **P1** |
+| `handleReset` `:114` | `:114` | info | — | Reset is invisible. **P1** |
+| `handleSetConfig` `:163` | `:163` | info/debug | config patch | setConfig is invisible (the main side logs it, the worker does not). **P2** |
+| `start/stopAutoUpdate`, `setSpeed`, `syncCamera` | `:215/:228/:310/:236` | info/debug | — | The lifecycle loop is not logged. **P2** |
+| **console.\* in the worker** | everywhere | — | — | Console interception is disabled in the worker, so any `console.*` call is lost (it does not reach the remote sink). **P1** |
 
 ### 4.3 UI
-| Что | Где | Уровень | Контекст | Риск |
+| What | Where | Level | Context | Risk |
 |---|---|---|---|---|
-| **Восстановление камеры из URL** | `SceneContainer.tsx:33-42` (CameraTracker) | info | snapshot px/py/pz/tx/ty/tz | Camera Sync (BACKLOG) неотслеживаем. **P2** |
-| **Сохранение камеры (onEnd)** | `SceneContainer.tsx:49-55` | debug | snapshot | Изменения камеры невидимы. **P2** |
-| Изменения настроек из панели | `useSettingsState.update/toggle/applyPreset` | info | key, old→new | Идут через `applyConfig`, но без diff. **P2** |
-| Восстановление из URL (общий конфиг) | `useSettingsState.getInitialState:23` | info | url, config | Частично покрыто (`URL-first init`). **P3** |
-| **Ошибки рендера/WebGL** | `ErrorBoundary.tsx` | error | componentStack | Использует `console.error/warn` (перехват main-thread) → попадает как `source: 'Console'`; **нет структурированного `logger.error`** с контекстом сцены. Ошибки в `useFrame` (Entities/CameraTracker) не обёрнуты. **P2** |
+| **Camera restore from the URL** | `SceneContainer.tsx:33-42` (CameraTracker) | info | snapshot px/py/pz/tx/ty/tz | Camera Sync (BACKLOG) cannot be traced. **P2** |
+| **Camera save (onEnd)** | `SceneContainer.tsx:49-55` | debug | snapshot | Camera changes are invisible. **P2** |
+| Settings changes from the panel | `useSettingsState.update/toggle/applyPreset` | info | key, old→new | They go through `applyConfig`, but without a diff. **P2** |
+| Restore from the URL (shared config) | `useSettingsState.getInitialState:23` | info | url, config | Partially covered (`URL-first init`). **P3** |
+| **Render / WebGL errors** | `ErrorBoundary.tsx` | error | componentStack | It uses `console.error/warn` (main-thread interception), so the entries arrive as `source: 'Console'`. **There is no structured `logger.error`** with scene context. Errors in `useFrame` (Entities/CameraTracker) are not wrapped. **P2** |
 
 ### 4.4 Socket
-| Что | Где | Уровень | Контекст | Риск |
+| What | Where | Level | Context | Risk |
 |---|---|---|---|---|
-| Подключение | `Logger.service.ts:340` (`onopen`) / `WebSocketTransport.handleOpen:97` | debug | endpoint | Только console.debug (captured) → попадает как 'Console'. **P3** |
-| **Потеря соединения (`onclose`)** | `Logger.service.ts:350-354` | warn | endpoint, was-connected | **Нет ни одной записи**. Потеря remote-логирования невидима. **P1 (Logger.service)** |
-| Отправка сообщения | `maybeSendToRemote:432` | — (нет) | — | Не логируется даже на debug. **P3** |
-| Ошибки send/receive | `:434`, `:388` (console.warn) | warn | error | Ошибки идут в console.warn (captured), но не через logger. **P2** |
-| **Endpoint mismatch** | `debug.constants.ts:11` vs `log-server.ts:9` | error | ports | Remote sink фактически не работает. **P1** |
+| Connection | `Logger.service.ts:340` (`onopen`) / `WebSocketTransport.handleOpen:97` | debug | endpoint | Only console.debug (captured), so it arrives as 'Console'. **P3** |
+| **Connection loss (`onclose`)** | `Logger.service.ts:350-354` | warn | endpoint, was-connected | **No record at all.** Loss of remote logging is invisible. **P1 (Logger.service)** |
+| Sending a message | `maybeSendToRemote:432` | — (none) | — | Not logged, even at debug. **P3** |
+| Send/receive errors | `:434`, `:388` (console.warn) | warn | error | Errors go to console.warn (captured), but not through the logger. **P2** |
+| **Endpoint mismatch** | `debug.constants.ts:11` vs `log-server.ts:9` | error | ports | The remote sink does not actually work. **P1** |
 
-## 5. exactOptionalPropertyTypes в Logger-связанном коде
+## 5. exactOptionalPropertyTypes in Logger-related code
 
-Команда: `./node_modules/.bin/tsc --noEmit --exactOptionalPropertyTypes` (флаг добавлен к проектному tsconfig;
-вариант «копия в /tmp» не резолвит относительные `include`/`paths`). Итого **18** ошибок; Logger-related — **13**.
+Command: `./node_modules/.bin/tsc --noEmit --exactOptionalPropertyTypes` (the flag was added to the project tsconfig;
+a copy in /tmp does not resolve the relative `include`/`paths`). Total **18** errors; Logger-related: **13**.
 
 ```ts
-// LogPayload optional mutations (source/data передаются как string|undefined)
+// LogPayload optional mutations (source/data passed as string|undefined)
 src/core/services/Logger.service.ts(204) TS2379  debug()
 src/core/services/Logger.service.ts(208) TS2379  info()
 src/core/services/Logger.service.ts(212) TS2379  warning()
@@ -217,116 +223,90 @@ scripts/log-server.ts(105)               TS2375  parseLogPayload() return
 src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: Logger | undefined
 ```
 
-Не-Logger (для контекста группы): `PerformanceMonitor.service.ts(155)` TS2375 (PerformanceEntry.memoryUsage);
+Not Logger-related (for context within the group): `PerformanceMonitor.service.ts(155)` TS2375 (PerformanceEntry.memoryUsage);
 `BufferManager.manager.ts(55)`/`workerSnapshot.ts(41)` TS2375 (RenderBuffers.sharedBuffer);
 `simulation.worker.ts(76,103,152)` TS2345 (`WorkerResponse` error.stack: `string | undefined`).
 
-### 5.4 Категории
-- **«Поле optional, но передаём `undefined` явно»** (11): `LogPayload.source?/data?`, `LogEntry.source?/data?`
+### 5.4 Categories
+- **"Optional field, but `undefined` passed explicitly"** (11): `LogPayload.source?/data?`, `LogEntry.source?/data?`
   (Logger.service 204/208/212/220/250/446; Logger.ts 92/96/100/127; log-server 105).
-- **«readonly vs mutable / class property»** (1): `Logger.test.ts:41` (`private static instance: Logger` присваивается `undefined`).
-- Не-Logger внутри группы worker: `WorkerResponse.stack` optional + явный `undefined` (3, TS2345).
+- **"readonly vs mutable / class property"** (1): `Logger.test.ts:41` (`private static instance: Logger` is assigned `undefined`).
+- Not Logger-related, inside the worker group: `WorkerResponse.stack` optional + explicit `undefined` (3, TS2345).
 
-Кто формирует payload: сами методы `debug/info/warning/error` (передают `source`, `data` как `string|undefined`),
-`createLogEntry`/`createRemoteLogEntry` (пробрасывают `payload.source/data`), `logPerformance`/`logSimulationError`
-(данные с `undefined`), и серверный `parseLogPayload`.
+Who builds the payloads: the `debug/info/warning/error` methods themselves (they pass `source` and `data` as
+`string|undefined`), `createLogEntry`/`createRemoteLogEntry` (they forward `payload.source/data`),
+`logPerformance`/`logSimulationError` (data with `undefined`), and the server-side `parseLogPayload`.
 
-## 6. Baseline лог-потока
+## 6. Baseline of the log flow
 
 ### 6.1 front → server (WS)
-- Каждое событие → `JSON.stringify(LogEntry)`, send по одному (не батчи).
-- Частота: по событию; при закрытом сокете — буферизация (500/300) + reconnect 3000ms.
-- Формат: `{"timestamp":<ms>,"level":"info|warning|error","message":"...","source":"?","data":{...}?}`.
-- Ожидаемый приёмник: `ws://127.0.0.1:3011` (сервер); клиент целится в **3013** (mismatch).
-- Включается: `ui/index.tsx:20-21` → `logger.setRemoteLogging(resolveRemoteLoggingEnabled(...))`; в dev по умолчанию — on.
+- Each event → `JSON.stringify(LogEntry)`, sent one at a time (not batched).
+- Frequency: per event. While the socket is closed, events are buffered (500/300) and reconnect runs every 3000 ms.
+- Format: `{"timestamp":<ms>,"level":"info|warning|error","message":"...","source":"?","data":{...}?}`.
+- Expected receiver: `ws://127.0.0.1:3011` (server). The client targets **3013** (mismatch).
+- Enabled by: `ui/index.tsx:20-21` → `logger.setRemoteLogging(resolveRemoteLoggingEnabled(...))`; on by default in dev.
 
 ### 6.2 console.*
-- `console.*` в `src/`: **35** (17 в `Logger.service.ts`, 6 в `WebSocketTransport.ts`, 4 в `ErrorBoundary.tsx`, 3 в `EventBus.service.ts`, 2 в неактивном `Logger.ts`, по 1 в `useHoverState.ts`/`Entities.tsx`/`Physics.system.ts`).
-- Правила **`no-console` в `eslint.config.ts` НЕТ** (grep — 0 совпадений).
+- `console.*` in `src/`: **35** (17 in `Logger.service.ts`, 6 in `WebSocketTransport.ts`, 4 in `ErrorBoundary.tsx`,
+  3 in `EventBus.service.ts`, 2 in the inactive `Logger.ts`, 1 each in `useHoverState.ts`, `Entities.tsx`, `Physics.system.ts`).
+- There is **no `no-console` rule** in `eslint.config.ts` (grep: 0 matches).
 
-## 7. Риски фикса
+## 7. Fix risks
 
-### 7.1 Что может сломаться
-- Сериализация: `JSON.stringify(entry)` (клиент) и сервер `JSON.parse` + `sanitizeText`. `undefined`-значения
-  JSON.stringify **опускает**, поэтому `{source: undefined}` ≡ `{}` на проводе — runtime при type-only фиксе не меняется.
-- Серверный `parseLogPayload` — единственный внешний контракт (`scripts/log-server.ts`); версионирования протокола нет.
-- Перехват console и дедуп `getDedupKey` используют `safeStringify(data ?? null)` — изменение формы payload не влияет.
+### 7.1 What could break
+- Serialization: client `JSON.stringify(entry)` and server `JSON.parse` + `sanitizeText`. `JSON.stringify` **omits**
+  `undefined` values, so `{source: undefined}` ≡ `{}` on the wire. A type-only fix does not change runtime behavior.
+- The server's `parseLogPayload` is the only external contract (`scripts/log-server.ts`). There is no protocol versioning.
+- Console interception and deduplication (`getDedupKey`) use `safeStringify(data ?? null)`, so changing the payload shape does not affect them.
 
-### 7.2 Что можно чинить безопасно (type-level, без изменения runtime)
-- Добавить `| undefined` в optional-поля `LogPayload`/`LogEntry` (`source?: string | undefined; data?: ... | undefined`)
-  **либо** собирать payload без ключа, когда значение `undefined` (обе опции эквивалентны на проводе).
-- `Logger.test.ts:41` — сузить тип `instance` до `Logger | undefined` (уже так; правка теста).
-- `simulation.worker.ts` `WorkerResponse.stack` — аналогично `| undefined`.
-- Затрагиваемые места: ~4 файла (`Logger.service.ts`, `logger/Logger.ts`, `log-server.ts`, `Logger.test.ts`),
-  ~13 строк; плюс 3 строки в `simulation.worker.ts` (соседняя группа).
+### 7.2 What can be fixed safely (type-level, no runtime change)
+- Add `| undefined` to the optional fields of `LogPayload`/`LogEntry` (`source?: string | undefined; data?: ... | undefined`),
+  **or** build the payload without the key when the value is `undefined`. Both options are equivalent on the wire.
+- `Logger.test.ts:41`: narrow the `instance` type to `Logger | undefined` (already so; a test edit).
+- `simulation.worker.ts` `WorkerResponse.stack`: similarly `| undefined`.
+- Affected places: about 4 files (`Logger.service.ts`, `logger/Logger.ts`, `log-server.ts`, `Logger.test.ts`),
+  about 13 lines; plus 3 lines in `simulation.worker.ts` (the neighboring group).
 
-### 7.3 Что требует отдельного PR
-- Если правится **Socket-протокол** (формат сообщений) → отдельный PR + ADR.
-- Исправление **endpoint mismatch** (3011 vs 3013) — конфиг/сервер, отдельный фикс (не type-level).
-- Устранение дублирования двух Logger'ов (unused `logger/Logger.ts` + transports) — отдельный PR (архитектура).
-- Если `WorkerResponse`/`RenderBuffers` менять — это уже не Logger-группа.
+### 7.3 What needs a separate PR
+- If the **socket protocol** (message format) changes → a separate PR and an ADR.
+- Fixing the **endpoint mismatch** (3011 vs 3013) is a config/server change and a separate fix (not type-level).
+- Removing the duplicate Logger (unused `logger/Logger.ts` + transports) → a separate PR (architecture).
+- If `WorkerResponse`/`RenderBuffers` change, that is no longer the Logger group.
 
-## 8. Открытые вопросы
+## 8. Open questions
 
-1. **Серверная часть:** есть ли доступ к серверному коду/логам? Найден только локальный `scripts/log-server.ts`
-   (dev-приёмник, файл `remote_debug.log`). Кто владелец продового приёмника?
-2. **Endpoint mismatch:** какой порт авторитетный — 3011 (сервер) или 3013 (`DEBUG_CONFIG`)? Это дефект или
-   сервер запускается с другим портом вне репозитория?
-3. **Спецификация Socket-протокола:** формального описания нет. Нужен ли ADR/версионирование?
-4. **Два Logger'а:** `logger/Logger.ts` (+ transports) — планируемое замещение `Logger.service.ts`
-   или мёртвый код (knip: unused export)? От этого зависит, фиксить ли типы в обоих.
-5. **console в worker:** нужно ли перехватывать/форвардить `console.*` из воркера в remote?
-6. **Что критично на сервере, что только для отладки:** следует ли поднять уровень tick/population-логов
-   (сейчас info, потенциально шумно) или понизить до debug?
-7. **Потеря соединения:** ожидаемое поведение при обрыве WS — только тихий retry (текущее) или warn/уведомление?
-8. **`no-console`:** вводить ли ESLint-правило (35 прямых `console.*`), или это осознанно?
+1. **Server side:** is there access to the server code or logs? Only the local `scripts/log-server.ts` was found
+   (dev receiver, file `remote_debug.log`). Who owns the production receiver?
+2. **Endpoint mismatch:** which port is authoritative, 3011 (server) or 3013 (`DEBUG_CONFIG`)? Is it a defect, or is the
+   server started with a different port outside the repository?
+3. **Socket protocol specification:** there is no formal description. Is an ADR or versioning needed?
+4. **Two Loggers:** is `logger/Logger.ts` (+ transports) the planned replacement of `Logger.service.ts`, or dead code
+   (knip: unused export)? This determines whether the types are fixed in both.
+5. **console in the worker:** should `console.*` calls from the worker be intercepted and forwarded to remote?
+6. **What is critical on the server and what is only for debugging:** should tick and population logs be raised
+   (currently info, potentially noisy) or lowered to debug?
+7. **Connection loss:** is the expected behavior when the WebSocket drops a silent retry (current), or a warning or notification?
+8. **`no-console`:** should an ESLint rule be introduced (35 direct `console.*` calls), or is this intentional?
 
 ### Findings from the automated smoke (2026-10-12, PR fix/log-transport)
 
-9. **Vite HMR hardcoded `hmr.clientPort: 3000`** (`vite.config.ts` `SERVER_CONFIG.hmr`) — breaks HMR when the
-   app runs on any non-default port (observed as `ws://localhost:3000/... 400` in the smoke). Debt: derive the
-   HMR client port from the actual server port.
-10. **WebGL in headless Chromium needs the SwiftShader fallback** (`--enable-unsafe-swiftshader` / full
-    `channel: chromium`). Headless-shell cannot create a WebGL context; this is an environment limitation
-    handled by the smoke harness, not a product bug.
-11. **`Stats` log cadence is very low** (`UI_CONTROLS.SERVER_LOG_INTERVAL = 300` tick events ≈ 30s) — too
-    infrequent for fast smoke markers. Consider a shorter dev-mode interval (or an explicit startup marker).
-12. **Endpoint mismatch resolved** in fix/log-transport (3013 → 3011, plus `VITE_LOG_WS_PORT`/`LOG_SERVER_PORT`
-    overrides). Question 2 above is now answered; keep for history.
-13. **Worker forwarding refactor (PR #52 review #1/#2):** worker console/logger forwarding no longer depends
-    on `console.*` (which Terser `drop_console` strips in prod) or on import order. The worker now uses an
-    explicit `postLog` transport; `console.*` calls are bridged to it for DevTools, and the shared `Logger`
-    exposes `setOutputSink` so worker `logger.warn/error` output is routed through `postLog` instead of the
-    native console the logger bound at construction time.
-14. **Potential refactor (future):** `Logger.setOutputSink` is a runtime mutation applied *after* construction.
-    A cleaner design injects the transport/output-sink via the constructor (e.g. `createLogger({ outputSink })`),
-    removing the post-construction mutation and making the dependency explicit. Out of scope for PR #52;
-    track for a future logger-cycle PR.
+9. **Vite HMR hardcoded `hmr.clientPort: 3000`** (`vite.config.ts` `SERVER_CONFIG.hmr`) — breaks HMR when the app runs on any non-default port (observed as `ws://localhost:3000/... 400` in the smoke). Debt: derive the HMR client port from the actual server port.
+10. **WebGL in headless Chromium needs the SwiftShader fallback** (`--enable-unsafe-swiftshader` / full `channel: chromium`). Headless-shell cannot create a WebGL context; this is an environment limitation handled by the smoke harness, not a product bug.
+11. **`Stats` log cadence is very low** (`UI_CONTROLS.SERVER_LOG_INTERVAL = 300` tick events ≈ 30s) — too infrequent for fast smoke markers. Consider a shorter dev-mode interval (or an explicit startup marker).
+12. **Endpoint mismatch resolved** in fix/log-transport (3013 → 3011, plus `VITE_LOG_WS_PORT`/`LOG_SERVER_PORT` overrides). Question 2 above is now answered; keep for history.
+13. **Worker forwarding refactor (PR #52 review #1/#2):** worker console/logger forwarding no longer depends on `console.*` (which Terser `drop_console` strips in prod) or on import order. The worker now uses an explicit `postLog` transport; `console.*` calls are bridged to it for DevTools, and the shared `Logger` exposes `setOutputSink` so worker `logger.warn/error` output is routed through `postLog` instead of the native console the logger bound at construction time.
+14. **Potential refactor (future):** `Logger.setOutputSink` is a runtime mutation applied *after* construction. A cleaner design injects the transport/output-sink via the constructor (e.g. `createLogger({ outputSink })`), removing the post-construction mutation and making the dependency explicit. Out of scope for PR #52; track for a future logger-cycle PR.
 
 ### Findings from PR-B (logger cleanup, `refactor/logger-cleanup`)
 
-15. **[DONE] Removed dead `logger/Logger.ts` + `transports/` (PR-B).** The parallel, non-barrel-wired
-    implementation (and its private tests) is deleted. `Logger.service.ts` is now the single logger; `LogEntry`
-    has one definition, exported via `@/core`. knip no longer reports the `logger` unused export.
-16. **[DONE] `source: string` is mandatory (PR-B).** `LogEntry.source` / `LogPayload.source` are no longer
-    optional; logger methods take `source: string` with a default of `'unknown'`. This clears the 13
-    Logger-related `exactOptionalPropertyTypes` errors (18 → 5 repo-wide; remaining 5 are other groups).
-17. **[DONE] Cyclic/bigint-safe serialization (PR-B).** The active Logger already serialized through a
-    `try/catch` `safeStringify` with a `WeakSet` replacer (`[Circular]` / `[Unserializable]`); removing the dead
-    implementation leaves this as the single guard. Any future `JSON.stringify` on payloads must go through it.
-18. **[FUTURE] `MAX_LOG_PAYLOAD_BYTES`** — cap the serialized payload size before queueing/sending, to bound
-    memory and wire usage (the server already refuses > 100 kB, the client does not).
-19. **[FUTURE] PII review** — logs may carry user IDs, API keys, filesystem paths and IPs. Define a redaction
-    policy / allow-list before any log leaves the machine.
-20. **[FUTURE] Prod levels** — decide whether `debug` is emitted in production or stripped, and whether the
-    remote sink is enabled outside dev. Currently `debug` entries are produced unconditionally.
-21. **[FUTURE] `setOutputSink` via constructor** — fold into the constructor-injection refactor tracked in
-    item 14 (avoid post-construction mutation).
-22. **[P1] Vite HMR `clientPort` hardcoded 3000** (`vite.config.ts` `SERVER_CONFIG.hmr.clientPort`). This makes
-    the smoke test `tests/smoke/log-transport.spec.ts` falsely-green on `main`: it fails whenever the app runs on
-    a non-default port (the smoke harness uses 13000 → HMR WS `ws://localhost:3000/...` → `ERR_CONNECTION_REFUSED`,
-    aborts test 1). Required: make `clientPort` configurable via env (`VITE_HMR_PORT`). Separate PR — not the
-    Logger group.
+15. **[DONE] Removed dead `logger/Logger.ts` + `transports/` (PR-B).** The parallel, non-barrel-wired implementation (and its private tests) is deleted. `Logger.service.ts` is now the single logger; `LogEntry` has one definition, exported via `@/core`. knip no longer reports the `logger` unused export.
+16. **[DONE] `source: string` is mandatory (PR-B).** `LogEntry.source` / `LogPayload.source` are no longer optional; logger methods take `source: string` with a default of `'unknown'`. This clears the 13 Logger-related `exactOptionalPropertyTypes` errors (18 → 5 repo-wide; remaining 5 are other groups).
+17. **[DONE] Cyclic/bigint-safe serialization (PR-B).** The active Logger already serialized through a `try/catch` `safeStringify` with a `WeakSet` replacer (`[Circular]` / `[Unserializable]`); removing the dead implementation leaves this as the single guard. Any future `JSON.stringify` on payloads must go through it.
+18. **[FUTURE] `MAX_LOG_PAYLOAD_BYTES`** — cap the serialized payload size before queueing/sending, to bound memory and wire usage (the server already refuses > 100 kB, the client does not).
+19. **[FUTURE] PII review** — logs may carry user IDs, API keys, filesystem paths and IPs. Define a redaction policy / allow-list before any log leaves the machine.
+20. **[FUTURE] Prod levels** — decide whether `debug` is emitted in production or stripped, and whether the remote sink is enabled outside dev. Currently `debug` entries are produced unconditionally.
+21. **[FUTURE] `setOutputSink` via constructor** — fold into the constructor-injection refactor tracked in item 14 (avoid post-construction mutation).
+22. **[P1] Vite HMR `clientPort` hardcoded 3000** (`vite.config.ts` `SERVER_CONFIG.hmr.clientPort`). This makes the smoke test `tests/smoke/log-transport.spec.ts` falsely-green on `main`: it fails whenever the app runs on a non-default port (the smoke harness uses 13000 → HMR WS `ws://localhost:3000/...` → `ERR_CONNECTION_REFUSED`, aborts test 1). Required: make `clientPort` configurable via env (`VITE_HMR_PORT`). Separate PR — not the Logger group.
 
 ### Findings from PR-C (runtime observability, `feat/runtime-observability`)
 
@@ -350,7 +330,3 @@ src/core/services/__tests__/Logger.test.ts(41) TS2412  private static instance: 
     live in the worker's own ring buffer and reach the UI only via the remote sink if enabled. Requires a transport
     refactor — extend `setOutputSink` to all levels or add a read-ring-buffer worker command. **Separate PR**
     (transport behavior change; out of scope for the observability-only PR-C).
-
-
-
-
