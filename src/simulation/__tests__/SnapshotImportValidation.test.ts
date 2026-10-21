@@ -68,3 +68,48 @@ describe('snapshot import validation', () => {
     expect(JSON.stringify(engine.exportState())).toBe(before);
   });
 });
+
+describe('snapshot import validation: genetic tree and counters', () => {
+  it('rejects a genetic tree without roots without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    snapshot['geneticTree'] = { nodes: [] };
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/roots/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a genetic tree node without children without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    const nodes = (snapshot['geneticTree'] as Loose)['nodes'] as Loose[];
+    const first = nodes[0];
+    if (!first) throw new Error('precondition: the snapshot must contain genetic tree nodes');
+    delete first['children'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/genetic tree node/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a missing id counter without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    delete (snapshot['counters'] as Loose)['organismIdCounter'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/organismIdCounter/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a non-finite death count without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    (snapshot['stats'] as Loose)['totalDeaths'] = Number.NaN;
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/totalDeaths/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+});

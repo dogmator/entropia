@@ -15,6 +15,7 @@ import type {
 import {
     createFoodId,
     createObstacleId,
+    EntityType,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
 
@@ -34,6 +35,27 @@ interface FoodAnomalyCheckParams {
     obstacles: Iterable<{ position: Vector3; radius: number }>;
     worldSize: number;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+const isFiniteNumber = (value: unknown): boolean => typeof value === 'number' && Number.isFinite(value);
+const isStringArray = (value: unknown): boolean => Array.isArray(value) && value.every(item => typeof item === 'string');
+const requireFiniteFields = (container: Record<string, unknown>, section: string, keys: string[]): void => {
+    for (const key of keys) {
+        if (!isFiniteNumber(container[key])) throw new Error(`Invalid simulation snapshot: ${section}.${key} must be a finite number`);
+    }
+};
+const isGeneticTreeLinks = (node: Record<string, unknown>): boolean => typeof node['id'] === 'string'
+    && (node['parentId'] === null || typeof node['parentId'] === 'string')
+    && isStringArray(node['children']);
+const isGeneticTreeValues = (node: Record<string, unknown>): boolean => isFiniteNumber(node['generation'])
+    && isFiniteNumber(node['born'])
+    && (node['died'] === null || isFiniteNumber(node['died']))
+    && Object.values<unknown>(EntityType).includes(node['type']);
+const isGeneticTreeNode = (node: unknown): boolean => {
+    if (!isRecord(node) || !isGeneticTreeLinks(node) || !isGeneticTreeValues(node)) return false;
+    const traits = node['traits'];
+    return isRecord(traits) && ['speed', 'sense', 'size'].every(key => isFiniteNumber(traits[key]));
+};
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PersistenceService {
@@ -180,11 +202,9 @@ export class PersistenceService {
 
     /**
      * Rejects snapshots this version cannot import. Runs before the engine is touched, and checks every field that
-     * importState reads, so a rejected snapshot leaves the active engine unchanged.
+     * importState needs to run to completion or to derive ids, so a rejected snapshot leaves the active engine unchanged.
      */
     private static assertImportable(state: unknown): asserts state is SerializedSimulationStateV1 {
-        const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
-        const isFiniteNumber = (value: unknown): boolean => typeof value === 'number' && Number.isFinite(value);
         const isVector = (value: unknown): boolean => isRecord(value) && isFiniteNumber(value['x']) && isFiniteNumber(value['y']) && isFiniteNumber(value['z']);
         const requireArray = (container: Record<string, unknown>, key: string): unknown[] => {
             const value = container[key];
@@ -197,10 +217,18 @@ export class PersistenceService {
         for (const key of ['seed', 'rngState', 'tick']) {
             if (!isFiniteNumber(state[key])) throw new Error(`Invalid simulation snapshot: ${key} must be a finite number`);
         }
-        for (const section of ['counters', 'stats'] as const) {
-            if (!isRecord(state[section])) throw new Error(`Invalid simulation snapshot: ${section} is missing`);
-        }
-        if (!isRecord(state['geneticTree'])) throw new Error('Invalid simulation snapshot: geneticTree is missing');
+        const counters = state['counters'];
+        const stats = state['stats'];
+        const geneticTree = state['geneticTree'];
+        if (!isRecord(counters)) throw new Error('Invalid simulation snapshot: counters is missing');
+        if (!isRecord(stats)) throw new Error('Invalid simulation snapshot: stats is missing');
+        if (!isRecord(geneticTree)) throw new Error('Invalid simulation snapshot: geneticTree is missing');
+        requireFiniteFields(counters, 'counters', ['foodIdCounter', 'obstacleIdCounter', 'organismIdCounter', 'genomeIdCounter']);
+        requireFiniteFields(stats, 'stats', ['totalDeaths', 'totalBirths']);
+        if (!isStringArray(geneticTree['roots'])) throw new Error('Invalid simulation snapshot: geneticTree.roots must be an array of strings');
+        requireArray(geneticTree, 'nodes').forEach((node, i) => {
+            if (!isGeneticTreeNode(node)) throw new Error(`Invalid genetic tree node at index ${String(i)}`);
+        });
 
         requireArray(state, 'zones').forEach((z, i) => {
             if (!isRecord(z) || typeof z['id'] !== 'string' || !isVector(z['center']) || !isFiniteNumber(z['radius'])) {
