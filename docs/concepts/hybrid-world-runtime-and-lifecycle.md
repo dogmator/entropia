@@ -8,6 +8,12 @@
 >
 > **Relationship:** Extends the *discussion* beyond [Issue #57](https://github.com/dogmator/entropia/issues/57), which currently approves **browser-local persistence between sessions**, not 24/7 remote execution. Nothing here silently amends that issue or its implementation restrictions.
 
+## Companion research concept: Entropia Commons
+
+[**Entropia Commons — Decentralized Evolutionary Computing & Preservation Network**](entropia-commons-decentralized-network.md) explores a future P2P extension of this hybrid model: volunteer compute and archive peers, independently reproducible evolution, explicit authority models, content-addressed histories, community governance and crowdfunding.
+
+**Scope boundary:** It is an optional research direction, not an approved replacement for the local/browser and headless execution stages. It does not authorize implementation or amend Issue #57. No blockchain, token, DAO, provider or payment model has been selected.
+
 ## 1. Vision: a world belongs to its history, not its process
 
 Entropia is intended to become a laboratory of evolutionary histories: the user defines a world and observes events that emerge from its laws rather than a prewritten storyline.
