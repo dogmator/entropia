@@ -25,11 +25,17 @@ export default defineConfig({
         '**/*.d.ts',
         'src/main.tsx',
       ],
+      // Recalibrated for the Istanbul baseline on Vitest 5. Measured range over repeated runs on the same tests and
+      // sources: lines 52.28-52.76, statements 50.90-51.37, functions 46.07-46.37, branches 39.10-39.91. The spread comes
+      // from a timing-dependent path in PerformanceMonitor. The previous values (44 / 44 / 54 / 74) were set against the
+      // V8 counts of Vitest 2 (54.85 / 54.85 / 64.65 / 82.86). Measured from the lowest baseline in the range, each new
+      // value sits 11.3 (lines), 10.9 (statements), 11.1 (functions) and 9.1 (branches) points below it. The old values
+      // sat 10.85, 10.85, 10.65 and 8.86 points below their baselines, so the regression tolerance is unchanged.
       thresholds: {
-        lines: 44,
-        functions: 54,
-        branches: 74,
-        statements: 44,
+        lines: 41,
+        functions: 35,
+        branches: 30,
+        statements: 40,
       },
     },
   },
