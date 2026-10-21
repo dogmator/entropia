@@ -63,6 +63,8 @@ describe('Logger — WebSocket diagnostics failures do not break the app', () =>
     const logger = freshLogger();
 
     expect(() => { logger.setRemoteLogging(true); }).not.toThrow();
+    // One constructor attempt per initialisation: the failure must not re-enter initialisation through console capture.
+    expect((globalThis as unknown as { WebSocket: unknown }).WebSocket).toHaveBeenCalledTimes(1);
     expect(() => { logger.info('still works', 'App'); }).not.toThrow();
 
     expect(logger.getLogs().some(entry => entry.message === 'still works')).toBe(true);
