@@ -51,9 +51,9 @@ pnpm run test:coverage    # coverage report in coverage/
 pnpm run test:ui          # interactive UI
 ```
 
-Coverage is measured with Istanbul (`@vitest/coverage-istanbul`), which counts statements, functions and branches on source nodes. Thresholds are set in `vitest.config.ts`: lines 41, functions 35, branches 30, statements 40.
+Coverage is measured with Istanbul (`@vitest/coverage-istanbul`), which counts statements, functions and branches on source nodes. Thresholds are set in `vitest.config.ts`: lines 49, functions 43, branches 36, statements 48.
 
-These values were recalibrated when the coverage method changed from V8 (Vitest 2) to Istanbul (Vitest 5). The old values (44, 54, 74, 44) were set against V8 counts, which do not measure the same things, so the two sets are not comparable. Each new value keeps the regression tolerance of its predecessor, about 10 points for lines, statements and functions and about 9 points for branches, measured from the current baseline. A larger drop fails the gate. The raise to 80% is tracked separately.
+These values were recalibrated when the coverage method changed from V8 (Vitest 2) to Istanbul (Vitest 5). The old values (44, 54, 74, 44) were set against V8 counts, which do not measure the same things, so the two sets are not comparable. Each new value sits 3 points below the lowest baseline measured for Istanbul on Vitest 5: lines 52.28, statements 50.90, functions 46.07, branches 39.10. The operator approved this tighter tolerance on 2026-10-21. The run-to-run spread measured on the same tests is under one point per metric, so a drop of more than 3 points is a real regression. A larger drop fails the gate. The raise to 80% is tracked separately.
 
 ## Browser smoke tests
 
