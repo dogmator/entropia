@@ -37,10 +37,10 @@ describe('simulation determinism — documented model', () => {
     expect(serialize(runEngine(SEED, TICKS))).not.toBe(serialize(runEngine(OTHER_SEED, TICKS)));
   });
 
-  // Open defect, pinned on purpose: continuing an imported snapshot does not yet reproduce the uninterrupted run.
-  // The export/import round trip is exact (see SnapshotRoundTrip.test.ts), but the first ticks after import diverge.
-  // The cause is not isolated yet. This test must flip to an equality check once the defect is fixed.
-  it('documents that continuing an imported snapshot is not yet exact (open defect)', () => {
+  // Continuing an imported snapshot reproduces the uninterrupted run. The restored engine starts from another seed,
+  // so the snapshot must carry the full stream and the derived state it needs. See SnapshotContinuation.test.ts for
+  // more seeds and checkpoints.
+  it('continues an imported snapshot exactly as the uninterrupted run', () => {
     const expected = serialize(runEngine(SEED, TICKS));
     const snapshot = runEngine(SEED, HALF_TICKS).exportState();
 
@@ -49,13 +49,12 @@ describe('simulation determinism — documented model', () => {
     restored.start();
     for (let i = 0; i < HALF_TICKS; i++) restored.update();
 
-    expect(serialize(restored)).not.toBe(expected);
+    expect(serialize(restored)).toBe(expected);
   });
 
-  // Known limitation, pinned on purpose: the RNG lives in one module-level stream (core/utils/Random).
-  // Creating a second engine resets it, so two engines in the same realm interfere. Fixing this needs a
-  // per-engine RNG, which is an architectural change. When that lands, this test must flip and the docs change.
-  it('documents the limitation that engines in one realm share one RNG stream', () => {
+  // Each engine owns its RNG stream. Constructing a second engine in the same realm must not change this one.
+  // The detailed isolation matrix lives in RngIsolation.test.ts.
+  it('keeps the RNG stream of an engine independent of a second engine in the same realm', () => {
     const expected = serialize(runEngine(SEED, TICKS));
 
     const interleaved = new SimulationEngine(1, { seed: SEED });
@@ -65,6 +64,6 @@ describe('simulation determinism — documented model', () => {
     expect(intruder.getSeed()).toBe(OTHER_SEED);
     for (let i = HALF_TICKS; i < TICKS; i++) interleaved.update();
 
-    expect(serialize(interleaved)).not.toBe(expected);
+    expect(serialize(interleaved)).toBe(expected);
   });
 });

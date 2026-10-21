@@ -20,7 +20,7 @@ import { PhysicsSystem } from '@simulation/systems/Physics.system';
 import { ReproductionSystem } from '@simulation/systems/Reproduction.system';
 
 import { createWorldConfig, ENGINE_CONSTANTS, GENETICS, INITIAL_VIS_CONFIG, PHYSICS, REPRODUCTION_ENERGY_THRESHOLD } from '@/config';
-import { EventBus, logger, PerformanceMonitor, Random } from '@/core';
+import { EventBus, logger, PerformanceMonitor, RandomStream } from '@/core';
 import type {
     CameraData, EcologicalZone, GeneticTreeNode, GenomeId, RenderBuffers,
     SerializedSimulationStateV1, SimulationConfig, SimulationEvent, SimulationStats, WorldConfig,
@@ -46,6 +46,8 @@ export class SimulationEngine implements IPersistableEngine {
     public set foodIdCounter(v: number) { this.tickLoop.foodIdCounter = v; }
     public obstacleIdCounter = 0;
     public seed: number;
+    // Owned by this engine only. Systems and factories receive this instance, so no other engine can reset it.
+    public readonly random: RandomStream;
 
     // Systems and managers — public for PersistenceService and tests
     public readonly entityManager: EntityManager;
@@ -76,7 +78,7 @@ export class SimulationEngine implements IPersistableEngine {
     constructor(scale = 1.0, options?: { seed?: number }) {
         const seed = options?.seed ?? ((Math.random() * ENGINE_CONSTANTS.SEED_LIMIT) >>> 0); // eslint-disable-line sonarjs/pseudo-random
         this.seed = seed >>> 0;
-        Random.reset(this.seed);
+        this.random = new RandomStream(this.seed);
         this.worldConfig = createWorldConfig(scale);
         this.config = this.buildDefaultConfig();
 
@@ -89,15 +91,15 @@ export class SimulationEngine implements IPersistableEngine {
 
         this.physicsSystem = new PhysicsSystem(this.worldConfig);
         this.metabolismSystem = new MetabolismSystem();
-        this.collisionSystem = new CollisionSystem(this.gridManager, this.eventBus, this.worldConfig);
+        this.collisionSystem = new CollisionSystem(this.gridManager, this.eventBus, this.worldConfig, this.random);
         this.behaviorSystem = new BehaviorSystem(this.gridManager, { config: this.config, zones: this.zones, worldConfig: this.worldConfig });
         this.foodAnomalyGuard = new FoodAnomalyGuard(this.worldConfig);
 
         buildZones(this.worldConfig, this.zones);
-        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter);
+        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter, this.random);
         this.gridManager.initializeStatic(this.entityManager.obstacles);
 
-        this.spawnService = new SpawnService(this.eventBus, this.gridManager, this.zones, this.obstacles, {}, this.worldConfig);
+        this.spawnService = new SpawnService(this.eventBus, this.gridManager, this.zones, this.obstacles, this.random, {}, this.worldConfig);
         this.performanceMonitor = new PerformanceMonitor();
         this.bufferManager = new BufferManager(true);
         this.statisticsManager = new StatisticsManager(this.worldConfig);
@@ -124,7 +126,7 @@ export class SimulationEngine implements IPersistableEngine {
         const tickCtx = {
             tick: 0, foodIdCounter: 0,
             organisms: this.organisms, food: this.food, obstacles: this.obstacles,
-            zones: this.zones, deadOrganisms: this.deadOrganisms, config: this.config,
+            zones: this.zones, deadOrganisms: this.deadOrganisms, config: this.config, random: this.random,
             entityManager: this.entityManager, gridManager: this.gridManager,
             behaviorSystem: this.behaviorSystem, physicsSystem: this.physicsSystem,
             metabolismSystem: this.metabolismSystem, collisionSystem: this.collisionSystem,
@@ -192,7 +194,9 @@ export class SimulationEngine implements IPersistableEngine {
         this.bufferManager.reset();
         this.eventBus.clearHistory();
         buildZones(this.worldConfig, this.zones);
-        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter);
+        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter, this.random);
+        // The static grid is built from obstacles only, so it must follow every regeneration of them.
+        this.gridManager.initializeStatic(this.entityManager.obstacles);
         buildInitialPopulation({
             spawnService: this.spawnService,
             entityManager: this.entityManager,
@@ -230,7 +234,7 @@ export class SimulationEngine implements IPersistableEngine {
     public getStatsWithWorldData(): SimulationStats { return this.getStats(); }
     public getTick(): number { return this.tickLoop.tick; }
     public getSeed(): number { return this.seed; }
-    public setSeed(seed: number): void { this.seed = seed >>> 0; Random.reset(this.seed); }
+    public setSeed(seed: number): void { this.seed = seed >>> 0; this.random.reset(this.seed); }
     public getZones(): Map<string, EcologicalZone> { return this.entityQuery.getZones(); }
     public getPerformanceMonitor(): PerformanceMonitor { return this.performanceMonitor; }
     public getGeneticTree(): ReturnType<typeof this.reproductionSystem.getGeneticTreeInfo> {

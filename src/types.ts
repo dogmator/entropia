@@ -326,6 +326,11 @@ export interface SerializedFood {
   currentEnergy: number;
   spawnTime: number;
   consumed: boolean;
+  /**
+   * Tick of the last bite, or null if the food was never bitten. Optional for snapshots written before this field
+   * existed. Importing such a snapshot restores every item as never bitten and logs a warning.
+   */
+  lastBiteTick?: number | null;
 }
 
 export interface SerializedObstacle {

@@ -12,12 +12,16 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { RandomStream } from '@/core/utils/Random.utils';
+
 import type { EcologicalZone, Genome, PredatorGenome,PreyGenome, SimulationConfig, WorldConfig } from '../../../types';
 import { createGenomeId, createOrganismId, EntityType, PredatorSubtype,ZoneType } from '../../../types';
 import type { Food } from '../../Entity';
 import { Organism } from '../../Entity';
 import { GridManager } from '../../managers/GridManager.manager';
 import { BehaviorSystem } from '../Behavior.system';
+
+const rng = new RandomStream(1);
 
 /**
  * Мінімальна конфігурація для тестування.
@@ -113,8 +117,8 @@ describe('BehaviorSystem — Steering Behaviors', () => {
             const organisms = new Map<string, Organism>();
 
             // Два організми дуже близько один до одного
-            const org1 = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, createTestGenome());
-            const org2 = new Organism(createOrganismId('org-2'), { x: 51, y: 50, z: 50 }, createTestGenome());
+            const org1 = new Organism(createOrganismId('org-1'), { x: 50, y: 50, z: 50 }, createTestGenome(), rng);
+            const org2 = new Organism(createOrganismId('org-2'), { x: 51, y: 50, z: 50 }, createTestGenome(), rng);
 
             organisms.set(org1.id, org1);
             organisms.set(org2.id, org2);
@@ -137,7 +141,7 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('травоїдний повинен рухатись до їжі', () => {
             const organisms = new Map<string, Organism>();
 
-            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY), rng);
             organisms.set(prey.id, prey);
 
             // Їжа справа від prey
@@ -164,8 +168,8 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('жертва повинна тікати від хижака', () => {
             const organisms = new Map<string, Organism>();
 
-            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
-            const predator = new Organism(createOrganismId('pred-1'), { x: 55, y: 50, z: 50 }, createTestGenome(EntityType.PREDATOR));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY), rng);
+            const predator = new Organism(createOrganismId('pred-1'), { x: 55, y: 50, z: 50 }, createTestGenome(EntityType.PREDATOR), rng);
 
             organisms.set(prey.id, prey);
             organisms.set(predator.id, predator);
@@ -198,7 +202,7 @@ describe('BehaviorSystem — Steering Behaviors', () => {
             behavior = new BehaviorSystem(gridManager, { config, zones, worldConfig });
 
             const organisms = new Map<string, Organism>();
-            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 50, y: 50, z: 50 }, createTestGenome(EntityType.PREY), rng);
             organisms.set(prey.id, prey);
 
             // Їжа в зоні
@@ -227,7 +231,7 @@ describe('BehaviorSystem — Steering Behaviors', () => {
         it('не повинен обробляти мертві організми', () => {
             const organisms = new Map<string, Organism>();
 
-            const deadOrg = new Organism(createOrganismId('dead-1'), { x: 50, y: 50, z: 50 }, createTestGenome());
+            const deadOrg = new Organism(createOrganismId('dead-1'), { x: 50, y: 50, z: 50 }, createTestGenome(), rng);
             deadOrg.die('starvation');
 
             organisms.set(deadOrg.id, deadOrg);

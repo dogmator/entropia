@@ -13,12 +13,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EventBus } from '@/core';
+import { RandomStream } from '@/core/utils/Random.utils';
 import type { EcologicalZone, Genome, WorldConfig } from '@/types';
 import { createGenomeId, createOrganismId, EntityType } from '@/types';
 
 import { Food, Obstacle, Organism } from '../../Entity';
 import { GridManager } from '../../managers/GridManager.manager';
 import { CollisionSystem } from '../Collision.system';
+
+const rng = new RandomStream(1);
 
 /**
  * Мінімальний геном для тестування.
@@ -56,7 +59,7 @@ describe('CollisionSystem', () => {
         worldConfig = createWorldConfig();
         gridManager = new GridManager(worldConfig.WORLD_SIZE, 50);
         eventBus = new EventBus();
-        collisionSystem = new CollisionSystem(gridManager, eventBus, worldConfig);
+        collisionSystem = new CollisionSystem(gridManager, eventBus, worldConfig, rng);
     });
 
     describe('isColliding', () => {
@@ -91,7 +94,7 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY), rng);
             const foodItem = Food.create(1, 10.5, 10.5, 10.5); // Дуже близько до prey
 
             organisms.set(prey.id, prey);
@@ -123,7 +126,7 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR), rng);
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(predator.id, predator);
@@ -150,8 +153,8 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR));
-            const prey = new Organism(createOrganismId('prey-1'), { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY));
+            const predator = new Organism(createOrganismId('pred-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREDATOR), rng);
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10.5, y: 10.5, z: 10.5 }, createTestGenome(EntityType.PREY), rng);
 
             organisms.set(predator.id, predator);
             organisms.set(prey.id, prey);
@@ -179,10 +182,10 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY), rng);
             prey.velocity = { x: 5, y: 1, z: 0 }; // Має нормальну + тангенціальну компоненти
 
-            const obstacle = Obstacle.create(1, 12, 10, 10, 3); // Близько до prey
+            const obstacle = Obstacle.create(1, 12, 10, 10, 3, rng); // Близько до prey
 
             organisms.set(prey.id, prey);
             obstacles.set(obstacle.id, obstacle);
@@ -203,7 +206,7 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY), rng);
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(prey.id, prey);
@@ -239,7 +242,7 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-1'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY), rng);
             const foodItem = Food.create(1, 10.5, 10.5, 10.5);
 
             organisms.set(prey.id, prey);
@@ -264,7 +267,7 @@ describe('CollisionSystem', () => {
             const obstacles = new Map<string, Obstacle>();
             const zones = new Map<string, EcologicalZone>();
 
-            const prey = new Organism(createOrganismId('prey-zone-freeze'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY));
+            const prey = new Organism(createOrganismId('prey-zone-freeze'), { x: 10, y: 10, z: 10 }, createTestGenome(EntityType.PREY), rng);
             prey.velocity = { x: 2, y: 1, z: -1 };
             prey.acceleration = { x: 1, y: 1, z: 1 };
             organisms.set(prey.id, prey);
