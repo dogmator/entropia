@@ -195,6 +195,8 @@ export class SimulationEngine implements IPersistableEngine {
         this.eventBus.clearHistory();
         buildZones(this.worldConfig, this.zones);
         this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter, this.random);
+        // The static grid is built from obstacles only, so it must follow every regeneration of them.
+        this.gridManager.initializeStatic(this.entityManager.obstacles);
         buildInitialPopulation({
             spawnService: this.spawnService,
             entityManager: this.entityManager,

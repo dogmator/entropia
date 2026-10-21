@@ -37,10 +37,10 @@ describe('simulation determinism — documented model', () => {
     expect(serialize(runEngine(SEED, TICKS))).not.toBe(serialize(runEngine(OTHER_SEED, TICKS)));
   });
 
-  // Open defect, pinned on purpose: continuing an imported snapshot does not yet reproduce the uninterrupted run.
-  // The export/import round trip is exact (see SnapshotRoundTrip.test.ts), but the first ticks after import diverge.
-  // The cause is not isolated yet. This test must flip to an equality check once the defect is fixed.
-  it('documents that continuing an imported snapshot is not yet exact (open defect)', () => {
+  // Continuing an imported snapshot reproduces the uninterrupted run. The restored engine starts from another seed,
+  // so the snapshot must carry the full stream and the derived state it needs. See SnapshotContinuation.test.ts for
+  // more seeds and checkpoints.
+  it('continues an imported snapshot exactly as the uninterrupted run', () => {
     const expected = serialize(runEngine(SEED, TICKS));
     const snapshot = runEngine(SEED, HALF_TICKS).exportState();
 
@@ -49,7 +49,7 @@ describe('simulation determinism — documented model', () => {
     restored.start();
     for (let i = 0; i < HALF_TICKS; i++) restored.update();
 
-    expect(serialize(restored)).not.toBe(expected);
+    expect(serialize(restored)).toBe(expected);
   });
 
   // Each engine owns its RNG stream. Constructing a second engine in the same realm must not change this one.

@@ -1,4 +1,5 @@
 import { WORLD_SIZE } from '@/config';
+import { logger } from '@/core';
 import type {
     EcologicalZone,
     GeneticTreeNode,
@@ -14,6 +15,8 @@ import type {
 import {
     createFoodId,
     createObstacleId,
+    EntityType,
+    PredatorSubtype,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
 
@@ -33,6 +36,53 @@ interface FoodAnomalyCheckParams {
     obstacles: Iterable<{ position: Vector3; radius: number }>;
     worldSize: number;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+const isFiniteNumber = (value: unknown): boolean => typeof value === 'number' && Number.isFinite(value);
+const isStringArray = (value: unknown): boolean => Array.isArray(value) && value.every(item => typeof item === 'string');
+const requireFiniteFields = (container: Record<string, unknown>, section: string, keys: string[]): void => {
+    for (const key of keys) {
+        if (!isFiniteNumber(container[key])) throw new Error(`Invalid simulation snapshot: ${section}.${key} must be a finite number`);
+    }
+};
+const isGeneticTreeLinks = (node: Record<string, unknown>): boolean => typeof node['id'] === 'string'
+    && (node['parentId'] === null || typeof node['parentId'] === 'string')
+    && isStringArray(node['children']);
+const isGeneticTreeValues = (node: Record<string, unknown>): boolean => isFiniteNumber(node['generation'])
+    && isFiniteNumber(node['born'])
+    && (node['died'] === null || isFiniteNumber(node['died']))
+    && Object.values<unknown>(EntityType).includes(node['type']);
+const isGeneticTreeNode = (node: unknown): boolean => {
+    if (!isRecord(node) || !isGeneticTreeLinks(node) || !isGeneticTreeValues(node)) return false;
+    const traits = node['traits'];
+    return isRecord(traits) && ['speed', 'sense', 'size'].every(key => isFiniteNumber(traits[key]));
+};
+
+// Numeric fields that every genome carries, whatever its type. The exporter writes all of them.
+const GENOME_NUMBER_FIELDS = ['generation', 'color', 'maxSpeed', 'senseRadius', 'metabolism', 'size', 'asymmetry', 'spikiness', 'glowIntensity'];
+
+// Checks the genome of the organism at the given index. A missing or invalid field would reach the simulation as
+// undefined or NaN values, so the snapshot is rejected before the engine is touched.
+const requireGenome = (organism: unknown, index: number): void => {
+    const section = `organism ${String(index)} genome`;
+    const genome = isRecord(organism) ? organism['genome'] : undefined;
+    if (!isRecord(genome)) throw new Error(`Invalid simulation snapshot: ${section} is missing`);
+    if (typeof genome['id'] !== 'string') throw new Error(`Invalid simulation snapshot: ${section}.id must be a string`);
+    if (genome['parentId'] !== null && typeof genome['parentId'] !== 'string') {
+        throw new Error(`Invalid simulation snapshot: ${section}.parentId must be a string or null`);
+    }
+    if (genome['type'] === EntityType.PREY) {
+        requireFiniteFields(genome, section, ['flockingStrength']);
+    } else if (genome['type'] === EntityType.PREDATOR) {
+        if (!Object.values<unknown>(PredatorSubtype).includes(genome['subtype'])) {
+            throw new Error(`Invalid simulation snapshot: ${section}.subtype must be a predator subtype`);
+        }
+        requireFiniteFields(genome, section, ['attackPower', 'packAffinity']);
+    } else {
+        throw new Error(`Invalid simulation snapshot: ${section}.type must be PREY or PREDATOR`);
+    }
+    requireFiniteFields(genome, section, GENOME_NUMBER_FIELDS);
+};
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class PersistenceService {
@@ -111,6 +161,8 @@ export class PersistenceService {
                 currentEnergy: f.currentEnergy,
                 spawnTime: f.spawnTime,
                 consumed: f.consumed,
+                // JSON cannot represent -Infinity, the value of a food item that was never bitten.
+                lastBiteTick: Number.isFinite(f.lastBiteTick) ? f.lastBiteTick : null,
             })),
             organisms: Array.from(engine.organisms.values()).map(o => {
                 const persistedOrganism = o as Organism & PersistedOrganismRuntime;
@@ -175,8 +227,62 @@ export class PersistenceService {
         return state;
     }
 
+    /**
+     * Rejects snapshots this version cannot import. Runs before the engine is touched, and checks every field that
+     * importState needs to run to completion or to derive ids, so a rejected snapshot leaves the active engine unchanged.
+     */
+    private static assertImportable(state: unknown): asserts state is SerializedSimulationStateV1 {
+        const isVector = (value: unknown): boolean => isRecord(value) && isFiniteNumber(value['x']) && isFiniteNumber(value['y']) && isFiniteNumber(value['z']);
+        const requireArray = (container: Record<string, unknown>, key: string): unknown[] => {
+            const value = container[key];
+            if (!Array.isArray(value)) throw new Error(`Invalid simulation snapshot: ${key} must be an array`);
+            return value;
+        };
+
+        if (!isRecord(state)) throw new Error('Invalid simulation snapshot: not an object');
+        if (state['version'] !== 1) throw new Error(`Unsupported simulation snapshot version: ${String(state['version'])}`);
+        for (const key of ['seed', 'rngState', 'tick']) {
+            if (!isFiniteNumber(state[key])) throw new Error(`Invalid simulation snapshot: ${key} must be a finite number`);
+        }
+        const counters = state['counters'];
+        const stats = state['stats'];
+        const geneticTree = state['geneticTree'];
+        if (!isRecord(counters)) throw new Error('Invalid simulation snapshot: counters is missing');
+        if (!isRecord(stats)) throw new Error('Invalid simulation snapshot: stats is missing');
+        if (!isRecord(geneticTree)) throw new Error('Invalid simulation snapshot: geneticTree is missing');
+        requireFiniteFields(counters, 'counters', ['foodIdCounter', 'obstacleIdCounter', 'organismIdCounter', 'genomeIdCounter']);
+        requireFiniteFields(stats, 'stats', ['totalDeaths', 'totalBirths']);
+        if (!isStringArray(geneticTree['roots'])) throw new Error('Invalid simulation snapshot: geneticTree.roots must be an array of strings');
+        requireArray(geneticTree, 'nodes').forEach((node, i) => {
+            if (!isGeneticTreeNode(node)) throw new Error(`Invalid genetic tree node at index ${String(i)}`);
+        });
+
+        requireArray(state, 'zones').forEach((z, i) => {
+            if (!isRecord(z) || typeof z['id'] !== 'string' || !isVector(z['center']) || !isFiniteNumber(z['radius'])) {
+                throw new Error(`Invalid zone at index ${String(i)}`);
+            }
+        });
+        requireArray(state, 'obstacles').forEach((o, i) => {
+            if (!isRecord(o) || typeof o['id'] !== 'string' || !isVector(o['position']) || !isFiniteNumber(o['radius'])) {
+                throw new Error(`Invalid obstacle at index ${String(i)}`);
+            }
+        });
+        requireArray(state, 'food').forEach((f, i) => {
+            if (!isRecord(f) || typeof f['id'] !== 'string' || !isVector(f['position']) || !isFiniteNumber(f['currentEnergy'])) {
+                throw new Error(`Invalid food at index ${String(i)}`);
+            }
+        });
+        requireArray(state, 'organisms').forEach((o, i) => {
+            const isValid = isRecord(o) && typeof o['id'] === 'string' && isVector(o['position'])
+                && isVector(o['velocity']) && isVector(o['acceleration']) && isFiniteNumber(o['energy']);
+            if (!isValid) throw new Error(`Invalid organism at index ${String(i)}`);
+            requireGenome(o, i);
+        });
+    }
+
     // eslint-disable-next-line max-lines-per-function
     public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
+        PersistenceService.assertImportable(state);
         type EngineMutableShape = IPersistableEngine & {
             seed: number;
             tick: number;
@@ -257,10 +363,14 @@ export class PersistenceService {
             );
             engine.obstacles.set(o.id, obstacle);
         });
+        // The static grid still holds the obstacles of the previous world. Rebuild it from the imported ones.
+        engine.gridManager.initializeStatic(engine.obstacles);
 
         const worldSize = PersistenceService.resolveWorldSize(engine);
 
         engine.food.clear();
+        let droppedFood = 0;
+        let legacyFood = 0;
         state.food.forEach(f => {
             if (PersistenceService.isFoodBlockedByAnomaly({
                 position: f.position,
@@ -268,6 +378,7 @@ export class PersistenceService {
                 obstacles: engine.obstacles.values(),
                 worldSize,
             })) {
+                droppedFood++;
                 return;
             }
 
@@ -280,8 +391,16 @@ export class PersistenceService {
             food.radius = f.radius;
             food.currentEnergy = f.currentEnergy;
             food.consumed = f.consumed;
+            if (f.lastBiteTick === undefined) legacyFood++;
+            food.lastBiteTick = f.lastBiteTick ?? Number.NEGATIVE_INFINITY;
             engine.food.set(f.id, food);
         });
+        if (droppedFood > 0) {
+            logger.warn('Snapshot food inside an obstacle or outside the world was dropped', 'Persistence', { count: droppedFood });
+        }
+        if (legacyFood > 0) {
+            logger.warn('Snapshot has no food bite cooldown; restoring it as never bitten', 'Persistence', { count: legacyFood });
+        }
 
         engine.organisms.clear();
         state.organisms.forEach(o => {
