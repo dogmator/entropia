@@ -1,5 +1,5 @@
+import type { RandomStream } from '@/core';
 import { logger } from '@/core';
-import { Random } from '@/core';
 import type { EcologicalZone, WorldConfig } from '@/types';
 import { EntityType, ZoneType } from '@/types';
 
@@ -71,17 +71,19 @@ export function buildZones(worldConfig: WorldConfig, zones: Map<string, Ecologic
     });
 }
 
-export function buildObstacles(worldConfig: WorldConfig, entityManager: EntityManager, counterStart: number): number {
+// eslint-disable-next-line max-params
+export function buildObstacles(worldConfig: WorldConfig, entityManager: EntityManager, counterStart: number, rng: RandomStream): number {
     let counter = counterStart;
     const count = ENGINE_CONSTANTS.OBSTACLE_COUNT;
     for (let i = 0; i < count; i++) {
-        const radius = ENGINE_CONSTANTS.OBSTACLE_MIN_RADIUS + Random.next() * ENGINE_CONSTANTS.OBSTACLE_RADIUS_RANGE;
+        const radius = ENGINE_CONSTANTS.OBSTACLE_MIN_RADIUS + rng.next() * ENGINE_CONSTANTS.OBSTACLE_RADIUS_RANGE;
         const obstacle = Obstacle.create(
             ++counter,
-            Random.next() * worldConfig.WORLD_SIZE,
-            Random.next() * worldConfig.WORLD_SIZE,
-            Random.next() * worldConfig.WORLD_SIZE,
-            radius
+            rng.next() * worldConfig.WORLD_SIZE,
+            rng.next() * worldConfig.WORLD_SIZE,
+            rng.next() * worldConfig.WORLD_SIZE,
+            radius,
+            rng
         );
         entityManager.addObstacle(obstacle);
     }

@@ -1,5 +1,4 @@
 import { WORLD_SIZE } from '@/config';
-import { Random } from '@/core/utils/Random.utils';
 import type {
     EcologicalZone,
     GeneticTreeNode,
@@ -71,7 +70,7 @@ export class PersistenceService {
         const state: SerializedSimulationStateV1 = {
             version: 1,
             seed: engine.seed,
-            rngState: Random.getState(),
+            rngState: engine.random.getState(),
             tick: engine.tick,
             counters: {
                 foodIdCounter: engine.foodIdCounter,
@@ -205,8 +204,8 @@ export class PersistenceService {
 
         // Reset systems before loading state
         mutableEngine.seed = state.seed >>> 0;
-        Random.reset(engine.seed);
-        Random.setState(state.rngState >>> 0);
+        engine.random.reset(engine.seed);
+        engine.random.setState(state.rngState >>> 0);
         mutableEngine.tick = state.tick;
         mutableEngine.foodIdCounter = state.counters.foodIdCounter;
         mutableEngine.obstacleIdCounter = state.counters.obstacleIdCounter;
@@ -290,6 +289,7 @@ export class PersistenceService {
                 o.id as OrganismId,
                 { ...o.position },
                 o.genome as unknown as Genome,
+                engine.random,
                 o.parentOrganismId ? o.parentOrganismId as OrganismId : null,
                 o.energy
             );
@@ -308,7 +308,7 @@ export class PersistenceService {
             engine.organisms.set(o.id, organism);
         });
 
-        Random.setState(state.rngState >>> 0);
+        engine.random.setState(state.rngState >>> 0);
 
         mutableEngine.statisticsManager.reset();
         mutableEngine.statisticsManager.incrementDeaths(state.stats.totalDeaths);

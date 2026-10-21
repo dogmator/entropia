@@ -1,3 +1,4 @@
+import type { RandomStream } from '@/core/utils/Random.utils';
 import type {
     EcologicalZone,
     GeneticTreeNode,
@@ -13,6 +14,7 @@ import type { Food, Obstacle, Organism } from '../Entity';
 
 export interface IPersistableEngine {
     readonly seed: number;
+    readonly random: RandomStream;
     readonly tick: number;
     readonly config: SimulationConfig;
     readonly foodIdCounter: number;

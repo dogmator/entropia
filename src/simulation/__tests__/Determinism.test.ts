@@ -52,10 +52,9 @@ describe('simulation determinism — documented model', () => {
     expect(serialize(restored)).not.toBe(expected);
   });
 
-  // Known limitation, pinned on purpose: the RNG lives in one module-level stream (core/utils/Random).
-  // Creating a second engine resets it, so two engines in the same realm interfere. Fixing this needs a
-  // per-engine RNG, which is an architectural change. When that lands, this test must flip and the docs change.
-  it('documents the limitation that engines in one realm share one RNG stream', () => {
+  // Each engine owns its RNG stream. Constructing a second engine in the same realm must not change this one.
+  // The detailed isolation matrix lives in RngIsolation.test.ts.
+  it('keeps the RNG stream of an engine independent of a second engine in the same realm', () => {
     const expected = serialize(runEngine(SEED, TICKS));
 
     const interleaved = new SimulationEngine(1, { seed: SEED });
@@ -65,6 +64,6 @@ describe('simulation determinism — documented model', () => {
     expect(intruder.getSeed()).toBe(OTHER_SEED);
     for (let i = HALF_TICKS; i < TICKS; i++) interleaved.update();
 
-    expect(serialize(interleaved)).not.toBe(expected);
+    expect(serialize(interleaved)).toBe(expected);
   });
 });
