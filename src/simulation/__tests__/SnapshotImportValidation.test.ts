@@ -165,6 +165,60 @@ describe('snapshot import validation: organism genomes', () => {
   });
 });
 
+describe('snapshot import validation: organism genome traits by type', () => {
+  it('rejects a prey genome without flockingStrength without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    delete genomeOf(snapshot, 'PREY')['flockingStrength'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/flockingStrength/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a predator genome without attackPower without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    delete genomeOf(snapshot, 'PREDATOR')['attackPower'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/attackPower/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a predator genome without packAffinity without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    delete genomeOf(snapshot, 'PREDATOR')['packAffinity'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/packAffinity/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+});
+
+describe('snapshot import validation: organism genome identity', () => {
+  it('rejects a genome without an id without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    delete genomeOf(snapshot, 'PREY')['id'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/genome\.id/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a genome whose parentId is neither null nor a string without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    genomeOf(snapshot, 'PREY')['parentId'] = 7;
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/parentId/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+});
+
 describe('snapshot import compatibility', () => {
   it('imports a snapshot written before lastBiteTick existed and keeps every genome unchanged', () => {
     const engine = createActiveEngine();
