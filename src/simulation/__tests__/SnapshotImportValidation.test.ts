@@ -113,3 +113,76 @@ describe('snapshot import validation: genetic tree and counters', () => {
     expect(JSON.stringify(engine.exportState())).toBe(before);
   });
 });
+
+// Returns the genome of the first organism of the given type, so a test can corrupt one kind of genome.
+const genomeOf = (snapshot: Loose, type: string): Loose => {
+  const genome = (snapshot['organisms'] as Loose[]).map(organism => organism['genome'] as Loose).find(g => g['type'] === type);
+  if (!genome) throw new Error(`precondition: the snapshot must contain a ${type} genome`);
+  return genome;
+};
+
+describe('snapshot import validation: organism genomes', () => {
+  it('rejects an organism with an empty genome without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    const first = (snapshot['organisms'] as Loose[])[0];
+    if (!first) throw new Error('precondition: the snapshot must contain organisms');
+    first['genome'] = {};
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/genome/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a prey genome without a required trait without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    delete genomeOf(snapshot, 'PREY')['maxSpeed'];
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/maxSpeed/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a predator genome with an unknown subtype without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    genomeOf(snapshot, 'PREDATOR')['subtype'] = 'SCAVENGER';
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/subtype/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+
+  it('rejects a genome with an unknown type without changing the active engine', () => {
+    const engine = createActiveEngine();
+    const before = JSON.stringify(engine.exportState());
+    const snapshot = asLoose(createSnapshot());
+    genomeOf(snapshot, 'PREY')['type'] = 'FOOD';
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).toThrow(/genome\.type/);
+    expect(JSON.stringify(engine.exportState())).toBe(before);
+  });
+});
+
+describe('snapshot import compatibility', () => {
+  it('imports a snapshot written before lastBiteTick existed and keeps every genome unchanged', () => {
+    const engine = createActiveEngine();
+    const snapshot = asLoose(createSnapshot());
+    for (const food of snapshot['food'] as Loose[]) delete food['lastBiteTick'];
+    const legacy = JSON.parse(JSON.stringify(snapshot)) as SerializedSimulationStateV1;
+    const genomesBefore = JSON.stringify(legacy.organisms.map(organism => organism.genome));
+
+    expect(() => { engine.importState(legacy); }).not.toThrow();
+    expect(JSON.stringify(engine.exportState().organisms.map(organism => organism.genome))).toBe(genomesBefore);
+  });
+
+  it('accepts prey genomes without predator fields and predator genomes without prey fields', () => {
+    const engine = createActiveEngine();
+    const snapshot = asLoose(createSnapshot());
+    expect(genomeOf(snapshot, 'PREY')).not.toHaveProperty('subtype');
+    expect(genomeOf(snapshot, 'PREDATOR')).not.toHaveProperty('flockingStrength');
+
+    expect(() => { engine.importState(snapshot as unknown as SerializedSimulationStateV1); }).not.toThrow();
+  });
+});

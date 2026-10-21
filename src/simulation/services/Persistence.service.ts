@@ -16,6 +16,7 @@ import {
     createFoodId,
     createObstacleId,
     EntityType,
+    PredatorSubtype,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
 
@@ -55,6 +56,32 @@ const isGeneticTreeNode = (node: unknown): boolean => {
     if (!isRecord(node) || !isGeneticTreeLinks(node) || !isGeneticTreeValues(node)) return false;
     const traits = node['traits'];
     return isRecord(traits) && ['speed', 'sense', 'size'].every(key => isFiniteNumber(traits[key]));
+};
+
+// Numeric fields that every genome carries, whatever its type. The exporter writes all of them.
+const GENOME_NUMBER_FIELDS = ['generation', 'color', 'maxSpeed', 'senseRadius', 'metabolism', 'size', 'asymmetry', 'spikiness', 'glowIntensity'];
+
+// Checks the genome of the organism at the given index. A missing or invalid field would reach the simulation as
+// undefined or NaN values, so the snapshot is rejected before the engine is touched.
+const requireGenome = (organism: unknown, index: number): void => {
+    const section = `organism ${String(index)} genome`;
+    const genome = isRecord(organism) ? organism['genome'] : undefined;
+    if (!isRecord(genome)) throw new Error(`Invalid simulation snapshot: ${section} is missing`);
+    if (typeof genome['id'] !== 'string') throw new Error(`Invalid simulation snapshot: ${section}.id must be a string`);
+    if (genome['parentId'] !== null && typeof genome['parentId'] !== 'string') {
+        throw new Error(`Invalid simulation snapshot: ${section}.parentId must be a string or null`);
+    }
+    if (genome['type'] === EntityType.PREY) {
+        requireFiniteFields(genome, section, ['flockingStrength']);
+    } else if (genome['type'] === EntityType.PREDATOR) {
+        if (!Object.values<unknown>(PredatorSubtype).includes(genome['subtype'])) {
+            throw new Error(`Invalid simulation snapshot: ${section}.subtype must be a predator subtype`);
+        }
+        requireFiniteFields(genome, section, ['attackPower', 'packAffinity']);
+    } else {
+        throw new Error(`Invalid simulation snapshot: ${section}.type must be PREY or PREDATOR`);
+    }
+    requireFiniteFields(genome, section, GENOME_NUMBER_FIELDS);
 };
 
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class
@@ -247,8 +274,9 @@ export class PersistenceService {
         });
         requireArray(state, 'organisms').forEach((o, i) => {
             const isValid = isRecord(o) && typeof o['id'] === 'string' && isVector(o['position'])
-                && isVector(o['velocity']) && isVector(o['acceleration']) && isFiniteNumber(o['energy']) && isRecord(o['genome']);
+                && isVector(o['velocity']) && isVector(o['acceleration']) && isFiniteNumber(o['energy']);
             if (!isValid) throw new Error(`Invalid organism at index ${String(i)}`);
+            requireGenome(o, i);
         });
     }
 
