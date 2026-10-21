@@ -27,8 +27,9 @@ const createSocket = (readyState: number): FakeSocket => ({
   onmessage: null,
 });
 
+// The Logger calls `new WebSocket(...)`. Vitest 4 and later require a regular function as the mock implementation.
 const installWebSocket = (factory: () => FakeSocket): void => {
-  (globalThis as unknown as { WebSocket: unknown }).WebSocket = vi.fn(factory);
+  (globalThis as unknown as { WebSocket: unknown }).WebSocket = vi.fn(function mockSocketConstructor() { return factory(); });
   (globalThis as unknown as { WebSocket: { OPEN: number } }).WebSocket.OPEN = OPEN_STATE;
 };
 
