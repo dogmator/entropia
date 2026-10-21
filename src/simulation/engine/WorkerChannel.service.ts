@@ -1,12 +1,13 @@
 import { logger } from '@/core';
 import type { RenderBuffers, SimulationEvent, SimulationStats, SystemMetrics } from '@/types';
 
-import { type CommandResponse, type ErrorResponse, type InitializedResponse, isWorkerResponse, type StatsResponse, type UpdatedResponse, type WorkerCommand, type WorkerResponse } from '../WorkerMessages';
+import { type CommandErrorResponse, type CommandResponse, type ErrorResponse, type InitializedResponse, isWorkerResponse, type StatsResponse, type UpdatedResponse, type WorkerCommand, type WorkerResponse } from '../WorkerMessages';
 
 const ASYNC_COMMAND_TIMEOUT_MS = 5000;
 const PERFORMANCE_HISTORY_LIMIT = 600;
 
 interface PendingRequest {
+    type: string;
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
     timeoutId: ReturnType<typeof setTimeout>;
@@ -41,6 +42,7 @@ export class WorkerChannel {
         },
         initialized: (r) => { this.callbacks.onStateUpdate(r as InitializedResponse); },
         commandResponse: (r) => { this.handleCommandResponse(r as CommandResponse); },
+        commandError: (r) => { this.handleCommandError(r as CommandErrorResponse); },
         ready: () => { /* Handled during boot */ },
     };
 
@@ -74,7 +76,7 @@ export class WorkerChannel {
                 this.pendingRequests.delete(requestId);
                 reject(new Error(`Timeout for command ${type}`));
             }, ASYNC_COMMAND_TIMEOUT_MS);
-            this.pendingRequests.set(requestId, { resolve: resolve as (v: unknown) => void, reject, timeoutId });
+            this.pendingRequests.set(requestId, { type, resolve: resolve as (v: unknown) => void, reject, timeoutId });
             worker.postMessage({ type, requestId, ...payload });
         });
     }
@@ -119,6 +121,15 @@ export class WorkerChannel {
         }
     }
 
+    private handleCommandError(response: CommandErrorResponse): void {
+        const { requestId, message } = response;
+        const request = this.pendingRequests.get(requestId);
+        if (!request) return;
+        clearTimeout(request.timeoutId);
+        request.reject(new Error(message));
+        this.pendingRequests.delete(requestId);
+    }
+
     public addEventListener(callback: (event: SimulationEvent) => void): () => void {
         this.listeners.add(callback);
         return () => { this.listeners.delete(callback); };
@@ -133,7 +144,11 @@ export class WorkerChannel {
     public get performanceHistory(): SystemMetrics[] { return this._performanceHistory; }
 
     public dispose(): void {
-        this.pendingRequests.forEach(r => { clearTimeout(r.timeoutId); });
+        // A caller must not wait forever for an answer that can no longer arrive.
+        this.pendingRequests.forEach(r => {
+            clearTimeout(r.timeoutId);
+            r.reject(new Error(`Worker channel was disposed before ${r.type} was answered`));
+        });
         this.pendingRequests.clear();
         this.listeners.clear();
     }

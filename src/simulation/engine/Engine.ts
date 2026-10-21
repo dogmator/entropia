@@ -22,7 +22,7 @@ import { ReproductionSystem } from '@simulation/systems/Reproduction.system';
 import { createWorldConfig, ENGINE_CONSTANTS, GENETICS, INITIAL_VIS_CONFIG, PHYSICS, REPRODUCTION_ENERGY_THRESHOLD } from '@/config';
 import { EventBus, logger, PerformanceMonitor, RandomStream } from '@/core';
 import type {
-    CameraData, EcologicalZone, GeneticTreeNode, GenomeId, RenderBuffers,
+    CameraData, EcologicalZone, FailsafeCounters, GeneticTreeNode, GenomeId, RenderBuffers,
     SerializedSimulationStateV1, SimulationConfig, SimulationEvent, SimulationStats, WorldConfig,
 } from '@/types';
 import { EngineState } from '@/types';
@@ -278,8 +278,12 @@ export class SimulationEngine implements IPersistableEngine {
     public exportState(): SerializedSimulationStateV1 { return PersistenceService.exportState(this); }
     public importState(state: SerializedSimulationStateV1): void {
         PersistenceService.importState(this, state);
+        // Bodies of the previous world are not part of the snapshot, so they must not outlive the import.
+        this.deadOrganisms.clear();
         this.foodAnomalyGuard.reset();
     }
+    public getFailsafeCounters(): FailsafeCounters { return this.tickLoop.getFailsafeCounters(); }
+    public setFailsafeCounters(counters: FailsafeCounters): void { this.tickLoop.setFailsafeCounters(counters); }
 
     public updateWorldScale(scale: number): void {
         logger.warning('Direct updateWorldScale not supported in-place. Re-create Engine instance.', 'Engine');

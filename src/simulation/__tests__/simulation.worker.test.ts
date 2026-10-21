@@ -2,6 +2,8 @@
 /* eslint-disable max-lines-per-function */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { SerializedSimulationStateV1 } from '@/types';
+
 import type { WorkerResponse } from '../WorkerMessages';
 
 const FRAME_MS = 1000 / 60;
@@ -171,5 +173,121 @@ describe('simulation worker — lifecycle', () => {
     send({ type: 'setConfig', config: { maxFood: 123 } });
 
     expect(responsesOfType('stats')).toHaveLength(1);
+  });
+});
+
+describe('simulation worker — snapshot commands', () => {
+  const EXPORT_REQUEST = 'exportState_1';
+  const IMPORT_REQUEST = 'importState_2';
+
+  const answersFor = (requestId: string): WorkerResponse[] =>
+    posted.filter(msg => (msg.type === 'commandResponse' || msg.type === 'commandError') && msg.requestId === requestId);
+
+  const exportLiveState = (requestId: string): SerializedSimulationStateV1 => {
+    send({ type: 'exportState', requestId });
+    const [answer] = answersFor(requestId);
+    if (answer?.type !== 'commandResponse') throw new Error(`export was not answered with a result: ${JSON.stringify(answer)}`);
+    return answer.result as SerializedSimulationStateV1;
+  };
+
+  it('answers exportState with the snapshot under the request id it was sent with', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+
+    expect(snapshot.version).toBe(1);
+    expect(snapshot.tick).toBe(0);
+  });
+
+  it('exports the tick the loop has reached, not an earlier one', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    send({ type: 'startLoop' });
+    advanceFrames(60);
+
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+    const lastReported = responsesOfType('updated').at(-1)?.tick ?? 0;
+
+    expect(snapshot.tick).toBeGreaterThan(0);
+    expect(snapshot.tick).toBeGreaterThanOrEqual(lastReported);
+  });
+
+  it('answers importState with a correlated acknowledgement carrying the restored configuration', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+    posted = [];
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: { ...snapshot, config: { ...snapshot.config, maxFood: 123 } } });
+
+    const [answer] = answersFor(IMPORT_REQUEST);
+    expect(answer?.type).toBe('commandResponse');
+    expect(answer?.type === 'commandResponse' && (answer.result as { config: { maxFood: number } }).config.maxFood).toBe(123);
+  });
+
+  it('reports a rejected importState as a commandError carrying the rejection reason', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    posted = [];
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: { version: 2 } });
+
+    const [answer] = answersFor(IMPORT_REQUEST);
+    expect(answer?.type).toBe('commandError');
+    expect(answer?.type === 'commandError' && answer.message).toContain('Unsupported simulation snapshot version');
+  });
+
+  it('keeps the live engine unchanged when an import is rejected', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const before = JSON.stringify(exportLiveState(EXPORT_REQUEST));
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: { version: 2 } });
+
+    expect(JSON.stringify(exportLiveState('exportState_3'))).toBe(before);
+  });
+
+  it('keeps the live engine unchanged when the import fails after it has already applied the snapshot', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+    const before = JSON.stringify(exportLiveState('exportState_3'));
+    const { PersistenceService } = await import('../services/Persistence.service');
+    const applySnapshot = PersistenceService.importState.bind(PersistenceService);
+    vi.spyOn(PersistenceService, 'importState').mockImplementationOnce((engine, state) => {
+      applySnapshot(engine, state);
+      throw new Error('injected failure after the snapshot was applied');
+    });
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: snapshot });
+
+    const [answer] = answersFor(IMPORT_REQUEST);
+    expect(answer?.type === 'commandError' && answer.message).toContain('injected failure after the snapshot was applied');
+    expect(JSON.stringify(exportLiveState('exportState_4'))).toBe(before);
+  });
+
+  it('answers snapshot commands sent before init with a commandError instead of silence', async () => {
+    await loadWorker();
+
+    send({ type: 'exportState', requestId: EXPORT_REQUEST });
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: { version: 1 } });
+
+    expect(answersFor(EXPORT_REQUEST).map(msg => msg.type)).toEqual(['commandError']);
+    expect(answersFor(IMPORT_REQUEST).map(msg => msg.type)).toEqual(['commandError']);
+  });
+
+  it('keeps a running loop running after a successful import', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    send({ type: 'startLoop' });
+    advanceFrames(5);
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+    posted = [];
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: snapshot });
+    advanceFrames(10);
+
+    expect(responsesOfType('updated').length).toBeGreaterThan(0);
   });
 });

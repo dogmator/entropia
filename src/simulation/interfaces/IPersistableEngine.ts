@@ -1,6 +1,7 @@
 import type { RandomStream } from '@/core/utils/Random.utils';
 import type {
     EcologicalZone,
+    FailsafeCounters,
     GeneticTreeNode,
 } from '@/types';
 import type {
@@ -28,6 +29,8 @@ export interface IPersistableEngine {
     readonly geneticTree: Map<GenomeId, GeneticTreeNode>;
 
     getStats(): SimulationStats;
+    getFailsafeCounters(): FailsafeCounters;
+    setFailsafeCounters(counters: FailsafeCounters): void;
     mapVector3(v: Vector3): { x: number; y: number; z: number };
 
     readonly spawnService: {

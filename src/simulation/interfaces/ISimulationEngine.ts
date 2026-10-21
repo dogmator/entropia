@@ -123,10 +123,10 @@ export interface ISimulationEngine {
   getGeneticRoots(): Promise<GenomeId[]>;
 
   /**
-   * Export current simulation state.
-   * @returns Serialized state
+   * Export current simulation state at a tick boundary.
+   * @returns Promise of the serialized state; rejects with the reason if the worker cannot export it
    */
-  exportState(): SerializedSimulationStateV1;
+  exportState(): Promise<SerializedSimulationStateV1>;
 
   /**
    * Update simulation configuration.

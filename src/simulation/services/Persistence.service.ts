@@ -45,6 +45,19 @@ const requireFiniteFields = (container: Record<string, unknown>, section: string
         if (!isFiniteNumber(container[key])) throw new Error(`Invalid simulation snapshot: ${section}.${key} must be a finite number`);
     }
 };
+// The snapshot's settings replace the live ones, so a non-finite value is rejected before any engine is changed. JSON
+// turns NaN into null, so null is rejected too. A key missing from the snapshot keeps its current value (legacy snapshots).
+const requireConfig = (config: unknown, template: SimulationConfig): void => {
+    if (!isRecord(config)) throw new Error('Invalid simulation snapshot: config is missing');
+    for (const [key, current] of Object.entries(template)) {
+        if (typeof current !== 'number' || config[key] === undefined) continue;
+        if (!isFiniteNumber(config[key])) throw new Error(`Invalid simulation snapshot: config.${key} must be a finite number`);
+    }
+};
+const requireFailsafe = (failsafe: unknown): void => {
+    if (!isRecord(failsafe)) throw new Error('Invalid simulation snapshot: failsafe must be an object');
+    requireFiniteFields(failsafe, 'failsafe', ['zeroPopulationTicks', 'zeroFoodTicks']);
+};
 const isGeneticTreeLinks = (node: Record<string, unknown>): boolean => typeof node['id'] === 'string'
     && (node['parentId'] === null || typeof node['parentId'] === 'string')
     && isStringArray(node['children']);
@@ -222,6 +235,7 @@ export class PersistenceService {
                     traits: { ...node.traits }
                 })),
             },
+            failsafe: engine.getFailsafeCounters(),
         };
 
         return state;
@@ -231,7 +245,7 @@ export class PersistenceService {
      * Rejects snapshots this version cannot import. Runs before the engine is touched, and checks every field that
      * importState needs to run to completion or to derive ids, so a rejected snapshot leaves the active engine unchanged.
      */
-    private static assertImportable(state: unknown): asserts state is SerializedSimulationStateV1 {
+    private static assertImportable(state: unknown, config: SimulationConfig): asserts state is SerializedSimulationStateV1 {
         const isVector = (value: unknown): boolean => isRecord(value) && isFiniteNumber(value['x']) && isFiniteNumber(value['y']) && isFiniteNumber(value['z']);
         const requireArray = (container: Record<string, unknown>, key: string): unknown[] => {
             const value = container[key];
@@ -251,7 +265,10 @@ export class PersistenceService {
         if (!isRecord(stats)) throw new Error('Invalid simulation snapshot: stats is missing');
         if (!isRecord(geneticTree)) throw new Error('Invalid simulation snapshot: geneticTree is missing');
         requireFiniteFields(counters, 'counters', ['foodIdCounter', 'obstacleIdCounter', 'organismIdCounter', 'genomeIdCounter']);
-        requireFiniteFields(stats, 'stats', ['totalDeaths', 'totalBirths']);
+        requireFiniteFields(stats, 'stats', ['totalDeaths', 'totalBirths', 'maxAge', 'maxGeneration']);
+        requireConfig(state['config'], config);
+        // Optional: snapshots written before the failsafe counters were recorded have none.
+        if (state['failsafe'] !== undefined) requireFailsafe(state['failsafe']);
         if (!isStringArray(geneticTree['roots'])) throw new Error('Invalid simulation snapshot: geneticTree.roots must be an array of strings');
         requireArray(geneticTree, 'nodes').forEach((node, i) => {
             if (!isGeneticTreeNode(node)) throw new Error(`Invalid genetic tree node at index ${String(i)}`);
@@ -282,7 +299,7 @@ export class PersistenceService {
 
     // eslint-disable-next-line max-lines-per-function
     public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
-        PersistenceService.assertImportable(state);
+        PersistenceService.assertImportable(state, engine.config);
         type EngineMutableShape = IPersistableEngine & {
             seed: number;
             tick: number;
@@ -302,6 +319,7 @@ export class PersistenceService {
                     config: SimulationConfig;
                 }) => void;
                 getStats: () => SimulationStats;
+                restoreHistoricalMaxima: (maxAge: number, maxGeneration: number) => void;
             };
         };
 
@@ -315,6 +333,9 @@ export class PersistenceService {
         mutableEngine.tick = state.tick;
         mutableEngine.foodIdCounter = state.counters.foodIdCounter;
         mutableEngine.obstacleIdCounter = state.counters.obstacleIdCounter;
+        // Systems keep a reference to this object, so its values are replaced in place instead of the object itself.
+        Object.assign(engine.config, state.config);
+        engine.setFailsafeCounters(state.failsafe ?? { zeroPopulationTicks: 0, zeroFoodTicks: 0 });
 
         factory.setIdCounter(state.counters.organismIdCounter);
         factory.setGenomeIdCounter(state.counters.genomeIdCounter);
@@ -472,5 +493,7 @@ export class PersistenceService {
             gridManager: engine.gridManager,
             config: engine.config,
         });
+        // Applied last: the maxima are cumulative, so the recorded values replace the ones derived from living organisms.
+        mutableEngine.statisticsManager.restoreHistoricalMaxima(state.stats.maxAge, state.stats.maxGeneration);
     }
 }

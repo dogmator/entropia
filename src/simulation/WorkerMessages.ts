@@ -87,6 +87,7 @@ export interface ExportStateCommand {
 
 export interface ImportStateCommand {
     readonly type: 'importState';
+    readonly requestId: string;
     readonly state: SerializedSimulationStateV1;
 }
 
@@ -161,13 +162,32 @@ export interface CommandResponse {
     readonly result: unknown;
 }
 
+/** Answers one request that failed. The message is the actual reason, so the caller can report it. */
+export interface CommandErrorResponse {
+    readonly type: 'commandError';
+    readonly requestId: string;
+    readonly message: string;
+    readonly stack?: string | undefined;
+}
+
+/** Acknowledgement of an applied snapshot: the state the live engine now reports, so the caller can refresh its copies. */
+export interface SnapshotImportResult {
+    readonly tick: number;
+    readonly stats: SimulationStats;
+    readonly config: SimulationConfig;
+    readonly worldConfig: WorldConfig;
+    readonly zones: Map<string, EcologicalZone>;
+    readonly obstacles: Map<string, IEntity>;
+}
+
 export type WorkerResponse =
     | InitializedResponse
     | UpdatedResponse
     | StatsResponse
     | ErrorResponse
     | ReadyResponse
-    | CommandResponse;
+    | CommandResponse
+    | CommandErrorResponse;
 
 // ============================================================================
 // WORKER CONSOLE FORWARDING (Worker → Main Thread)

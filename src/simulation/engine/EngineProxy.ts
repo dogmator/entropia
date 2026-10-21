@@ -3,10 +3,9 @@ import type { EcologicalZone, GenomeId, RenderBuffers, SerializedSimulationState
 
 import type { IEntity } from '../interfaces/IEntity';
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../interfaces/ISimulationEngine';
-import type { InitializedResponse, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
+import type { InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
 import { isWorkerConsoleMessage } from '../WorkerMessages';
 import { ConfigBatcher } from './ConfigBatcher.service';
-import { buildFallbackExportState } from './EngineProxy.utils';
 import { WorkerChannel } from './WorkerChannel.service';
 
 export interface EngineProxyOptions { scale?: number; tickRate?: number; }
@@ -26,7 +25,6 @@ export class EngineProxy implements ISimulationEngine {
     private _config: SimulationConfig | null = null;
     private readonly configBatcher: ConfigBatcher;
     private readonly channel: WorkerChannel;
-    private lastExportedState: SerializedSimulationStateV1 | null = null;
     private latestCameraPayload: CameraPayload | null = null;
 
     constructor(options: EngineProxyOptions = {}) {
@@ -79,18 +77,24 @@ export class EngineProxy implements ISimulationEngine {
     }
     public async getGeneticNode(id: GenomeId): Promise<unknown> { return this.channel.sendAsyncCommand('getGeneticNode', { genomeId: id }); }
     public async getGeneticRoots(): Promise<GenomeId[]> { return this.channel.sendAsyncCommand('getGeneticRoots', {}); }
-    public exportState(): SerializedSimulationStateV1 {
+    /** Resolves with the state at a tick boundary. It never resolves with a cached or synthetic state. */
+    public exportState(): Promise<SerializedSimulationStateV1> {
         this.configBatcher.flush();
-        this.channel.sendAsyncCommand<SerializedSimulationStateV1>('exportState', {})
-            .then(s => { this.lastExportedState = s; })
-            .catch((e: unknown) => { logger.error('Proxy: exportState failed', 'EngineProxy', { error: e }); });
-        return this.lastExportedState ?? buildFallbackExportState(this._config ?? undefined);
+        return this.channel.sendAsyncCommand<SerializedSimulationStateV1>('exportState', {});
     }
-    public importState(s: SerializedSimulationStateV1): void {
+    /**
+     * Resolves once the worker has applied and acknowledged the snapshot. Rejects with the worker's reason otherwise, and
+     * the live simulation is then unchanged.
+     */
+    public async importState(s: SerializedSimulationStateV1): Promise<void> {
         this.configBatcher.flush();
-        this.channel.sendAsyncCommand<boolean>('importState', { state: s })
-            .then(() => { logger.info('Proxy: importState applied', 'EngineProxy', { tick: s.tick }); })
-            .catch((e: unknown) => { logger.error('Proxy: importState failed', 'EngineProxy', { error: e }); });
+        const applied = await this.channel.sendAsyncCommand<SnapshotImportResult>('importState', { state: s });
+        this._config = applied.config;
+        this._worldConfig = applied.worldConfig;
+        this._zones = applied.zones;
+        this._obstacles = applied.obstacles;
+        this.lastStats = applied.stats;
+        logger.info('Proxy: importState applied', 'EngineProxy', { tick: applied.tick });
     }
     public updateConfig(c: Partial<SimulationConfig>): void { this.configBatcher.updateConfig(c, this._config ?? undefined); }
     public updateWorldScale(s: number): void {

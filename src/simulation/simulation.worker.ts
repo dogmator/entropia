@@ -7,13 +7,14 @@
 
 import { logger } from '@/core';
 import { LogLevel } from '@/core/services/Logger.service';
+import { EngineState } from '@/types';
 
 import { SimulationEngine } from './engine/Engine';
 import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
+import type { SnapshotImportResult, WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
 
@@ -95,6 +96,8 @@ if (import.meta.env.DEV) {
 // ============================================================================
 
 let engine: SimulationEngine | null = null;
+// The world scale is not part of a snapshot, so a restored engine is built at the scale the live one was built at.
+let currentScale = 1.0;
 let isRunning = false;
 let timeoutId: number | null = null;
 
@@ -137,6 +140,7 @@ const describeError = (error: unknown): Record<string, unknown> => ({
 function handleInit(scale: number): void {
     try {
         engine = new SimulationEngine(scale);
+        currentScale = scale;
         const stats = engine.getStats();
         const config = engine.config;
         const worldConfig = engine.worldConfig;
@@ -354,19 +358,79 @@ function handleGeneticRoots(): void {
     });
 }
 
-function handleExportState(requestId: string): void {
-    if (!engine) return;
+/**
+ * Answers a request with its failure, so the caller receives the reason instead of waiting for a timeout.
+ */
+function sendCommandError(requestId: string, error: unknown): void {
     sendResponse({
-        type: 'commandResponse',
+        type: 'commandError',
         requestId,
-        result: engine.exportState(),
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
     });
 }
 
+/**
+ * Snapshot export. The worker handles one message at a time and only runs the tick loop between messages, so the
+ * state read here is always the state at a tick boundary.
+ */
+function handleExportState(requestId: string): void {
+    if (!engine) {
+        sendCommandError(requestId, new Error('Engine is not initialized'));
+        return;
+    }
+    try {
+        sendResponse({ type: 'commandResponse', requestId, result: engine.exportState() });
+    } catch (error) {
+        logger.error('worker export failed', 'Worker:Export', describeError(error));
+        sendCommandError(requestId, error);
+    }
+}
+
+/**
+ * Applies a snapshot to a new engine, and replaces the live engine only after the whole snapshot has been applied. A
+ * rejected snapshot therefore leaves the live simulation untouched. The acknowledgement is sent after the replacement.
+ */
 function handleImportState(command: Extract<WorkerCommand, { type: 'importState' }>): void {
-    if (!engine) return;
-    engine.importState(command.state);
-    sendResponse({ type: 'stats', stats: engine.getStats() });
+    const live = engine;
+    if (!live) {
+        sendCommandError(command.requestId, new Error('Engine is not initialized'));
+        return;
+    }
+
+    let candidate: SimulationEngine;
+    try {
+        candidate = new SimulationEngine(currentScale);
+        candidate.importState(command.state);
+    } catch (error) {
+        logger.error('worker import rejected', 'Worker:Import', describeError(error));
+        sendCommandError(command.requestId, error);
+        return;
+    }
+
+    carryRuntimeState(live, candidate);
+    engine = candidate;
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result: importResult(candidate) });
+}
+
+/**
+ * Keeps what the live engine was doing: whether its loop is running, and the camera it was last given.
+ */
+function carryRuntimeState(live: SimulationEngine, candidate: SimulationEngine): void {
+    const cameraData = live.cameraDataProvider.getCameraData();
+    if (cameraData) candidate.setCameraData(cameraData);
+    if (live.state === EngineState.RUNNING) candidate.start();
+}
+
+function importResult(restored: SimulationEngine): SnapshotImportResult {
+    return {
+        tick: restored.getTick(),
+        stats: restored.getStats(),
+        config: restored.config,
+        worldConfig: restored.worldConfig,
+        zones: restored.getZones(),
+        obstacles: restored.obstacles,
+    };
 }
 
 type LifecycleCommand = Extract<WorkerCommand, { type: 'init' | 'update' | 'reset' | 'setConfig' | 'getStats' }>;

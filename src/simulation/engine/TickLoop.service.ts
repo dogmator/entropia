@@ -16,7 +16,7 @@ import type { EventBus } from '@/core';
 import type { PerformanceMonitor } from '@/core';
 import type { RandomStream } from '@/core';
 import { logger } from '@/core';
-import type { EcologicalZone, SimulationConfig, SimulationEvent } from '@/types';
+import type { EcologicalZone, FailsafeCounters, SimulationConfig, SimulationEvent } from '@/types';
 
 const MAX_ORGANISM_AGE_TICKS = 5000;
 const EXTINCTION_FAILSAFE_TICKS = 180;
@@ -208,5 +208,15 @@ export class TickLoop {
     public resetFailsafeCounters(): void {
         this.zeroPopulationTicks = 0;
         this.zeroFoodTicks = 0;
+    }
+
+    /** The counters are saved with the world. A restored run must fire each failsafe on the same tick as the original. */
+    public getFailsafeCounters(): FailsafeCounters {
+        return { zeroPopulationTicks: this.zeroPopulationTicks, zeroFoodTicks: this.zeroFoodTicks };
+    }
+
+    public setFailsafeCounters(counters: FailsafeCounters): void {
+        this.zeroPopulationTicks = counters.zeroPopulationTicks;
+        this.zeroFoodTicks = counters.zeroFoodTicks;
     }
 }
