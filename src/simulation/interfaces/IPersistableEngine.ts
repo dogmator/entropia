@@ -31,6 +31,7 @@ export interface IPersistableEngine {
     getStats(): SimulationStats;
     getFailsafeCounters(): FailsafeCounters;
     setFailsafeCounters(counters: FailsafeCounters): void;
+    getWorldScale(): number;
     mapVector3(v: Vector3): { x: number; y: number; z: number };
 
     readonly spawnService: {

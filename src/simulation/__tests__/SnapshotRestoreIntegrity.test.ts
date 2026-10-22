@@ -141,3 +141,49 @@ describe('snapshot restore: historical maxima', () => {
     expect(restored.exportState().stats).toMatchObject({ maxAge: HISTORICAL_MAX_AGE, maxGeneration: HISTORICAL_MAX_GENERATION });
   });
 });
+
+describe('snapshot restore: world scale and setting limits', () => {
+  const OTHER_SCALE = 2;
+
+  const brokenConfigOf = (snapshot: SerializedSimulationStateV1): { config: Record<string, unknown> } =>
+    structuredClone(snapshot) as unknown as { config: Record<string, unknown> };
+
+  it('records the world scale and rejects a snapshot saved at another scale without changing the engine', () => {
+    const snapshot = roundTrip(new SimulationEngine(1, { seed: SEED }).exportState());
+    expect(snapshot.worldScale).toBe(1);
+
+    const target = new SimulationEngine(OTHER_SCALE, { seed: RESTORE_SEED });
+    const before = comparable(target);
+
+    expect(() => { target.importState(snapshot); }).toThrow(/saved at world scale 1, but this world runs at 2/);
+    expect(comparable(target)).toBe(before);
+  });
+
+  it('imports a legacy snapshot without a world scale at the live scale', () => {
+    const legacy = roundTrip(new SimulationEngine(1, { seed: SEED }).exportState()) as Partial<SerializedSimulationStateV1>;
+    delete legacy.worldScale;
+
+    const restored = new SimulationEngine(OTHER_SCALE, { seed: RESTORE_SEED });
+    expect(() => { restored.importState(legacy as SerializedSimulationStateV1); }).not.toThrow();
+  });
+
+  it('rejects a negative population limit, which would stop reproduction, without changing the engine', () => {
+    const engine = new SimulationEngine(1, { seed: RESTORE_SEED });
+    const before = comparable(engine);
+    const broken = brokenConfigOf(new SimulationEngine(1, { seed: SEED }).exportState());
+    broken.config['maxOrganisms'] = -1;
+
+    expect(() => { engine.importState(broken as unknown as SerializedSimulationStateV1); }).toThrow(/maxOrganisms must not be negative/);
+    expect(comparable(engine)).toBe(before);
+  });
+
+  it('rejects a drag outside (0, 1], which would reverse or amplify motion', () => {
+    const engine = new SimulationEngine(1, { seed: RESTORE_SEED });
+    const before = comparable(engine);
+    const broken = brokenConfigOf(new SimulationEngine(1, { seed: SEED }).exportState());
+    broken.config['drag'] = 1.5;
+
+    expect(() => { engine.importState(broken as unknown as SerializedSimulationStateV1); }).toThrow(/drag must be above 0 and at most 1/);
+    expect(comparable(engine)).toBe(before);
+  });
+});

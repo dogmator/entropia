@@ -73,6 +73,7 @@ export class SimulationEngine implements IPersistableEngine {
     private readonly foodAnomalyGuard: FoodAnomalyGuard;
     private readonly tickLoop: TickLoop;
     private readonly entityQuery: EntityQuery;
+    private worldScale: number;
 
     // eslint-disable-next-line max-lines-per-function
     constructor(scale = 1.0, options?: { seed?: number }) {
@@ -80,6 +81,7 @@ export class SimulationEngine implements IPersistableEngine {
         this.seed = seed >>> 0;
         this.random = new RandomStream(this.seed);
         this.worldConfig = createWorldConfig(scale);
+        this.worldScale = scale;
         this.config = this.buildDefaultConfig();
 
         logger.info('Initializing SimulationEngine', 'Engine', { seed: this.seed, scale });
@@ -284,10 +286,12 @@ export class SimulationEngine implements IPersistableEngine {
     }
     public getFailsafeCounters(): FailsafeCounters { return this.tickLoop.getFailsafeCounters(); }
     public setFailsafeCounters(counters: FailsafeCounters): void { this.tickLoop.setFailsafeCounters(counters); }
+    public getWorldScale(): number { return this.worldScale; }
 
     public updateWorldScale(scale: number): void {
         logger.warning('Direct updateWorldScale not supported in-place. Re-create Engine instance.', 'Engine');
         this.worldConfig = createWorldConfig(scale);
+        this.worldScale = scale;
     }
 
     public mapVector3(v: { x: number; y: number; z: number }): { x: number; y: number; z: number } {
