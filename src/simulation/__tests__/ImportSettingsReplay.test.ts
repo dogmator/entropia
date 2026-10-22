@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ImportOutcomeUnknownError } from '@/core';
-import type { SerializedSimulationStateV1, SimulationConfig } from '@/types';
+import type { SerializedSimulationStateV1 } from '@/types';
 
 import { EngineProxy } from '../engine/EngineProxy';
 import {
@@ -42,11 +42,10 @@ describe('settings changed around an import', () => {
 
     it('a change made while the import is in flight is applied on top of the restored world, and the proxy agrees with the worker', async () => {
         const restored = withRestoredSettings(await proxy.exportState());
-        const panel: SimulationConfig = { ...proxy.config };
 
         const pending = proxy.importState(restored);
-        // The panel sends its whole configuration, which still holds the values from before the restore.
-        proxy.updateConfig({ ...panel, maxFood: CHANGED_MAX_FOOD });
+        // The settings panel sends only the setting it changed.
+        proxy.updateConfig({ maxFood: CHANGED_MAX_FOOD });
         vi.advanceTimersByTime(CONFIG_BATCH_DEBOUNCE_MS);
         await pending;
 
@@ -55,9 +54,8 @@ describe('settings changed around an import', () => {
         expect(proxy.config).toEqual(world.config);
     });
 
-    it('a stale panel that changes one setting does not overwrite the restored settings it did not change', async () => {
+    it('a change made after an import nobody could confirm leaves the restored settings it does not touch alone', async () => {
         const restored = withRestoredSettings(await proxy.exportState());
-        const panel: SimulationConfig = { ...proxy.config };
         bridge.loseAnswer = (answer) => isAnswerTo('commitImport')(answer) || isAnswerTo('probeImport')(answer);
 
         const pending = proxy.importState(restored);
@@ -68,28 +66,23 @@ describe('settings changed around an import', () => {
         vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS + 1);
         await assertion;
 
-        proxy.updateConfig({ ...panel, maxFood: DIVERGED_MAX_FOOD });
+        proxy.updateConfig({ maxFood: DIVERGED_MAX_FOOD });
         vi.advanceTimersByTime(CONFIG_BATCH_DEBOUNCE_MS);
 
         const world = await proxy.exportState();
         expect(world.config).toMatchObject({ maxFood: DIVERGED_MAX_FOOD, maxOrganisms: restored.config.maxOrganisms });
     });
 
-    it('a panel that sends its unchanged configuration sends nothing to the worker', () => {
-        const panel: SimulationConfig = { ...proxy.config };
+    it('a setting set during the import to the value it had before, such as a preset, is set after the restore too', async () => {
+        const before = proxy.config.maxFood;
+        expect(before).not.toBe(RESTORED_MAX_FOOD);
+        const restored = withRestoredSettings(await proxy.exportState());
 
-        proxy.updateConfig({ ...panel });
-        vi.advanceTimersByTime(CONFIG_BATCH_DEBOUNCE_MS);
+        const pending = proxy.importState(restored);
+        proxy.updateConfig({ maxFood: before });
+        await pending;
 
-        expect(bridge.commands.filter((command) => command.type === 'setConfig')).toHaveLength(0);
-    });
-
-    it('a panel that changes one setting sends that setting alone', () => {
-        const panel: SimulationConfig = { ...proxy.config };
-
-        proxy.updateConfig({ ...panel, maxFood: CHANGED_MAX_FOOD });
-        vi.advanceTimersByTime(CONFIG_BATCH_DEBOUNCE_MS);
-
-        expect(bridge.commands).toContainEqual({ type: 'setConfig', config: { maxFood: CHANGED_MAX_FOOD } });
+        expect((await proxy.exportState()).config.maxFood).toBe(before);
+        expect(proxy.config.maxFood).toBe(before);
     });
 });

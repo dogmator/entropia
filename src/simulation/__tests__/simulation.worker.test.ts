@@ -215,6 +215,18 @@ describe('simulation worker — snapshot commands', () => {
     expect(snapshot.tick).toBeGreaterThanOrEqual(lastReported);
   });
 
+  it('applies the settings sent with a commit to the restored world, before it is swapped in', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+    posted = [];
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: snapshot });
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN, updates: { maxFood: 123 } });
+
+    expect(exportLiveState('exportState_4').config.maxFood).toBe(123);
+  });
+
   it('answers the prepare of an import, and the commit with the restored configuration', async () => {
     await loadWorker();
     send({ type: 'init', scale: SCALE });
