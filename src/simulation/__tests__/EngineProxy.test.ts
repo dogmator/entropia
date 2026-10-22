@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createWorldConfig } from '@/config';
+import { ImportOutcomeUnknownError } from '@/core';
 import type { SerializedSimulationStateV1, SimulationConfig } from '@/types';
 
 import { EngineProxy } from '../engine/EngineProxy';
@@ -287,18 +288,31 @@ describe('EngineProxy command optimization', () => {
     expect(postedMessages.some((msg) => msg.type === 'commitImport')).toBe(false);
   });
 
-  it('a commit is awaited without a timeout, because the swap cannot be undone once it is sent', async () => {
+  it('a commit with no answer is reported as an unknown outcome after the bound, never as a failure', async () => {
     const pending = proxy.importState(createState());
     const prepare = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
     respond({ type: 'commandResponse', requestId: prepare?.requestId, result: { prepared: true } });
     await settle();
 
-    let isRejected = false;
-    void pending.catch(() => { isRejected = true; });
-    vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS * 3);
-    await settle();
+    const assertion = expect(pending).rejects.toBeInstanceOf(ImportOutcomeUnknownError);
+    vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS + 1);
 
-    expect(isRejected).toBe(false);
+    await assertion;
+  });
+
+  it('a commit the worker refuses is reported with the worker\'s reason, not as an unknown outcome', async () => {
+    const pending = proxy.importState(createState());
+    const prepare = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
+    respond({ type: 'commandResponse', requestId: prepare?.requestId, result: { prepared: true } });
+    await settle();
+    const commit = postedMessages.find((msg) => msg.type === 'commitImport') as { requestId?: string } | undefined;
+
+    respond({ type: 'commandError', requestId: commit?.requestId, message: 'The import failed before the swap, so the live world is unchanged: bad tick' });
+
+    const error = await pending.catch((reason: unknown) => reason);
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(ImportOutcomeUnknownError);
+    expect((error as Error).message).toContain('the live world is unchanged');
   });
 
   it('importState rejects with the reason the worker reports instead of logging and resolving', async () => {
