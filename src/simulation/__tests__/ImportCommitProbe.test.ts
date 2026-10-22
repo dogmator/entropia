@@ -14,6 +14,7 @@ import {
 } from './workerBridgeTestUtils';
 
 const RESTORED_MAX_FOOD = 123;
+const LATER_MAX_FOOD = 150;
 
 describe('an import whose commit answer is lost', () => {
     let proxy: EngineProxy;
@@ -67,6 +68,28 @@ describe('an import whose commit answer is lost', () => {
         await assertion;
         expect(bridge.commands).toContainEqual(expect.objectContaining({ type: 'cancelImport' }));
         expect((await proxy.exportState()).config).toEqual(before.config);
+    });
+
+    it('a later import that commits meanwhile does not change the outcome of an earlier import whose commit answer was lost', async () => {
+        const firstState = await snapshotWithMaxFood(RESTORED_MAX_FOOD);
+        const laterState = await snapshotWithMaxFood(LATER_MAX_FOOD);
+        let isFirstAnswerLost = true;
+        bridge.loseAnswer = (answer) => {
+            const isLost = isFirstAnswerLost && isAnswerTo('commitImport')(answer);
+            if (isLost) isFirstAnswerLost = false;
+            return isLost;
+        };
+
+        const first = proxy.importState(firstState);
+        await settle();
+        const later = proxy.importState(laterState);
+        await settle();
+        vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS + 1);
+        await settle();
+
+        await expect(first).resolves.toBeUndefined();
+        await expect(later).resolves.toBeUndefined();
+        expect((await proxy.exportState()).config.maxFood).toBe(LATER_MAX_FOOD);
     });
 
     it('stays unknown when the worker answers neither the commit nor the probe', async () => {
