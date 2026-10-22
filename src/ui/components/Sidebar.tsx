@@ -3,6 +3,8 @@ import React, { Suspense, useEffect, useRef, useState } from 'react';
 
 import { t } from '@/i18n';
 import { Dashboard } from './Dashboard';
+import { CheckpointPanel } from './CheckpointPanel';
+import type { CheckpointControls } from '../context/hooks/useCheckpoints';
 import { SimulationControls } from './SimulationControls';
 import { Icons } from './shared/Icons';
 import { UI_CONFIG } from '../../config';
@@ -66,7 +68,7 @@ export const Sidebar: React.FC = () => {
   const {
     engine, stats, history, onReset, speed, setSpeed,
     worldScale, setWorldScale, isLoading, simulationState,
-    runSimulation, pauseSimulation, stopSimulation
+    runSimulation, pauseSimulation, stopSimulation, checkpoints
   } = useSimulation();
 
   const [isOpen, setIsOpen] = useState(() => (typeof window !== 'undefined' ? window.innerWidth >= UI_CONFIG.breakpoints.mobile : true));
@@ -94,6 +96,7 @@ export const Sidebar: React.FC = () => {
           runSimulation={runSimulation} pauseSimulation={pauseSimulation} stopSimulation={stopSimulation}
           engine={engine} worldScale={worldScale} setWorldScale={setWorldScale}
           onOpenDiagnostics={() => { setIsDiagnosticsOpen(true); }}
+          checkpoints={checkpoints}
         />
       </div>
       <SidebarDiagnostics isOpen={isDiagnosticsOpen} onClose={() => { setIsDiagnosticsOpen(false); }} stats={stats} engine={engine} />
@@ -137,6 +140,7 @@ interface SidebarContentProps {
   speed: number; setSpeed: (v: number) => void; isLoading: boolean;
   simulationState: 'running' | 'paused' | 'stopped'; runSimulation: () => void; pauseSimulation: () => void; stopSimulation: () => void;
   engine: ISimulationEngine; worldScale: number; setWorldScale: (v: number) => void; onOpenDiagnostics: () => void;
+  checkpoints: CheckpointControls;
 }
 
 const SidebarHeader: React.FC = () => (
@@ -149,13 +153,14 @@ const SidebarHeader: React.FC = () => (
 const SidebarContent: React.FC<SidebarContentProps> = ({
   isOpen, stats, history, onReset, speed, setSpeed, isLoading,
   simulationState, runSimulation, pauseSimulation, stopSimulation,
-  engine, worldScale, setWorldScale, onOpenDiagnostics
+  engine, worldScale, setWorldScale, onOpenDiagnostics, checkpoints
 }) => (
   <div className={`w-full h-full bg-black/60 backdrop-blur-2xl flex flex-col gap-6 p-4 sm:p-6 overflow-y-auto custom-scrollbar pointer-events-auto transition-opacity duration-500 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
     <SidebarHeader />
     <div className="space-y-6">
       <Dashboard stats={stats} history={history} visible={isOpen} />
       <SimulationControls onReset={onReset} speed={speed} onSpeedChange={setSpeed} simulationState={simulationState} onRun={runSimulation} onPause={pauseSimulation} onStop={stopSimulation} disabled={isLoading} />
+      <CheckpointPanel controls={checkpoints} />
       <Suspense fallback={<LazyFallback label={t.settings.loading} />}>
         <SettingsPanel engine={engine} worldScale={worldScale} onWorldScaleChange={setWorldScale} />
       </Suspense>

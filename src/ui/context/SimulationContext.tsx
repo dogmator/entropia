@@ -8,6 +8,8 @@ import { EngineProxy } from '@/simulation/engine/EngineProxy';
 import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
 
+import type { CheckpointControls } from './hooks/useCheckpoints';
+import { useCheckpoints } from './hooks/useCheckpoints';
 import { useEngineSync } from './hooks/useEngineSync';
 import { useHotkeys } from './hooks/useHotkeys';
 import { useHoverState } from './hooks/useHoverState';
@@ -43,6 +45,7 @@ interface SimulationContextValue {
     runSimulation: () => void;
     pauseSimulation: () => void;
     stopSimulation: () => void;
+    checkpoints: CheckpointControls;
 }
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
@@ -67,6 +70,7 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
         settings,
         resetHistory: statsInfo.resetHistory
     });
+    const checkpoints = useCheckpoints(engine, lifecycle.simulationState);
 
     useHotkeys(lifecycle.setSpeedWithState);
 
@@ -83,11 +87,12 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
         cameraSnapshot: settings.cameraSnapshot, setCameraSnapshot: settings.setCameraSnapshot,
         simulationState: lifecycle.simulationState, runSimulation: lifecycle.runSimulation,
         pauseSimulation: lifecycle.pauseSimulation, stopSimulation: lifecycle.stopSimulation,
+        checkpoints,
     }), [
         engine, statsInfo.stats, statsInfo.history, settings.speed, lifecycle,
         settings.worldScale, settings.setWorldScale, sync, hover, settings.isAutoRotate,
         settings.setAutoRotate, settings.autoRotateSpeed, settings.setAutoRotateSpeed,
-        settings.cameraSnapshot, settings.setCameraSnapshot
+        settings.cameraSnapshot, settings.setCameraSnapshot, checkpoints
     ]);
 
     return (
