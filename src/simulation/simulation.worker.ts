@@ -14,7 +14,7 @@ import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { SnapshotImportResult, WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
+import type { ImportProbeResult, SnapshotImportResult, WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
 
@@ -98,6 +98,9 @@ if (import.meta.env.DEV) {
 let engine: SimulationEngine | null = null;
 // A world built by importState and not yet swapped in by commitImport. It belongs to the import that built it.
 let preparedImport: { readonly token: string; readonly candidate: SimulationEngine } | null = null;
+// The token of the import whose commit put the live world in place. A probe answers from it.
+let lastCommittedImportToken: string | null = null;
+const ENGINE_NOT_INITIALIZED = 'Engine is not initialized';
 // A restored engine is built at the scale of the live world. A snapshot saved at another scale is rejected by the import.
 let currentScale = 1.0;
 let isRunning = false;
@@ -381,7 +384,7 @@ function sendCommandError(requestId: string, error: unknown): void {
  */
 function handleExportState(requestId: string): void {
     if (!engine) {
-        sendCommandError(requestId, new Error('Engine is not initialized'));
+        sendCommandError(requestId, new Error(ENGINE_NOT_INITIALIZED));
         return;
     }
     try {
@@ -402,7 +405,7 @@ function handleExportState(requestId: string): void {
  */
 function handleImportState(command: Extract<WorkerCommand, { type: 'importState' }>): void {
     if (!engine) {
-        sendCommandError(command.requestId, new Error('Engine is not initialized'));
+        sendCommandError(command.requestId, new Error(ENGINE_NOT_INITIALIZED));
         return;
     }
 
@@ -445,6 +448,7 @@ function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImpor
         return;
     }
     engine = candidate;
+    lastCommittedImportToken = command.importToken;
     if (view) sendResponse(view.message, view.transferables);
     sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
 }
@@ -452,6 +456,19 @@ function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImpor
 /** Drops the world prepared under a token, so that a late commit cannot apply an import the proxy gave up on. */
 function handleCancelImport(importToken: string): void {
     if (preparedImport?.token === importToken) preparedImport = null;
+}
+
+/**
+ * Tells the proxy whether the commit of an import reached the worker, and the live world as it is now. The answer comes
+ * after every command received before the probe, so a commit that was still queued when the proxy gave up is included.
+ */
+function handleProbeImport(command: Extract<WorkerCommand, { type: 'probeImport' }>): void {
+    if (!engine) {
+        sendCommandError(command.requestId, new Error(ENGINE_NOT_INITIALIZED));
+        return;
+    }
+    const result: ImportProbeResult = { committed: lastCommittedImportToken === command.importToken, live: importResult(engine) };
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
 }
 
 /**
@@ -485,13 +502,13 @@ function importResult(restored: SimulationEngine): SnapshotImportResult {
 type LifecycleCommand = Extract<WorkerCommand, { type: 'init' | 'update' | 'reset' | 'setConfig' | 'getStats' }>;
 type QueryCommand = Extract<
     WorkerCommand,
-    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' | 'commitImport' }
+    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' | 'commitImport' | 'probeImport' }
 >;
 type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' | 'cancelImport' }>;
 
 const LIFECYCLE_TYPES: ReadonlySet<string> = new Set<LifecycleCommand['type']>(['init', 'update', 'reset', 'setConfig', 'getStats']);
 const QUERY_TYPES: ReadonlySet<string> = new Set<QueryCommand['type']>([
-    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState', 'commitImport',
+    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState', 'commitImport', 'probeImport',
 ]);
 const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed', 'cancelImport']);
 
@@ -526,6 +543,7 @@ function handleQueryCommand(command: QueryCommand): void {
         case 'exportState': handleExportState(command.requestId); break;
         case 'importState': handleImportState(command); break;
         case 'commitImport': handleCommitImport(command); break;
+        case 'probeImport': handleProbeImport(command); break;
     }
 }
 
