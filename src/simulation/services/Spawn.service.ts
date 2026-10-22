@@ -211,11 +211,11 @@ export class SpawnService {
   // ============================================================================
 
   /**
-   * Initialization of food object creation.
+   * Initialization of food object creation. A position the admit check refuses yields neither an object nor a spawn event.
    */
-  public spawnFood(foodIdCounter: number): Food | null {
+  public spawnFood(foodIdCounter: number, admit: (position: Vector3) => boolean = () => true): Food | null {
     const position = this.getFoodSpawnPosition();
-    if (!position) { return null; }
+    if (!position || !admit(position)) { return null; }
 
     const food = Food.create(foodIdCounter, position.x, position.y, position.z);
 

@@ -46,6 +46,8 @@ export interface MetabolicBreakdown {
  * Class implementing the thermodynamic model of agent functioning.
  */
 export class MetabolismSystem {
+  /** Energy charged to organisms for metabolism. Read by the resource ledger; not part of a snapshot. */
+  public energyRequested = 0;
   private currentTick = 0;
 
   /**
@@ -87,6 +89,7 @@ export class MetabolismSystem {
    */
   private processMetabolism(org: Organism): void {
     const energyLoss = this.calculateEnergyLoss(org);
+    this.energyRequested += energyLoss;
 
     // Dissipation of internal energy
     org.consumeEnergy(energyLoss);

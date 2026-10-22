@@ -1,4 +1,4 @@
-import { WORLD_SIZE } from '@/config';
+import { RESOURCE_STOCK_CAPACITY_PER_ZONE, WORLD_SIZE } from '@/config';
 import { logger } from '@/core';
 import type {
     EcologicalZone,
@@ -95,6 +95,27 @@ const requireConfig = (config: unknown, template: SimulationConfig): void => {
 const requireFailsafe = (failsafe: unknown): void => {
     if (!isRecord(failsafe)) throw new Error('Invalid simulation snapshot: failsafe must be an object');
     requireFiniteFields(failsafe, 'failsafe', ['zeroPopulationTicks', 'zeroFoodTicks']);
+};
+// The zone stocks of a stock world: one per zone, each between zero and the zone's capacity.
+const requireZoneStocks = (zoneStocks: unknown, zoneIds: unknown[]): void => {
+    if (!isRecord(zoneStocks)) throw new Error('Invalid simulation snapshot: resourceStock.zoneStocks must be an object');
+    const keys = Object.keys(zoneStocks);
+    if (keys.length !== zoneIds.length || !zoneIds.every(id => typeof id === 'string' && keys.includes(id))) {
+        throw new Error('Invalid simulation snapshot: resourceStock.zoneStocks must hold one stock per zone');
+    }
+    for (const key of keys) {
+        const stock = zoneStocks[key];
+        if (typeof stock !== 'number' || !Number.isFinite(stock) || stock < 0 || stock > RESOURCE_STOCK_CAPACITY_PER_ZONE) {
+            throw new Error(`Invalid simulation snapshot: resourceStock.zoneStocks.${key} must be between 0 and ${String(RESOURCE_STOCK_CAPACITY_PER_ZONE)}`);
+        }
+    }
+};
+// Optional: only a world with the resource stock on carries one. Its zones are the zones of the snapshot.
+const requireResourceStock = (resourceStock: unknown, zones: unknown): void => {
+    if (resourceStock === undefined) return;
+    if (!isRecord(resourceStock)) throw new Error('Invalid simulation snapshot: resourceStock must be an object');
+    const zoneIds = Array.isArray(zones) ? zones.map(zone => (isRecord(zone) ? zone['id'] : undefined)) : [];
+    requireZoneStocks(resourceStock['zoneStocks'], zoneIds);
 };
 // Entities of a snapshot are placed in the bounds of the scale it was saved at, so it imports only into a world at that scale.
 // Optional: snapshots written before the scale was recorded have none, and import at the live scale.
@@ -287,6 +308,8 @@ export class PersistenceService {
             failsafe: engine.getFailsafeCounters(),
             worldScale: engine.getWorldScale(),
         };
+        // Present only while the resource stock is on, so a baseline world keeps the snapshot it had before.
+        if (engine.resourceStock.isEnabled) state.resourceStock = { zoneStocks: engine.resourceStock.toRecord() };
 
         return state;
     }
@@ -320,6 +343,7 @@ export class PersistenceService {
         // Optional: snapshots written before the failsafe counters were recorded have none.
         if (state['failsafe'] !== undefined) requireFailsafe(state['failsafe']);
         requireWorldScale(state['worldScale'], liveScale);
+        requireResourceStock(state['resourceStock'], state['zones']);
         if (!isStringArray(geneticTree['roots'])) throw new Error('Invalid simulation snapshot: geneticTree.roots must be an array of strings');
         requireArray(geneticTree, 'nodes').forEach((node, i) => {
             if (!isGeneticTreeNode(node)) throw new Error(`Invalid genetic tree node at index ${String(i)}`);
@@ -422,6 +446,10 @@ export class PersistenceService {
                 dangerMultiplier: z.dangerMultiplier,
             });
         });
+
+        // The stock belongs to the world, and its zones are the ones restored above. A snapshot without a stock restores a
+        // baseline world, with the stock off.
+        engine.resourceStock.reset(engine.zones.values(), { enabled: state.resourceStock !== undefined, stocks: state.resourceStock?.zoneStocks });
 
         engine.obstacles.clear();
         state.obstacles.forEach(o => {

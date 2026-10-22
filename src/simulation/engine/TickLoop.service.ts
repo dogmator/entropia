@@ -3,6 +3,7 @@ import type { EntityManager } from '@simulation/managers/EntityManager.manager';
 import type { GridManager } from '@simulation/managers/GridManager.manager';
 import type { DeathProcessor } from '@simulation/services/DeathProcessor.processor';
 import type { FoodAnomalyGuard } from '@simulation/services/FoodAnomalyGuard.guard';
+import type { ResourceStock } from '@simulation/services/ResourceStock.service';
 import type { SpawnService } from '@simulation/services/Spawn.service';
 import type { PopulationStatsAggregation, StatisticsManager } from '@simulation/services/StatisticsManager.manager';
 import type { BehaviorSystem } from '@simulation/systems/Behavior.system';
@@ -47,6 +48,7 @@ export interface EngineCtx {
     readonly performanceMonitor: PerformanceMonitor;
     readonly deathProcessor: DeathProcessor;
     readonly foodAnomalyGuard: FoodAnomalyGuard;
+    readonly resourceStock: ResourceStock;
     readonly eventBus: EventBus;
     stop(): void;
 }
@@ -76,6 +78,7 @@ export class TickLoop {
             zones: c.zones.values(),
             tick: c.tick
         });
+        c.resourceStock.regenerate();
         this.spawnFood();
         c.gridManager.rebuild(c.entityManager.organisms, c.entityManager.food);
 
@@ -183,7 +186,8 @@ export class TickLoop {
             this.ctx.stop();
             return true;
         }
-        if (this.zeroFoodTicks >= RESOURCE_FAILSAFE_TICKS && organisms.size > 0) {
+        // With the resource stock on, food comes only from the stock, so the depletion fail-safe must not add any.
+        if (!this.ctx.resourceStock.isEnabled && this.zeroFoodTicks >= RESOURCE_FAILSAFE_TICKS && organisms.size > 0) {
             logger.warn('Fail-safe: resource depletion detected', 'Engine', { tick: this.ctx.tick });
             this.spawnFood();
             this.zeroFoodTicks = 0;
@@ -192,10 +196,11 @@ export class TickLoop {
     }
 
     private spawnFood(): void {
-        const { food, config, spawnService, entityManager } = this.ctx;
+        const { food, config, spawnService, entityManager, resourceStock } = this.ctx;
         if (food.size >= config.maxFood) return;
         if (this.ctx.random.next() < config.foodSpawnRate) {
-            const item = spawnService.spawnFood(++this.ctx.foodIdCounter);
+            // The random draws are the same with the stock on or off. Only the admission differs.
+            const item = spawnService.spawnFood(++this.ctx.foodIdCounter, position => resourceStock.admitFoodAt(position));
             if (item) entityManager.addFood(item);
         }
     }

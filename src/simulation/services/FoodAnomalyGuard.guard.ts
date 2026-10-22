@@ -12,6 +12,8 @@ interface SanitizeParams {
 }
 
 export class FoodAnomalyGuard {
+    /** Energy of food removed for lying in an anomaly. Read by the resource ledger; not part of a snapshot. */
+    public energyRemoved = 0;
     private needsSanitization = true;
 
     constructor(private readonly worldConfig: WorldConfig) {}
@@ -34,6 +36,7 @@ export class FoodAnomalyGuard {
                 zonePadding: FOOD_ANOMALY_PADDING,
                 checkZones: true,
             })) {
+                this.energyRemoved += foodItem.currentEnergy;
                 food.delete(foodId);
                 removed++;
             }

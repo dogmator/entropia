@@ -37,6 +37,10 @@ const FOOD_RADIUS_LOG_PRECISION = 2;
  * Class implementing physical spatial interactions.
  */
 export class CollisionSystem {
+  /** Energy taken from food by bites. Read by the resource ledger; not part of a snapshot. */
+  public energyAbsorbed = 0;
+  /** Energy left in food when a bite consumed it. Read by the resource ledger; not part of a snapshot. */
+  public energyDiscarded = 0;
   /** Cached neighbors buffer to avoid allocations. */
   private readonly nearbyBuffer: GridEntity[] = [];
 
@@ -258,8 +262,10 @@ export class CollisionSystem {
 
     if (this.isColliding(organism, foodItem)) {
       const radiusBefore = foodItem.radius;
+      const energyBefore = foodItem.currentEnergy;
       const absorbedEnergy = foodItem.applyBite(ENTITY_CONSTANTS.FOOD_BITE_ENERGY, tick);
       organism.addEnergy(absorbedEnergy);
+      this.energyAbsorbed += absorbedEnergy;
       if (absorbedEnergy > 0 && tick % FOOD_DEBUG_INTERVAL_TICKS === 0) {
         logger.debug(
           `Food bite: id=${foodItem.id} r ${radiusBefore.toFixed(FOOD_RADIUS_LOG_PRECISION)}→${foodItem.radius.toFixed(FOOD_RADIUS_LOG_PRECISION)} energy=${foodItem.currentEnergy.toFixed(1)} absorbed=${absorbedEnergy.toFixed(1)}`,
@@ -269,6 +275,8 @@ export class CollisionSystem {
 
       const ref: { consumed: boolean } = foodItem;
       if (ref.consumed) {
+        // A consumed item drops the rest of its energy, which the bite did not take.
+        this.energyDiscarded += energyBefore - absorbedEnergy;
         food.delete(neighborEntity.id);
 
         this.eventBus.emit({
