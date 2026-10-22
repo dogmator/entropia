@@ -471,7 +471,7 @@ export class Logger {
   }
 
   private flushQueue(): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
       return;
     }
 
@@ -505,7 +505,7 @@ export class Logger {
 
     const remoteEntry = this.createRemoteLogEntry(entry);
 
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    if (this.socket?.readyState !== WebSocket.OPEN) {
       this.enqueueRemoteEntry(remoteEntry);
       this.initWebSocket();
       return;

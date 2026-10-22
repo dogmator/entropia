@@ -160,7 +160,7 @@ const syncRenderItems = (
   setRenderComets(prev => {
     if (prev.length === next.length && prev.every((item, index) => {
       const n = next[index];
-      return n !== undefined && item.id === n.id && item.species === n.species;
+      return item.id === n?.id && item.species === n.species;
     })) {
       return prev;
     }
