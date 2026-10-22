@@ -288,11 +288,12 @@ describe('simulation worker — snapshot commands', () => {
     const snapshot = exportLiveState(EXPORT_REQUEST);
     posted = [];
 
-    send({ type: 'importState', requestId: IMPORT_REQUEST, state: snapshot });
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: snapshot });
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN });
 
     const [published] = responsesOfType('updated');
     expect(published?.tick).toBe(snapshot.tick);
-    expect(answersFor(IMPORT_REQUEST).map(msg => msg.type)).toEqual(['commandResponse']);
+    expect(answersFor(COMMIT_REQUEST).map(msg => msg.type)).toEqual(['commandResponse']);
   });
 
   it('keeps a running loop running after a successful import', async () => {
