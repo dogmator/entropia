@@ -2,7 +2,6 @@ import { RESOURCE_STOCK_CAPACITY_PER_ZONE, WORLD_SIZE } from '@/config';
 import { logger } from '@/core';
 import type {
     EcologicalZone,
-    GeneticTreeNode,
     Genome,
     GenomeId,
     OrganismId,
@@ -432,7 +431,7 @@ export class PersistenceService {
                 died: node.died,
                 type: node.type,
                 traits: { ...node.traits }
-            } as GeneticTreeNode);
+            });
         });
 
         engine.zones.clear();

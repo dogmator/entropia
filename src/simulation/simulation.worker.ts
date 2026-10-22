@@ -428,7 +428,7 @@ function handleImportState(command: Extract<WorkerCommand, { type: 'importState'
  */
 function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImport' }>): void {
     const live = engine;
-    if (!live || !preparedImport || preparedImport.token !== command.importToken) {
+    if (!live || preparedImport?.token !== command.importToken) {
         sendCommandError(command.requestId, new Error('The import is no longer prepared, so the live world is unchanged.'));
         return;
     }

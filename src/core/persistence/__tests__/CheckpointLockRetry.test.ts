@@ -28,7 +28,7 @@ describe('checkpoint controller: writer lock retry', () => {
     const controller = new CheckpointController({
       worldId: WORLD,
       engine,
-      store: new CheckpointStore(new FakeIDBFactory() as unknown as IDBFactory),
+      store: new CheckpointStore(new FakeIDBFactory()),
       acquireLock: () => Promise.resolve(outcome),
       now: () => 5000,
     });

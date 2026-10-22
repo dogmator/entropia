@@ -51,7 +51,7 @@ const firstDivergentTick = (reference: SimulationEngine, restored: SimulationEng
 
 describe('checkpoint restore: continuation after a save', () => {
   it('restores a world saved to IndexedDB into a fresh engine and continues exactly like the uninterrupted run', async () => {
-    const store = new CheckpointStore(new FakeIDBFactory() as unknown as IDBFactory);
+    const store = new CheckpointStore(new FakeIDBFactory());
     const source = new SimulationEngine(1, { seed: SEED });
     source.start();
     advance(source, FIRST_CHECKPOINT);
@@ -70,7 +70,7 @@ describe('checkpoint restore: continuation after a save', () => {
   });
 
   it('restores the previous checkpoint when the newest is altered, and continues from that earlier tick', async () => {
-    const factory = new FakeIDBFactory() as unknown as IDBFactory;
+    const factory = new FakeIDBFactory();
     const store = new CheckpointStore(factory);
     const source = new SimulationEngine(1, { seed: SEED });
     source.start();

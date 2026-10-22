@@ -28,10 +28,10 @@ const SOCKET_CLOSED_STATE = 0;
 
 const setupGlobalSpies = () => {
   const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-  const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((cb: () => void) => {
+  const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation((cb: () => void) => {
     cb();
     return 0 as unknown as ReturnType<typeof setTimeout>;
-  }) as typeof setTimeout);
+  });
 
   return { warnSpy, setTimeoutSpy };
 };

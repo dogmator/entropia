@@ -45,7 +45,8 @@ export const useSimulationStats = (engine: ISimulationEngine, speed: number): { 
     const [stats, setStats] = useState<SimulationStats>({ ...INITIAL_SIMULATION_STATS });
     const [history, setHistory] = useState<PopulationDataPoint[]>([]);
     const historyRef = useRef<PopulationDataPoint[]>([]);
-    const frameTimestampRef = useRef(performance.now());
+    const [mountedAt] = useState(() => performance.now());
+    const frameTimestampRef = useRef(mountedAt);
     const { updateFps } = useFpsCalculator();
 
     useEffect(() => {

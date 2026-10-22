@@ -159,7 +159,7 @@ describe('combined acceptance: genealogy and energy accounting', () => {
 
 describe('combined acceptance: IndexedDB corruption and failure', () => {
   it('a stock world whose newest checkpoint was altered restores the previous one, and continues from that tick', async () => {
-    const factory = new FakeIDBFactory() as unknown as IDBFactory;
+    const factory = new FakeIDBFactory();
     const store = new CheckpointStore(factory);
     const source = worldOf(PRIMARY_SEED, true);
     advance(source, SHORT_CHECKPOINT);
@@ -186,7 +186,7 @@ describe('combined acceptance: IndexedDB corruption and failure', () => {
   }, LONG_RUN_TIMEOUT_MS);
 
   it('a save the store refuses leaves the live stock world unchanged, and the next save restores normally', async () => {
-    const factory = new FakeIDBFactory() as unknown as IDBFactory;
+    const factory = new FakeIDBFactory();
     const store = new RefusingOnceStore(factory);
     const source = worldOf(PRIMARY_SEED, true);
     const reference = worldOf(PRIMARY_SEED, true);

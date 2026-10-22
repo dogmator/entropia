@@ -17,7 +17,7 @@ const checkpoint = (tick: number): CheckpointInput => ({
 
 describe('checkpoint retention: damaged records', () => {
   it('removes a damaged newest record when a newer checkpoint commits, and keeps the last intact one as the fallback', async () => {
-    const factory = new FakeIDBFactory() as unknown as IDBFactory;
+    const factory = new FakeIDBFactory();
     const store = new CheckpointStore(factory);
     await store.commit(checkpoint(1));
     await store.commit(checkpoint(2));

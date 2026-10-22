@@ -14,7 +14,7 @@ const checkpoint = (tick: number, worldId = WORLD): CheckpointInput => ({
   payload: JSON.stringify({ tick }),
 });
 
-const createStore = (): CheckpointStore => new CheckpointStore(new FakeIDBFactory() as unknown as IDBFactory);
+const createStore = (): CheckpointStore => new CheckpointStore(new FakeIDBFactory());
 
 describe('checkpoint store: commits', () => {
   it('lists committed checkpoints newest first, with the sequence number and checksum written with them', async () => {
