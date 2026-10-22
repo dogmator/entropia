@@ -410,7 +410,17 @@ function handleImportState(command: Extract<WorkerCommand, { type: 'importState'
 
     carryRuntimeState(live, candidate);
     engine = candidate;
+    // While the loop is stopped nothing else publishes frames, so the renderer would keep the old world's buffers.
+    if (!isRunning) publishRestoredView(candidate);
     sendResponse({ type: 'commandResponse', requestId: command.requestId, result: importResult(candidate) });
+}
+
+/**
+ * Publishes the render buffers of an engine without advancing it.
+ */
+function publishRestoredView(restored: SimulationEngine): void {
+    const { buffers, transferables } = snapshotRenderBuffers(restored.getRenderData());
+    sendResponse({ type: 'updated', buffers, stats: restored.getStats(), tick: restored.getTick() }, transferables);
 }
 
 /**

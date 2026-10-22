@@ -23,13 +23,14 @@ export interface CheckpointControls {
     exportState: () => Promise<SerializedSimulationStateV1>;
 }
 
-// Saves on a fixed wall-clock cadence while the world runs. Each save commits only when the tick has changed.
-const useAutosave = (controller: CheckpointController, runState: RunState): void => {
+// Saves on a fixed wall-clock cadence. The save itself skips a world whose content has not changed, so a paused world costs
+// one export per interval and writes nothing. The cadence does not follow the UI run state, because the worker can keep
+// running after an action that the UI shows as paused.
+const useAutosave = (controller: CheckpointController): void => {
     useEffect(() => {
-        if (runState !== 'running') return undefined;
         const timer = window.setInterval(() => { void controller.save(); }, AUTOSAVE_INTERVAL_MS);
         return () => { window.clearInterval(timer); };
-    }, [controller, runState]);
+    }, [controller]);
 };
 
 // A pause or a stop is the moment a user expects the world to be kept, so it is saved at once.
@@ -72,7 +73,8 @@ const readIndexedDb = (): IDBFactory | undefined => {
     }
 };
 
-export const useCheckpoints = (engine: CheckpointEngine, runState: RunState): CheckpointControls => {
+// The controller is created once per engine. Its world-replaced callback is kept at the latest one by an effect.
+export const useCheckpoints = (engine: CheckpointEngine, runState: RunState, onWorldReplaced: () => void): CheckpointControls => {
     const controller = useMemo(() => new CheckpointController({
         worldId: DEFAULT_WORLD_ID,
         engine,
@@ -80,10 +82,11 @@ export const useCheckpoints = (engine: CheckpointEngine, runState: RunState): Ch
         acquireLock: () => requestWorldLock(DEFAULT_WORLD_ID),
         now: currentTime,
     }), [engine]);
+    useEffect(() => { controller.setWorldReplacedListener(onWorldReplaced); }, [controller, onWorldReplaced]);
     const status = useSyncExternalStore(controller.subscribe, controller.getStatus);
 
     useStartOnce(controller);
-    useAutosave(controller, runState);
+    useAutosave(controller);
     useSaveOnPause(controller, runState);
     useSaveWhenLeaving(controller);
 

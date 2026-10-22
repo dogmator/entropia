@@ -30,6 +30,8 @@ export interface CheckpointControllerOptions {
     store: CheckpointStore;
     acquireLock: () => Promise<LockOutcome>;
     now: () => number;
+    /** Called after a restore or a file import has replaced the live world. */
+    onWorldReplaced?: (() => void) | undefined;
 }
 
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
@@ -50,11 +52,22 @@ export class CheckpointController {
     private started = false;
     private lockHeld = false;
     private writer = false;
-    private lastSaved: { tick: number; savedAt: number } | null = null;
+    // The fingerprint is a checksum of the saved content, so a change made at the same tick is still saved.
+    private lastSaved: { tick: number; savedAt: number; fingerprint: string } | null = null;
+    // While a checkpoint is offered for recovery nothing is saved, so a restart cannot overwrite it before the user decides.
+    private isRecoveryPending = false;
     private queue: Promise<void> = Promise.resolve();
     private readonly listeners = new Set<() => void>();
+    private worldReplaced: (() => void) | undefined;
 
-    constructor(private readonly options: CheckpointControllerOptions) {}
+    constructor(private readonly options: CheckpointControllerOptions) {
+        this.worldReplaced = options.onWorldReplaced;
+    }
+
+    /** Replaces the callback for a world replacement. The view keeps it pointing at its latest callback. */
+    public setWorldReplacedListener(listener: (() => void) | undefined): void {
+        this.worldReplaced = listener;
+    }
 
     public readonly getStatus = (): CheckpointStatus => this.status;
 
@@ -74,7 +87,7 @@ export class CheckpointController {
         return this.writer;
     }
 
-    /** Saves the current state unless its tick is already saved. Resolves only after the commit has completed. */
+    /** Saves the current state unless its content is already saved. Resolves only after the commit has completed. */
     public save(): Promise<void> {
         return this.enqueue(() => this.saveCurrentState());
     }
@@ -91,6 +104,7 @@ export class CheckpointController {
             try {
                 await this.options.store.deleteWorld(this.options.worldId);
                 this.lastSaved = null;
+                this.isRecoveryPending = false;
                 this.setStatus({ kind: 'idle' });
             } catch (error) {
                 this.setStatus({ kind: 'failed', action: 'discard', reason: reasonOf(error) });
@@ -111,9 +125,12 @@ export class CheckpointController {
             }
             try {
                 await this.options.engine.importState(state);
-                // The imported world was never saved, so the next save must write it even if its tick is known.
+                // The imported world was never saved, so the next save must write it. The user has chosen this world,
+                // so a checkpoint offered earlier no longer blocks saving.
                 this.lastSaved = null;
+                this.isRecoveryPending = false;
                 this.setStatus({ kind: 'restored', tick: state.tick, source: 'file', skipped: [] });
+                this.worldReplaced?.();
             } catch (error) {
                 this.setStatus({ kind: 'failed', action: 'import', reason: reasonOf(error) });
             }
@@ -154,6 +171,7 @@ export class CheckpointController {
         try {
             const usable = (await this.options.store.listNewestFirst(this.options.worldId)).find(record => verifyCheckpoint(record) === null);
             this.writer = true;
+            this.isRecoveryPending = usable !== undefined;
             this.setStatus(usable
                 ? { kind: 'recoveryAvailable', tick: usable.tick, savedAt: usable.savedAt }
                 : { kind: 'idle' });
@@ -164,18 +182,20 @@ export class CheckpointController {
     }
 
     private async saveCurrentState(): Promise<void> {
-        if (!this.writer) return;
+        if (!this.writer || this.isRecoveryPending) return;
         try {
             const state = await this.options.engine.exportState();
+            const payload = JSON.stringify(state);
+            const fingerprint = checksumOf(payload);
             const last = this.lastSaved;
-            if (last !== null && last.tick === state.tick) {
+            if (last !== null && last.fingerprint === fingerprint) {
                 this.setStatus({ kind: 'saved', tick: last.tick, savedAt: last.savedAt });
                 return;
             }
             this.setStatus({ kind: 'saving' });
             const savedAt = this.options.now();
-            await this.options.store.commit({ worldId: this.options.worldId, tick: state.tick, savedAt, payload: JSON.stringify(state) });
-            this.lastSaved = { tick: state.tick, savedAt };
+            await this.options.store.commit({ worldId: this.options.worldId, tick: state.tick, savedAt, payload });
+            this.lastSaved = { tick: state.tick, savedAt, fingerprint };
             this.setStatus({ kind: 'saved', tick: state.tick, savedAt });
         } catch (error) {
             this.setStatus({ kind: 'failed', action: 'save', reason: reasonOf(error) });
@@ -184,14 +204,17 @@ export class CheckpointController {
 
     private async restoreNewest(): Promise<void> {
         if (!this.writer) return;
+        // Any attempt settles the offer: a restore that succeeds or finds nothing usable no longer blocks saving.
+        this.isRecoveryPending = false;
         try {
             const candidates = await this.options.store.listNewestFirst(this.options.worldId);
             const skipped: string[] = [];
             for (const record of candidates) {
                 const problem = await this.applyCheckpoint(record);
                 if (problem === null) {
-                    this.lastSaved = { tick: record.tick, savedAt: record.savedAt };
+                    this.lastSaved = { tick: record.tick, savedAt: record.savedAt, fingerprint: record.checksum };
                     this.setStatus({ kind: 'restored', tick: record.tick, source: 'checkpoint', skipped });
+                    this.worldReplaced?.();
                     return;
                 }
                 skipped.push(`tick ${String(record.tick)}: ${problem}`);
