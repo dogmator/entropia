@@ -17,7 +17,7 @@ import { t } from '@/i18n';
 import { TIME } from '../../config';
 import { Icons } from './shared/Icons';
 
-/* eslint-disable react/prop-types, react-refresh/only-export-components */
+/* eslint-disable react/prop-types */
 
 /**
  * Interface for ErrorBoundary properties.
