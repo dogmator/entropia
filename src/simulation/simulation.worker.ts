@@ -96,7 +96,7 @@ if (import.meta.env.DEV) {
 // ============================================================================
 
 let engine: SimulationEngine | null = null;
-// The world scale is not part of a snapshot, so a restored engine is built at the scale the live one was built at.
+// A restored engine is built at the scale of the live world. A snapshot saved at another scale is rejected by the import.
 let currentScale = 1.0;
 let isRunning = false;
 let timeoutId: number | null = null;
