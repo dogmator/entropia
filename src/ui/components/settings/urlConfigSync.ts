@@ -152,6 +152,30 @@ export const buildSearchFromConfigDiff = (
 };
 
 /**
+ * The settings that a navigation from one address to another changes.
+ *
+ * A parameter changes when it is added, removed or given another value, and a removed parameter stands for its default.
+ * Settings the two addresses do not differ in are left out, so a navigation never replaces a value it does not touch.
+ * The values are read as parseConfigFromSearch reads them, so the caller sanitizes them before use.
+ */
+export const settingsChangedBetween = (
+    fromSearch: string,
+    toSearch: string,
+    defaultConfig: SimulationConfig
+): Partial<SimulationConfig> => {
+    const from = new URLSearchParams(fromSearch);
+    const to = new URLSearchParams(toSearch);
+    const target = parseConfigFromSearch(toSearch, defaultConfig);
+    const changed = {} as Partial<WritableConfigRecord>;
+
+    (Object.keys(defaultConfig) as ConfigKey[]).forEach((key) => {
+        if (from.get(key) === to.get(key)) { return; }
+        changed[key] = target[key];
+    });
+    return changed as Partial<SimulationConfig>;
+};
+
+/**
  * Updating browser URL according to current configuration state.
  *
  * Uses history.pushState for discrete actions (toggles, presets)

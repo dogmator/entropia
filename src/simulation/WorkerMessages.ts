@@ -96,16 +96,30 @@ export interface ImportStateCommand {
     readonly state: SerializedSimulationStateV1;
 }
 
-/** Second half of an import: swaps in the world prepared under the same token. */
+/**
+ * Second half of an import: swaps in the world prepared under the same token. The settings changed while the import was in
+ * flight come with it, so the restored world has them before its first tick.
+ */
 export interface CommitImportCommand {
     readonly type: 'commitImport';
     readonly requestId: string;
     readonly importToken: string;
+    readonly updates?: Partial<SimulationConfig>;
 }
 
 /** Drops the world prepared under a token, when its import gave up before the commit. Needs no answer. */
 export interface CancelImportCommand {
     readonly type: 'cancelImport';
+    readonly importToken: string;
+}
+
+/**
+ * Asks whether the commit of one import replaced the live world. The worker answers commands in the order it received
+ * them, so the answer comes after any commit sent before this probe.
+ */
+export interface ProbeImportCommand {
+    readonly type: 'probeImport';
+    readonly requestId: string;
     readonly importToken: string;
 }
 
@@ -137,6 +151,7 @@ export type WorkerCommand =
     | ImportStateCommand
     | CommitImportCommand
     | CancelImportCommand
+    | ProbeImportCommand
     | StartLoopCommand
     | StopLoopCommand
     | SetSpeedCommand;
@@ -198,6 +213,12 @@ export interface SnapshotImportResult {
     readonly worldConfig: WorldConfig;
     readonly zones: Map<string, EcologicalZone>;
     readonly obstacles: Map<string, IEntity>;
+}
+
+/** The worker's record of one import, with the live world as it is now, so the proxy can refresh its copies from it. */
+export interface ImportProbeResult {
+    readonly committed: boolean;
+    readonly live: SnapshotImportResult;
 }
 
 export type WorkerResponse =

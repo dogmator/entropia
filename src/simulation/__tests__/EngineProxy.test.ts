@@ -288,13 +288,15 @@ describe('EngineProxy command optimization', () => {
     expect(postedMessages.some((msg) => msg.type === 'commitImport')).toBe(false);
   });
 
-  it('a commit with no answer is reported as an unknown outcome after the bound, never as a failure', async () => {
+  it('a commit and its probe with no answer are reported as an unknown outcome after both bounds, never as a failure', async () => {
     const pending = proxy.importState(createState());
     const prepare = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
     respond({ type: 'commandResponse', requestId: prepare?.requestId, result: { prepared: true } });
     await settle();
 
     const assertion = expect(pending).rejects.toBeInstanceOf(ImportOutcomeUnknownError);
+    vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS + 1);
+    await settle();
     vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS + 1);
 
     await assertion;
