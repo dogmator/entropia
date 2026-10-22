@@ -431,9 +431,18 @@ function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImpor
     const { candidate } = preparedImport;
     preparedImport = null;
 
-    carryRuntimeState(live, candidate);
+    // Everything that can fail runs before the swap, so a failure here leaves the live world unchanged and says so.
+    let result: SnapshotImportResult;
+    try {
+        carryRuntimeState(live, candidate);
+        result = importResult(candidate);
+    } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        sendCommandError(command.requestId, new Error(`The import failed before the swap, so the live world is unchanged: ${reason}`));
+        return;
+    }
     engine = candidate;
-    sendResponse({ type: 'commandResponse', requestId: command.requestId, result: importResult(candidate) });
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
 }
 
 /** Drops the world prepared under a token, so that a late commit cannot apply an import the proxy gave up on. */
