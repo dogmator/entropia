@@ -233,6 +233,18 @@ describe('EngineProxy command optimization', () => {
     await expect(second).resolves.toMatchObject({ tick: 2 });
   });
 
+  it('keeps a config update made while an import is pending, on top of the acknowledged configuration', async () => {
+    const pending = proxy.importState(createState());
+    proxy.updateConfig({ maxFood: 333 });
+    const command = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
+
+    // The worker applies the update after the import, so the acknowledgement does not contain it.
+    respond({ type: 'commandResponse', requestId: command?.requestId, result: acknowledgement({ ...createState().config, maxFood: 111 }) });
+
+    await pending;
+    expect(proxy.config.maxFood).toBe(333);
+  });
+
   it('importState resolves only after the worker acknowledges it, and refreshes the cached configuration', async () => {
     const restoredConfig = { ...createState().config, maxFood: 111 };
     const pending = proxy.importState(createState());

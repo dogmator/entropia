@@ -10,6 +10,8 @@ import { WorkerChannel } from './WorkerChannel.service';
 
 export interface EngineProxyOptions { scale?: number; tickRate?: number; }
 interface CameraPayload { position: Vector3; target: Vector3; }
+// An import that has not been acknowledged yet, with the config updates posted while it was pending.
+interface PendingImport { updates: Partial<SimulationConfig>; }
 const DEFAULT_TICK_RATE = 60;
 const WORKER_SOURCE = 'Worker';
 
@@ -26,6 +28,7 @@ export class EngineProxy implements ISimulationEngine {
     private readonly configBatcher: ConfigBatcher;
     private readonly channel: WorkerChannel;
     private latestCameraPayload: CameraPayload | null = null;
+    private importsInFlight: PendingImport[] = [];
 
     constructor(options: EngineProxyOptions = {}) {
         this.tickRate = options.tickRate ?? DEFAULT_TICK_RATE;
@@ -88,15 +91,26 @@ export class EngineProxy implements ISimulationEngine {
      */
     public async importState(s: SerializedSimulationStateV1): Promise<void> {
         this.configBatcher.flush();
-        const applied = await this.channel.sendAsyncCommand<SnapshotImportResult>('importState', { state: s });
-        this._config = applied.config;
+        const pending: PendingImport = { updates: {} };
+        this.importsInFlight.push(pending);
+        let applied: SnapshotImportResult;
+        try {
+            applied = await this.channel.sendAsyncCommand<SnapshotImportResult>('importState', { state: s });
+        } finally {
+            this.importsInFlight = this.importsInFlight.filter(item => item !== pending);
+        }
+        // The worker applies the updates posted during the import after it, so they stay on top of the acknowledged config.
+        this._config = { ...applied.config, ...pending.updates };
         this._worldConfig = applied.worldConfig;
         this._zones = applied.zones;
         this._obstacles = applied.obstacles;
         this.lastStats = applied.stats;
         logger.info('Proxy: importState applied', 'EngineProxy', { tick: applied.tick });
     }
-    public updateConfig(c: Partial<SimulationConfig>): void { this.configBatcher.updateConfig(c, this._config ?? undefined); }
+    public updateConfig(c: Partial<SimulationConfig>): void {
+        for (const pending of this.importsInFlight) Object.assign(pending.updates, c);
+        this.configBatcher.updateConfig(c, this._config ?? undefined);
+    }
     public updateWorldScale(s: number): void {
         this.configBatcher.flush();
         logger.info(`Proxy: Updating world scale to ${String(s)}`, 'EngineProxy');

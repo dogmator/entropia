@@ -66,6 +66,28 @@ describe('snapshot restore: runtime configuration', () => {
     expect(() => { engine.importState(broken as unknown as SerializedSimulationStateV1); }).toThrow(/mutationFactor/);
     expect(comparable(engine)).toBe(before);
   });
+
+  it('rejects a snapshot whose boolean setting holds a value of another type, because it would stay truthy or falsy wrongly', () => {
+    const engine = new SimulationEngine(1, { seed: RESTORE_SEED });
+    const before = comparable(engine);
+    const source = new SimulationEngine(1, { seed: SEED });
+    const broken = structuredClone(source.exportState()) as unknown as { config: Record<string, unknown> };
+    broken.config['showObstacles'] = 'false';
+
+    expect(() => { engine.importState(broken as unknown as SerializedSimulationStateV1); }).toThrow(/showObstacles/);
+    expect(comparable(engine)).toBe(before);
+  });
+
+  it('rejects a snapshot whose graphics quality is not one of the presets the settings UI knows', () => {
+    const engine = new SimulationEngine(1, { seed: RESTORE_SEED });
+    const before = comparable(engine);
+    const source = new SimulationEngine(1, { seed: SEED });
+    const broken = structuredClone(source.exportState()) as unknown as { config: Record<string, unknown> };
+    broken.config['graphicsQuality'] = 'NOT_A_PRESET';
+
+    expect(() => { engine.importState(broken as unknown as SerializedSimulationStateV1); }).toThrow(/graphicsQuality/);
+    expect(comparable(engine)).toBe(before);
+  });
 });
 
 describe('snapshot restore: failsafe counters', () => {
