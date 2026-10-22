@@ -61,6 +61,10 @@ export const sanitizeConfig = (config: SimulationConfig, defaultConfig: Simulati
     return nextConfig;
 };
 
+// The values of the given settings only, so that a change can be sent without the rest of the configuration.
+export const pickSettings = (config: SimulationConfig, keys: readonly (keyof SimulationConfig)[]): Partial<SimulationConfig> =>
+    Object.fromEntries(keys.map((key) => [key, config[key]])) as Partial<SimulationConfig>;
+
 export const getInitialConfig = (defaultConfig: SimulationConfig): SimulationConfig => {
     const parsedConfig = parseConfigFromSearch(window.location.search, defaultConfig, {
         graphicsQuality: (value, fallback) => (isGraphicsQuality(value) ? value : fallback),
