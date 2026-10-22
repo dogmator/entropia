@@ -64,7 +64,7 @@ Avoid creating a native blockchain or token as a prerequisite. An open peer netw
 
 ### Recommended starting topology
 
-A world has one authoritative state-transition executor at a time, while other nodes may store checkpoints, replay transition ranges and observe its history. Thousands of independent worlds can execute on different peers.
+A world has one authoritative state-transition executor at a time, while other nodes may store checkpoints, replay transition ranges and observe its history. Many independent worlds could execute on different peers. No scale is claimed here.
 
 This retains the hybrid concept's deterministic engine and single-writer semantics without demanding cross-machine synchronization on every collision, food consumption or movement.
 
@@ -288,7 +288,7 @@ Contributions may be acknowledged via publicly verifiable records of work, with 
 
 ### Project funding
 
-Transparent contributions, grants, sponsorship and recurring support can cover engineering, audit, testing, documentation, essential relays/bootstrap and shared infrastructure.
+Transparent contributions, grants, sponsorship and recurring support can cover engineering, audit, testing, documentation, relay and bootstrap operation, and shared infrastructure. Relay and bootstrap operators should be plural and separately funded, so that no project-owned endpoint is required (see section 12).
 
 An open budget should distinguish operating expenses from research allocations and publish what was actually funded and delivered.
 
@@ -389,6 +389,8 @@ This adds a research trajectory to the existing [Hybrid World Runtime and Lifecy
 | Federated worlds | Explicit authority models and conflict handling | Recoverable canonical history without one permanent compute operator |
 | Open commons | Multiple independent operators and transparent support | Measured, durable collaboration and realistic costs |
 | Research observatory | Public experimental history and repeatable forks | Evidence-based comparison of evolutionary possibilities |
+
+The table lists infrastructure directions only. Issue #57's product sequence (ecology, simple Utility AI, Boids-related traits, endurance acceptance) remains the product priority and is not represented in this table.
 
 Keep the network optional for local users. Do not impose public key management or participation in peer discovery on someone who only wants a private, sleeping IndexedDB world.
 

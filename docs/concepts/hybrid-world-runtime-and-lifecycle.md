@@ -6,7 +6,7 @@
 >
 > **Scope:** Architecture and product exploration only. This document authorizes no code changes, implementation PRs, merges, infrastructure provisioning, account creation, deployments, costs, or changes to governance.
 >
-> **Relationship:** Extends the *discussion* beyond [Issue #57](https://github.com/dogmator/entropia/issues/57), which currently approves **browser-local persistence between sessions**, not 24/7 remote execution. Nothing here silently amends that issue or its implementation restrictions.
+> **Relationship:** Extends the *discussion* beyond [Issue #57](https://github.com/dogmator/entropia/issues/57), which accepts at the concept level **browser-local persistence between sessions** (IndexedDB as the base storage) and excludes uninterrupted background computation after a tab is closed. Its implementation stays blocked until the prerequisites in that issue are verified. Nothing here amends that issue or its implementation restrictions.
 
 ## Companion research concept: Entropia Commons
 
@@ -52,15 +52,15 @@ Prefer minimal, experimentally validated separation of runtime and simulation se
 
 ## 3. Current project baseline and assumptions
 
-At this document's creation, Entropia contains a TypeScript SimulationEngine, browser simulation Worker, state export/import services, and evolving tests around random-stream ownership and snapshot continuation. A working agent branch was observed with per-engine RNG isolation and continuation corrections; **unmerged branch results are not established main-branch behavior**.
+Entropia's `main` (checked on 2026-10-22 at commit `f2ec0f6`) contains a TypeScript SimulationEngine, a browser simulation Worker, state export/import services, and tests for random-stream ownership and snapshot continuation. Per-engine RNG isolation and snapshot continuation were merged in PRs #66 and #67. Issue #57 increments G, H, I, J and M are merged in PRs #70 to #74. No merged increment K (simple Utility AI) or L (Boids-related traits) appears on `main`. Behavior claims must be re-checked against `main` at execution time, not taken from this section.
 
-Issue #57 records important, still-relevant gaps to verify against the eventual implementation base:
+Issue #57's technical appendix (2026-10-20) recorded the gaps below. The status on `main` on 2026-10-22 is noted for each. Each gap still needs verification by tests before it is treated as closed. Issue #57 lists PR #56 as a prerequisite; it is merged (2026-10-20), while the Issue text still calls it open.
 
-- Worker-facing export/import must provide an actual asynchronous, correlated acknowledgment/error contract; a cached/fallback export must not masquerade as a fresh checkpoint.
-- Snapshot capture must happen at a coherent tick boundary.
-- Browser-local IndexedDB checkpoint storage has not yet been approved for implementation.
-- Historical genealogy and checkpoint size require measurement before retention/truncation policy.
-- Save/restore equivalence must be established by tests, not inferred from export/import round-trip equality.
+- Worker-facing export/import must provide an actual asynchronous, correlated acknowledgment/error contract; a cached/fallback export must not masquerade as a fresh checkpoint. *Status on `main`: `EngineProxy.exportState()` returns a Promise and documents that it never resolves with a cached or synthetic state; import acknowledgments use `commandResponse`.*
+- Snapshot capture must happen at a coherent tick boundary. *Status on `main`: the export contract is documented as the state at a tick boundary.*
+- Browser-local IndexedDB checkpoint storage is accepted at the concept level as the base storage (Issue #57), and its implementation is gated. *Status on `main`: `CheckpointStore`, `CheckpointController` and a Web Locks `WorldLease` are present (PR #71). Whether the merged increments satisfy the Issue's implementation gate is an owner decision.*
+- Historical genealogy and checkpoint size require measurement before retention/truncation policy. *Status on `main`: increments I, J and M are merged (PRs #72 to #74). This document does not assess their measurements.*
+- Save/restore equivalence must be established by tests, not inferred from export/import round-trip equality. *Status on `main`: restore and continuation tests exist (for example `CheckpointRestore` and `SnapshotContinuation`). Whether they meet the Issue's equivalence criteria is not assessed here.*
 
 The independent runtime proposal is contingent on these prerequisites and on renewed review of the current source and CI at execution time. No existing PR title or agent progress log is proof of an accepted architecture.
 
@@ -182,7 +182,7 @@ Offer a separate user-owned export for recovery outside the browser profile.
 
 ### Multiple tabs
 
-Only one local tab may mutate the canonical branch. Other tabs should open it read-only, or explicitly fork it. Web Locks is a candidate for same-origin coordination, subject to target-browser compatibility testing; storage transaction and revision checks remain necessary.
+Only one local tab may mutate the canonical branch. Other tabs should open it read-only, or explicitly fork it. `WorldLease` on `main` already uses Web Locks where `navigator.locks` exists, and reports `unsupported` otherwise (PR #71). Target-browser compatibility testing is still needed, and storage transaction and revision checks remain necessary.
 
 A lock tied to one browser origin does not coordinate a remote headless executor. Cross-runtime authority requires a separate protocol.
 
@@ -259,6 +259,8 @@ Provisional remote mechanism:
 Leases alone are insufficient. A supposedly expired process can later resume; the **storage write path** must enforce fencing.
 
 Cross-store transfer and local-offline ownership require further design. Never describe this sketch as a distributed-consensus guarantee before adversarial tests.
+
+The registry in this section belongs to the LOCAL ↔ REMOTE stage. The [Entropia Commons concept](entropia-commons-decentralized-network.md) does not assume a central registry (see its section 7). A peer-to-peer variant needs its own authority mechanism.
 
 ## 12. Checkpoints and durable publication
 
@@ -413,7 +415,9 @@ Stages are **candidate design and test boundaries**, not approved tickets, PRs o
 | D — Controlled handoff | Authority epochs, fencing, guarded transfer and explicit forks | No split-brain writes across interrupted LOCAL ↔ REMOTE transfers |
 | E — Long-running observatory | Catalog, quotas, remote observation, archival history, repeated experiments | Long experiments survive controlled faults with verifiable lineage and budget |
 
-A logical product ordering is **reliable history first, runtime portability second, independent computing third, and inter-runtime transfer fourth**. It minimizes infrastructure built before evidence.
+Stage A is partly on `main` already: worker snapshot acknowledgments, IndexedDB checkpoints and the tab lease are merged (PRs #70 and #71). The table describes the remaining design boundaries and does not show what is merged.
+
+A logical product ordering is **reliable history first, runtime portability second, independent computing third, and inter-runtime transfer fourth**. It minimizes infrastructure built before evidence. This ordering covers infrastructure only. Issue #57's product sequence (ecology, simple Utility AI, Boids-related traits, endurance acceptance) is neither reordered nor scheduled here.
 
 The existing Issue #57 implementation sequence G–M remains a separate concept-level plan. This document does not automatically insert new server milestones into it.
 
@@ -463,9 +467,11 @@ References are background material and candidates for later evidence review, not
 
 **CONCEPT ONLY. IMPLEMENTATION NOT AUTHORIZED.**
 
-The repository's current main-branch protections and PR-only workflow remain in force.
+Main-branch protection remains in force. Classic branch protection requires the `Verification` check, as the operator verified on 2026-10-21. Ruleset `17666581` targets a misspelled branch, which is an open owner action recorded in [ADR 0001](../adr/0001-branch-protection-and-quality-gates.md).
 
 No infrastructure, credential, deployment, expenditure or source-code authority is granted by this document. No change to Issue #57's accepted scope is implied. The working coding agent's current assignments and branches are unaffected.
+
+Issue #57's principle 7 ("No radical architectural changes") keeps the current TypeScript engine, Web Worker and browser execution. Autonomous headless runtimes would require the owner to revise that principle first. This document does not revise it.
 
 To proceed from vision to execution, the operator must separately approve a bounded architecture/specification increment, its acceptance tests, resource limits and PR scope.
 
