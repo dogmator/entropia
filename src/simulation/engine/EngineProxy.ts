@@ -102,13 +102,12 @@ export class EngineProxy implements ISimulationEngine {
             await this.channel.sendAsyncCommand<unknown>('importState', { state: s, importToken }, {
                 onTimeout: () => { this.channel.sendCommand({ type: 'cancelImport', importToken }, () => { this.configBatcher.flush(); }); },
             });
-            applied = await this.commitImport(importToken);
+            applied = await this.commitImport(importToken, pending.updates);
         } finally {
             this.importsInFlight = this.importsInFlight.filter(item => item !== pending);
         }
-        // The swap replaced the world the updates reached, so they are sent again on top of the acknowledged configuration.
+        // The changes made during the import travel with the commit, so the restored world has them from its first tick.
         this._config = { ...applied.config, ...pending.updates };
-        if (Object.keys(pending.updates).length > 0) this.configBatcher.updateConfig(pending.updates);
         this._worldConfig = applied.worldConfig;
         this._zones = applied.zones;
         this._obstacles = applied.obstacles;
@@ -119,9 +118,9 @@ export class EngineProxy implements ISimulationEngine {
      * The swap is bounded like every request. A worker answer settles the outcome. Silence does not, because the swap may
      * have happened, so the proxy asks the worker whether it did.
      */
-    private async commitImport(importToken: string): Promise<SnapshotImportResult> {
+    private async commitImport(importToken: string, updates: Partial<SimulationConfig>): Promise<SnapshotImportResult> {
         try {
-            return await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken });
+            return await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken, updates: { ...updates } });
         } catch (error) {
             if (!(error instanceof CommandTimeoutError)) throw error;
             return this.settleLostCommit(importToken);
@@ -143,20 +142,8 @@ export class EngineProxy implements ISimulationEngine {
         throw new Error('The import was not applied, so the live world is unchanged.');
     }
     public updateConfig(c: Partial<SimulationConfig>): void {
-        const changes = this.changedSettings(c);
-        if (Object.keys(changes).length === 0) return;
-        for (const pending of this.importsInFlight) Object.assign(pending.updates, changes);
-        this.configBatcher.updateConfig(changes, this._config ?? undefined);
-    }
-    /**
-     * The caller may send its whole configuration, which can still hold values read before a world was swapped in. Only the
-     * values that differ from the cached configuration are changes, so a stale value of an unchanged setting cannot overwrite
-     * the value the worker holds.
-     */
-    private changedSettings(c: Partial<SimulationConfig>): Partial<SimulationConfig> {
-        const cached = this._config;
-        if (!cached) return c;
-        return Object.fromEntries(Object.entries(c).filter(([key, value]) => cached[key as keyof SimulationConfig] !== value)) as Partial<SimulationConfig>;
+        for (const pending of this.importsInFlight) Object.assign(pending.updates, c);
+        this.configBatcher.updateConfig(c, this._config ?? undefined);
     }
     public updateWorldScale(s: number): void {
         this.configBatcher.flush();

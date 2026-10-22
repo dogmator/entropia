@@ -64,7 +64,7 @@ describe('useSettingsState — a change sends only the settings it touches', () 
     act(() => { mounted().applyPreset('HIGH'); });
 
     const sent = updateConfig.mock.lastCall?.[0] as Partial<SimulationConfig> | undefined;
-    expect(Object.keys(sent ?? {}).sort(byName)).toEqual([...Object.keys(GRAPHICS_PRESETS.HIGH), 'graphicsQuality'].sort(byName));
+    expect(Object.keys(sent ?? {}).sort(byName)).toEqual(Object.keys(GRAPHICS_PRESETS.HIGH).sort(byName));
     expect(sent).toMatchObject({ graphicsQuality: 'HIGH' });
   });
 });

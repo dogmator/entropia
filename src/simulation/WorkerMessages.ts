@@ -96,11 +96,15 @@ export interface ImportStateCommand {
     readonly state: SerializedSimulationStateV1;
 }
 
-/** Second half of an import: swaps in the world prepared under the same token. */
+/**
+ * Second half of an import: swaps in the world prepared under the same token. The settings changed while the import was in
+ * flight come with it, so the restored world has them before its first tick.
+ */
 export interface CommitImportCommand {
     readonly type: 'commitImport';
     readonly requestId: string;
     readonly importToken: string;
+    readonly updates?: Partial<SimulationConfig>;
 }
 
 /** Drops the world prepared under a token, when its import gave up before the commit. Needs no answer. */

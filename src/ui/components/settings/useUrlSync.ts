@@ -7,7 +7,7 @@ import { isGraphicsQuality } from './useSettingsState.utils';
 
 export const useUrlSync = (
     defaultConfigRef: React.RefObject<SimulationConfig>,
-    applyConfig: (nextConfig: SimulationConfig, mode: UrlHistoryMode, isUrlEvent: boolean) => void,
+    applyConfig: (nextConfig: SimulationConfig, mode: UrlHistoryMode, options: { isUrlEvent: boolean }) => void,
     urlSyncTimerRef: React.RefObject<ReturnType<typeof setTimeout> | null>
 ): void => {
     const isUrlDrivenUpdateRef = useRef(false);
@@ -18,7 +18,7 @@ export const useUrlSync = (
                 graphicsQuality: (v, f) => (isGraphicsQuality(v) ? v : f),
             });
             isUrlDrivenUpdateRef.current = true;
-            applyConfig(parsed, 'replace', true);
+            applyConfig(parsed, 'replace', { isUrlEvent: true });
             isUrlDrivenUpdateRef.current = false;
         };
         window.addEventListener('popstate', onPopState);

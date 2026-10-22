@@ -439,6 +439,7 @@ function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImpor
     let result: SnapshotImportResult;
     let view: ReturnType<typeof restoredView> | null = null;
     try {
+        if (command.updates) Object.assign(candidate.config, command.updates);
         carryRuntimeState(live, candidate);
         result = importResult(candidate);
         // While the loop is stopped nothing else publishes frames, so the renderer would keep the old world's buffers.

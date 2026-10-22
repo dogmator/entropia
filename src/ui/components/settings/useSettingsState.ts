@@ -6,7 +6,7 @@ import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngin
 import type { GraphicsQuality, SimulationConfig } from '@/types';
 
 import { type UrlHistoryMode } from './urlConfigSync';
-import { clampToLimits, getInitialConfig, sanitizeConfig, syncUrlDebounced } from './useSettingsState.utils';
+import { clampToLimits, getInitialConfig, pickSettings, sanitizeConfig, syncUrlDebounced } from './useSettingsState.utils';
 import { useUrlSync } from './useUrlSync';
 
 const URL_SYNC_DEBOUNCE_MS = 180;
@@ -20,6 +20,16 @@ export interface SettingsState {
 }
 
 export type InitialConfigSource = 'url' | 'engine';
+
+// The settings a graphics preset sets, which include its own quality.
+const presetSettings = (quality: Exclude<GraphicsQuality, 'CUSTOM'>): (keyof SimulationConfig)[] =>
+    Object.keys(GRAPHICS_PRESETS[quality]) as (keyof SimulationConfig)[];
+
+// A URL event sends the whole configuration. Any other change sends only the settings it touches.
+interface ApplyOptions {
+    readonly isUrlEvent: boolean;
+    readonly touched?: readonly (keyof SimulationConfig)[];
+}
 
 // The first settings panel of a page takes its configuration from the URL. A panel that replaces an earlier one, after a
 // restore or an import, takes the live configuration, because the URL still describes the world that was replaced.
@@ -38,11 +48,13 @@ export const useSettingsState = (engine: ISimulationEngine, initialSource: Initi
 
     const [config, setConfig] = useState<SimulationConfig>(() => initialConfigFor(engine, initialSource));
 
-    const applyConfig = useCallback((nextConfig: SimulationConfig, mode: UrlHistoryMode, isUrlEvent: boolean) => {
+    // A change sends only the settings it touches. The other values in the panel may predate a restore or an import, and
+    // sending them would replace the world's own values.
+    const applyConfig = useCallback((nextConfig: SimulationConfig, mode: UrlHistoryMode, { isUrlEvent, touched }: ApplyOptions) => {
         const sanitizedConfig = sanitizeConfig(nextConfig, defaultConfigRef.current);
         logger.info('URL-first applyConfig', 'useSettingsState', { mode, isUrlEvent, url: window.location.search });
         setConfig(sanitizedConfig);
-        engine.updateConfig(sanitizedConfig);
+        engine.updateConfig(touched ? pickSettings(sanitizedConfig, touched) : sanitizedConfig);
         if (!isUrlEvent) {
             syncUrlDebounced({
                 nextConfig: sanitizedConfig,
@@ -71,20 +83,20 @@ export const useSettingsState = (engine: ISimulationEngine, initialSource: Initi
         const safeValue = clampToLimits(key, val);
         if (currentValue === safeValue) return;
         logger.info('setting changed', SETTINGS_SOURCE, { key, from: currentValue, to: safeValue });
-        applyConfig({ ...config, [key]: safeValue, graphicsQuality: 'CUSTOM' }, 'replace', false);
+        applyConfig({ ...config, [key]: safeValue, graphicsQuality: 'CUSTOM' }, 'replace', { isUrlEvent: false, touched: [key, 'graphicsQuality'] });
     }, [applyConfig, config]);
 
     const toggle = useCallback((key: keyof SimulationConfig) => {
         const currentVal = config[key];
         if (typeof currentVal !== 'boolean') return;
         logger.info('setting toggled', SETTINGS_SOURCE, { key, from: currentVal, to: !currentVal });
-        applyConfig({ ...config, [key]: !currentVal, graphicsQuality: 'CUSTOM' }, 'push', false);
+        applyConfig({ ...config, [key]: !currentVal, graphicsQuality: 'CUSTOM' }, 'push', { isUrlEvent: false, touched: [key, 'graphicsQuality'] });
     }, [applyConfig, config]);
 
     const applyPreset = useCallback((quality: GraphicsQuality) => {
         if (quality === 'CUSTOM') return;
         logger.info('graphics preset applied', SETTINGS_SOURCE, { quality });
-        applyConfig({ ...config, ...GRAPHICS_PRESETS[quality], graphicsQuality: quality }, 'push', false);
+        applyConfig({ ...config, ...GRAPHICS_PRESETS[quality], graphicsQuality: quality }, 'push', { isUrlEvent: false, touched: presetSettings(quality) });
     }, [applyConfig, config]);
 
     return { config, update, toggle, applyPreset };
