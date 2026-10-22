@@ -85,9 +85,28 @@ export interface ExportStateCommand {
     readonly requestId: string;
 }
 
+/**
+ * First half of an import: builds the restored world without touching the live one. The token names the import until it
+ * is committed or cancelled.
+ */
 export interface ImportStateCommand {
     readonly type: 'importState';
+    readonly requestId: string;
+    readonly importToken: string;
     readonly state: SerializedSimulationStateV1;
+}
+
+/** Second half of an import: swaps in the world prepared under the same token. */
+export interface CommitImportCommand {
+    readonly type: 'commitImport';
+    readonly requestId: string;
+    readonly importToken: string;
+}
+
+/** Drops the world prepared under a token, when its import gave up before the commit. Needs no answer. */
+export interface CancelImportCommand {
+    readonly type: 'cancelImport';
+    readonly importToken: string;
 }
 
 export interface StartLoopCommand {
@@ -116,6 +135,8 @@ export type WorkerCommand =
     | GetGeneticRootsCommand
     | ExportStateCommand
     | ImportStateCommand
+    | CommitImportCommand
+    | CancelImportCommand
     | StartLoopCommand
     | StopLoopCommand
     | SetSpeedCommand;
@@ -161,13 +182,32 @@ export interface CommandResponse {
     readonly result: unknown;
 }
 
+/** Answers one request that failed. The message is the actual reason, so the caller can report it. */
+export interface CommandErrorResponse {
+    readonly type: 'commandError';
+    readonly requestId: string;
+    readonly message: string;
+    readonly stack?: string | undefined;
+}
+
+/** Acknowledgement of an applied snapshot: the state the live engine now reports, so the caller can refresh its copies. */
+export interface SnapshotImportResult {
+    readonly tick: number;
+    readonly stats: SimulationStats;
+    readonly config: SimulationConfig;
+    readonly worldConfig: WorldConfig;
+    readonly zones: Map<string, EcologicalZone>;
+    readonly obstacles: Map<string, IEntity>;
+}
+
 export type WorkerResponse =
     | InitializedResponse
     | UpdatedResponse
     | StatsResponse
     | ErrorResponse
     | ReadyResponse
-    | CommandResponse;
+    | CommandResponse
+    | CommandErrorResponse;
 
 // ============================================================================
 // WORKER CONSOLE FORWARDING (Worker → Main Thread)

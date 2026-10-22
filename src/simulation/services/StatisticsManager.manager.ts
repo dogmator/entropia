@@ -175,6 +175,13 @@ export class StatisticsManager {
     }
 
     /**
+     * Restores the cumulative maxima recorded in a snapshot. They never decrease, so they can exceed every living organism.
+     */
+    public restoreHistoricalMaxima(maxAge: number, maxGeneration: number): void {
+        this.stats = { ...this.stats, maxAge, maxGeneration };
+    }
+
+    /**
      * Set camera data.
      */
     public setCameraData(cameraData: CameraData): void {

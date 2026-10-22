@@ -16,6 +16,7 @@ import {
     createFoodId,
     createObstacleId,
     EntityType,
+    GraphicsQuality,
     PredatorSubtype,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
@@ -43,6 +44,67 @@ const isStringArray = (value: unknown): boolean => Array.isArray(value) && value
 const requireFiniteFields = (container: Record<string, unknown>, section: string, keys: string[]): void => {
     for (const key of keys) {
         if (!isFiniteNumber(container[key])) throw new Error(`Invalid simulation snapshot: ${section}.${key} must be a finite number`);
+    }
+};
+// Settings that accept only a fixed set of values. Any other value would leave the settings UI without a matching preset.
+const CONFIG_CHOICES: Partial<Record<string, readonly unknown[]>> = { graphicsQuality: Object.values(GraphicsQuality) };
+
+// The type of a setting is the type of its current value. A snapshot value of another type would stay in the live config,
+// so it is rejected. JSON turns NaN into null, so a null for a number is rejected too.
+const matchesSettingType = (current: unknown, value: unknown): boolean => {
+    if (typeof current === 'number') return isFiniteNumber(value);
+    if (typeof current === 'boolean') return typeof value === 'boolean';
+    if (typeof current === 'string') return typeof value === 'string';
+    return true;
+};
+
+const expectedSetting = (key: string, current: unknown): string => {
+    if (typeof current === 'number') return 'a finite number';
+    if (typeof current === 'boolean') return 'true or false';
+    return CONFIG_CHOICES[key] === undefined ? 'a string' : 'one of the supported values';
+};
+
+// Settings a world cannot run with when they are negative. The limits of the settings UI are not used here: they describe the
+// default world at scale 1, and the engine scales food and population limits with the world's volume.
+const NON_NEGATIVE_SETTINGS: readonly string[] = [
+    'foodSpawnRate', 'maxFood', 'maxOrganisms', 'mutationFactor', 'reproductionThreshold',
+    'bloomIntensity', 'trailLength', 'organismScale', 'foodScale',
+];
+
+// A value outside these limits would reach the simulation as an invalid world, so the snapshot is rejected.
+const requireSettingLimits = (key: string, value: unknown): void => {
+    if (typeof value !== 'number') return;
+    if (NON_NEGATIVE_SETTINGS.includes(key) && value < 0) throw new Error(`Invalid simulation snapshot: config.${key} must not be negative`);
+    if (key === 'drag' && (value <= 0 || value > 1)) throw new Error('Invalid simulation snapshot: config.drag must be above 0 and at most 1');
+};
+
+// The snapshot's settings replace the live ones, so they are checked before any engine is changed. A key missing from the
+// snapshot keeps its current value (legacy snapshots).
+const requireConfig = (config: unknown, template: SimulationConfig): void => {
+    if (!isRecord(config)) throw new Error('Invalid simulation snapshot: config is missing');
+    for (const [key, current] of Object.entries(template)) {
+        const value = config[key];
+        if (value === undefined) continue;
+        const choices = CONFIG_CHOICES[key];
+        if (!matchesSettingType(current, value) || (choices !== undefined && !choices.includes(value))) {
+            throw new Error(`Invalid simulation snapshot: config.${key} must be ${expectedSetting(key, current)}`);
+        }
+        requireSettingLimits(key, value);
+    }
+};
+const requireFailsafe = (failsafe: unknown): void => {
+    if (!isRecord(failsafe)) throw new Error('Invalid simulation snapshot: failsafe must be an object');
+    requireFiniteFields(failsafe, 'failsafe', ['zeroPopulationTicks', 'zeroFoodTicks']);
+};
+// Entities of a snapshot are placed in the bounds of the scale it was saved at, so it imports only into a world at that scale.
+// Optional: snapshots written before the scale was recorded have none, and import at the live scale.
+const requireWorldScale = (worldScale: unknown, liveScale: number): void => {
+    if (worldScale === undefined) return;
+    if (typeof worldScale !== 'number' || !Number.isFinite(worldScale) || worldScale <= 0) {
+        throw new Error('Invalid simulation snapshot: worldScale must be a positive number');
+    }
+    if (worldScale !== liveScale) {
+        throw new Error(`Invalid simulation snapshot: it was saved at world scale ${String(worldScale)}, but this world runs at ${String(liveScale)}. Set the world scale to ${String(worldScale)} and import it again.`);
     }
 };
 const isGeneticTreeLinks = (node: Record<string, unknown>): boolean => typeof node['id'] === 'string'
@@ -222,6 +284,8 @@ export class PersistenceService {
                     traits: { ...node.traits }
                 })),
             },
+            failsafe: engine.getFailsafeCounters(),
+            worldScale: engine.getWorldScale(),
         };
 
         return state;
@@ -231,7 +295,7 @@ export class PersistenceService {
      * Rejects snapshots this version cannot import. Runs before the engine is touched, and checks every field that
      * importState needs to run to completion or to derive ids, so a rejected snapshot leaves the active engine unchanged.
      */
-    private static assertImportable(state: unknown): asserts state is SerializedSimulationStateV1 {
+    private static assertImportable(state: unknown, config: SimulationConfig, liveScale: number): asserts state is SerializedSimulationStateV1 {
         const isVector = (value: unknown): boolean => isRecord(value) && isFiniteNumber(value['x']) && isFiniteNumber(value['y']) && isFiniteNumber(value['z']);
         const requireArray = (container: Record<string, unknown>, key: string): unknown[] => {
             const value = container[key];
@@ -251,7 +315,11 @@ export class PersistenceService {
         if (!isRecord(stats)) throw new Error('Invalid simulation snapshot: stats is missing');
         if (!isRecord(geneticTree)) throw new Error('Invalid simulation snapshot: geneticTree is missing');
         requireFiniteFields(counters, 'counters', ['foodIdCounter', 'obstacleIdCounter', 'organismIdCounter', 'genomeIdCounter']);
-        requireFiniteFields(stats, 'stats', ['totalDeaths', 'totalBirths']);
+        requireFiniteFields(stats, 'stats', ['totalDeaths', 'totalBirths', 'maxAge', 'maxGeneration']);
+        requireConfig(state['config'], config);
+        // Optional: snapshots written before the failsafe counters were recorded have none.
+        if (state['failsafe'] !== undefined) requireFailsafe(state['failsafe']);
+        requireWorldScale(state['worldScale'], liveScale);
         if (!isStringArray(geneticTree['roots'])) throw new Error('Invalid simulation snapshot: geneticTree.roots must be an array of strings');
         requireArray(geneticTree, 'nodes').forEach((node, i) => {
             if (!isGeneticTreeNode(node)) throw new Error(`Invalid genetic tree node at index ${String(i)}`);
@@ -282,7 +350,7 @@ export class PersistenceService {
 
     // eslint-disable-next-line max-lines-per-function
     public static importState(engine: IPersistableEngine, state: SerializedSimulationStateV1): void {
-        PersistenceService.assertImportable(state);
+        PersistenceService.assertImportable(state, engine.config, engine.getWorldScale());
         type EngineMutableShape = IPersistableEngine & {
             seed: number;
             tick: number;
@@ -302,6 +370,7 @@ export class PersistenceService {
                     config: SimulationConfig;
                 }) => void;
                 getStats: () => SimulationStats;
+                restoreHistoricalMaxima: (maxAge: number, maxGeneration: number) => void;
             };
         };
 
@@ -315,6 +384,9 @@ export class PersistenceService {
         mutableEngine.tick = state.tick;
         mutableEngine.foodIdCounter = state.counters.foodIdCounter;
         mutableEngine.obstacleIdCounter = state.counters.obstacleIdCounter;
+        // Systems keep a reference to this object, so its values are replaced in place instead of the object itself.
+        Object.assign(engine.config, state.config);
+        engine.setFailsafeCounters(state.failsafe ?? { zeroPopulationTicks: 0, zeroFoodTicks: 0 });
 
         factory.setIdCounter(state.counters.organismIdCounter);
         factory.setGenomeIdCounter(state.counters.genomeIdCounter);
@@ -472,5 +544,7 @@ export class PersistenceService {
             gridManager: engine.gridManager,
             config: engine.config,
         });
+        // Applied last: the maxima are cumulative, so the recorded values replace the ones derived from living organisms.
+        mutableEngine.statisticsManager.restoreHistoricalMaxima(state.stats.maxAge, state.stats.maxGeneration);
     }
 }

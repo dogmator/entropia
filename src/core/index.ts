@@ -13,6 +13,9 @@ export { EventBus } from './EventBus.service';
 // ObjectPool — object pool for optimization
 export { ObjectPool } from './ObjectPool.service';
 
+// Errors
+export { ImportOutcomeUnknownError } from './ImportOutcome.errors';
+
 // Services
 export { Logger,logger } from './services/Logger.service';
 export { PerformanceMonitor } from './services/PerformanceMonitor.service';
