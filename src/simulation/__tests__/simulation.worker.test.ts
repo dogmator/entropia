@@ -179,6 +179,8 @@ describe('simulation worker — lifecycle', () => {
 describe('simulation worker — snapshot commands', () => {
   const EXPORT_REQUEST = 'exportState_1';
   const IMPORT_REQUEST = 'importState_2';
+  const COMMIT_REQUEST = 'commitImport_3';
+  const IMPORT_TOKEN = 'import_1';
 
   const answersFor = (requestId: string): WorkerResponse[] =>
     posted.filter(msg => (msg.type === 'commandResponse' || msg.type === 'commandError') && msg.requestId === requestId);
@@ -213,17 +215,20 @@ describe('simulation worker — snapshot commands', () => {
     expect(snapshot.tick).toBeGreaterThanOrEqual(lastReported);
   });
 
-  it('answers importState with a correlated acknowledgement carrying the restored configuration', async () => {
+  it('answers the prepare of an import, and the commit with the restored configuration', async () => {
     await loadWorker();
     send({ type: 'init', scale: SCALE });
     const snapshot = exportLiveState(EXPORT_REQUEST);
     posted = [];
 
-    send({ type: 'importState', requestId: IMPORT_REQUEST, state: { ...snapshot, config: { ...snapshot.config, maxFood: 123 } } });
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: { ...snapshot, config: { ...snapshot.config, maxFood: 123 } } });
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN });
 
-    const [answer] = answersFor(IMPORT_REQUEST);
-    expect(answer?.type).toBe('commandResponse');
-    expect(answer?.type === 'commandResponse' && (answer.result as { config: { maxFood: number } }).config.maxFood).toBe(123);
+    const [prepared] = answersFor(IMPORT_REQUEST);
+    expect(prepared?.type === 'commandResponse' && (prepared.result as { prepared?: boolean }).prepared).toBe(true);
+    const [committed] = answersFor(COMMIT_REQUEST);
+    expect(committed?.type).toBe('commandResponse');
+    expect(committed?.type === 'commandResponse' && (committed.result as { config: { maxFood: number } }).config.maxFood).toBe(123);
   });
 
   it('reports a rejected importState as a commandError carrying the rejection reason', async () => {
@@ -285,9 +290,63 @@ describe('simulation worker — snapshot commands', () => {
     const snapshot = exportLiveState(EXPORT_REQUEST);
     posted = [];
 
-    send({ type: 'importState', requestId: IMPORT_REQUEST, state: snapshot });
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: snapshot });
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN });
     advanceFrames(10);
 
+    expect(answersFor(COMMIT_REQUEST).map(msg => msg.type)).toEqual(['commandResponse']);
     expect(responsesOfType('updated').length).toBeGreaterThan(0);
+  });
+
+  it('builds an import without changing the live world, and changes it only when the import is committed', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const live = exportLiveState('exportState_seed1');
+    const before = JSON.stringify(live);
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: { ...live, config: { ...live.config, maxFood: 123 } } });
+    expect(JSON.stringify(exportLiveState('exportState_seed2'))).toBe(before);
+
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN });
+    expect(exportLiveState('exportState_seed3').config.maxFood).toBe(123);
+  });
+
+  it('a cancelled import cannot be committed, and the live world stays as it was', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const before = JSON.stringify(exportLiveState(EXPORT_REQUEST));
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: exportLiveState('exportState_seed4') });
+    send({ type: 'cancelImport', importToken: IMPORT_TOKEN });
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN });
+
+    expect(answersFor(COMMIT_REQUEST).map(msg => msg.type)).toEqual(['commandError']);
+    expect(JSON.stringify(exportLiveState('exportState_seed5'))).toBe(before);
+  });
+
+  it('commits only the import prepared under the token it is sent with, so an older commit cannot swap in a newer world', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const snapshot = exportLiveState('exportState_seed6');
+
+    send({ type: 'importState', requestId: 'importState_a', importToken: 'import_a', state: snapshot });
+    send({ type: 'importState', requestId: 'importState_b', importToken: 'import_b', state: snapshot });
+    send({ type: 'commitImport', requestId: 'commitImport_a', importToken: 'import_a' });
+    send({ type: 'commitImport', requestId: 'commitImport_b', importToken: 'import_b' });
+
+    expect(answersFor('commitImport_a').map(msg => msg.type)).toEqual(['commandError']);
+    expect(answersFor('commitImport_b').map(msg => msg.type)).toEqual(['commandResponse']);
+  });
+
+  it('a commit with nothing prepared is a commandError, and a new world discards the import prepared for the old one', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    send({ type: 'commitImport', requestId: COMMIT_REQUEST, importToken: IMPORT_TOKEN });
+    expect(answersFor(COMMIT_REQUEST).map(msg => msg.type)).toEqual(['commandError']);
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, importToken: IMPORT_TOKEN, state: exportLiveState('exportState_seed7') });
+    send({ type: 'init', scale: SCALE });
+    send({ type: 'commitImport', requestId: 'commitImport_late', importToken: IMPORT_TOKEN });
+    expect(answersFor('commitImport_late').map(msg => msg.type)).toEqual(['commandError']);
   });
 });
