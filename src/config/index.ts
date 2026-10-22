@@ -11,6 +11,9 @@ export * from './world.constants';
 // Population and resources
 export * from './population.constants';
 
+// Opt-in resource stock (ecological pilot)
+export * from './resource.constants';
+
 // Metabolic processes
 export * from './metabolic.constants';
 

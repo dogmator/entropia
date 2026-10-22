@@ -12,6 +12,7 @@ import type {
 } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
+import type { ResourceStock } from '../services/ResourceStock.service';
 
 export interface IPersistableEngine {
     readonly seed: number;
@@ -27,6 +28,7 @@ export interface IPersistableEngine {
     readonly food: Map<string, Food>;
     readonly organisms: Map<string, Organism>;
     readonly geneticTree: Map<GenomeId, GeneticTreeNode>;
+    readonly resourceStock: ResourceStock;
 
     getStats(): SimulationStats;
     getFailsafeCounters(): FailsafeCounters;

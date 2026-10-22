@@ -407,6 +407,10 @@ export interface SerializedSimulationStateV1 {
    * scale. A snapshot imports only into a world at the same scale, because its entities are placed in that scale's bounds.
    */
   worldScale?: number;
+  /**
+   * Present only while the resource stock of the ecological pilot is on. Holds the stock of each zone, by zone id.
+   */
+  resourceStock?: { zoneStocks: Record<string, number> };
 }
 
 // ============================================================================
