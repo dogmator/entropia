@@ -78,24 +78,36 @@ interface SyncUrlParams {
     mode: 'push' | 'replace';
     timerRef: React.RefObject<ReturnType<typeof setTimeout> | null>;
     debounceMs: number;
+    // Runs after the address is written, with the address as the browser now holds it.
+    onWritten: (search: string) => void;
 }
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
 export const syncUrlDebounced = (params: SyncUrlParams): void => {
-    const { nextConfig, defaultConfig, mode, timerRef, debounceMs } = params;
+    const { nextConfig, defaultConfig, mode, timerRef, debounceMs, onWritten } = params;
     const mRef = timerRef as Mutable<typeof timerRef>;
+    const write = (writeMode: 'push' | 'replace'): void => {
+        updateUrlFromConfig(nextConfig, defaultConfig, writeMode);
+        onWritten(window.location.search);
+    };
     if (mode === 'push') {
         if (mRef.current) {
             clearTimeout(mRef.current);
             mRef.current = null;
         }
-        updateUrlFromConfig(nextConfig, defaultConfig, 'push');
+        write('push');
         return;
     }
     if (mRef.current) clearTimeout(mRef.current);
     mRef.current = setTimeout(() => {
-        updateUrlFromConfig(nextConfig, defaultConfig, 'replace');
+        write('replace');
         mRef.current = null;
     }, debounceMs);
+};
+
+// Drops a URL write that is still waiting for its debounce.
+export const cancelUrlWrite = (timerRef: React.RefObject<ReturnType<typeof setTimeout> | null>): void => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
 };

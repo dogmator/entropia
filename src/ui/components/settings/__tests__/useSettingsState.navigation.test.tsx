@@ -9,6 +9,9 @@ import type { SimulationConfig } from '@/types';
 
 import { type InitialConfigSource, type SettingsState, useSettingsState } from '../useSettingsState';
 
+// The updates below run through act(), which React only accepts in an environment that declares itself.
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
 // The configuration of a fresh world. A URL parameter that is absent stands for these values.
 const DEFAULTS = { ...GRAPHICS_PRESETS.LOW, maxFood: 400, maxOrganisms: 200, showTrails: true, graphicsQuality: 'LOW' } as unknown as SimulationConfig;
 const URL_MAX_FOOD = 500;

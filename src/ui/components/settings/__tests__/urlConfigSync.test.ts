@@ -7,6 +7,7 @@ import type { SimulationConfig } from '@/types';
 import {
     buildSearchFromConfigDiff,
     parseConfigFromSearch,
+    settingsChangedBetween,
     updateUrlFromConfig,
 } from '../urlConfigSync';
 
@@ -215,5 +216,35 @@ describe('updateUrlFromConfig', () => {
         expect(replaceSpy).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.stringContaining('maxFood'));
         replaceSpy.mockRestore();
         window.history.replaceState(null, '', '/');
+    });
+});
+
+// ============================================================================
+// settingsChangedBetween
+// ============================================================================
+
+describe('settingsChangedBetween', () => {
+    const SAVED_FOOD = '?maxFood=500';
+
+    it('повертає порожній результат, якщо адреси однакові', () => {
+        expect(settingsChangedBetween(SAVED_FOOD, SAVED_FOOD, DEFAULT_CONFIG)).toEqual({});
+    });
+
+    it('включає параметр, який додано або змінено', () => {
+        expect(settingsChangedBetween('', SAVED_FOOD, DEFAULT_CONFIG)).toEqual({ maxFood: 500 });
+        expect(settingsChangedBetween(SAVED_FOOD, '?maxFood=600', DEFAULT_CONFIG)).toEqual({ maxFood: 600 });
+    });
+
+    it('параметр, якого немає в новій адресі, повертає default, навіть коли його значення дорівнювало default', () => {
+        expect(settingsChangedBetween(SAVED_FOOD, '', DEFAULT_CONFIG)).toEqual({ maxFood: DEFAULT_CONFIG.maxFood });
+        expect(settingsChangedBetween('?maxFood=120', '', DEFAULT_CONFIG)).toEqual({ maxFood: DEFAULT_CONFIG.maxFood });
+    });
+
+    it('не включає налаштування, які між адресами не відрізняються', () => {
+        expect(settingsChangedBetween('?maxFood=500&showGrid=true', '?maxFood=600&showGrid=true', DEFAULT_CONFIG)).toEqual({ maxFood: 600 });
+    });
+
+    it('читає невалідне значення як default', () => {
+        expect(settingsChangedBetween(SAVED_FOOD, '?maxFood=abc', DEFAULT_CONFIG)).toEqual({ maxFood: DEFAULT_CONFIG.maxFood });
     });
 });
