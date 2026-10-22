@@ -96,6 +96,8 @@ if (import.meta.env.DEV) {
 // ============================================================================
 
 let engine: SimulationEngine | null = null;
+// A world built by importState and not yet swapped in by commitImport. It belongs to the import that built it.
+let preparedImport: { readonly token: string; readonly candidate: SimulationEngine } | null = null;
 // A restored engine is built at the scale of the live world. A snapshot saved at another scale is rejected by the import.
 let currentScale = 1.0;
 let isRunning = false;
@@ -139,6 +141,8 @@ const describeError = (error: unknown): Record<string, unknown> => ({
  */
 function handleInit(scale: number): void {
     try {
+        // A world prepared for the world being replaced must not be swapped in afterwards.
+        preparedImport = null;
         engine = new SimulationEngine(scale);
         currentScale = scale;
         const stats = engine.getStats();
@@ -201,6 +205,7 @@ function handleUpdate(): void {
  */
 function handleReset(): void {
     if (!engine) return;
+    preparedImport = null;
 
     logger.info('worker reset', 'Worker:Reset');
 
@@ -391,28 +396,51 @@ function handleExportState(requestId: string): void {
  * Applies a snapshot to a new engine, and replaces the live engine only after the whole snapshot has been applied. A
  * rejected snapshot therefore leaves the live simulation untouched. The acknowledgement is sent after the replacement.
  */
+/**
+ * First half of an import. Builds the restored world next to the live one, and changes nothing the user can see. The
+ * proxy then swaps it in with commitImport, or drops it with cancelImport when the import timed out.
+ */
 function handleImportState(command: Extract<WorkerCommand, { type: 'importState' }>): void {
-    const live = engine;
-    if (!live) {
+    if (!engine) {
         sendCommandError(command.requestId, new Error('Engine is not initialized'));
         return;
     }
 
-    let candidate: SimulationEngine;
     try {
-        candidate = new SimulationEngine(currentScale);
+        const candidate = new SimulationEngine(currentScale);
         candidate.importState(command.state);
+        preparedImport = { token: command.importToken, candidate };
     } catch (error) {
         logger.error('worker import rejected', 'Worker:Import', describeError(error));
         sendCommandError(command.requestId, error);
         return;
     }
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result: { prepared: true } });
+}
+
+/**
+ * Second half of an import. Swaps in the world that importState prepared under the same token. A prepared world that was
+ * cancelled, or replaced by a later import, cannot be committed, so the live world stays as it was.
+ */
+function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImport' }>): void {
+    const live = engine;
+    if (!live || !preparedImport || preparedImport.token !== command.importToken) {
+        sendCommandError(command.requestId, new Error('The import is no longer prepared, so the live world is unchanged.'));
+        return;
+    }
+    const { candidate } = preparedImport;
+    preparedImport = null;
 
     carryRuntimeState(live, candidate);
     engine = candidate;
     // While the loop is stopped nothing else publishes frames, so the renderer would keep the old world's buffers.
     if (!isRunning) publishRestoredView(candidate);
     sendResponse({ type: 'commandResponse', requestId: command.requestId, result: importResult(candidate) });
+}
+
+/** Drops the world prepared under a token, so that a late commit cannot apply an import the proxy gave up on. */
+function handleCancelImport(importToken: string): void {
+    if (preparedImport?.token === importToken) preparedImport = null;
 }
 
 /**
@@ -446,15 +474,15 @@ function importResult(restored: SimulationEngine): SnapshotImportResult {
 type LifecycleCommand = Extract<WorkerCommand, { type: 'init' | 'update' | 'reset' | 'setConfig' | 'getStats' }>;
 type QueryCommand = Extract<
     WorkerCommand,
-    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' }
+    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' | 'commitImport' }
 >;
-type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' }>;
+type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' | 'cancelImport' }>;
 
 const LIFECYCLE_TYPES: ReadonlySet<string> = new Set<LifecycleCommand['type']>(['init', 'update', 'reset', 'setConfig', 'getStats']);
 const QUERY_TYPES: ReadonlySet<string> = new Set<QueryCommand['type']>([
-    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState',
+    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState', 'commitImport',
 ]);
-const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed']);
+const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed', 'cancelImport']);
 
 const isLifecycleCommand = (command: WorkerCommand): command is LifecycleCommand => LIFECYCLE_TYPES.has(command.type);
 const isQueryCommand = (command: WorkerCommand): command is QueryCommand => QUERY_TYPES.has(command.type);
@@ -486,6 +514,7 @@ function handleQueryCommand(command: QueryCommand): void {
         case 'getGeneticRoots': handleGeneticRoots(); break;
         case 'exportState': handleExportState(command.requestId); break;
         case 'importState': handleImportState(command); break;
+        case 'commitImport': handleCommitImport(command); break;
     }
 }
 
@@ -495,6 +524,7 @@ function handleControlCommand(command: ControlCommand): void {
         case 'startLoop': startAutoUpdate(); break;
         case 'stopLoop': stopAutoUpdate(); break;
         case 'setSpeed': handleSetSpeed(command); break;
+        case 'cancelImport': handleCancelImport(command.importToken); break;
     }
 }
 

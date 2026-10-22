@@ -53,13 +53,21 @@ const connect = (factory: IDBFactory): Promise<IDBDatabase> => new Promise((reso
     };
 });
 
-// Keeps the newest RETAINED_CHECKPOINTS records of one world. It runs inside the transaction that adds a checkpoint, so
-// a checkpoint and the pruning of older ones commit together or not at all.
+/** A record can be restored only if its format is known and its payload still matches the checksum written with it. */
+export const isIntact = (record: StoredCheckpoint): boolean =>
+    record.schema === CHECKPOINT_SCHEMA_VERSION && checksumOf(record.payload) === record.checksum;
+
+// Keeps the newest RETAINED_CHECKPOINTS records of one world that are still intact, and removes the rest. A damaged record
+// goes as soon as a newer one commits, so the last good fallback is never pushed out by a record that cannot be restored.
+// It runs inside the transaction that adds a checkpoint, so a checkpoint and the pruning of older ones commit together.
 const pruneWorld = (store: IDBObjectStore, worldId: string): void => {
     const request = store.index(BY_WORLD).getAll(worldId);
     request.onsuccess = () => {
         const stored = request.result as StoredCheckpoint[];
-        for (const old of stored.slice(0, Math.max(0, stored.length - RETAINED_CHECKPOINTS))) store.delete(old.seq);
+        const kept = new Set(stored.filter(isIntact).slice(-RETAINED_CHECKPOINTS).map(record => record.seq));
+        for (const record of stored) {
+            if (!kept.has(record.seq)) store.delete(record.seq);
+        }
     };
 };
 

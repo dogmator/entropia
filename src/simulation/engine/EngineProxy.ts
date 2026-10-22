@@ -29,6 +29,7 @@ export class EngineProxy implements ISimulationEngine {
     private readonly channel: WorkerChannel;
     private latestCameraPayload: CameraPayload | null = null;
     private importsInFlight: PendingImport[] = [];
+    private importCounter = 0;
 
     constructor(options: EngineProxyOptions = {}) {
         this.tickRate = options.tickRate ?? DEFAULT_TICK_RATE;
@@ -91,11 +92,18 @@ export class EngineProxy implements ISimulationEngine {
      */
     public async importState(s: SerializedSimulationStateV1): Promise<void> {
         this.configBatcher.flush();
+        const importToken = `import_${String(++this.importCounter)}`;
         const pending: PendingImport = { updates: {} };
         this.importsInFlight.push(pending);
         let applied: SnapshotImportResult;
         try {
-            applied = await this.channel.sendAsyncCommand<SnapshotImportResult>('importState', { state: s });
+            // The build is the part that can run long. A timeout cancels it, so the worker never applies an import that
+            // this proxy has already reported as failed.
+            await this.channel.sendAsyncCommand<unknown>('importState', { state: s, importToken }, {
+                onTimeout: () => { this.channel.sendCommand({ type: 'cancelImport', importToken }, () => { this.configBatcher.flush(); }); },
+            });
+            // The swap cannot be undone once it is sent, so its answer is awaited without a timeout.
+            applied = await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken }, { bounded: false });
         } finally {
             this.importsInFlight = this.importsInFlight.filter(item => item !== pending);
         }

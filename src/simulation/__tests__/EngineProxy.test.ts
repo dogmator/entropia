@@ -93,6 +93,11 @@ describe('EngineProxy command optimization', () => {
     (proxy as unknown as { channel: WorkerChannel }).channel.dispatch({ data } as MessageEvent);
   };
 
+  // Lets the proxy's pending continuations run, so the command they send is posted before the test looks for it.
+  const settle = async (): Promise<void> => {
+    for (let turn = 0; turn < 10; turn++) await Promise.resolve();
+  };
+
   beforeEach(() => {
     vi.useFakeTimers();
     postedMessages = [];
@@ -236,25 +241,64 @@ describe('EngineProxy command optimization', () => {
   it('keeps a config update made while an import is pending, on top of the acknowledged configuration', async () => {
     const pending = proxy.importState(createState());
     proxy.updateConfig({ maxFood: 333 });
-    const command = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
+    const prepare = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
+    respond({ type: 'commandResponse', requestId: prepare?.requestId, result: { prepared: true } });
+    await settle();
+    const commit = postedMessages.find((msg) => msg.type === 'commitImport') as { requestId?: string } | undefined;
 
     // The worker applies the update after the import, so the acknowledgement does not contain it.
-    respond({ type: 'commandResponse', requestId: command?.requestId, result: acknowledgement({ ...createState().config, maxFood: 111 }) });
+    respond({ type: 'commandResponse', requestId: commit?.requestId, result: acknowledgement({ ...createState().config, maxFood: 111 }) });
 
     await pending;
     expect(proxy.config.maxFood).toBe(333);
   });
 
-  it('importState resolves only after the worker acknowledges it, and refreshes the cached configuration', async () => {
+  it('importState resolves only after the worker commits it, and refreshes the cached configuration', async () => {
     const restoredConfig = { ...createState().config, maxFood: 111 };
     const pending = proxy.importState(createState());
-    const command = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
+    const prepare = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
 
-    expect(command?.requestId).toBeDefined();
-    respond({ type: 'commandResponse', requestId: command?.requestId, result: acknowledgement(restoredConfig) });
+    expect(prepare?.requestId).toBeDefined();
+    respond({ type: 'commandResponse', requestId: prepare?.requestId, result: { prepared: true } });
+    await settle();
+    const commit = postedMessages.find((msg) => msg.type === 'commitImport') as { requestId?: string } | undefined;
+    expect(commit?.requestId).toBeDefined();
+
+    let isSettled = false;
+    void pending.then(() => { isSettled = true; });
+    await settle();
+    expect(isSettled).toBe(false);
+
+    respond({ type: 'commandResponse', requestId: commit?.requestId, result: acknowledgement(restoredConfig) });
 
     await expect(pending).resolves.toBeUndefined();
     expect(proxy.config).toEqual(restoredConfig);
+  });
+
+  it('a timed-out import is cancelled in the worker, and the proxy never sends its commit', async () => {
+    const pending = proxy.importState(createState());
+    const assertion = expect(pending).rejects.toThrow('Timeout for command importState');
+    const prepare = postedMessages.find((msg) => msg.type === 'importState') as { importToken?: string } | undefined;
+
+    vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS + 1);
+
+    await assertion;
+    expect(postedMessages).toContainEqual({ type: 'cancelImport', importToken: prepare?.importToken });
+    expect(postedMessages.some((msg) => msg.type === 'commitImport')).toBe(false);
+  });
+
+  it('a commit is awaited without a timeout, because the swap cannot be undone once it is sent', async () => {
+    const pending = proxy.importState(createState());
+    const prepare = postedMessages.find((msg) => msg.type === 'importState') as { requestId?: string } | undefined;
+    respond({ type: 'commandResponse', requestId: prepare?.requestId, result: { prepared: true } });
+    await settle();
+
+    let isRejected = false;
+    void pending.catch(() => { isRejected = true; });
+    vi.advanceTimersByTime(ASYNC_COMMAND_TIMEOUT_MS * 3);
+    await settle();
+
+    expect(isRejected).toBe(false);
   });
 
   it('importState rejects with the reason the worker reports instead of logging and resolving', async () => {

@@ -85,10 +85,28 @@ export interface ExportStateCommand {
     readonly requestId: string;
 }
 
+/**
+ * First half of an import: builds the restored world without touching the live one. The token names the import until it
+ * is committed or cancelled.
+ */
 export interface ImportStateCommand {
     readonly type: 'importState';
     readonly requestId: string;
+    readonly importToken: string;
     readonly state: SerializedSimulationStateV1;
+}
+
+/** Second half of an import: swaps in the world prepared under the same token. */
+export interface CommitImportCommand {
+    readonly type: 'commitImport';
+    readonly requestId: string;
+    readonly importToken: string;
+}
+
+/** Drops the world prepared under a token, when its import gave up before the commit. Needs no answer. */
+export interface CancelImportCommand {
+    readonly type: 'cancelImport';
+    readonly importToken: string;
 }
 
 export interface StartLoopCommand {
@@ -117,6 +135,8 @@ export type WorkerCommand =
     | GetGeneticRootsCommand
     | ExportStateCommand
     | ImportStateCommand
+    | CommitImportCommand
+    | CancelImportCommand
     | StartLoopCommand
     | StopLoopCommand
     | SetSpeedCommand;

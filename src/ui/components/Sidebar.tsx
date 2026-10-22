@@ -165,7 +165,13 @@ const SidebarContent: React.FC<SidebarContentProps> = ({
       <CheckpointPanel controls={checkpoints} />
       <Suspense fallback={<LazyFallback label={t.settings.loading} />}>
         {/* Keyed by the world revision, so the controls read the restored configuration when the world is replaced. */}
-        <SettingsPanel key={worldRevision} engine={engine} worldScale={worldScale} onWorldScaleChange={setWorldScale} />
+        <SettingsPanel
+          key={worldRevision}
+          engine={engine}
+          worldScale={worldScale}
+          onWorldScaleChange={setWorldScale}
+          initialConfigSource={worldRevision === 0 ? 'url' : 'engine'}
+        />
       </Suspense>
       <DiagnosticsButton onOpen={onOpenDiagnostics} fps={stats.performance?.fps ?? 0} />
     </div>
