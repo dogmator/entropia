@@ -10,7 +10,14 @@ interface PendingRequest {
     type: string;
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
-    timeoutId: ReturnType<typeof setTimeout>;
+    timeoutId: ReturnType<typeof setTimeout> | undefined;
+}
+
+interface AsyncCommandOptions {
+    /** Runs when the request times out, before the timeout is reported, so the caller can cancel what the worker may still do. */
+    readonly onTimeout?: () => void;
+    /** False for a request that cannot be cancelled once it is sent: its answer is awaited without a timeout. */
+    readonly bounded?: boolean;
 }
 
 interface ChannelCallbacks {
@@ -64,16 +71,17 @@ export class WorkerChannel {
         worker.postMessage(command);
     }
 
-    public async sendAsyncCommand<T>(type: string, payload: Record<string, unknown>): Promise<T> {
+    public async sendAsyncCommand<T>(type: string, payload: Record<string, unknown>, options: AsyncCommandOptions = {}): Promise<T> {
         const worker = this.getWorker();
         if (!worker) return Promise.reject(new Error('Worker not initialized'));
         const requestId = `${type}_${String(++this.requestCounter)}`;
         logger.debug(`[Proxy] Sending async command: ${type} (req: ${requestId})`, 'WorkerChannel');
         return new Promise<T>((resolve, reject) => {
-            const timeoutId = setTimeout(() => {
+            const timeoutId = options.bounded === false ? undefined : setTimeout(() => {
                 const request = this.pendingRequests.get(requestId);
                 if (!request) return;
                 this.pendingRequests.delete(requestId);
+                options.onTimeout?.();
                 reject(new Error(`Timeout for command ${type}`));
             }, ASYNC_COMMAND_TIMEOUT_MS);
             this.pendingRequests.set(requestId, { type, resolve: resolve as (v: unknown) => void, reject, timeoutId });
