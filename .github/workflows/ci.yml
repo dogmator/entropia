@@ -5,6 +5,8 @@ on:
     branches: ["main"]
   push:
     branches: ["main"]
+  # Lets a maintainer run the full workflow on any branch without opening a pull request.
+  workflow_dispatch:
 
 jobs:
   check:
@@ -53,3 +55,47 @@ jobs:
       # Gates only the shipped dependency tree. Dev-tool advisories are tracked in docs/reports, not gated here.
       - name: Audit production dependencies
         run: pnpm run audit:prod
+
+  smoke:
+    name: Browser smoke (Chromium)
+    runs-on: ubuntu-latest
+    # Bounds a stuck browser or dev server. The smoke suite itself runs about 1.5 minutes.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Installs the Chromium build that matches the pinned @playwright/test version, with its system libraries.
+      - name: Install Chromium for the pinned Playwright release
+        run: pnpm exec playwright install --with-deps chromium
+
+      # The suite starts and stops only the processes it owns, on isolated ports (13000 and 13011). A busy port fails
+      # the run. SMOKE_REPORT_PATH is not set, so tracked reports are not written.
+      - name: Run browser smoke tests
+        run: pnpm run test:smoke
+
+      - name: Confirm tracked files were not modified
+        run: git diff --exit-code
+
+      - name: Upload smoke evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-evidence
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore

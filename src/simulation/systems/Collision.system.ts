@@ -15,7 +15,7 @@ import { ENTITY_CONSTANTS, INTERACTION, PHYSICS } from '@/config';
 import type { EventBus } from '@/core';
 import { logger } from '@/core';
 import { Vector3Pool } from '@/core/ObjectPool.service';
-import { Random } from '@/core/utils/Random.utils';
+import type { RandomStream } from '@/core/utils/Random.utils';
 import type { EcologicalZone, GridEntity, Vector3 } from '@/types';
 import type { WorldConfig } from '@/types';
 import { EntityType } from '@/types';
@@ -37,13 +37,19 @@ const FOOD_RADIUS_LOG_PRECISION = 2;
  * Class implementing physical spatial interactions.
  */
 export class CollisionSystem {
+  /** Energy taken from food by bites. Read by the resource ledger; not part of a snapshot. */
+  public energyAbsorbed = 0;
+  /** Energy left in food when a bite consumed it. Read by the resource ledger; not part of a snapshot. */
+  public energyDiscarded = 0;
   /** Cached neighbors buffer to avoid allocations. */
   private readonly nearbyBuffer: GridEntity[] = [];
 
+  // eslint-disable-next-line max-params
   constructor(
     private readonly gridManager: GridManager,
     private readonly eventBus: EventBus,
-    private readonly worldConfig: WorldConfig
+    private readonly worldConfig: WorldConfig,
+    private readonly rng: RandomStream
   ) { }
 
   /**
@@ -231,9 +237,9 @@ export class CollisionSystem {
     if (postSpeedSq < INTERACTION.obstacleMinSlideSpeed * INTERACTION.obstacleMinSlideSpeed) {
       organism.stuckTicks += 1;
       if (organism.stuckTicks >= ENTITY_CONSTANTS.STUCK_TICKS_THRESHOLD) {
-        organism.velocity.x += (Random.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
-        organism.velocity.y += (Random.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
-        organism.velocity.z += (Random.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+        organism.velocity.x += (this.rng.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+        organism.velocity.y += (this.rng.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
+        organism.velocity.z += (this.rng.next() - STUCK_RELEASE_CENTER) * ENTITY_CONSTANTS.STUCK_RELEASE_IMPULSE;
         organism.stuckTicks = 0;
       }
     } else {
@@ -256,8 +262,10 @@ export class CollisionSystem {
 
     if (this.isColliding(organism, foodItem)) {
       const radiusBefore = foodItem.radius;
+      const energyBefore = foodItem.currentEnergy;
       const absorbedEnergy = foodItem.applyBite(ENTITY_CONSTANTS.FOOD_BITE_ENERGY, tick);
       organism.addEnergy(absorbedEnergy);
+      this.energyAbsorbed += absorbedEnergy;
       if (absorbedEnergy > 0 && tick % FOOD_DEBUG_INTERVAL_TICKS === 0) {
         logger.debug(
           `Food bite: id=${foodItem.id} r ${radiusBefore.toFixed(FOOD_RADIUS_LOG_PRECISION)}→${foodItem.radius.toFixed(FOOD_RADIUS_LOG_PRECISION)} energy=${foodItem.currentEnergy.toFixed(1)} absorbed=${absorbedEnergy.toFixed(1)}`,
@@ -267,6 +275,8 @@ export class CollisionSystem {
 
       const ref: { consumed: boolean } = foodItem;
       if (ref.consumed) {
+        // A consumed item drops the rest of its energy, which the bite did not take.
+        this.energyDiscarded += energyBefore - absorbedEnergy;
         food.delete(neighborEntity.id);
 
         this.eventBus.emit({

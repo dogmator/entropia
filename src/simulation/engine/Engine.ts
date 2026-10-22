@@ -11,6 +11,7 @@ import {
 } from '@simulation/services/EnvironmentBuilder.builder';
 import { FoodAnomalyGuard } from '@simulation/services/FoodAnomalyGuard.guard';
 import { PersistenceService } from '@simulation/services/Persistence.service';
+import { ResourceStock } from '@simulation/services/ResourceStock.service';
 import { SpawnService } from '@simulation/services/Spawn.service';
 import { StatisticsManager } from '@simulation/services/StatisticsManager.manager';
 import { BehaviorSystem } from '@simulation/systems/Behavior.system';
@@ -20,15 +21,38 @@ import { PhysicsSystem } from '@simulation/systems/Physics.system';
 import { ReproductionSystem } from '@simulation/systems/Reproduction.system';
 
 import { createWorldConfig, ENGINE_CONSTANTS, GENETICS, INITIAL_VIS_CONFIG, PHYSICS, REPRODUCTION_ENERGY_THRESHOLD } from '@/config';
-import { EventBus, logger, PerformanceMonitor, Random } from '@/core';
+import { EventBus, logger, PerformanceMonitor, RandomStream } from '@/core';
 import type {
-    CameraData, EcologicalZone, GeneticTreeNode, GenomeId, RenderBuffers,
+    CameraData, EcologicalZone, FailsafeCounters, GeneticTreeNode, GenomeId, RenderBuffers,
     SerializedSimulationStateV1, SimulationConfig, SimulationEvent, SimulationStats, WorldConfig,
 } from '@/types';
 import { EngineState } from '@/types';
 
 import { EntityQuery } from './EntityQuery.service';
 import { TickLoop } from './TickLoop.service';
+
+/** Food and energy accounting of the resource pilot. For measurement: it is not part of a snapshot. */
+export interface ResourceLedger {
+    readonly enabled: boolean;
+    /** Food units the zones regained since the world was created or restored. */
+    readonly unitsRegenerated: number;
+    /** Food units paid into food items. */
+    readonly unitsSpent: number;
+    /** Food attempts refused because the owning zone had too little stock. */
+    readonly attemptsRefused: number;
+    /** Energy eaten by organisms. */
+    readonly energyAbsorbed: number;
+    /** Energy left in food that a bite consumed. */
+    readonly energyDiscarded: number;
+    /** Energy of food removed by the anomaly guard. */
+    readonly energyRemoved: number;
+    /** Energy charged to organisms for metabolism. A requested amount, not a measured loss. */
+    readonly energyRequested: number;
+    /** Energy still held by live food items. */
+    readonly foodEnergyRemaining: number;
+    /** Energy that food held when the world was restored. The stock paid for it before this ledger started. */
+    readonly openingFoodEnergy: number;
+}
 
 export class SimulationEngine implements IPersistableEngine {
     public state: EngineState = EngineState.INITIALIZING;
@@ -46,6 +70,8 @@ export class SimulationEngine implements IPersistableEngine {
     public set foodIdCounter(v: number) { this.tickLoop.foodIdCounter = v; }
     public obstacleIdCounter = 0;
     public seed: number;
+    // Owned by this engine only. Systems and factories receive this instance, so no other engine can reset it.
+    public readonly random: RandomStream;
 
     // Systems and managers — public for PersistenceService and tests
     public readonly entityManager: EntityManager;
@@ -61,6 +87,8 @@ export class SimulationEngine implements IPersistableEngine {
     public readonly reproductionSystem: ReproductionSystem;
     public readonly spawnService: SpawnService;
     public readonly cameraDataProvider: CameraDataProvider;
+    /** Finite food per zone. Off unless the world was created with the resourceStock option (stage J pilot). */
+    public readonly resourceStock: ResourceStock;
     public config: SimulationConfig;
     public worldConfig: WorldConfig;
 
@@ -71,13 +99,16 @@ export class SimulationEngine implements IPersistableEngine {
     private readonly foodAnomalyGuard: FoodAnomalyGuard;
     private readonly tickLoop: TickLoop;
     private readonly entityQuery: EntityQuery;
+    private worldScale: number;
+    private openingFoodEnergy = 0;
 
     // eslint-disable-next-line max-lines-per-function
-    constructor(scale = 1.0, options?: { seed?: number }) {
+    constructor(scale = 1.0, options?: { seed?: number; resourceStock?: boolean }) {
         const seed = options?.seed ?? ((Math.random() * ENGINE_CONSTANTS.SEED_LIMIT) >>> 0); // eslint-disable-line sonarjs/pseudo-random
         this.seed = seed >>> 0;
-        Random.reset(this.seed);
+        this.random = new RandomStream(this.seed);
         this.worldConfig = createWorldConfig(scale);
+        this.worldScale = scale;
         this.config = this.buildDefaultConfig();
 
         logger.info('Initializing SimulationEngine', 'Engine', { seed: this.seed, scale });
@@ -89,15 +120,17 @@ export class SimulationEngine implements IPersistableEngine {
 
         this.physicsSystem = new PhysicsSystem(this.worldConfig);
         this.metabolismSystem = new MetabolismSystem();
-        this.collisionSystem = new CollisionSystem(this.gridManager, this.eventBus, this.worldConfig);
+        this.collisionSystem = new CollisionSystem(this.gridManager, this.eventBus, this.worldConfig, this.random);
         this.behaviorSystem = new BehaviorSystem(this.gridManager, { config: this.config, zones: this.zones, worldConfig: this.worldConfig });
         this.foodAnomalyGuard = new FoodAnomalyGuard(this.worldConfig);
 
         buildZones(this.worldConfig, this.zones);
-        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter);
+        this.resourceStock = new ResourceStock();
+        this.resourceStock.reset(this.zones.values(), { enabled: options?.resourceStock === true, stocks: undefined });
+        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter, this.random);
         this.gridManager.initializeStatic(this.entityManager.obstacles);
 
-        this.spawnService = new SpawnService(this.eventBus, this.gridManager, this.zones, this.obstacles, {}, this.worldConfig);
+        this.spawnService = new SpawnService(this.eventBus, this.gridManager, this.zones, this.obstacles, this.random, {}, this.worldConfig);
         this.performanceMonitor = new PerformanceMonitor();
         this.bufferManager = new BufferManager(true);
         this.statisticsManager = new StatisticsManager(this.worldConfig);
@@ -124,13 +157,13 @@ export class SimulationEngine implements IPersistableEngine {
         const tickCtx = {
             tick: 0, foodIdCounter: 0,
             organisms: this.organisms, food: this.food, obstacles: this.obstacles,
-            zones: this.zones, deadOrganisms: this.deadOrganisms, config: this.config,
+            zones: this.zones, deadOrganisms: this.deadOrganisms, config: this.config, random: this.random,
             entityManager: this.entityManager, gridManager: this.gridManager,
             behaviorSystem: this.behaviorSystem, physicsSystem: this.physicsSystem,
             metabolismSystem: this.metabolismSystem, collisionSystem: this.collisionSystem,
             reproductionSystem: this.reproductionSystem, spawnService: this.spawnService,
             statisticsManager: this.statisticsManager, performanceMonitor: this.performanceMonitor,
-            deathProcessor, foodAnomalyGuard: this.foodAnomalyGuard, eventBus: this.eventBus,
+            deathProcessor, foodAnomalyGuard: this.foodAnomalyGuard, resourceStock: this.resourceStock, eventBus: this.eventBus,
             stop: () => { this.stop(); },
         };
         this.tickLoop = new TickLoop(tickCtx);
@@ -192,7 +225,11 @@ export class SimulationEngine implements IPersistableEngine {
         this.bufferManager.reset();
         this.eventBus.clearHistory();
         buildZones(this.worldConfig, this.zones);
-        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter);
+        this.resourceStock.reset(this.zones.values(), { enabled: this.resourceStock.isEnabled, stocks: undefined });
+        this.resetResourceLedger();
+        this.obstacleIdCounter = buildObstacles(this.worldConfig, this.entityManager, this.obstacleIdCounter, this.random);
+        // The static grid is built from obstacles only, so it must follow every regeneration of them.
+        this.gridManager.initializeStatic(this.entityManager.obstacles);
         buildInitialPopulation({
             spawnService: this.spawnService,
             entityManager: this.entityManager,
@@ -230,7 +267,7 @@ export class SimulationEngine implements IPersistableEngine {
     public getStatsWithWorldData(): SimulationStats { return this.getStats(); }
     public getTick(): number { return this.tickLoop.tick; }
     public getSeed(): number { return this.seed; }
-    public setSeed(seed: number): void { this.seed = seed >>> 0; Random.reset(this.seed); }
+    public setSeed(seed: number): void { this.seed = seed >>> 0; this.random.reset(this.seed); }
     public getZones(): Map<string, EcologicalZone> { return this.entityQuery.getZones(); }
     public getPerformanceMonitor(): PerformanceMonitor { return this.performanceMonitor; }
     public getGeneticTree(): ReturnType<typeof this.reproductionSystem.getGeneticTreeInfo> {
@@ -274,12 +311,49 @@ export class SimulationEngine implements IPersistableEngine {
     public exportState(): SerializedSimulationStateV1 { return PersistenceService.exportState(this); }
     public importState(state: SerializedSimulationStateV1): void {
         PersistenceService.importState(this, state);
+        // Bodies of the previous world are not part of the snapshot, so they must not outlive the import.
+        this.deadOrganisms.clear();
         this.foodAnomalyGuard.reset();
+        this.resetResourceLedger();
     }
+    public getFailsafeCounters(): FailsafeCounters { return this.tickLoop.getFailsafeCounters(); }
+    public setFailsafeCounters(counters: FailsafeCounters): void { this.tickLoop.setFailsafeCounters(counters); }
+
+    /** Food and energy accounting of the resource pilot, since the world was created or restored. For measurement. */
+    public getResourceLedger(): ResourceLedger {
+        const foodEnergyRemaining = this.liveFoodEnergy();
+        return {
+            enabled: this.resourceStock.isEnabled,
+            unitsRegenerated: this.resourceStock.unitsRegenerated,
+            unitsSpent: this.resourceStock.unitsSpent,
+            attemptsRefused: this.resourceStock.attemptsRefused,
+            energyAbsorbed: this.collisionSystem.energyAbsorbed,
+            energyDiscarded: this.collisionSystem.energyDiscarded,
+            energyRemoved: this.foodAnomalyGuard.energyRemoved,
+            energyRequested: this.metabolismSystem.energyRequested,
+            foodEnergyRemaining,
+            openingFoodEnergy: this.openingFoodEnergy,
+        };
+    }
+
+    private liveFoodEnergy(): number {
+        return Array.from(this.food.values()).reduce((sum, item) => sum + item.currentEnergy, 0);
+    }
+
+    private resetResourceLedger(): void {
+        this.collisionSystem.energyAbsorbed = 0;
+        this.collisionSystem.energyDiscarded = 0;
+        this.metabolismSystem.energyRequested = 0;
+        this.foodAnomalyGuard.energyRemoved = 0;
+        // Food already in the world when the ledger starts was not paid by the stock, so it is the opening balance.
+        this.openingFoodEnergy = this.liveFoodEnergy();
+    }
+    public getWorldScale(): number { return this.worldScale; }
 
     public updateWorldScale(scale: number): void {
         logger.warning('Direct updateWorldScale not supported in-place. Re-create Engine instance.', 'Engine');
         this.worldConfig = createWorldConfig(scale);
+        this.worldScale = scale;
     }
 
     public mapVector3(v: { x: number; y: number; z: number }): { x: number; y: number; z: number } {

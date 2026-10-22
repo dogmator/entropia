@@ -364,9 +364,11 @@ export class Logger {
       this.socket = new WebSocket(DEBUG_CONFIG.remoteWsEndpoint);
       this.bindWebSocketEvents();
     } catch (error) {
-      this.isConnecting = false;
+      // isConnecting stays set while the failure is logged. console.warn is captured by this logger, so without
+      // this guard the capture re-enters initWebSocket and recurses until the stack overflows.
       console.warn(`[Logger] Failed to init WebSocket (${this.context}):`, error);
       this.scheduleReconnect();
+      this.isConnecting = false;
     }
   }
 

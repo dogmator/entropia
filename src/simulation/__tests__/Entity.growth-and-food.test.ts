@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 import { describe, expect, it } from 'vitest';
 
+import { RandomStream } from '@/core/utils/Random.utils';
 import { createFoodId, createGenomeId, createOrganismId, EntityType, type Genome } from '@/types';
 
 import { Food, Organism } from '../Entity';
+
+const rng = new RandomStream(1);
 
 const createGenome = (): Genome => ({
   id: createGenomeId('genome_test'),
@@ -26,7 +29,7 @@ const createGenome = (): Genome => ({
 
 describe('Entity growth and food bite model', () => {
   it('новонароджений організм стартує з ~40% adult radius', () => {
-    const org = new Organism(createOrganismId('org_1'), { x: 0, y: 0, z: 0 }, createGenome(), null, 80);
+    const org = new Organism(createOrganismId('org_1'), { x: 0, y: 0, z: 0 }, createGenome(), rng, null, 80);
     const ratio = org.radius / org.adultRadius;
 
     expect(ratio).toBeGreaterThanOrEqual(0.39);
@@ -34,7 +37,7 @@ describe('Entity growth and food bite model', () => {
   });
 
   it('організм зростає із віком та енергією', () => {
-    const org = new Organism(createOrganismId('org_2'), { x: 0, y: 0, z: 0 }, createGenome(), null, 80);
+    const org = new Organism(createOrganismId('org_2'), { x: 0, y: 0, z: 0 }, createGenome(), rng, null, 80);
     const initialRadius = org.radius;
 
     org.age = 400;

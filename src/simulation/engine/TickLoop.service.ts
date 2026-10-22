@@ -3,6 +3,7 @@ import type { EntityManager } from '@simulation/managers/EntityManager.manager';
 import type { GridManager } from '@simulation/managers/GridManager.manager';
 import type { DeathProcessor } from '@simulation/services/DeathProcessor.processor';
 import type { FoodAnomalyGuard } from '@simulation/services/FoodAnomalyGuard.guard';
+import type { ResourceStock } from '@simulation/services/ResourceStock.service';
 import type { SpawnService } from '@simulation/services/Spawn.service';
 import type { PopulationStatsAggregation, StatisticsManager } from '@simulation/services/StatisticsManager.manager';
 import type { BehaviorSystem } from '@simulation/systems/Behavior.system';
@@ -14,9 +15,9 @@ import type { ReproductionSystem } from '@simulation/systems/Reproduction.system
 import { ENGINE_CONSTANTS } from '@/config';
 import type { EventBus } from '@/core';
 import type { PerformanceMonitor } from '@/core';
+import type { RandomStream } from '@/core';
 import { logger } from '@/core';
-import { Random } from '@/core';
-import type { EcologicalZone, SimulationConfig, SimulationEvent } from '@/types';
+import type { EcologicalZone, FailsafeCounters, SimulationConfig, SimulationEvent } from '@/types';
 
 const MAX_ORGANISM_AGE_TICKS = 5000;
 const EXTINCTION_FAILSAFE_TICKS = 180;
@@ -32,6 +33,7 @@ export interface EngineCtx {
     readonly food: Map<string, Food>;
     readonly obstacles: Map<string, Obstacle>;
     readonly zones: Map<string, EcologicalZone>;
+    readonly random: RandomStream;
     readonly deadOrganisms: Map<string, Organism>;
     readonly config: SimulationConfig;
     readonly entityManager: EntityManager;
@@ -46,6 +48,7 @@ export interface EngineCtx {
     readonly performanceMonitor: PerformanceMonitor;
     readonly deathProcessor: DeathProcessor;
     readonly foodAnomalyGuard: FoodAnomalyGuard;
+    readonly resourceStock: ResourceStock;
     readonly eventBus: EventBus;
     stop(): void;
 }
@@ -75,6 +78,7 @@ export class TickLoop {
             zones: c.zones.values(),
             tick: c.tick
         });
+        c.resourceStock.regenerate();
         this.spawnFood();
         c.gridManager.rebuild(c.entityManager.organisms, c.entityManager.food);
 
@@ -182,7 +186,8 @@ export class TickLoop {
             this.ctx.stop();
             return true;
         }
-        if (this.zeroFoodTicks >= RESOURCE_FAILSAFE_TICKS && organisms.size > 0) {
+        // With the resource stock on, food comes only from the stock, so the depletion fail-safe must not add any.
+        if (!this.ctx.resourceStock.isEnabled && this.zeroFoodTicks >= RESOURCE_FAILSAFE_TICKS && organisms.size > 0) {
             logger.warn('Fail-safe: resource depletion detected', 'Engine', { tick: this.ctx.tick });
             this.spawnFood();
             this.zeroFoodTicks = 0;
@@ -191,10 +196,11 @@ export class TickLoop {
     }
 
     private spawnFood(): void {
-        const { food, config, spawnService, entityManager } = this.ctx;
+        const { food, config, spawnService, entityManager, resourceStock } = this.ctx;
         if (food.size >= config.maxFood) return;
-        if (Random.next() < config.foodSpawnRate) {
-            const item = spawnService.spawnFood(++this.ctx.foodIdCounter);
+        if (this.ctx.random.next() < config.foodSpawnRate) {
+            // The random draws are the same with the stock on or off. Only the admission differs.
+            const item = spawnService.spawnFood(++this.ctx.foodIdCounter, position => resourceStock.admitFoodAt(position));
             if (item) entityManager.addFood(item);
         }
     }
@@ -207,5 +213,15 @@ export class TickLoop {
     public resetFailsafeCounters(): void {
         this.zeroPopulationTicks = 0;
         this.zeroFoodTicks = 0;
+    }
+
+    /** The counters are saved with the world. A restored run must fire each failsafe on the same tick as the original. */
+    public getFailsafeCounters(): FailsafeCounters {
+        return { zeroPopulationTicks: this.zeroPopulationTicks, zeroFoodTicks: this.zeroFoodTicks };
+    }
+
+    public setFailsafeCounters(counters: FailsafeCounters): void {
+        this.zeroPopulationTicks = counters.zeroPopulationTicks;
+        this.zeroFoodTicks = counters.zeroFoodTicks;
     }
 }

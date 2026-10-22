@@ -62,8 +62,10 @@ const createSocket = (readyState: number): MockSocket => ({
   onmessage: null,
 });
 
+// The Logger calls `new WebSocket(...)`. Vitest 4 and later cannot construct a mock whose implementation is an arrow
+// function, so the implementation is a regular function that returns the socket.
 const applySocketMock = (socket: MockSocket): ReturnType<typeof vi.fn> => {
-  const WebSocketMock = vi.fn(() => socket);
+  const WebSocketMock = vi.fn(function mockSocketConstructor() { return socket; });
   (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = WebSocketMock as unknown as typeof WebSocket;
   return WebSocketMock;
 };

@@ -19,7 +19,7 @@ import {
   PHYSICS,
   PREDATOR_SUBTYPES,
 } from '@/config';
-import { Random } from '@/core/utils/Random.utils';
+import type { RandomStream } from '@/core/utils/Random.utils';
 import type {
   EntityId,
   FoodId,
@@ -196,9 +196,10 @@ export class Obstacle extends Entity {
     x: number,
     y: number,
     z: number,
-    radius: number
+    radius: number,
+    rng: RandomStream
   ): Obstacle {
-    const rand = () => Random.next();
+    const rand = () => rng.next();
     return new Obstacle(
       createObstacleId(`obs_${String(idCounter)}`),
       { x, y, z },
@@ -259,9 +260,13 @@ export class Organism extends Entity {
   /** Last activity timestamp for update optimization. */
   public lastActiveAt = 0;
 
+  /** Random stream of the engine that owns this organism. */
+  private readonly rng: RandomStream;
+
   // eslint-disable-next-line max-params
-  constructor(id: OrganismId, position: { x: number; y: number; z: number }, genome: Genome, parentId: OrganismId | null = null, energy?: number) {
+  constructor(id: OrganismId, position: { x: number; y: number; z: number }, genome: Genome, rng: RandomStream, parentId: OrganismId | null = null, energy?: number) {
     super(id, position);
+    this.rng = rng;
     this.genome = genome;
     this.type = genome.type;
     this.parentOrganismId = parentId;
@@ -277,9 +282,9 @@ export class Organism extends Entity {
 
     // Initialization of kinematic vectors of physical interaction
     this.velocity = {
-      x: (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.VELOCITY_RANGE,
-      y: (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.VELOCITY_RANGE,
-      z: (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      x: (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      y: (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.VELOCITY_RANGE,
+      z: (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.VELOCITY_RANGE,
     };
     this.acceleration = vec3Zero();
     this.updateGrowthFromState();
@@ -348,10 +353,9 @@ export class Organism extends Entity {
       this.causeOfDeath = cause;
       this.state = OrganismState.DYING;
       // Obtaining random offset for death visualization
-      // Fixed: Use this.rng.next() instead of static Random.next()
-      this.position.x += (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.DEATH_POSITION_RANGE;
-      this.position.y += (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.DEATH_POSITION_RANGE;
-      this.position.z += (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.DEATH_POSITION_RANGE;
+      this.position.x += (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.DEATH_POSITION_RANGE;
+      this.position.y += (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.DEATH_POSITION_RANGE;
+      this.position.z += (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.DEATH_POSITION_RANGE;
     }
   }
 
@@ -394,6 +398,8 @@ export class Organism extends Entity {
 export class GenomeFactory {
   private idCounter = 0;
 
+  constructor(private readonly rng: RandomStream) {}
+
   /** Generating a unique genome descriptor. */
   private nextId(): GenomeId {
     return createGenomeId(`genome_${String(++this.idCounter)}`);
@@ -413,7 +419,7 @@ export class GenomeFactory {
   // eslint-disable-next-line max-params
   private mutateTrait(value: number, min: number, max: number, customFactor = 1): number {
     const mf = GENETICS.mutationFactor * customFactor;
-    const factor = 1 - mf / ENTITY_CONSTANTS.MUTATION_DIVISOR + Random.next() * mf;
+    const factor = 1 - mf / ENTITY_CONSTANTS.MUTATION_DIVISOR + this.rng.next() * mf;
     return Math.max(min, Math.min(max, value * factor));
   }
 
@@ -444,14 +450,14 @@ export class GenomeFactory {
         generation: 1,
         type: EntityType.PREY,
         color: COLORS.prey.base,
-        maxSpeed: base.maxSpeed + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_SPEED_VARIANCE,
-        senseRadius: base.senseRadius + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_SENSE_VARIANCE,
-        metabolism: base.metabolism + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_METABOLISM_VARIANCE,
-        size: base.size + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_SIZE_VARIANCE,
-        asymmetry: Random.next() * ENTITY_CONSTANTS.PREY_ASYMMETRY_MAX,
-        spikiness: Random.next() * ENTITY_CONSTANTS.PREY_SPIKINESS_MAX,
-        glowIntensity: ENTITY_CONSTANTS.PREY_GLOW_MIN + Random.next() * ENTITY_CONSTANTS.PREY_GLOW_VARIANCE,
-        flockingStrength: base.flockingStrength + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_FLOCKING_VARIANCE,
+        maxSpeed: base.maxSpeed + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_SPEED_VARIANCE,
+        senseRadius: base.senseRadius + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_SENSE_VARIANCE,
+        metabolism: base.metabolism + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_METABOLISM_VARIANCE,
+        size: base.size + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_SIZE_VARIANCE,
+        asymmetry: this.rng.next() * ENTITY_CONSTANTS.PREY_ASYMMETRY_MAX,
+        spikiness: this.rng.next() * ENTITY_CONSTANTS.PREY_SPIKINESS_MAX,
+        glowIntensity: ENTITY_CONSTANTS.PREY_GLOW_MIN + this.rng.next() * ENTITY_CONSTANTS.PREY_GLOW_VARIANCE,
+        flockingStrength: base.flockingStrength + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREY_FLOCKING_VARIANCE,
       };
     }
 
@@ -470,7 +476,7 @@ export class GenomeFactory {
   /** Genome formation for trophic level of predators. */
   public createPredatorGenome(parent: PredatorGenome | null = null): PredatorGenome {
     const subtypes: PredatorSubtype[] = ['HUNTER', 'AMBUSHER', 'PACK'];
-    const randomSubtype = subtypes[Math.floor(Random.next() * subtypes.length)] ?? 'HUNTER';
+    const randomSubtype = subtypes[Math.floor(this.rng.next() * subtypes.length)] ?? 'HUNTER';
 
     if (!parent) {
       const base = GENETICS.predatorBase;
@@ -482,20 +488,20 @@ export class GenomeFactory {
         type: EntityType.PREDATOR,
         subtype: randomSubtype,
         color: subConfig.color,
-        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_SPEED_VARIANCE,
-        senseRadius: base.senseRadius * subConfig.senseMultiplier + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_SENSE_VARIANCE,
-        metabolism: base.metabolism + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_METABOLISM_VARIANCE,
-        size: base.size + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_SIZE_VARIANCE,
-        asymmetry: Random.next() * ENTITY_CONSTANTS.PREDATOR_ASYMMETRY_MAX,
-        spikiness: ENTITY_CONSTANTS.PREDATOR_SPIKINESS_MIN + Random.next() * ENTITY_CONSTANTS.PREDATOR_SPIKINESS_VARIANCE,
-        glowIntensity: ENTITY_CONSTANTS.PREDATOR_GLOW_MIN + Random.next() * ENTITY_CONSTANTS.PREDATOR_GLOW_VARIANCE,
+        maxSpeed: base.maxSpeed * subConfig.speedMultiplier + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_SPEED_VARIANCE,
+        senseRadius: base.senseRadius * subConfig.senseMultiplier + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_SENSE_VARIANCE,
+        metabolism: base.metabolism + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_METABOLISM_VARIANCE,
+        size: base.size + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_SIZE_VARIANCE,
+        asymmetry: this.rng.next() * ENTITY_CONSTANTS.PREDATOR_ASYMMETRY_MAX,
+        spikiness: ENTITY_CONSTANTS.PREDATOR_SPIKINESS_MIN + this.rng.next() * ENTITY_CONSTANTS.PREDATOR_SPIKINESS_VARIANCE,
+        glowIntensity: ENTITY_CONSTANTS.PREDATOR_GLOW_MIN + this.rng.next() * ENTITY_CONSTANTS.PREDATOR_GLOW_VARIANCE,
         attackPower: base.attackPower * subConfig.attackMultiplier,
-        packAffinity: base.packAffinity + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_PACK_VARIANCE,
+        packAffinity: base.packAffinity + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * ENTITY_CONSTANTS.PREDATOR_PACK_VARIANCE,
       };
     }
 
     // Evolutionary inheritance and probabilistic subtype transformation with 90% coefficient
-    const inheritedSubtype = Random.next() < ENTITY_CONSTANTS.SUBTYPE_INHERITANCE_PROBABILITY ? parent.subtype : randomSubtype;
+    const inheritedSubtype = this.rng.next() < ENTITY_CONSTANTS.SUBTYPE_INHERITANCE_PROBABILITY ? parent.subtype : randomSubtype;
     const subConfig = PREDATOR_SUBTYPES[inheritedSubtype];
 
     const genome: PredatorGenome = {
@@ -538,8 +544,8 @@ export class OrganismFactory {
   private idCounter = 0;
   private readonly genomeFactory: GenomeFactory;
 
-  constructor() {
-    this.genomeFactory = new GenomeFactory();
+  constructor(private readonly rng: RandomStream) {
+    this.genomeFactory = new GenomeFactory(rng);
   }
 
   /** Generating a unique system identifier for the agent. */
@@ -580,7 +586,7 @@ export class OrganismFactory {
   }
 
   private createOrganism(genome: Genome, position: { x: number, y: number, z: number }, energy?: number): Organism {
-    return new Organism(this.nextId(), position, genome, null, energy);
+    return new Organism(this.nextId(), position, genome, this.rng, null, energy);
   }
 
   /** Initiating offspring creation with inheritance and coordinate offset. */
@@ -590,15 +596,16 @@ export class OrganismFactory {
     // Stochastic spatial offset of the offspring relative to the parent organism's location
     const offset = parent.radius * ENTITY_CONSTANTS.OFFSPRING_RADIUS_MULTIPLIER;
     const childPosition: MutableVector3 = {
-      x: parent.position.x + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * offset,
-      y: parent.position.y + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * offset,
-      z: parent.position.z + (Random.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * offset,
+      x: parent.position.x + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * offset,
+      y: parent.position.y + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * offset,
+      z: parent.position.z + (this.rng.next() - ENTITY_CONSTANTS.RANDOM_CENTER_OFFSET) * offset,
     };
 
     return new Organism(
       this.nextId(),
       childPosition,
       childGenome,
+      this.rng,
       parent.id as OrganismId,
       energy
     );

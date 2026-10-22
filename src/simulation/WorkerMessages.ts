@@ -85,9 +85,42 @@ export interface ExportStateCommand {
     readonly requestId: string;
 }
 
+/**
+ * First half of an import: builds the restored world without touching the live one. The token names the import until it
+ * is committed or cancelled.
+ */
 export interface ImportStateCommand {
     readonly type: 'importState';
+    readonly requestId: string;
+    readonly importToken: string;
     readonly state: SerializedSimulationStateV1;
+}
+
+/**
+ * Second half of an import: swaps in the world prepared under the same token. The settings changed while the import was in
+ * flight come with it, so the restored world has them before its first tick.
+ */
+export interface CommitImportCommand {
+    readonly type: 'commitImport';
+    readonly requestId: string;
+    readonly importToken: string;
+    readonly updates?: Partial<SimulationConfig>;
+}
+
+/** Drops the world prepared under a token, when its import gave up before the commit. Needs no answer. */
+export interface CancelImportCommand {
+    readonly type: 'cancelImport';
+    readonly importToken: string;
+}
+
+/**
+ * Asks whether the commit of one import replaced the live world. The worker answers commands in the order it received
+ * them, so the answer comes after any commit sent before this probe.
+ */
+export interface ProbeImportCommand {
+    readonly type: 'probeImport';
+    readonly requestId: string;
+    readonly importToken: string;
 }
 
 export interface StartLoopCommand {
@@ -116,6 +149,9 @@ export type WorkerCommand =
     | GetGeneticRootsCommand
     | ExportStateCommand
     | ImportStateCommand
+    | CommitImportCommand
+    | CancelImportCommand
+    | ProbeImportCommand
     | StartLoopCommand
     | StopLoopCommand
     | SetSpeedCommand;
@@ -161,13 +197,38 @@ export interface CommandResponse {
     readonly result: unknown;
 }
 
+/** Answers one request that failed. The message is the actual reason, so the caller can report it. */
+export interface CommandErrorResponse {
+    readonly type: 'commandError';
+    readonly requestId: string;
+    readonly message: string;
+    readonly stack?: string | undefined;
+}
+
+/** Acknowledgement of an applied snapshot: the state the live engine now reports, so the caller can refresh its copies. */
+export interface SnapshotImportResult {
+    readonly tick: number;
+    readonly stats: SimulationStats;
+    readonly config: SimulationConfig;
+    readonly worldConfig: WorldConfig;
+    readonly zones: Map<string, EcologicalZone>;
+    readonly obstacles: Map<string, IEntity>;
+}
+
+/** The worker's record of one import, with the live world as it is now, so the proxy can refresh its copies from it. */
+export interface ImportProbeResult {
+    readonly committed: boolean;
+    readonly live: SnapshotImportResult;
+}
+
 export type WorkerResponse =
     | InitializedResponse
     | UpdatedResponse
     | StatsResponse
     | ErrorResponse
     | ReadyResponse
-    | CommandResponse;
+    | CommandResponse
+    | CommandErrorResponse;
 
 // ============================================================================
 // WORKER CONSOLE FORWARDING (Worker → Main Thread)

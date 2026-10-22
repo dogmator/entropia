@@ -326,6 +326,11 @@ export interface SerializedFood {
   currentEnergy: number;
   spawnTime: number;
   consumed: boolean;
+  /**
+   * Tick of the last bite, or null if the food was never bitten. Optional for snapshots written before this field
+   * existed. Importing such a snapshot restores every item as never bitten and logs a warning.
+   */
+  lastBiteTick?: number | null;
 }
 
 export interface SerializedObstacle {
@@ -361,6 +366,12 @@ export interface SerializedGeneticTreeNode {
   };
 }
 
+/** Consecutive-tick counters that decide when the tick loop's failsafes fire. */
+export interface FailsafeCounters {
+  zeroPopulationTicks: number;
+  zeroFoodTicks: number;
+}
+
 export interface SerializedSimulationStateV1 {
   version: 1;
   seed: number;
@@ -387,6 +398,19 @@ export interface SerializedSimulationStateV1 {
     roots: string[];
     nodes: SerializedGeneticTreeNode[];
   };
+  /**
+   * Optional so that snapshots written before the counters were recorded still import. Their counters start at zero.
+   */
+  failsafe?: FailsafeCounters;
+  /**
+   * Scale of the world the snapshot was saved from. Optional: snapshots written before it was recorded import at the live
+   * scale. A snapshot imports only into a world at the same scale, because its entities are placed in that scale's bounds.
+   */
+  worldScale?: number;
+  /**
+   * Present only while the resource stock of the ecological pilot is on. Holds the stock of each zone, by zone id.
+   */
+  resourceStock?: { zoneStocks: Record<string, number> };
 }
 
 // ============================================================================

@@ -1,15 +1,29 @@
 import { logger } from '@/core';
 import type { RenderBuffers, SimulationEvent, SimulationStats, SystemMetrics } from '@/types';
 
-import { type CommandResponse, type ErrorResponse, type InitializedResponse, isWorkerResponse, type StatsResponse, type UpdatedResponse, type WorkerCommand, type WorkerResponse } from '../WorkerMessages';
+import { type CommandErrorResponse, type CommandResponse, type ErrorResponse, type InitializedResponse, isWorkerResponse, type StatsResponse, type UpdatedResponse, type WorkerCommand, type WorkerResponse } from '../WorkerMessages';
 
 const ASYNC_COMMAND_TIMEOUT_MS = 5000;
 const PERFORMANCE_HISTORY_LIMIT = 600;
 
+/** A request the worker did not answer within the bound. The caller decides what the silence means. */
+export class CommandTimeoutError extends Error {
+    constructor(type: string) {
+        super(`Timeout for command ${type}`);
+        this.name = 'CommandTimeoutError';
+    }
+}
+
 interface PendingRequest {
+    type: string;
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
     timeoutId: ReturnType<typeof setTimeout>;
+}
+
+interface AsyncCommandOptions {
+    /** Runs when the request times out, before the timeout is reported, so the caller can cancel what the worker may still do. */
+    readonly onTimeout?: () => void;
 }
 
 interface ChannelCallbacks {
@@ -41,6 +55,7 @@ export class WorkerChannel {
         },
         initialized: (r) => { this.callbacks.onStateUpdate(r as InitializedResponse); },
         commandResponse: (r) => { this.handleCommandResponse(r as CommandResponse); },
+        commandError: (r) => { this.handleCommandError(r as CommandErrorResponse); },
         ready: () => { /* Handled during boot */ },
     };
 
@@ -62,7 +77,7 @@ export class WorkerChannel {
         worker.postMessage(command);
     }
 
-    public async sendAsyncCommand<T>(type: string, payload: Record<string, unknown>): Promise<T> {
+    public async sendAsyncCommand<T>(type: string, payload: Record<string, unknown>, options: AsyncCommandOptions = {}): Promise<T> {
         const worker = this.getWorker();
         if (!worker) return Promise.reject(new Error('Worker not initialized'));
         const requestId = `${type}_${String(++this.requestCounter)}`;
@@ -72,9 +87,10 @@ export class WorkerChannel {
                 const request = this.pendingRequests.get(requestId);
                 if (!request) return;
                 this.pendingRequests.delete(requestId);
-                reject(new Error(`Timeout for command ${type}`));
+                options.onTimeout?.();
+                reject(new CommandTimeoutError(type));
             }, ASYNC_COMMAND_TIMEOUT_MS);
-            this.pendingRequests.set(requestId, { resolve: resolve as (v: unknown) => void, reject, timeoutId });
+            this.pendingRequests.set(requestId, { type, resolve: resolve as (v: unknown) => void, reject, timeoutId });
             worker.postMessage({ type, requestId, ...payload });
         });
     }
@@ -119,6 +135,15 @@ export class WorkerChannel {
         }
     }
 
+    private handleCommandError(response: CommandErrorResponse): void {
+        const { requestId, message } = response;
+        const request = this.pendingRequests.get(requestId);
+        if (!request) return;
+        clearTimeout(request.timeoutId);
+        request.reject(new Error(message));
+        this.pendingRequests.delete(requestId);
+    }
+
     public addEventListener(callback: (event: SimulationEvent) => void): () => void {
         this.listeners.add(callback);
         return () => { this.listeners.delete(callback); };
@@ -133,7 +158,11 @@ export class WorkerChannel {
     public get performanceHistory(): SystemMetrics[] { return this._performanceHistory; }
 
     public dispose(): void {
-        this.pendingRequests.forEach(r => { clearTimeout(r.timeoutId); });
+        // A caller must not wait forever for an answer that can no longer arrive.
+        this.pendingRequests.forEach(r => {
+            clearTimeout(r.timeoutId);
+            r.reject(new Error(`Worker channel was disposed before ${r.type} was answered`));
+        });
         this.pendingRequests.clear();
         this.listeners.clear();
     }

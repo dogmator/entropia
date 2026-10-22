@@ -10,7 +10,7 @@
 
 import { INITIAL_ENERGY, WORLD_SIZE } from '@/config';
 import type { EventBus } from '@/core/EventBus.service';
-import { Random } from '@/core/utils/Random.utils';
+import type { RandomStream } from '@/core/utils/Random.utils';
 import type {
   EcologicalZone,
   EntitySpawnedEvent,
@@ -121,7 +121,7 @@ export class SpawnService {
   private readonly organismFactory: OrganismFactory;
 
   private rand(): number {
-    return Random.next();
+    return this.rng.next();
   }
 
   // eslint-disable-next-line max-params
@@ -130,11 +130,12 @@ export class SpawnService {
     private readonly gridManager: GridManager,
     private readonly zones: Map<string, EcologicalZone>,
     private readonly obstacles: Map<string, Obstacle>,
+    private readonly rng: RandomStream,
     config?: Partial<SpawnConfig>,
     private readonly worldConfig?: WorldConfig
   ) {
     this.config = { ...DEFAULT_SPAWN_CONFIG, ...config };
-    this.organismFactory = new OrganismFactory();
+    this.organismFactory = new OrganismFactory(this.rng);
   }
 
   // ============================================================================
@@ -210,11 +211,11 @@ export class SpawnService {
   // ============================================================================
 
   /**
-   * Initialization of food object creation.
+   * Initialization of food object creation. A position the admit check refuses yields neither an object nor a spawn event.
    */
-  public spawnFood(foodIdCounter: number): Food | null {
+  public spawnFood(foodIdCounter: number, admit: (position: Vector3) => boolean = () => true): Food | null {
     const position = this.getFoodSpawnPosition();
-    if (!position) { return null; }
+    if (!position || !admit(position)) { return null; }
 
     const food = Food.create(foodIdCounter, position.x, position.y, position.z);
 

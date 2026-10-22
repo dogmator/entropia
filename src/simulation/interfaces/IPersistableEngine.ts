@@ -1,5 +1,7 @@
+import type { RandomStream } from '@/core/utils/Random.utils';
 import type {
     EcologicalZone,
+    FailsafeCounters,
     GeneticTreeNode,
 } from '@/types';
 import type {
@@ -10,9 +12,11 @@ import type {
 } from '@/types';
 
 import type { Food, Obstacle, Organism } from '../Entity';
+import type { ResourceStock } from '../services/ResourceStock.service';
 
 export interface IPersistableEngine {
     readonly seed: number;
+    readonly random: RandomStream;
     readonly tick: number;
     readonly config: SimulationConfig;
     readonly foodIdCounter: number;
@@ -24,8 +28,12 @@ export interface IPersistableEngine {
     readonly food: Map<string, Food>;
     readonly organisms: Map<string, Organism>;
     readonly geneticTree: Map<GenomeId, GeneticTreeNode>;
+    readonly resourceStock: ResourceStock;
 
     getStats(): SimulationStats;
+    getFailsafeCounters(): FailsafeCounters;
+    setFailsafeCounters(counters: FailsafeCounters): void;
+    getWorldScale(): number;
     mapVector3(v: Vector3): { x: number; y: number; z: number };
 
     readonly spawnService: {
@@ -43,5 +51,6 @@ export interface IPersistableEngine {
 
     readonly gridManager: {
         clear(): void;
+        initializeStatic(obstacles: Map<string, Obstacle>): void;
     };
 }

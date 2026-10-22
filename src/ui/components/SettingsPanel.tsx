@@ -8,12 +8,13 @@ import { AdvancedSettings } from './settings/AdvancedSettings';
 import { GeneralSettings } from './settings/GeneralSettings';
 import { PerformanceSettings } from './settings/PerformanceSettings';
 import { SettingsProvider } from './settings/SettingsContext';
-import { useSettingsState } from './settings/useSettingsState';
+import { type InitialConfigSource, useSettingsState } from './settings/useSettingsState';
 
 interface SettingsPanelProps {
   engine: ISimulationEngine;
   worldScale: number;
   onWorldScaleChange: (val: number) => void;
+  initialConfigSource: InitialConfigSource;
 }
 
 const PANEL_VERSION = 'v2.5';
@@ -52,10 +53,10 @@ const PanelFooter = () => (
 );
 
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({
-  engine, worldScale, onWorldScaleChange
+  engine, worldScale, onWorldScaleChange, initialConfigSource
 }) => {
   const { isLoading } = useSimulation();
-  const { config, update, toggle, applyPreset } = useSettingsState(engine);
+  const { config, update, toggle, applyPreset } = useSettingsState(engine, initialConfigSource);
   const [isCollapsed, setCollapsed] = useState(false);
 
   const contextValue = useMemo(() => ({

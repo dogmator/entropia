@@ -1,16 +1,17 @@
-import { logger } from '@/core';
+import { ImportOutcomeUnknownError, logger } from '@/core';
 import type { EcologicalZone, GenomeId, RenderBuffers, SerializedSimulationStateV1, SimulationConfig, SimulationEvent, SimulationStats, Vector3, WorldConfig } from '@/types';
 
 import type { IEntity } from '../interfaces/IEntity';
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../interfaces/ISimulationEngine';
-import type { InitializedResponse, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
+import type { ImportProbeResult, InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
 import { isWorkerConsoleMessage } from '../WorkerMessages';
 import { ConfigBatcher } from './ConfigBatcher.service';
-import { buildFallbackExportState } from './EngineProxy.utils';
-import { WorkerChannel } from './WorkerChannel.service';
+import { CommandTimeoutError, WorkerChannel } from './WorkerChannel.service';
 
 export interface EngineProxyOptions { scale?: number; tickRate?: number; }
 interface CameraPayload { position: Vector3; target: Vector3; }
+// An import that has not been acknowledged yet, with the config updates posted while it was pending.
+interface PendingImport { updates: Partial<SimulationConfig>; }
 const DEFAULT_TICK_RATE = 60;
 const WORKER_SOURCE = 'Worker';
 
@@ -26,8 +27,9 @@ export class EngineProxy implements ISimulationEngine {
     private _config: SimulationConfig | null = null;
     private readonly configBatcher: ConfigBatcher;
     private readonly channel: WorkerChannel;
-    private lastExportedState: SerializedSimulationStateV1 | null = null;
     private latestCameraPayload: CameraPayload | null = null;
+    private importsInFlight: PendingImport[] = [];
+    private importCounter = 0;
 
     constructor(options: EngineProxyOptions = {}) {
         this.tickRate = options.tickRate ?? DEFAULT_TICK_RATE;
@@ -79,20 +81,70 @@ export class EngineProxy implements ISimulationEngine {
     }
     public async getGeneticNode(id: GenomeId): Promise<unknown> { return this.channel.sendAsyncCommand('getGeneticNode', { genomeId: id }); }
     public async getGeneticRoots(): Promise<GenomeId[]> { return this.channel.sendAsyncCommand('getGeneticRoots', {}); }
-    public exportState(): SerializedSimulationStateV1 {
+    /** Resolves with the state at a tick boundary. It never resolves with a cached or synthetic state. */
+    public exportState(): Promise<SerializedSimulationStateV1> {
         this.configBatcher.flush();
-        this.channel.sendAsyncCommand<SerializedSimulationStateV1>('exportState', {})
-            .then(s => { this.lastExportedState = s; })
-            .catch((e: unknown) => { logger.error('Proxy: exportState failed', 'EngineProxy', { error: e }); });
-        return this.lastExportedState ?? buildFallbackExportState(this._config ?? undefined);
+        return this.channel.sendAsyncCommand<SerializedSimulationStateV1>('exportState', {});
     }
-    public importState(s: SerializedSimulationStateV1): void {
+    /**
+     * Resolves once the worker has applied and acknowledged the snapshot. Rejects with the worker's reason otherwise, and
+     * the live simulation is then unchanged.
+     */
+    public async importState(s: SerializedSimulationStateV1): Promise<void> {
         this.configBatcher.flush();
-        this.channel.sendAsyncCommand<boolean>('importState', { state: s })
-            .then(() => { logger.info('Proxy: importState applied', 'EngineProxy', { tick: s.tick }); })
-            .catch((e: unknown) => { logger.error('Proxy: importState failed', 'EngineProxy', { error: e }); });
+        const importToken = `import_${String(++this.importCounter)}`;
+        const pending: PendingImport = { updates: {} };
+        this.importsInFlight.push(pending);
+        let applied: SnapshotImportResult;
+        try {
+            // The build is the part that can run long. A timeout cancels it, so the worker never applies an import that
+            // this proxy has already reported as failed.
+            await this.channel.sendAsyncCommand<unknown>('importState', { state: s, importToken }, {
+                onTimeout: () => { this.channel.sendCommand({ type: 'cancelImport', importToken }, () => { this.configBatcher.flush(); }); },
+            });
+            applied = await this.commitImport(importToken, pending.updates);
+        } finally {
+            this.importsInFlight = this.importsInFlight.filter(item => item !== pending);
+        }
+        // The changes made during the import travel with the commit, so the restored world has them from its first tick.
+        this._config = { ...applied.config, ...pending.updates };
+        this._worldConfig = applied.worldConfig;
+        this._zones = applied.zones;
+        this._obstacles = applied.obstacles;
+        this.lastStats = applied.stats;
+        logger.info('Proxy: importState applied', 'EngineProxy', { tick: applied.tick });
     }
-    public updateConfig(c: Partial<SimulationConfig>): void { this.configBatcher.updateConfig(c, this._config ?? undefined); }
+    /**
+     * The swap is bounded like every request. A worker answer settles the outcome. Silence does not, because the swap may
+     * have happened, so the proxy asks the worker whether it did.
+     */
+    private async commitImport(importToken: string, updates: Partial<SimulationConfig>): Promise<SnapshotImportResult> {
+        try {
+            return await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken, updates: { ...updates } });
+        } catch (error) {
+            if (!(error instanceof CommandTimeoutError)) throw error;
+            return this.settleLostCommit(importToken);
+        }
+    }
+    /**
+     * The probe is answered after any commit the worker received before it, so its answer tells whether the swap happened.
+     * Only a silent probe leaves the outcome unknown.
+     */
+    private async settleLostCommit(importToken: string): Promise<SnapshotImportResult> {
+        let probe: ImportProbeResult;
+        try {
+            probe = await this.channel.sendAsyncCommand<ImportProbeResult>('probeImport', { importToken });
+        } catch {
+            throw new ImportOutcomeUnknownError();
+        }
+        if (probe.committed) return probe.live;
+        this.channel.sendCommand({ type: 'cancelImport', importToken }, () => { this.configBatcher.flush(); });
+        throw new Error('The import was not applied, so the live world is unchanged.');
+    }
+    public updateConfig(c: Partial<SimulationConfig>): void {
+        for (const pending of this.importsInFlight) Object.assign(pending.updates, c);
+        this.configBatcher.updateConfig(c, this._config ?? undefined);
+    }
     public updateWorldScale(s: number): void {
         this.configBatcher.flush();
         logger.info(`Proxy: Updating world scale to ${String(s)}`, 'EngineProxy');

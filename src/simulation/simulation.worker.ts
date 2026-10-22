@@ -7,13 +7,14 @@
 
 import { logger } from '@/core';
 import { LogLevel } from '@/core/services/Logger.service';
+import { EngineState } from '@/types';
 
 import { SimulationEngine } from './engine/Engine';
 import {
     DEFAULT_RENDER_SNAPSHOT_INTERVAL_MS,
     shouldDispatchRenderSnapshot
 } from './workerCadence';
-import type { WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
+import type { ImportProbeResult, SnapshotImportResult, WorkerCommand, WorkerConsoleLevel, WorkerConsoleMessage, WorkerResponse } from './WorkerMessages';
 import { isWorkerCommand } from './WorkerMessages';
 import { snapshotRenderBuffers } from './workerSnapshot';
 
@@ -95,6 +96,14 @@ if (import.meta.env.DEV) {
 // ============================================================================
 
 let engine: SimulationEngine | null = null;
+// A world built by importState and not yet swapped in by commitImport. It belongs to the import that built it.
+let preparedImport: { readonly token: string; readonly candidate: SimulationEngine } | null = null;
+// The tokens of the imports whose commits put a world in place. A probe answers from them, however many imports came after.
+// Imports are user actions, so the set stays small.
+const committedImportTokens = new Set<string>();
+const ENGINE_NOT_INITIALIZED = 'Engine is not initialized';
+// A restored engine is built at the scale of the live world. A snapshot saved at another scale is rejected by the import.
+let currentScale = 1.0;
 let isRunning = false;
 let timeoutId: number | null = null;
 
@@ -136,7 +145,10 @@ const describeError = (error: unknown): Record<string, unknown> => ({
  */
 function handleInit(scale: number): void {
     try {
+        // A world prepared for the world being replaced must not be swapped in afterwards.
+        preparedImport = null;
         engine = new SimulationEngine(scale);
+        currentScale = scale;
         const stats = engine.getStats();
         const config = engine.config;
         const worldConfig = engine.worldConfig;
@@ -197,6 +209,7 @@ function handleUpdate(): void {
  */
 function handleReset(): void {
     if (!engine) return;
+    preparedImport = null;
 
     logger.info('worker reset', 'Worker:Reset');
 
@@ -354,33 +367,152 @@ function handleGeneticRoots(): void {
     });
 }
 
-function handleExportState(requestId: string): void {
-    if (!engine) return;
+/**
+ * Answers a request with its failure, so the caller receives the reason instead of waiting for a timeout.
+ */
+function sendCommandError(requestId: string, error: unknown): void {
     sendResponse({
-        type: 'commandResponse',
+        type: 'commandError',
         requestId,
-        result: engine.exportState(),
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
     });
 }
 
+/**
+ * Snapshot export. The worker handles one message at a time and only runs the tick loop between messages, so the
+ * state read here is always the state at a tick boundary.
+ */
+function handleExportState(requestId: string): void {
+    if (!engine) {
+        sendCommandError(requestId, new Error(ENGINE_NOT_INITIALIZED));
+        return;
+    }
+    try {
+        sendResponse({ type: 'commandResponse', requestId, result: engine.exportState() });
+    } catch (error) {
+        logger.error('worker export failed', 'Worker:Export', describeError(error));
+        sendCommandError(requestId, error);
+    }
+}
+
+/**
+ * Applies a snapshot to a new engine, and replaces the live engine only after the whole snapshot has been applied. A
+ * rejected snapshot therefore leaves the live simulation untouched. The acknowledgement is sent after the replacement.
+ */
+/**
+ * First half of an import. Builds the restored world next to the live one, and changes nothing the user can see. The
+ * proxy then swaps it in with commitImport, or drops it with cancelImport when the import timed out.
+ */
 function handleImportState(command: Extract<WorkerCommand, { type: 'importState' }>): void {
-    if (!engine) return;
-    engine.importState(command.state);
-    sendResponse({ type: 'stats', stats: engine.getStats() });
+    if (!engine) {
+        sendCommandError(command.requestId, new Error(ENGINE_NOT_INITIALIZED));
+        return;
+    }
+
+    try {
+        const candidate = new SimulationEngine(currentScale);
+        candidate.importState(command.state);
+        preparedImport = { token: command.importToken, candidate };
+    } catch (error) {
+        logger.error('worker import rejected', 'Worker:Import', describeError(error));
+        sendCommandError(command.requestId, error);
+        return;
+    }
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result: { prepared: true } });
+}
+
+/**
+ * Second half of an import. Swaps in the world that importState prepared under the same token. A prepared world that was
+ * cancelled, or replaced by a later import, cannot be committed, so the live world stays as it was.
+ */
+function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImport' }>): void {
+    const live = engine;
+    if (!live || !preparedImport || preparedImport.token !== command.importToken) {
+        sendCommandError(command.requestId, new Error('The import is no longer prepared, so the live world is unchanged.'));
+        return;
+    }
+    const { candidate } = preparedImport;
+    preparedImport = null;
+
+    // Everything that can fail runs before the swap, so a failure here leaves the live world unchanged and says so.
+    let result: SnapshotImportResult;
+    let view: ReturnType<typeof restoredView> | null = null;
+    try {
+        if (command.updates) Object.assign(candidate.config, command.updates);
+        carryRuntimeState(live, candidate);
+        result = importResult(candidate);
+        // While the loop is stopped nothing else publishes frames, so the renderer would keep the old world's buffers.
+        view = isRunning ? null : restoredView(candidate);
+    } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        sendCommandError(command.requestId, new Error(`The import failed before the swap, so the live world is unchanged: ${reason}`));
+        return;
+    }
+    engine = candidate;
+    committedImportTokens.add(command.importToken);
+    if (view) sendResponse(view.message, view.transferables);
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
+}
+
+/** Drops the world prepared under a token, so that a late commit cannot apply an import the proxy gave up on. */
+function handleCancelImport(importToken: string): void {
+    if (preparedImport?.token === importToken) preparedImport = null;
+}
+
+/**
+ * Tells the proxy whether the commit of an import reached the worker, and the live world as it is now. The answer comes
+ * after every command received before the probe, so a commit that was still queued when the proxy gave up is included.
+ */
+function handleProbeImport(command: Extract<WorkerCommand, { type: 'probeImport' }>): void {
+    if (!engine) {
+        sendCommandError(command.requestId, new Error(ENGINE_NOT_INITIALIZED));
+        return;
+    }
+    const result: ImportProbeResult = { committed: committedImportTokens.has(command.importToken), live: importResult(engine) };
+    sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
+}
+
+/**
+ * The render buffers of an engine, prepared before the swap so that posting them cannot fail after the swap.
+ */
+function restoredView(restored: SimulationEngine): { message: WorkerResponse; transferables: Transferable[] } {
+    const { buffers, transferables } = snapshotRenderBuffers(restored.getRenderData());
+    return { message: { type: 'updated', buffers, stats: restored.getStats(), tick: restored.getTick() }, transferables };
+}
+
+/**
+ * Keeps what the live engine was doing: whether its loop is running, and the camera it was last given.
+ */
+function carryRuntimeState(live: SimulationEngine, candidate: SimulationEngine): void {
+    const cameraData = live.cameraDataProvider.getCameraData();
+    if (cameraData) candidate.setCameraData(cameraData);
+    if (live.state === EngineState.RUNNING) candidate.start();
+}
+
+function importResult(restored: SimulationEngine): SnapshotImportResult {
+    return {
+        tick: restored.getTick(),
+        stats: restored.getStats(),
+        config: restored.config,
+        worldConfig: restored.worldConfig,
+        zones: restored.getZones(),
+        obstacles: restored.obstacles,
+    };
 }
 
 type LifecycleCommand = Extract<WorkerCommand, { type: 'init' | 'update' | 'reset' | 'setConfig' | 'getStats' }>;
 type QueryCommand = Extract<
     WorkerCommand,
-    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' }
+    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' | 'commitImport' | 'probeImport' }
 >;
-type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' }>;
+type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' | 'cancelImport' }>;
 
 const LIFECYCLE_TYPES: ReadonlySet<string> = new Set<LifecycleCommand['type']>(['init', 'update', 'reset', 'setConfig', 'getStats']);
 const QUERY_TYPES: ReadonlySet<string> = new Set<QueryCommand['type']>([
-    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState',
+    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState', 'commitImport', 'probeImport',
 ]);
-const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed']);
+const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed', 'cancelImport']);
 
 const isLifecycleCommand = (command: WorkerCommand): command is LifecycleCommand => LIFECYCLE_TYPES.has(command.type);
 const isQueryCommand = (command: WorkerCommand): command is QueryCommand => QUERY_TYPES.has(command.type);
@@ -412,6 +544,8 @@ function handleQueryCommand(command: QueryCommand): void {
         case 'getGeneticRoots': handleGeneticRoots(); break;
         case 'exportState': handleExportState(command.requestId); break;
         case 'importState': handleImportState(command); break;
+        case 'commitImport': handleCommitImport(command); break;
+        case 'probeImport': handleProbeImport(command); break;
     }
 }
 
@@ -421,6 +555,7 @@ function handleControlCommand(command: ControlCommand): void {
         case 'startLoop': startAutoUpdate(); break;
         case 'stopLoop': stopAutoUpdate(); break;
         case 'setSpeed': handleSetSpeed(command); break;
+        case 'cancelImport': handleCancelImport(command.importToken); break;
     }
 }
 
