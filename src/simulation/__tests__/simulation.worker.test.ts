@@ -277,6 +277,19 @@ describe('simulation worker — snapshot commands', () => {
     expect(answersFor(IMPORT_REQUEST).map(msg => msg.type)).toEqual(['commandError']);
   });
 
+  it('publishes the restored world while the loop is stopped, without advancing it', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    const snapshot = exportLiveState(EXPORT_REQUEST);
+    posted = [];
+
+    send({ type: 'importState', requestId: IMPORT_REQUEST, state: snapshot });
+
+    const [published] = responsesOfType('updated');
+    expect(published?.tick).toBe(snapshot.tick);
+    expect(answersFor(IMPORT_REQUEST).map(msg => msg.type)).toEqual(['commandResponse']);
+  });
+
   it('keeps a running loop running after a successful import', async () => {
     await loadWorker();
     send({ type: 'init', scale: SCALE });

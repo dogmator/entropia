@@ -12,11 +12,11 @@ import { alterNewestCheckpoint } from './checkpointTestUtils';
 
 const WORLD = 'default';
 
-// The controller never reads the state beyond its tick, so a state with only a tick stands in for a real one.
+// The controller reads the tick and the content of a state, so a state with those fields stands in for a real one.
 const fakeWorld = (initialTick: number) => {
-  const world = { tick: initialTick, imports: [] as number[], rejectImportsOf: new Set<number>() };
+  const world = { tick: initialTick, config: 'default', imports: [] as number[], rejectImportsOf: new Set<number>() };
   const engine: CheckpointEngine = {
-    exportState: () => Promise.resolve({ tick: world.tick } as unknown as SerializedSimulationStateV1),
+    exportState: () => Promise.resolve({ tick: world.tick, config: world.config } as unknown as SerializedSimulationStateV1),
     importState: (state) => {
       const { tick } = state as unknown as { tick: number };
       if (world.rejectImportsOf.has(tick)) return Promise.reject(new Error(`engine rejected the snapshot at tick ${String(tick)}`));
@@ -28,7 +28,7 @@ const fakeWorld = (initialTick: number) => {
   return { world, engine };
 };
 
-interface HarnessOptions { lock?: LockOutcome; initialTick?: number; factory?: IDBFactory }
+interface HarnessOptions { lock?: LockOutcome; initialTick?: number; factory?: IDBFactory; onWorldReplaced?: () => void }
 
 const createHarness = (options: HarnessOptions = {}) => {
   const factory = options.factory ?? (new FakeIDBFactory() as unknown as IDBFactory);
@@ -42,6 +42,7 @@ const createHarness = (options: HarnessOptions = {}) => {
     store,
     acquireLock,
     now: () => { clock += 1; return clock; },
+    onWorldReplaced: options.onWorldReplaced,
   });
   return { factory, store, world, controller, acquireLock };
 };
@@ -311,5 +312,58 @@ describe('checkpoint controller: file import and discard', () => {
 
     expect(controller.getStatus()).toEqual({ kind: 'idle' });
     expect(await ticksOf(store)).toEqual([]);
+  });
+});
+
+describe('checkpoint controller: content and recovery decisions', () => {
+  it('saves a change made at the same tick, because the content differs', async () => {
+    const { controller, store, world } = createHarness({ initialTick: 5 });
+    await controller.start();
+    await controller.save();
+
+    world.config = 'changed while paused';
+    await controller.save();
+
+    expect(await ticksOf(store)).toEqual([5, 5]);
+  });
+
+  it('does not overwrite a checkpoint offered for recovery before the user decides', async () => {
+    const first = createHarness({ initialTick: 9 });
+    await first.controller.start();
+    await first.controller.save();
+
+    const second = createHarness({ factory: first.factory, initialTick: 1 });
+    await second.controller.start();
+    await second.controller.save();
+
+    expect(second.controller.getStatus()).toMatchObject({ kind: 'recoveryAvailable', tick: 9 });
+    expect(await ticksOf(first.store)).toEqual([9]);
+  });
+
+  it('starts saving again once the user has resumed the offered checkpoint', async () => {
+    const first = createHarness({ initialTick: 9 });
+    await first.controller.start();
+    await first.controller.save();
+
+    const second = createHarness({ factory: first.factory, initialTick: 1 });
+    await second.controller.start();
+    await second.controller.restore();
+    second.world.tick = 10;
+    await second.controller.save();
+
+    expect(await ticksOf(second.store)).toEqual([10, 9]);
+  });
+
+  it('tells the caller when a restore replaces the world', async () => {
+    const first = createHarness({ initialTick: 4 });
+    await first.controller.start();
+    await first.controller.save();
+
+    const onWorldReplaced = vi.fn();
+    const second = createHarness({ factory: first.factory, initialTick: 1, onWorldReplaced });
+    await second.controller.start();
+    await second.controller.restore();
+
+    expect(onWorldReplaced).toHaveBeenCalledTimes(1);
   });
 });
