@@ -1,5 +1,6 @@
 import type { SerializedSimulationStateV1 } from '@/types';
 
+import { ImportOutcomeUnknownError } from '../ImportOutcome.errors';
 import type { CheckpointStore, StoredCheckpoint } from './CheckpointStore.service';
 import { CHECKPOINT_SCHEMA_VERSION } from './CheckpointStore.service';
 import { checksumOf } from './checksum.utils';
@@ -25,7 +26,8 @@ export type CheckpointStatus =
     | { kind: 'saved'; tick: number; savedAt: number }
     | { kind: 'recoveryAvailable'; tick: number; savedAt: number }
     | { kind: 'restored'; tick: number; source: 'checkpoint' | 'file'; skipped: string[] }
-    | { kind: 'failed'; action: 'save' | 'restore' | 'import' | 'discard'; reason: string };
+    | { kind: 'failed'; action: 'save' | 'restore' | 'import' | 'discard'; reason: string }
+    | { kind: 'unknownOutcome'; action: 'restore' | 'import'; reason: string };
 
 export interface CheckpointControllerOptions {
     worldId: string;
@@ -38,6 +40,12 @@ export interface CheckpointControllerOptions {
 }
 
 const reasonOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+// An import the worker did not confirm is unknown, not failed: the world may already have been replaced.
+const outcomeStatus = (error: unknown, action: 'restore' | 'import'): CheckpointStatus =>
+    error instanceof ImportOutcomeUnknownError
+        ? { kind: 'unknownOutcome', action, reason: error.message }
+        : { kind: 'failed', action, reason: reasonOf(error) };
 
 // A checkpoint is usable only if its format is known and its payload still matches the checksum written with it.
 const verifyCheckpoint = (record: StoredCheckpoint): string | null => {
@@ -136,7 +144,7 @@ export class CheckpointController {
                 this.setStatus({ kind: 'restored', tick: state.tick, source: 'file', skipped: [] });
                 this.worldReplaced?.();
             } catch (error) {
-                this.setStatus({ kind: 'failed', action: 'import', reason: reasonOf(error) });
+                this.setStatus(outcomeStatus(error, 'import'));
             }
         });
     }
@@ -239,7 +247,7 @@ export class CheckpointController {
                 reason: candidates.length === 0 ? 'There is no saved world to resume.' : `No saved checkpoint could be restored (${skipped.join('; ')}).`,
             });
         } catch (error) {
-            this.setStatus({ kind: 'failed', action: 'restore', reason: reasonOf(error) });
+            this.setStatus(outcomeStatus(error, 'restore'));
         }
     }
 
@@ -257,6 +265,8 @@ export class CheckpointController {
             await this.options.engine.importState(state);
             return null;
         } catch (error) {
+            // An unknown outcome stops the restore: an older checkpoint must not be applied over a swap that may have happened.
+            if (error instanceof ImportOutcomeUnknownError) throw error;
             return reasonOf(error);
         }
     }
