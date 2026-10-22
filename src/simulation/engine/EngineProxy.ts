@@ -1,4 +1,4 @@
-import { logger } from '@/core';
+import { ImportOutcomeUnknownError, logger } from '@/core';
 import type { EcologicalZone, GenomeId, RenderBuffers, SerializedSimulationStateV1, SimulationConfig, SimulationEvent, SimulationStats, Vector3, WorldConfig } from '@/types';
 
 import type { IEntity } from '../interfaces/IEntity';
@@ -6,7 +6,7 @@ import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../int
 import type { InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
 import { isWorkerConsoleMessage } from '../WorkerMessages';
 import { ConfigBatcher } from './ConfigBatcher.service';
-import { WorkerChannel } from './WorkerChannel.service';
+import { CommandTimeoutError, WorkerChannel } from './WorkerChannel.service';
 
 export interface EngineProxyOptions { scale?: number; tickRate?: number; }
 interface CameraPayload { position: Vector3; target: Vector3; }
@@ -102,8 +102,7 @@ export class EngineProxy implements ISimulationEngine {
             await this.channel.sendAsyncCommand<unknown>('importState', { state: s, importToken }, {
                 onTimeout: () => { this.channel.sendCommand({ type: 'cancelImport', importToken }, () => { this.configBatcher.flush(); }); },
             });
-            // The swap cannot be undone once it is sent, so its answer is awaited without a timeout.
-            applied = await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken }, { bounded: false });
+            applied = await this.commitImport(importToken);
         } finally {
             this.importsInFlight = this.importsInFlight.filter(item => item !== pending);
         }
@@ -114,6 +113,18 @@ export class EngineProxy implements ISimulationEngine {
         this._obstacles = applied.obstacles;
         this.lastStats = applied.stats;
         logger.info('Proxy: importState applied', 'EngineProxy', { tick: applied.tick });
+    }
+    /**
+     * The swap is bounded like every request. A worker answer settles the outcome. Silence does not: the swap may have
+     * happened, so the caller gets an unknown outcome, never a failure or a success.
+     */
+    private async commitImport(importToken: string): Promise<SnapshotImportResult> {
+        try {
+            return await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken });
+        } catch (error) {
+            if (error instanceof CommandTimeoutError) throw new ImportOutcomeUnknownError();
+            throw error;
+        }
     }
     public updateConfig(c: Partial<SimulationConfig>): void {
         for (const pending of this.importsInFlight) Object.assign(pending.updates, c);

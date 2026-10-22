@@ -6,18 +6,24 @@ import { type CommandErrorResponse, type CommandResponse, type ErrorResponse, ty
 const ASYNC_COMMAND_TIMEOUT_MS = 5000;
 const PERFORMANCE_HISTORY_LIMIT = 600;
 
+/** A request the worker did not answer within the bound. The caller decides what the silence means. */
+export class CommandTimeoutError extends Error {
+    constructor(type: string) {
+        super(`Timeout for command ${type}`);
+        this.name = 'CommandTimeoutError';
+    }
+}
+
 interface PendingRequest {
     type: string;
     resolve: (value: unknown) => void;
     reject: (reason?: unknown) => void;
-    timeoutId: ReturnType<typeof setTimeout> | undefined;
+    timeoutId: ReturnType<typeof setTimeout>;
 }
 
 interface AsyncCommandOptions {
     /** Runs when the request times out, before the timeout is reported, so the caller can cancel what the worker may still do. */
     readonly onTimeout?: () => void;
-    /** False for a request that cannot be cancelled once it is sent: its answer is awaited without a timeout. */
-    readonly bounded?: boolean;
 }
 
 interface ChannelCallbacks {
@@ -77,12 +83,12 @@ export class WorkerChannel {
         const requestId = `${type}_${String(++this.requestCounter)}`;
         logger.debug(`[Proxy] Sending async command: ${type} (req: ${requestId})`, 'WorkerChannel');
         return new Promise<T>((resolve, reject) => {
-            const timeoutId = options.bounded === false ? undefined : setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 const request = this.pendingRequests.get(requestId);
                 if (!request) return;
                 this.pendingRequests.delete(requestId);
                 options.onTimeout?.();
-                reject(new Error(`Timeout for command ${type}`));
+                reject(new CommandTimeoutError(type));
             }, ASYNC_COMMAND_TIMEOUT_MS);
             this.pendingRequests.set(requestId, { type, resolve: resolve as (v: unknown) => void, reject, timeoutId });
             worker.postMessage({ type, requestId, ...payload });
