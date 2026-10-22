@@ -19,7 +19,7 @@ const REPORT_TIMEOUT_MS = 900_000;
 const COLUMNS = [
   'mode', 'seed', 'tick', 'extinct', 'organisms', 'prey', 'predators', 'food',
   'zoneStockMin', 'zoneStockMean', 'unitsRegenerated', 'unitsSpent', 'attemptsRefused',
-  'energyAbsorbed', 'energyDiscarded', 'energyRemoved', 'energyRequested', 'foodEnergyRemaining',
+  'energyAbsorbed', 'energyDiscarded', 'energyRemoved', 'energyRequested', 'foodEnergyRemaining', 'openingFoodEnergy',
   'ledgerResidual', 'msPerTick',
 ];
 
@@ -39,12 +39,12 @@ const rowOf = (engine: SimulationEngine, world: { seed: number; isStockOn: boole
   const accounted = ledger.energyAbsorbed + ledger.energyDiscarded + ledger.energyRemoved + ledger.foodEnergyRemaining;
   const paid = (ledger.unitsSpent / RESOURCE_STOCK_UNITS_PER_FOOD) * FOOD_ENERGY_VALUE;
   // The ledger balances only when food is paid from the stock. With the stock off the column is left empty.
-  const ledgerResidual = world.isStockOn ? paid - accounted : Number.NaN;
+  const ledgerResidual = world.isStockOn ? paid + ledger.openingFoodEnergy - accounted : Number.NaN;
   const values: (number | string)[] = [
     world.isStockOn ? 'on' : 'off', world.seed, engine.getTick(), engine.state === EngineState.RUNNING ? 0 : 1,
     engine.organisms.size, stats.preyCount, stats.predatorCount, stats.foodCount,
     zoneStockMin, zoneStockMean, ledger.unitsRegenerated, ledger.unitsSpent, ledger.attemptsRefused,
-    ledger.energyAbsorbed, ledger.energyDiscarded, ledger.energyRemoved, ledger.energyRequested, ledger.foodEnergyRemaining,
+    ledger.energyAbsorbed, ledger.energyDiscarded, ledger.energyRemoved, ledger.energyRequested, ledger.foodEnergyRemaining, ledger.openingFoodEnergy,
     ledgerResidual, msPerTick,
   ];
   return values.map(format).join(',');
