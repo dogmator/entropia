@@ -126,16 +126,16 @@ describe('combined acceptance: genealogy and energy accounting', () => {
     advance(source, MEDIUM_CHECKPOINT);
     const restored = new SimulationEngine(1, { seed: RESTORE_SEED });
     restored.importState(roundTrip(source.exportState()));
-    // The ledger counts from the restore, so the food already present at the restore is the opening balance.
-    const openingFoodEnergy = restored.getResourceLedger().foodEnergyRemaining;
     restored.start();
     advance(restored, CONTINUATION_TICKS * 5);
 
+    // The ledger counts from the restore. The food the snapshot brought in is its opening balance.
     const ledger = restored.getResourceLedger();
     const paid = (ledger.unitsSpent / RESOURCE_STOCK_UNITS_PER_FOOD) * FOOD_ENERGY_VALUE;
     const accounted = ledger.energyAbsorbed + ledger.energyDiscarded + ledger.energyRemoved + ledger.foodEnergyRemaining;
     expect(ledger.unitsSpent).toBeGreaterThan(0);
-    expect(Math.abs(paid + openingFoodEnergy - accounted)).toBeLessThanOrEqual(LEDGER_TOLERANCE * Math.max(1, accounted));
+    expect(ledger.openingFoodEnergy).toBeGreaterThan(0);
+    expect(Math.abs(paid + ledger.openingFoodEnergy - accounted)).toBeLessThanOrEqual(LEDGER_TOLERANCE * Math.max(1, accounted));
   }, LONG_RUN_TIMEOUT_MS);
 
   it('an extinct stock world restored from its snapshot stays empty and paused, and no birth brings it back', () => {

@@ -24,7 +24,7 @@ const RESTORE_SEED = 99;
 const CONTINUATION_SEEDS = [4242, 1];
 const COLUMNS = [
   'mode', 'seed', 'tick', 'extinct', 'organisms', 'food',
-  'zoneStockMin', 'ledgerResidual',
+  'zoneStockMin', 'ledgerResidual', 'openingFoodEnergy',
   'genealogyNodes', 'genealogyBytes', 'snapshotBytes', 'storedPayloadBytes', 'msPerTick',
 ];
 
@@ -73,7 +73,8 @@ const rowOf = (engine: SimulationEngine, run: WorldRun, msPerTick: number): stri
     run.isStockOn ? 'on' : 'off', run.seed, engine.getTick(), engine.state === EngineState.RUNNING ? 0 : 1,
     engine.organisms.size, stats.foodCount,
     run.isStockOn ? Math.min(...stocks) : Number.NaN,
-    run.isStockOn ? paid - accounted : Number.NaN,
+    run.isStockOn ? paid + ledger.openingFoodEnergy - accounted : Number.NaN,
+    run.isStockOn ? ledger.openingFoodEnergy : Number.NaN,
     engine.geneticTree.size,
     new TextEncoder().encode(JSON.stringify(snapshot.geneticTree)).byteLength,
     new TextEncoder().encode(JSON.stringify(snapshot)).byteLength,
