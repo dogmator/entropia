@@ -117,7 +117,7 @@ describe('URL round-trip — enum and clean URL', () => {
         for (const q of qualities) {
             const changed = { ...DEFAULTS, graphicsQuality: q };
             const parsed = parseConfigFromSearch(buildSearchFromConfigDiff(changed, DEFAULTS), DEFAULTS, {
-                graphicsQuality: (v, f) => (['LOW', 'MEDIUM', 'HIGH', 'ULTRA', 'CUSTOM'] as const).includes(v as never) ? v : f,
+                graphicsQuality: (v, f) => (['LOW', 'MEDIUM', 'HIGH', 'ULTRA', 'CUSTOM'] as const).includes(v) ? v : f,
             });
             expect(parsed.graphicsQuality).toBe(q);
         }

@@ -33,7 +33,7 @@ const fakeWorld = (initialTick: number) => {
 interface HarnessOptions { lock?: LockOutcome; initialTick?: number; factory?: IDBFactory; onWorldReplaced?: () => void }
 
 const createHarness = (options: HarnessOptions = {}) => {
-  const factory = options.factory ?? (new FakeIDBFactory() as unknown as IDBFactory);
+  const factory = options.factory ?? new FakeIDBFactory();
   const store = new CheckpointStore(factory);
   const { world, engine } = fakeWorld(options.initialTick ?? 1);
   let clock = 5000;

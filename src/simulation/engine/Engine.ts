@@ -280,8 +280,7 @@ export class SimulationEngine implements IPersistableEngine {
     }
 
     public addEventListener(callback: (event: SimulationEvent) => void): () => void {
-        type EventCallback = (event: SimulationEvent) => void;
-        return this.eventBus.on('TickUpdated', callback as EventCallback);
+        return this.eventBus.on('TickUpdated', callback);
     }
 
     // ── Entity queries (delegate to EntityQuery) ──────────────────────────────

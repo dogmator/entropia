@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { RandomStream } from '@/core/utils/Random.utils';
 
 import { CELL_SIZE,createWorldConfig } from '../../../config';
-import type { EcologicalZone, GenomeId, SimulationConfig, WorldConfig, ZoneType } from '../../../types';
+import type { EcologicalZone, GenomeId, SimulationConfig, WorldConfig } from '../../../types';
 import { createOrganismId,EntityType } from '../../../types';
 import { Organism } from '../../Entity';
 import { GridManager } from '../../managers/GridManager.manager';
@@ -99,7 +99,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
       flockingStrength: 0.5,
     };
 
-    const organism = new Organism(createOrganismId('org_1'), { x: 10, y: 10, z: 10 }, genome as unknown as Organism['genome'], rng, null);
+    const organism = new Organism(createOrganismId('org_1'), { x: 10, y: 10, z: 10 }, genome, rng, null);
 
     // Оновлення — має відпрацювати без помилок
     const organisms = new Map<string, Organism>();
@@ -116,7 +116,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
 
     zones.set('test_oasis', {
       id: 'test_oasis',
-      type: 'OASIS' as ZoneType,
+      type: 'OASIS',
       center: { x: 200, y: 200, z: 200 },
       radius: 50,
       foodMultiplier: 3.0,
@@ -141,7 +141,7 @@ describe('BehaviorSystem — Інтеграція WorldConfig', () => {
       flockingStrength: 0.5,
     };
 
-    const organismInZone = new Organism(createOrganismId('org_1'), { x: 200, y: 200, z: 200 }, genome as unknown as Organism['genome'], rng, null);
+    const organismInZone = new Organism(createOrganismId('org_1'), { x: 200, y: 200, z: 200 }, genome, rng, null);
     const organisms = new Map<string, Organism>();
     organisms.set(organismInZone.id, organismInZone);
 

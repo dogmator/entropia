@@ -32,7 +32,6 @@ import type {
   PredatorGenome,
   PredatorSubtype,
   PreyGenome,
-  Vector3,
 } from '@/types';
 import {
   createFoodId,
@@ -370,8 +369,8 @@ export class Organism extends Entity {
   public toRenderData(): OrganismRenderData {
     return {
       id: this.id as OrganismId,
-      position: { ...this.position } as Vector3,
-      velocity: { ...this.velocity } as Vector3,
+      position: { ...this.position },
+      velocity: { ...this.velocity },
       radius: this.radius,
       adultRadius: this.adultRadius,
       growthRatio: this.growthRatio,

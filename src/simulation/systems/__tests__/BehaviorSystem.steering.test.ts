@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { RandomStream } from '@/core/utils/Random.utils';
 
-import type { EcologicalZone, Genome, PredatorGenome,PreyGenome, SimulationConfig, WorldConfig } from '../../../types';
+import type { EcologicalZone, Genome, SimulationConfig, WorldConfig } from '../../../types';
 import { createGenomeId, createOrganismId, EntityType, PredatorSubtype,ZoneType } from '../../../types';
 import type { Food } from '../../Entity';
 import { Organism } from '../../Entity';
@@ -87,14 +87,14 @@ const createTestGenome = (type: EntityType = EntityType.PREY): Genome => {
             subtype: PredatorSubtype.HUNTER,
             attackPower: 10,
             packAffinity: 0.5,
-        } as PredatorGenome;
+        };
     }
 
     return {
         ...base,
         type: EntityType.PREY,
         flockingStrength: 0.5,
-    } as PreyGenome;
+    };
 };
 
 describe('BehaviorSystem — Steering Behaviors', () => {

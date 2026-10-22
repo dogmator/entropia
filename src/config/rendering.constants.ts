@@ -18,7 +18,7 @@ export const INITIAL_VIS_CONFIG: VisConfig = {
   showEnergyGlow: true,
   showTrails: true,
   showParticles: true,
-  graphicsQuality: 'HIGH' as GraphicsQuality,
+  graphicsQuality: 'HIGH',
 } as const;
 
 /** Graphics intensity preset sets. */

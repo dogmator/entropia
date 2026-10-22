@@ -14,7 +14,6 @@ import type { RandomStream } from '@/core/utils/Random.utils';
 import type {
   EcologicalZone,
   EntitySpawnedEvent,
-  FoodId,
   GridEntity,
   MutableVector3,
   OrganismId,
@@ -174,7 +173,7 @@ export class SpawnService {
     this.eventBus.emit({
       type: 'EntitySpawned',
       entityType: organism.type,
-      id: organism.id as OrganismId,
+      id: organism.id,
       position: { ...organism.position },
       parentId: parent?.id as OrganismId | undefined,
     } as EntitySpawnedEvent);
@@ -223,9 +222,9 @@ export class SpawnService {
     this.eventBus.emit({
       type: 'EntitySpawned',
       entityType: EntityType.FOOD,
-      id: food.id as unknown as FoodId,
+      id: food.id,
       position: { ...position },
-    } as EntitySpawnedEvent);
+    });
 
     return food;
   }
