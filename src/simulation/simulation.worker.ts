@@ -98,8 +98,9 @@ if (import.meta.env.DEV) {
 let engine: SimulationEngine | null = null;
 // A world built by importState and not yet swapped in by commitImport. It belongs to the import that built it.
 let preparedImport: { readonly token: string; readonly candidate: SimulationEngine } | null = null;
-// The token of the import whose commit put the live world in place. A probe answers from it.
-let lastCommittedImportToken: string | null = null;
+// The tokens of the imports whose commits put a world in place. A probe answers from them, however many imports came after.
+// Imports are user actions, so the set stays small.
+const committedImportTokens = new Set<string>();
 const ENGINE_NOT_INITIALIZED = 'Engine is not initialized';
 // A restored engine is built at the scale of the live world. A snapshot saved at another scale is rejected by the import.
 let currentScale = 1.0;
@@ -448,7 +449,7 @@ function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImpor
         return;
     }
     engine = candidate;
-    lastCommittedImportToken = command.importToken;
+    committedImportTokens.add(command.importToken);
     if (view) sendResponse(view.message, view.transferables);
     sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
 }
@@ -467,7 +468,7 @@ function handleProbeImport(command: Extract<WorkerCommand, { type: 'probeImport'
         sendCommandError(command.requestId, new Error(ENGINE_NOT_INITIALIZED));
         return;
     }
-    const result: ImportProbeResult = { committed: lastCommittedImportToken === command.importToken, live: importResult(engine) };
+    const result: ImportProbeResult = { committed: committedImportTokens.has(command.importToken), live: importResult(engine) };
     sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
 }
 
