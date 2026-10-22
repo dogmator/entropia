@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { FOOD_ENERGY_VALUE, RESOURCE_STOCK_UNITS_PER_FOOD } from '@/config';
+import type { SerializedSimulationStateV1 } from '@/types';
 import { EngineState } from '@/types';
 
 import { SimulationEngine } from '../engine/Engine';
@@ -17,6 +18,10 @@ const CHECKPOINTS = [100, 300, 900, 1500];
 const isReportEnabled = process.env['COMBINED_REPORT'] === '1';
 const REPORT_PATH = process.env['COMBINED_REPORT_PATH'];
 const REPORT_TIMEOUT_MS = 900_000;
+const LONG_CHECKPOINT = 900;
+const CONTINUATION_TICKS = 40;
+const RESTORE_SEED = 99;
+const CONTINUATION_SEEDS = [4242, 1];
 const COLUMNS = [
   'mode', 'seed', 'tick', 'extinct', 'organisms', 'food',
   'zoneStockMin', 'ledgerResidual',
@@ -27,6 +32,28 @@ interface WorldRun {
   readonly seed: number;
   readonly isStockOn: boolean;
 }
+
+// The state with its wall-clock metadata removed, so two runs can be compared.
+const comparable = (engine: SimulationEngine): string =>
+  JSON.stringify(engine.exportState(), (key, value: unknown) => (key === 'spawnTime' ? undefined : value));
+
+// Saves a world at the long checkpoint, restores the save into a fresh engine, and runs both for the continuation.
+// Returns the first tick where they differ, or null when they never do.
+const continuationDivergence = (seed: number, isStockOn: boolean): number | null => {
+  const source = new SimulationEngine(1, { seed, resourceStock: isStockOn });
+  source.start();
+  while (source.getTick() < LONG_CHECKPOINT && source.state === EngineState.RUNNING) source.update();
+  const snapshot = JSON.parse(JSON.stringify(source.exportState())) as SerializedSimulationStateV1;
+  const restored = new SimulationEngine(1, { seed: RESTORE_SEED });
+  restored.importState(snapshot);
+  restored.start();
+  for (let tick = 0; tick < CONTINUATION_TICKS; tick++) {
+    source.update();
+    restored.update();
+    if (comparable(restored) !== comparable(source)) return source.getTick();
+  }
+  return null;
+};
 
 // Whole numbers stay whole, other numbers keep six decimals, and a missing number is an empty cell.
 const format = (value: number | string): string => {
@@ -77,5 +104,14 @@ describe('combined endurance report', () => {
     }
     writeFileSync(REPORT_PATH ?? 'combined-report.csv', `${rows.join('\n')}\n`);
     expect(rows.length).toBe(1 + SEEDS.length * 2 * CHECKPOINTS.length);
+  }, REPORT_TIMEOUT_MS);
+
+  it.runIf(isReportEnabled)('a save at tick 900 restores and continues like the uninterrupted run, in both ecologies', () => {
+    for (const seed of CONTINUATION_SEEDS) {
+      for (const isStockOn of [false, true]) {
+        const label = `seed ${String(seed)}, ${isStockOn ? 'stock on' : 'default ecology'}`;
+        expect(continuationDivergence(seed, isStockOn), label).toBeNull();
+      }
+    }
   }, REPORT_TIMEOUT_MS);
 });
