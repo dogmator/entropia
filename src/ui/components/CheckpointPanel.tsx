@@ -8,7 +8,9 @@ import type { CheckpointControls } from '../context/hooks/useCheckpoints';
 
 const BUTTON_CLASS = 'px-3 py-2 rounded-lg bg-white/10 text-[11px] font-bold text-gray-200 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed';
 
-const describeStatus = (status: CheckpointStatus): string => {
+type KnownStatus = Exclude<CheckpointStatus, { kind: 'unknownOutcome' }>;
+
+const describeKnownStatus = (status: KnownStatus): string => {
     switch (status.kind) {
         case 'starting': return t.checkpoints.starting;
         case 'unavailable': return `${t.checkpoints.unavailable}: ${status.reason}`;
@@ -21,6 +23,10 @@ const describeStatus = (status: CheckpointStatus): string => {
         case 'failed': return `${t.checkpoints.failed}: ${status.reason}`;
     }
 };
+
+// An unknown outcome carries its own explanation, which tells the user to reload the page.
+const describeStatus = (status: CheckpointStatus): string =>
+    status.kind === 'unknownOutcome' ? status.reason : describeKnownStatus(status);
 
 const exportWorld = async (controls: CheckpointControls): Promise<void> => {
     try {

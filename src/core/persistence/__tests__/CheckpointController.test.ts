@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { SerializedSimulationStateV1 } from '@/types';
 
+import { ImportOutcomeUnknownError } from '../../ImportOutcome.errors';
 import type { CheckpointEngine } from '../CheckpointController.service';
 import { CheckpointController } from '../CheckpointController.service';
 import { CheckpointStore } from '../CheckpointStore.service';
@@ -14,12 +15,13 @@ const WORLD = 'default';
 
 // The controller reads the tick and the content of a state, so a state with those fields stands in for a real one.
 const fakeWorld = (initialTick: number) => {
-  const world = { tick: initialTick, config: 'default', imports: [] as number[], rejectImportsOf: new Set<number>() };
+  const world = { tick: initialTick, config: 'default', imports: [] as number[], rejectImportsOf: new Set<number>(), unknownImportsOf: new Set<number>() };
   const engine: CheckpointEngine = {
     exportState: () => Promise.resolve({ tick: world.tick, config: world.config } as unknown as SerializedSimulationStateV1),
     importState: (state) => {
       const { tick } = state as unknown as { tick: number };
       if (world.rejectImportsOf.has(tick)) return Promise.reject(new Error(`engine rejected the snapshot at tick ${String(tick)}`));
+      if (world.unknownImportsOf.has(tick)) return Promise.reject(new ImportOutcomeUnknownError());
       world.tick = tick;
       world.imports.push(tick);
       return Promise.resolve();
@@ -240,6 +242,22 @@ describe('checkpoint controller: recovery', () => {
 
     expect(second.controller.getStatus()).toMatchObject({ kind: 'failed', action: 'restore' });
     expect(second.world.tick).toBe(1);
+    expect(second.world.imports).toEqual([]);
+  });
+
+  it('reports an unknown outcome, and does not try an older checkpoint over a swap that may have happened', async () => {
+    const first = createHarness({ initialTick: 5 });
+    await first.controller.start();
+    await first.controller.save();
+    first.world.tick = 9;
+    await first.controller.save();
+
+    const second = createHarness({ factory: first.factory, initialTick: 1 });
+    second.world.unknownImportsOf.add(9);
+    await second.controller.start();
+    await second.controller.restore();
+
+    expect(second.controller.getStatus()).toMatchObject({ kind: 'unknownOutcome', action: 'restore' });
     expect(second.world.imports).toEqual([]);
   });
 
