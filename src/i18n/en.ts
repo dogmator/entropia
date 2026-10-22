@@ -33,6 +33,25 @@ export const en = {
         activeMonitoring: 'System Active • Monitoring Stable',
     },
 
+    checkpoints: {
+        title: 'Saved world',
+        starting: 'Checking browser storage…',
+        unavailable: 'Checkpoints are off',
+        idle: 'Nothing saved yet',
+        saving: 'Saving…',
+        saved: 'Saved at tick',
+        recovery: 'A saved world is available from tick',
+        restored: 'Restored to tick',
+        failed: 'The last action did not complete',
+        fallbackNote: 'The newest checkpoint could not be used, so an earlier one was restored.',
+        save: 'Save now',
+        resume: 'Resume saved world',
+        discard: 'Discard saved world',
+        confirmDiscard: 'Discard the saved world? This cannot be undone.',
+        exportFile: 'Export file',
+        importFile: 'Import file',
+    },
+
     sidebar: {
         title: 'Evolutionary Sandbox',
         biosphere: 'Biosphere',

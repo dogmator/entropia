@@ -433,21 +433,33 @@ function handleCommitImport(command: Extract<WorkerCommand, { type: 'commitImpor
 
     // Everything that can fail runs before the swap, so a failure here leaves the live world unchanged and says so.
     let result: SnapshotImportResult;
+    let view: ReturnType<typeof restoredView> | null = null;
     try {
         carryRuntimeState(live, candidate);
         result = importResult(candidate);
+        // While the loop is stopped nothing else publishes frames, so the renderer would keep the old world's buffers.
+        view = isRunning ? null : restoredView(candidate);
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         sendCommandError(command.requestId, new Error(`The import failed before the swap, so the live world is unchanged: ${reason}`));
         return;
     }
     engine = candidate;
+    if (view) sendResponse(view.message, view.transferables);
     sendResponse({ type: 'commandResponse', requestId: command.requestId, result });
 }
 
 /** Drops the world prepared under a token, so that a late commit cannot apply an import the proxy gave up on. */
 function handleCancelImport(importToken: string): void {
     if (preparedImport?.token === importToken) preparedImport = null;
+}
+
+/**
+ * The render buffers of an engine, prepared before the swap so that posting them cannot fail after the swap.
+ */
+function restoredView(restored: SimulationEngine): { message: WorkerResponse; transferables: Transferable[] } {
+    const { buffers, transferables } = snapshotRenderBuffers(restored.getRenderData());
+    return { message: { type: 'updated', buffers, stats: restored.getStats(), tick: restored.getTick() }, transferables };
 }
 
 /**

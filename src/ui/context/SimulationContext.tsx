@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 
 import { ENGINE_CONSTANTS } from '@/config';
 import type { CameraState } from '@/shared/interfaces/CameraState';
@@ -8,6 +8,8 @@ import { EngineProxy } from '@/simulation/engine/EngineProxy';
 import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 import type { PopulationDataPoint, SimulationStats } from '@/types';
 
+import type { CheckpointControls } from './hooks/useCheckpoints';
+import { useCheckpoints } from './hooks/useCheckpoints';
 import { useEngineSync } from './hooks/useEngineSync';
 import { useHotkeys } from './hooks/useHotkeys';
 import { useHoverState } from './hooks/useHoverState';
@@ -43,6 +45,8 @@ interface SimulationContextValue {
     runSimulation: () => void;
     pauseSimulation: () => void;
     stopSimulation: () => void;
+    checkpoints: CheckpointControls;
+    worldRevision: number;
 }
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
@@ -67,6 +71,14 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
         settings,
         resetHistory: statsInfo.resetHistory
     });
+    // Bumped whenever a restore or an import replaces the world, so that views holding the old world's state start again.
+    const [worldRevision, setWorldRevision] = useState(0);
+    const { resetHistory } = statsInfo;
+    const onWorldReplaced = useCallback(() => {
+        resetHistory();
+        setWorldRevision(revision => revision + 1);
+    }, [resetHistory]);
+    const checkpoints = useCheckpoints(engine, lifecycle.simulationState, onWorldReplaced);
 
     useHotkeys(lifecycle.setSpeedWithState);
 
@@ -83,11 +95,12 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
         cameraSnapshot: settings.cameraSnapshot, setCameraSnapshot: settings.setCameraSnapshot,
         simulationState: lifecycle.simulationState, runSimulation: lifecycle.runSimulation,
         pauseSimulation: lifecycle.pauseSimulation, stopSimulation: lifecycle.stopSimulation,
+        checkpoints, worldRevision,
     }), [
         engine, statsInfo.stats, statsInfo.history, settings.speed, lifecycle,
         settings.worldScale, settings.setWorldScale, sync, hover, settings.isAutoRotate,
         settings.setAutoRotate, settings.autoRotateSpeed, settings.setAutoRotateSpeed,
-        settings.cameraSnapshot, settings.setCameraSnapshot
+        settings.cameraSnapshot, settings.setCameraSnapshot, checkpoints, worldRevision
     ]);
 
     return (
