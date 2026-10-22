@@ -3,7 +3,7 @@ import type { EcologicalZone, GenomeId, RenderBuffers, SerializedSimulationState
 
 import type { IEntity } from '../interfaces/IEntity';
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../interfaces/ISimulationEngine';
-import type { InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
+import type { ImportProbeResult, InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
 import { isWorkerConsoleMessage } from '../WorkerMessages';
 import { ConfigBatcher } from './ConfigBatcher.service';
 import { CommandTimeoutError, WorkerChannel } from './WorkerChannel.service';
@@ -115,16 +115,31 @@ export class EngineProxy implements ISimulationEngine {
         logger.info('Proxy: importState applied', 'EngineProxy', { tick: applied.tick });
     }
     /**
-     * The swap is bounded like every request. A worker answer settles the outcome. Silence does not: the swap may have
-     * happened, so the caller gets an unknown outcome, never a failure or a success.
+     * The swap is bounded like every request. A worker answer settles the outcome. Silence does not, because the swap may
+     * have happened, so the proxy asks the worker whether it did.
      */
     private async commitImport(importToken: string): Promise<SnapshotImportResult> {
         try {
             return await this.channel.sendAsyncCommand<SnapshotImportResult>('commitImport', { importToken });
         } catch (error) {
-            if (error instanceof CommandTimeoutError) throw new ImportOutcomeUnknownError();
-            throw error;
+            if (!(error instanceof CommandTimeoutError)) throw error;
+            return this.settleLostCommit(importToken);
         }
+    }
+    /**
+     * The probe is answered after any commit the worker received before it, so its answer tells whether the swap happened.
+     * Only a silent probe leaves the outcome unknown.
+     */
+    private async settleLostCommit(importToken: string): Promise<SnapshotImportResult> {
+        let probe: ImportProbeResult;
+        try {
+            probe = await this.channel.sendAsyncCommand<ImportProbeResult>('probeImport', { importToken });
+        } catch {
+            throw new ImportOutcomeUnknownError();
+        }
+        if (probe.committed) return probe.live;
+        this.channel.sendCommand({ type: 'cancelImport', importToken }, () => { this.configBatcher.flush(); });
+        throw new Error('The import was not applied, so the live world is unchanged.');
     }
     public updateConfig(c: Partial<SimulationConfig>): void {
         for (const pending of this.importsInFlight) Object.assign(pending.updates, c);

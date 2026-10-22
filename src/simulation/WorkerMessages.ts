@@ -109,6 +109,16 @@ export interface CancelImportCommand {
     readonly importToken: string;
 }
 
+/**
+ * Asks whether the commit of one import replaced the live world. The worker answers commands in the order it received
+ * them, so the answer comes after any commit sent before this probe.
+ */
+export interface ProbeImportCommand {
+    readonly type: 'probeImport';
+    readonly requestId: string;
+    readonly importToken: string;
+}
+
 export interface StartLoopCommand {
     readonly type: 'startLoop';
 }
@@ -137,6 +147,7 @@ export type WorkerCommand =
     | ImportStateCommand
     | CommitImportCommand
     | CancelImportCommand
+    | ProbeImportCommand
     | StartLoopCommand
     | StopLoopCommand
     | SetSpeedCommand;
@@ -198,6 +209,12 @@ export interface SnapshotImportResult {
     readonly worldConfig: WorldConfig;
     readonly zones: Map<string, EcologicalZone>;
     readonly obstacles: Map<string, IEntity>;
+}
+
+/** The worker's record of one import, with the live world as it is now, so the proxy can refresh its copies from it. */
+export interface ImportProbeResult {
+    readonly committed: boolean;
+    readonly live: SnapshotImportResult;
 }
 
 export type WorkerResponse =
