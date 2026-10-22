@@ -16,6 +16,7 @@ import {
     createFoodId,
     createObstacleId,
     EntityType,
+    GraphicsQuality,
     PredatorSubtype,
 } from '@/types';
 import { isPredatorGenome,isPreyGenome } from '@/types';
@@ -45,13 +46,35 @@ const requireFiniteFields = (container: Record<string, unknown>, section: string
         if (!isFiniteNumber(container[key])) throw new Error(`Invalid simulation snapshot: ${section}.${key} must be a finite number`);
     }
 };
-// The snapshot's settings replace the live ones, so a non-finite value is rejected before any engine is changed. JSON
-// turns NaN into null, so null is rejected too. A key missing from the snapshot keeps its current value (legacy snapshots).
+// Settings that accept only a fixed set of values. Any other value would leave the settings UI without a matching preset.
+const CONFIG_CHOICES: Partial<Record<string, readonly unknown[]>> = { graphicsQuality: Object.values(GraphicsQuality) };
+
+// The type of a setting is the type of its current value. A snapshot value of another type would stay in the live config,
+// so it is rejected. JSON turns NaN into null, so a null for a number is rejected too.
+const matchesSettingType = (current: unknown, value: unknown): boolean => {
+    if (typeof current === 'number') return isFiniteNumber(value);
+    if (typeof current === 'boolean') return typeof value === 'boolean';
+    if (typeof current === 'string') return typeof value === 'string';
+    return true;
+};
+
+const expectedSetting = (key: string, current: unknown): string => {
+    if (typeof current === 'number') return 'a finite number';
+    if (typeof current === 'boolean') return 'true or false';
+    return CONFIG_CHOICES[key] === undefined ? 'a string' : 'one of the supported values';
+};
+
+// The snapshot's settings replace the live ones, so they are checked before any engine is changed. A key missing from the
+// snapshot keeps its current value (legacy snapshots).
 const requireConfig = (config: unknown, template: SimulationConfig): void => {
     if (!isRecord(config)) throw new Error('Invalid simulation snapshot: config is missing');
     for (const [key, current] of Object.entries(template)) {
-        if (typeof current !== 'number' || config[key] === undefined) continue;
-        if (!isFiniteNumber(config[key])) throw new Error(`Invalid simulation snapshot: config.${key} must be a finite number`);
+        const value = config[key];
+        if (value === undefined) continue;
+        const choices = CONFIG_CHOICES[key];
+        if (!matchesSettingType(current, value) || (choices !== undefined && !choices.includes(value))) {
+            throw new Error(`Invalid simulation snapshot: config.${key} must be ${expectedSetting(key, current)}`);
+        }
     }
 };
 const requireFailsafe = (failsafe: unknown): void => {
