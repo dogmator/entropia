@@ -95,7 +95,7 @@ const SpeedSlider: React.FC<{ speed: number, onChange: (val: number) => void, di
         min={0} max={5.0} step={0.1}
         value={speed}
         disabled={disabled}
-        onInput={(e: React.ChangeEvent<HTMLInputElement>) => { onChange(parseFloat(e.target.value)); }}
+        onInput={(e: React.InputEvent<HTMLInputElement>) => { onChange(parseFloat(e.currentTarget.value)); }}
         onChange={(e: React.ChangeEvent<HTMLInputElement>) => { onChange(parseFloat(e.target.value)); }}
         className="w-full h-2 sm:h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500 hover:bg-white/20 transition-colors touch-manipulation"
         style={{
