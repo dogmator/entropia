@@ -7,6 +7,9 @@ import type { LockOutcome } from './WorldLease.service';
 
 export const DEFAULT_WORLD_ID = 'default';
 
+// While another tab holds the writer lock, this tab retries at this interval, so it becomes the writer once the lock is free.
+const LOCK_RETRY_INTERVAL_MS = 5_000;
+
 /** What the controller needs from the simulation. EngineProxy provides both methods. */
 export interface CheckpointEngine {
     exportState: () => Promise<SerializedSimulationStateV1>;
@@ -59,6 +62,7 @@ export class CheckpointController {
     private queue: Promise<void> = Promise.resolve();
     private readonly listeners = new Set<() => void>();
     private worldReplaced: (() => void) | undefined;
+    private lockRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor(private readonly options: CheckpointControllerOptions) {
         this.worldReplaced = options.onWorldReplaced;
@@ -161,10 +165,20 @@ export class CheckpointController {
         }
         if (outcome === 'busy') {
             this.setStatus({ kind: 'readOnly', reason: 'Another tab is writing this world. This tab can only view it.' });
+            this.scheduleLockRetry();
             return;
         }
         this.lockHeld = true;
         await this.offerRecovery();
+    }
+
+    // Retries the writer lock while another tab holds it. The retry runs in the queue, so it cannot overlap a save or a restore.
+    private scheduleLockRetry(): void {
+        if (this.lockRetryTimer !== null) return;
+        this.lockRetryTimer = setTimeout(() => {
+            this.lockRetryTimer = null;
+            void this.enqueue(() => this.acquireWriterLock());
+        }, LOCK_RETRY_INTERVAL_MS);
     }
 
     private async offerRecovery(): Promise<void> {

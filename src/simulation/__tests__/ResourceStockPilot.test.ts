@@ -9,8 +9,8 @@ import {
   RESOURCE_STOCK_UNITS_PER_FOOD,
 } from '@/config';
 import { logger } from '@/core';
-import type { EcologicalZone, SerializedSimulationStateV1 } from '@/types';
-import { EngineState, ZoneType } from '@/types';
+import type { EcologicalZone, EntitySpawnedEvent, SerializedSimulationStateV1 } from '@/types';
+import { EngineState, EntityType, ZoneType } from '@/types';
 
 import { SimulationEngine } from '../engine/Engine';
 import { ResourceStock } from '../services/ResourceStock.service';
@@ -128,12 +128,51 @@ describe('resource stock: engine behaviour', () => {
 
       const ledger = engine.getResourceLedger();
       const paid = (ledger.unitsSpent / RESOURCE_STOCK_UNITS_PER_FOOD) * FOOD_ENERGY_VALUE;
+      const supplied = paid + ledger.openingFoodEnergy;
       const accounted = ledger.energyAbsorbed + ledger.energyDiscarded + ledger.energyRemoved + ledger.foodEnergyRemaining;
 
       expect(ledger.enabled).toBe(true);
       expect(ledger.unitsSpent).toBeGreaterThan(0);
-      expect(Math.abs(paid - accounted)).toBeLessThanOrEqual(LEDGER_TOLERANCE * Math.max(1, paid));
+      expect(ledger.openingFoodEnergy).toBe(0);
+      expect(Math.abs(supplied - accounted)).toBeLessThanOrEqual(LEDGER_TOLERANCE * Math.max(1, supplied));
     }
+  }, LONG_RUN_TIMEOUT_MS);
+
+  it('balances the energy ledger after a restore: food the snapshot brings in is opening energy, not paid energy', () => {
+    const source = stockWorld(SEED);
+    for (let tick = 0; tick < CHECKPOINT_TICK; tick++) source.update();
+
+    const restored = new SimulationEngine(1, { seed: RESTORE_SEED });
+    restored.importState(roundTrip(source.exportState()));
+    restored.start();
+    for (let tick = 0; tick < CONTINUATION_TICKS; tick++) restored.update();
+
+    const ledger = restored.getResourceLedger();
+    const paid = (ledger.unitsSpent / RESOURCE_STOCK_UNITS_PER_FOOD) * FOOD_ENERGY_VALUE;
+    const supplied = paid + ledger.openingFoodEnergy;
+    const accounted = ledger.energyAbsorbed + ledger.energyDiscarded + ledger.energyRemoved + ledger.foodEnergyRemaining;
+
+    // Without the opening term the residual would equal the food energy the snapshot held, so this check has teeth.
+    expect(ledger.openingFoodEnergy).toBeGreaterThan(0);
+    expect(Math.abs(supplied - accounted)).toBeLessThanOrEqual(LEDGER_TOLERANCE * Math.max(1, supplied));
+  }, LONG_RUN_TIMEOUT_MS);
+
+  it('announces food only when the stock admits it, so every food spawn event stands for one paid item', () => {
+    const engine = stockWorld(SEED);
+    // Every zone starts empty, so most attempts are refused. A refused attempt must leave no spawn event behind.
+    const empty: Record<string, number> = {};
+    for (const id of engine.zones.keys()) empty[id] = 0;
+    engine.resourceStock.reset(engine.zones.values(), { enabled: true, stocks: empty });
+
+    let foodAnnounced = 0;
+    engine.eventBus.on<EntitySpawnedEvent>('EntitySpawned', event => {
+      if (event.entityType === EntityType.FOOD) foodAnnounced++;
+    });
+    for (let tick = 0; tick < HORIZON_TICKS; tick++) engine.update();
+
+    const ledger = engine.getResourceLedger();
+    expect(ledger.attemptsRefused).toBeGreaterThan(0);
+    expect(foodAnnounced).toBe(ledger.unitsSpent / RESOURCE_STOCK_UNITS_PER_FOOD);
   }, LONG_RUN_TIMEOUT_MS);
 
   it('restores a saved stock world and continues exactly like the uninterrupted run', () => {

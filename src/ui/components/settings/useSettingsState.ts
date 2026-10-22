@@ -19,18 +19,24 @@ export interface SettingsState {
     applyPreset: (quality: GraphicsQuality) => void;
 }
 
-const getInitialState = (engine: ISimulationEngine): SimulationConfig => {
+export type InitialConfigSource = 'url' | 'engine';
+
+// The first settings panel of a page takes its configuration from the URL. A panel that replaces an earlier one, after a
+// restore or an import, takes the live configuration, because the URL still describes the world that was replaced.
+export const initialConfigFor = (engine: ISimulationEngine, source: InitialConfigSource): SimulationConfig => {
+    if (source === 'engine') return { ...engine.config };
     const parsed = getInitialConfig(engine.config);
     logger.info('URL-first init', 'useSettingsState', { url: window.location.search, config: parsed });
     return parsed;
 };
 
-export const useSettingsState = (engine: ISimulationEngine): SettingsState => {
+export const useSettingsState = (engine: ISimulationEngine, initialSource: InitialConfigSource = 'url'): SettingsState => {
     const defaultConfigRef = useRef<SimulationConfig>({ ...engine.config });
-    const didApplyInitialUrlStateRef = useRef(false);
+    // A live configuration is already in the engine, so the mount must not push anything to it.
+    const didApplyInitialUrlStateRef = useRef(initialSource === 'engine');
     const urlSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const [config, setConfig] = useState<SimulationConfig>(() => getInitialState(engine));
+    const [config, setConfig] = useState<SimulationConfig>(() => initialConfigFor(engine, initialSource));
 
     const applyConfig = useCallback((nextConfig: SimulationConfig, mode: UrlHistoryMode, isUrlEvent: boolean) => {
         const sanitizedConfig = sanitizeConfig(nextConfig, defaultConfigRef.current);

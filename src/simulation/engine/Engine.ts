@@ -50,6 +50,8 @@ export interface ResourceLedger {
     readonly energyRequested: number;
     /** Energy still held by live food items. */
     readonly foodEnergyRemaining: number;
+    /** Energy that food held when the world was restored. The stock paid for it before this ledger started. */
+    readonly openingFoodEnergy: number;
 }
 
 export class SimulationEngine implements IPersistableEngine {
@@ -98,6 +100,7 @@ export class SimulationEngine implements IPersistableEngine {
     private readonly tickLoop: TickLoop;
     private readonly entityQuery: EntityQuery;
     private worldScale: number;
+    private openingFoodEnergy = 0;
 
     // eslint-disable-next-line max-lines-per-function
     constructor(scale = 1.0, options?: { seed?: number; resourceStock?: boolean }) {
@@ -318,7 +321,7 @@ export class SimulationEngine implements IPersistableEngine {
 
     /** Food and energy accounting of the resource pilot, since the world was created or restored. For measurement. */
     public getResourceLedger(): ResourceLedger {
-        const foodEnergyRemaining = Array.from(this.food.values()).reduce((sum, item) => sum + item.currentEnergy, 0);
+        const foodEnergyRemaining = this.liveFoodEnergy();
         return {
             enabled: this.resourceStock.isEnabled,
             unitsRegenerated: this.resourceStock.unitsRegenerated,
@@ -329,7 +332,12 @@ export class SimulationEngine implements IPersistableEngine {
             energyRemoved: this.foodAnomalyGuard.energyRemoved,
             energyRequested: this.metabolismSystem.energyRequested,
             foodEnergyRemaining,
+            openingFoodEnergy: this.openingFoodEnergy,
         };
+    }
+
+    private liveFoodEnergy(): number {
+        return Array.from(this.food.values()).reduce((sum, item) => sum + item.currentEnergy, 0);
     }
 
     private resetResourceLedger(): void {
@@ -337,6 +345,8 @@ export class SimulationEngine implements IPersistableEngine {
         this.collisionSystem.energyDiscarded = 0;
         this.metabolismSystem.energyRequested = 0;
         this.foodAnomalyGuard.energyRemoved = 0;
+        // Food already in the world when the ledger starts was not paid by the stock, so it is the opening balance.
+        this.openingFoodEnergy = this.liveFoodEnergy();
     }
     public getWorldScale(): number { return this.worldScale; }
 

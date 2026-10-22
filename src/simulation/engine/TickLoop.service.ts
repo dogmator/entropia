@@ -199,9 +199,9 @@ export class TickLoop {
         const { food, config, spawnService, entityManager, resourceStock } = this.ctx;
         if (food.size >= config.maxFood) return;
         if (this.ctx.random.next() < config.foodSpawnRate) {
-            const item = spawnService.spawnFood(++this.ctx.foodIdCounter);
             // The random draws are the same with the stock on or off. Only the admission differs.
-            if (item && resourceStock.admitFoodAt(item.position)) entityManager.addFood(item);
+            const item = spawnService.spawnFood(++this.ctx.foodIdCounter, position => resourceStock.admitFoodAt(position));
+            if (item) entityManager.addFood(item);
         }
     }
 
