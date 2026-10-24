@@ -145,13 +145,12 @@ describe('EngineProxy command optimization', () => {
 
     const setConfigIndex = postedMessages.findIndex((msg) => msg.type === 'setConfig');
     const resetIndex = postedMessages.findIndex((msg) => msg.type === 'reset');
-    const updateIndex = postedMessages.findIndex((msg) => msg.type === 'update');
 
     expect(setConfigIndex).toBeGreaterThanOrEqual(0);
     expect(resetIndex).toBeGreaterThanOrEqual(0);
-    expect(updateIndex).toBeGreaterThanOrEqual(0);
     expect(setConfigIndex).toBeLessThan(resetIndex);
-    expect(resetIndex).toBeLessThan(updateIndex);
+    // The reset answers with the new world's snapshot, so the proxy sends no update after it.
+    expect(postedMessages.some((msg) => msg.type === 'update')).toBe(false);
   });
 
   it('does not drop critical loop transitions while deduplicating duplicates', () => {

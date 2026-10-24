@@ -11,7 +11,7 @@ export default defineConfig({
     environment: 'jsdom',
     testTimeout: TEST_TIMEOUT_MS,
     setupFiles: [],
-    exclude: [...configDefaults.exclude, 'tests/**'],
+    exclude: [...configDefaults.exclude, 'tests/smoke/**'],
     coverage: {
       // Istanbul instruments the source and counts statements, functions and branches on AST nodes, so its numbers
       // are stable across Vitest versions and can be checked against the source. The V8 provider reconstructs the

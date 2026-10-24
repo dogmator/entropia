@@ -67,10 +67,10 @@ export class EngineProxy implements ISimulationEngine {
         this.latestCameraPayload = payload;
     }
     public getStatsWithWorldData(): SimulationStats { return this.getStats(); }
+    /** The worker answers a reset with the new world's render snapshot, so nothing else is needed to show it. */
     public reset(): void {
         this.configBatcher.flush();
         this.channel.sendCommand({ type: 'reset' }, () => { this.configBatcher.flush(); });
-        this.channel.sendCommand({ type: 'update' }, () => { this.configBatcher.flush(); });
     }
     public getPerformanceMonitor(): IPerformanceMonitor {
         return { getMemoryStats: () => ({ usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 0, used: 0, total: 0, limit: 0 }), getPerformanceHistory: () => this.channel.performanceHistory };

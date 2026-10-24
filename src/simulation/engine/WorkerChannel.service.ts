@@ -122,7 +122,11 @@ export class WorkerChannel {
         this.callbacks.onBuffersUpdate(buffers);
         this.callbacks.onStatsUpdate(stats);
         this.emitEvent({ type: 'TickUpdated', tick, stats, deltaTime: 1 / this.callbacks.tickRate });
-        if (response.stoppedByEngine === true) this.emitEvent({ type: 'EngineStopped', tick });
+        if (response.stoppedByEngine === true) {
+            // The loop has ended by itself, so a later resume must be sent rather than taken for a repeat of the last command.
+            this.lastLoopCommand = 'stopLoop';
+            this.emitEvent({ type: 'EngineStopped', tick });
+        }
     }
 
     private handleCommandResponse(response: CommandResponse): void {

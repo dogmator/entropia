@@ -85,11 +85,11 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
 
     useHotkeys(lifecycle.setSpeedWithState);
 
-    // The engine can stop itself, for example at a fail-safe. The controls then show the stop it made, not a running world.
-    const { pauseSimulation } = lifecycle;
+    // The engine can stop itself, for example at a fail-safe. The controls show that stop as the Stop button does.
+    const { stopSimulation } = lifecycle;
     useEffect(() => engine.addEventListener((event) => {
-        if (event.type === 'EngineStopped') pauseSimulation();
-    }), [engine, pauseSimulation]);
+        if (event.type === 'EngineStopped') stopSimulation();
+    }), [engine, stopSimulation]);
 
     const value = useMemo(() => ({
         engine, stats: statsInfo.stats, history: statsInfo.history,

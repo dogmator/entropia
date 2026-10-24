@@ -158,26 +158,29 @@ describe('simulation worker — lifecycle', () => {
     posted = [];
 
     send({ type: 'reset' });
-    expect(responsesOfType('stats')).toHaveLength(1);
+    expect(responsesOfType('updated')).toHaveLength(1);
 
     posted = [];
     send({ type: 'init', scale: SCALE });
     expect(responsesOfType('initialized')).toHaveLength(1);
   });
 
-  it('does not advance a paused world when a reset is followed by its refresh', async () => {
+  it('answers a reset with the new world and its statistics, and does not advance a paused world', async () => {
     await loadWorker();
     send({ type: 'init', scale: SCALE });
     send({ type: 'startLoop' });
     advanceFrames(5);
     send({ type: 'stopLoop' });
+    posted = [];
 
     send({ type: 'reset' });
-    posted = [];
-    send({ type: 'update' });
+    const [snapshot] = responsesOfType('updated');
+    expect(snapshot?.tick).toBe(0);
+    expect(snapshot?.buffers.preyCount).toBe(snapshot?.stats.preyCount);
+    expect(snapshot?.buffers.predatorCount).toBe(snapshot?.stats.predatorCount);
 
-    const [refreshed] = responsesOfType('updated');
-    expect(refreshed?.tick).toBe(0);
+    advanceFrames(30);
+    expect(responsesOfType('updated')).toHaveLength(1);
   });
 
   it('merges setConfig into the engine config and reports stats', async () => {

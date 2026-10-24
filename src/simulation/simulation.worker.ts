@@ -215,7 +215,10 @@ function handleReset(): void {
 
     try {
         engine.reset();
-        sendResponse({ type: 'stats', stats: engine.getStats() });
+        // The reset answers with the new world itself: its render snapshot and its statistics together. A view that waited for a
+        // later update could show the statistics of one world beside the bodies of another, and a paused world would never send one.
+        const { buffers, transferables } = snapshotRenderBuffers(engine.getRenderData());
+        sendResponse({ type: 'updated', buffers, stats: engine.getStats(), tick: engine.getTick() }, transferables);
     } catch (error) {
         logger.error('worker reset failed', 'Worker:Reset', describeError(error));
         sendResponse({
