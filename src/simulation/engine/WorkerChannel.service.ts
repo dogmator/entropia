@@ -122,6 +122,7 @@ export class WorkerChannel {
         this.callbacks.onBuffersUpdate(buffers);
         this.callbacks.onStatsUpdate(stats);
         this.emitEvent({ type: 'TickUpdated', tick, stats, deltaTime: 1 / this.callbacks.tickRate });
+        if (response.stoppedByEngine === true) this.emitEvent({ type: 'EngineStopped', tick });
     }
 
     private handleCommandResponse(response: CommandResponse): void {

@@ -4,10 +4,10 @@ import { t } from '@/i18n';
 
 import { SettingsSlider } from '../SettingsSlider';
 import { useSettings } from './SettingsContext';
-import { SectionHeader } from './Shared';
+import { SectionHeader, ToggleButton } from './Shared';
 
 export const AdvancedSettings = (): React.JSX.Element => {
-    const { config, update } = useSettings();
+    const { config, update, toggle } = useSettings();
 
     return (
         <div className="space-y-9">
@@ -26,6 +26,7 @@ export const AdvancedSettings = (): React.JSX.Element => {
                 <SettingsSlider label={t.settings.bodyScale} param="organismScale" value={config.organismScale} min={0.5} max={3.0} step={0.1} colorClass="accent-amber-500" onChange={update} />
                 <SettingsSlider label={t.settings.resourceOpacity} param="foodOpacity" value={config.foodOpacity} min={0.1} max={1.0} step={0.05} colorClass="accent-amber-500" onChange={update} />
                 <SettingsSlider label={t.settings.resourceScale} param="foodScale" value={config.foodScale} min={0.5} max={3.0} step={0.1} colorClass="accent-amber-500" onChange={update} />
+                <ToggleButton label={t.settings.showGrid} active={config.showGrid} onToggle={() => { toggle('showGrid'); }} colorClass="bg-amber-500" />
                 <SettingsSlider label={t.settings.grid} param="gridOpacity" value={config.gridOpacity} min={0.0} max={0.5} step={0.01} colorClass="accent-amber-500" onChange={update} />
             </section>
         </div>

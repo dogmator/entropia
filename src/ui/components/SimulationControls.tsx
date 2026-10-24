@@ -4,6 +4,13 @@ import { t } from '@/i18n';
 
 import { Icons } from './shared/Icons';
 
+type SimulationState = 'running' | 'paused' | 'stopped';
+
+interface SpeedProps {
+  speed: number;
+  simulationState: SimulationState;
+}
+
 /**
  * Interface for SimulationControls component properties.
  */
@@ -41,8 +48,8 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
         onStop={onStop}
         disabled={disabled}
       />
-      <SpeedHeader speed={speed} />
-      <SpeedStatus speed={speed} />
+      <SpeedHeader speed={speed} simulationState={simulationState} />
+      <SpeedStatus speed={speed} simulationState={simulationState} />
       <SpeedSlider speed={speed} onChange={onSpeedChange} disabled={disabled} />
       <SpeedQuickButtons speed={speed} onChange={onSpeedChange} disabled={disabled} />
       <ResetButton onReset={onReset} disabled={disabled} />
@@ -52,15 +59,15 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({
 
  
 
-const SpeedHeader: React.FC<{ speed: number }> = ({ speed }) => (
+const SpeedHeader: React.FC<SpeedProps> = ({ speed, simulationState }) => (
   <div className="flex items-center justify-between">
     <div className="flex items-center gap-2">
       <span className="text-[9px] sm:text-[8px] uppercase tracking-[0.2em] text-gray-500 font-black">
         {t.controls.speed}
       </span>
     </div>
-    <div className={`flex items-center gap-2 ${getSpeedInfo(speed).bgColor} ${getSpeedInfo(speed).borderColor} border px-3 py-1.5 rounded-lg`}>
-      <span className="text-sm">{getSpeedInfo(speed).icon}</span>
+    <div className={`flex items-center gap-2 ${getSpeedInfo(speed, simulationState).bgColor} ${getSpeedInfo(speed, simulationState).borderColor} border px-3 py-1.5 rounded-lg`}>
+      <span className="text-sm">{getSpeedInfo(speed, simulationState).icon}</span>
       <span className="text-white font-mono text-sm font-bold">
         {speed.toFixed(1)}x
       </span>
@@ -68,8 +75,8 @@ const SpeedHeader: React.FC<{ speed: number }> = ({ speed }) => (
   </div>
 );
 
-const SpeedStatus: React.FC<{ speed: number }> = ({ speed }) => {
-  const info = getSpeedInfo(speed);
+const SpeedStatus: React.FC<SpeedProps> = ({ speed, simulationState }) => {
+  const info = getSpeedInfo(speed, simulationState);
   return (
     <div className={`${info.bgColor} ${info.borderColor} border rounded-lg px-3 py-2 text-center`}>
       <span className={`${info.color} text-[10px] font-black uppercase tracking-[0.25em]`}>
@@ -184,9 +191,11 @@ const ControlButton: React.FC<{
 /**
  * Logic for determining color indication based on speed.
  */
-function getSpeedInfo(speed: number) {
+function getSpeedInfo(speed: number, simulationState: SimulationState) {
   if (speed === 0) {
-    return { color: 'text-red-400', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30', label: t.status.stopped, icon: '⏸️' };
+    // Zero speed is a pause, unless the user has stopped the world.
+    const label = simulationState === 'stopped' ? t.status.stopped : t.status.paused;
+    return { color: 'text-red-400', bgColor: 'bg-red-500/20', borderColor: 'border-red-500/30', label, icon: '⏸️' };
   } else if (speed < 1) {
     return { color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', borderColor: 'border-yellow-500/30', label: t.status.slowing, icon: '🐢' };
   } else if (speed === 1) {

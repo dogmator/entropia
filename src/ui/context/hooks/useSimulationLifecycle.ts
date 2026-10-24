@@ -56,11 +56,15 @@ export const useSimulationLifecycle = (params: LifecycleParams): SimulationLifec
     }, [engine, setSpeedWithState]);
 
     const onReset = useCallback(() => {
-        localStorage.clear();
+        // The loop stops before the reset. The reset refreshes the render data with an update command, which would advance
+        // the new world by a tick if the engine were still running. Speed follows through the engine's sync effect, which
+        // runs after this handler, so the pause is sent here as well.
+        engine.pause();
         engine.reset();
         resetHistory();
+        setSpeedWithState(SPEED_KEYS.PAUSE);
         setSimulationState('paused');
-    }, [engine, resetHistory]);
+    }, [engine, resetHistory, setSpeedWithState]);
 
     return { simulationState, setSpeedWithState, runSimulation, pauseSimulation, stopSimulation, onReset };
 };

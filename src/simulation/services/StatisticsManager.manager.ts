@@ -2,7 +2,7 @@
  * Entropia 3D — Simulation statistical data manager.
  *
  * Responsible for:
- * - Calculating and caching integral population indicators.
+ * - Calculating integral population indicators.
  * - Calculating extinction risk.
  * - Aggregating spatial grid performance metrics.
  * - Managing camera data for diagnostics.
@@ -17,19 +17,8 @@ import type {
 import { ZoneType } from '@/types';
 
 import { STATS_CONSTANTS } from '../../config';
+import type { Organism } from '../Entity';
 import type { GridManager } from '../managers/GridManager.manager';
-
-/**
- * Cached statistical data structure.
- */
-interface StatsCache {
-    avgEnergy: number;
-    avgPreyEnergy: number;
-    avgPredatorEnergy: number;
-    extinctionRisk: number;
-    lastUpdate: number;
-    cacheTimeout: number;
-}
 
 export interface PopulationStatsAggregation {
     preyCount: number;
@@ -65,6 +54,30 @@ const WORLD_CENTER_DIVISOR = 2;
 const TOTAL_GRID_DIMENSIONS = 3;
 
 /**
+ * The population figures of a set of organisms. Unlike the aggregation of a tick, it changes nothing in the organisms.
+ */
+export const aggregatePopulation = (organisms: Iterable<Organism>): PopulationStatsAggregation => {
+    const aggregation: PopulationStatsAggregation = {
+        preyCount: 0, predatorCount: 0, totalEnergy: 0, preyEnergy: 0, predatorEnergy: 0,
+        organismCount: 0, maxAge: 0, maxGeneration: 0,
+    };
+    for (const org of organisms) {
+        aggregation.organismCount++;
+        aggregation.totalEnergy += org.energy;
+        if (org.isPrey) {
+            aggregation.preyCount++;
+            aggregation.preyEnergy += org.energy;
+        } else {
+            aggregation.predatorCount++;
+            aggregation.predatorEnergy += org.energy;
+        }
+        if (org.age > aggregation.maxAge) aggregation.maxAge = org.age;
+        if (org.genome.generation > aggregation.maxGeneration) aggregation.maxGeneration = org.genome.generation;
+    }
+    return aggregation;
+};
+
+/**
  * Camera data for diagnostics.
  */
 export interface CameraData {
@@ -79,20 +92,11 @@ export interface CameraData {
 }
 
 /**
- * Manager for statistical calculations and caching.
+ * Manager for statistical calculations.
  */
 export class StatisticsManager {
     private stats: SimulationStats = this.createEmptyStats();
     private cameraDataCache: CameraData | null = null;
-
-    private readonly statsCache: StatsCache = {
-        avgEnergy: 0,
-        avgPreyEnergy: 0,
-        avgPredatorEnergy: 0,
-        extinctionRisk: 0,
-        lastUpdate: 0,
-        cacheTimeout: STATS_CONSTANTS.CACHE_TIMEOUT,
-    };
 
     constructor(
         private readonly worldConfig: WorldConfig
@@ -195,66 +199,44 @@ export class StatisticsManager {
     public reset(): void {
         this.stats = this.createEmptyStats();
         this.cameraDataCache = null;
-        this.statsCache.lastUpdate = 0;
     }
 
     // ============================================================================
     // PRIVATE CALCULATION METHODS
     // ============================================================================
 
-    private shouldUpdateCache(): boolean {
-        return Date.now() - this.statsCache.lastUpdate > this.statsCache.cacheTimeout;
-    }
+    /**
+   * The averages and the extinction risk come from the aggregation of the current tick. They are recomputed on every tick,
+   * so they are never older than the counts beside them, however fast the simulation runs.
+   */
+  private buildAggregatedStats(
+    aggregation: PopulationStatsAggregation,
+    foodSize: number
+  ): Pick<SimulationStats, 'preyCount' | 'predatorCount' | 'foodCount' | 'avgEnergy' | 'avgPreyEnergy' | 'avgPredatorEnergy' | 'extinctionRisk' | 'maxAge' | 'maxGeneration'> {
+    const avgEnergy = aggregation.organismCount > 0
+      ? aggregation.totalEnergy / aggregation.organismCount
+      : 0;
+    const avgPreyEnergy = aggregation.preyCount > 0
+      ? aggregation.preyEnergy / aggregation.preyCount
+      : 0;
+    const avgPredatorEnergy = aggregation.predatorCount > 0
+      ? aggregation.predatorEnergy / aggregation.predatorCount
+      : 0;
 
-    private buildAggregatedStats(
-        aggregation: PopulationStatsAggregation,
-        foodSize: number
-    ): Pick<SimulationStats, 'preyCount' | 'predatorCount' | 'foodCount' | 'avgEnergy' | 'avgPreyEnergy' | 'avgPredatorEnergy' | 'extinctionRisk' | 'maxAge' | 'maxGeneration'> {
-        if (!this.shouldUpdateCache()) {
-            return {
-                preyCount: aggregation.preyCount,
-                predatorCount: aggregation.predatorCount,
-                foodCount: foodSize,
-                avgEnergy: this.statsCache.avgEnergy,
-                avgPreyEnergy: this.statsCache.avgPreyEnergy,
-                avgPredatorEnergy: this.statsCache.avgPredatorEnergy,
-                extinctionRisk: this.statsCache.extinctionRisk,
-                maxAge: Math.max(this.stats.maxAge, aggregation.maxAge),
-                maxGeneration: Math.max(this.stats.maxGeneration, aggregation.maxGeneration),
-            };
-        }
+    return {
+      preyCount: aggregation.preyCount,
+      predatorCount: aggregation.predatorCount,
+      foodCount: foodSize,
+      avgEnergy,
+      avgPreyEnergy,
+      avgPredatorEnergy,
+      extinctionRisk: this.calculateExtinctionRisk(aggregation),
+      maxAge: Math.max(this.stats.maxAge, aggregation.maxAge),
+      maxGeneration: Math.max(this.stats.maxGeneration, aggregation.maxGeneration),
+    };
+  }
 
-        const avgEnergy = aggregation.organismCount > 0
-            ? aggregation.totalEnergy / aggregation.organismCount
-            : 0;
-        const avgPreyEnergy = aggregation.preyCount > 0
-            ? aggregation.preyEnergy / aggregation.preyCount
-            : 0;
-        const avgPredatorEnergy = aggregation.predatorCount > 0
-            ? aggregation.predatorEnergy / aggregation.predatorCount
-            : 0;
-        const extinctionRisk = this.calculateExtinctionRisk(aggregation);
-
-        this.statsCache.avgEnergy = avgEnergy;
-        this.statsCache.avgPreyEnergy = avgPreyEnergy;
-        this.statsCache.avgPredatorEnergy = avgPredatorEnergy;
-        this.statsCache.extinctionRisk = extinctionRisk;
-        this.statsCache.lastUpdate = Date.now();
-
-        return {
-            preyCount: aggregation.preyCount,
-            predatorCount: aggregation.predatorCount,
-            foodCount: foodSize,
-            avgEnergy,
-            avgPreyEnergy,
-            avgPredatorEnergy,
-            extinctionRisk,
-            maxAge: Math.max(this.stats.maxAge, aggregation.maxAge),
-            maxGeneration: Math.max(this.stats.maxGeneration, aggregation.maxGeneration),
-        };
-    }
-
-    private hasStatsChanged(newStats: SimulationStats): boolean {
+  private hasStatsChanged(newStats: SimulationStats): boolean {
         return (
             this.stats.preyCount !== newStats.preyCount ||
             this.stats.predatorCount !== newStats.predatorCount ||

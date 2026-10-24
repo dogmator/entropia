@@ -12,24 +12,23 @@ interface SystemMetricsOptions {
     currentStats: SimulationStats;
 }
 
+// What a metric shows before the canvas or the engine has reported anything.
+const NO_RENDER_METRICS = { fps: 0, frameTime: 0, drawCalls: 0 };
+const NO_ENGINE_METRICS = { tps: 0, simulationTime: 0 };
+
 const mapStatsToMetric = (
     p: PerformanceMetrics | undefined,
     mem: number,
     stats: SimulationStats
 ): SystemMetrics => {
-    if (!p) {
-        return {
-            timestamp: Date.now(),
-            fps: 0, tps: 0, frameTime: 0, simulationTime: 0,
-            entityCount: stats.preyCount + stats.predatorCount,
-            memoryUsage: mem, drawCalls: 0, cpu: 0, memory: mem
-        };
-    }
+    // fps, frame time and draw calls are measured by the canvas and reach the stats; the history carries the engine's values.
+    const render = stats.performance ?? NO_RENDER_METRICS;
+    const engine = p ?? NO_ENGINE_METRICS;
     return {
         timestamp: Date.now(),
-        fps: p.fps, tps: p.tps, frameTime: p.frameTime, simulationTime: p.simulationTime,
+        fps: render.fps, tps: engine.tps, frameTime: render.frameTime, simulationTime: engine.simulationTime,
         entityCount: stats.preyCount + stats.predatorCount,
-        memoryUsage: mem, drawCalls: p.drawCalls, cpu: 0, memory: mem
+        memoryUsage: mem, drawCalls: render.drawCalls, cpu: 0, memory: mem
     };
 };
 

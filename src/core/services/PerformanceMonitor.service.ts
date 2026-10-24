@@ -174,11 +174,7 @@ export class PerformanceMonitor {
    * Simulation tick registration (optimized)
    */
   public registerTick(simulationTime: number): void {
-    if (!this.isMonitoringEnabled) {
-      this.tickCount++;
-      return;
-    }
-
+    // The tick rate is measured even while the monitor is off: it is the simulation's own speed, which must stay visible.
     const now = PerformanceHelpers.time.now();
     const delta = now - this.lastTPSUpdate;
 
@@ -187,14 +183,17 @@ export class PerformanceMonitor {
       this.tickCount = 0;
       this.lastTPSUpdate = now;
     }
+    this.tickCount++;
+
+    if (!this.isMonitoringEnabled) {
+      return;
+    }
 
     // Update latest entry
     const lastEntry = this.getLatestEntry();
     if (lastEntry) {
       lastEntry.simulationTime = simulationTime;
     }
-
-    this.tickCount++;
   }
 
   /**

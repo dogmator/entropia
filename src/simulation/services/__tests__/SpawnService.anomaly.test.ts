@@ -64,7 +64,7 @@ describe('SpawnService anomaly constraints', () => {
 
     zones.set(CENTER_ZONE_ID, {
       id: CENTER_ZONE_ID,
-      type: ZoneType.OASIS,
+      type: ZoneType.DESERT,
       center: { x: 50, y: 50, z: 50 },
       radius: 20,
       foodMultiplier: 1,

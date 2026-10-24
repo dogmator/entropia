@@ -1,4 +1,5 @@
-import type { Vector3 } from '@/types';
+import type { EcologicalZone, Vector3 } from '@/types';
+import { ZoneType } from '@/types';
 
 import { MathUtils } from '../MathUtils.utils';
 
@@ -23,6 +24,13 @@ export interface PositionAnomalyValidationParams {
   readonly obstaclePadding: number;
   readonly zonePadding: number;
   readonly checkZones?: boolean;
+}
+
+/**
+ * The zones that forbid food. An oasis is where food is meant to lie, so only the other zones forbid it.
+ */
+export function foodForbiddingZones(zones: Iterable<EcologicalZone>): EcologicalZone[] {
+  return Array.from(zones).filter(zone => zone.type !== ZoneType.OASIS);
 }
 
 /**

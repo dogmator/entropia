@@ -343,16 +343,16 @@ describe('EngineProxy command optimization', () => {
     await expect(pending).rejects.toThrow(/disposed/);
   });
 
-  it('sends getEntityByInstanceId command with correct fields', async () => {
-    const promise = proxy.getEntityByInstanceId('prey', 3, false).catch(() => null);
+  it('sends getEntityByNumericId command with correct fields', async () => {
+    const promise = proxy.getEntityByNumericId('prey', 3, false).catch(() => null);
 
-    const cmd = postedMessages.find((msg) => msg.type === 'getEntityByInstanceId') as
-      | { requestId?: string; entityType?: string; instanceId?: number; isDead?: boolean }
+    const cmd = postedMessages.find((msg) => msg.type === 'getEntityByNumericId') as
+      | { requestId?: string; entityType?: string; entityId?: number; isDead?: boolean }
       | undefined;
 
     expect(cmd).toBeDefined();
     expect(cmd?.entityType).toBe('prey');
-    expect(cmd?.instanceId).toBe(3);
+    expect(cmd?.entityId).toBe(3);
     expect(cmd?.isDead).toBe(false);
     expect(cmd?.requestId).toBeDefined();
 

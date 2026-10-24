@@ -202,6 +202,7 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
   const frameRef = useRef(0);
   const lastGenerationRef = useRef(0);
   const totalsRef = useRef({ births: 0, initialized: false, introPlayed: false });
+  const particlesOnRef = useRef(true);
 
   useEffect(() => {
     return () => {
@@ -212,8 +213,31 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
     };
   }, [trailSystem, coreTrailSystem, headGeometry, auraGeometry]);
 
+  const clearCometState = (): void => {
+    trailSystem.clear();
+    coreTrailSystem.clear();
+    activeCometsRef.current.clear();
+    knownAliveRef.current.clear();
+    aliveMapRef.current.clear();
+    aliveListRef.current.length = 0;
+    newbornCandidatesRef.current.length = 0;
+    spawnQueueRef.current.length = 0;
+    totalsRef.current.introPlayed = false;
+    syncRenderItems(activeCometsRef.current, setRenderComets);
+  };
+
   // eslint-disable-next-line max-lines-per-function, complexity, sonarjs/cognitive-complexity
   useFrame(({ clock }) => {
+    // A disabled effect clears its state once, and draws and scans nothing until it is turned on again.
+    if (!engine.config.showParticles) {
+      if (particlesOnRef.current) {
+        particlesOnRef.current = false;
+        clearCometState();
+      }
+      return;
+    }
+    particlesOnRef.current = true;
+
     frameRef.current += 1;
     const now = clock.getElapsedTime();
 
@@ -221,16 +245,7 @@ export const GeneticCometTrail: React.FC<GeneticCometTrailProps> = ({ engine }) 
     coreTrailSystem.beginFrame();
 
     if (stats.generation < lastGenerationRef.current) {
-      trailSystem.clear();
-      coreTrailSystem.clear();
-      activeCometsRef.current.clear();
-      knownAliveRef.current.clear();
-      aliveMapRef.current.clear();
-      aliveListRef.current.length = 0;
-      newbornCandidatesRef.current.length = 0;
-      spawnQueueRef.current.length = 0;
-      totalsRef.current.introPlayed = false;
-      syncRenderItems(activeCometsRef.current, setRenderComets);
+      clearCometState();
     }
     lastGenerationRef.current = stats.generation;
 

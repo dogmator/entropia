@@ -165,6 +165,21 @@ describe('simulation worker — lifecycle', () => {
     expect(responsesOfType('initialized')).toHaveLength(1);
   });
 
+  it('does not advance a paused world when a reset is followed by its refresh', async () => {
+    await loadWorker();
+    send({ type: 'init', scale: SCALE });
+    send({ type: 'startLoop' });
+    advanceFrames(5);
+    send({ type: 'stopLoop' });
+
+    send({ type: 'reset' });
+    posted = [];
+    send({ type: 'update' });
+
+    const [refreshed] = responsesOfType('updated');
+    expect(refreshed?.tick).toBe(0);
+  });
+
   it('merges setConfig into the engine config and reports stats', async () => {
     await loadWorker();
     send({ type: 'init', scale: SCALE });

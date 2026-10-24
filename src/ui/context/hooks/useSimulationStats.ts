@@ -1,24 +1,28 @@
 import type { PopulationDataPoint, SimulationStats } from '@shared/types';
-import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { INITIAL_SIMULATION_STATS, UI_CONFIG, UI_CONTROLS } from '@/config';
 import { logger } from '@/core';
 import type { ISimulationEngine } from '@/simulation/interfaces/ISimulationEngine';
 
-import { FIXED_PRECISION } from '../simulation.constants';
-import { useFpsCalculator } from './useFpsCalculator';
+import type { RenderMetrics, RenderMetricsRecorder } from '../renderMetrics';
+import { FIXED_PRECISION, RENDER_METRICS_REFRESH_MS } from '../simulation.constants';
 
-const createStatsWithPerf = (engineStats: SimulationStats, frameTime: number, currentFps: number): SimulationStats => ({
-    ...engineStats,
+/**
+ * The performance block the UI shows. fps, frame time and draw calls are what the canvas measured. The ticks per second
+ * and the entity count are what the engine reported.
+ */
+const mergeRenderMetrics = (stats: SimulationStats, render: RenderMetrics): SimulationStats => ({
+    ...stats,
     performance: {
-        fps: currentFps,
-        tps: engineStats.performance?.tps ?? 0,
-        frameTime: Number(frameTime.toFixed(FIXED_PRECISION)),
-        simulationTime: engineStats.performance?.simulationTime ?? 0,
-        entityCount: engineStats.performance?.entityCount ?? 0,
-        drawCalls: engineStats.performance?.drawCalls ?? 0,
-    }
+        fps: render.fps,
+        tps: stats.performance?.tps ?? 0,
+        frameTime: Number(render.frameTime.toFixed(FIXED_PRECISION)),
+        simulationTime: stats.performance?.simulationTime ?? 0,
+        // The engine's own count is only kept while its monitor is on, so the entities are counted from the population.
+        entityCount: stats.preyCount + stats.predatorCount + stats.foodCount,
+        drawCalls: render.drawCalls,
+    },
 });
 
 const appendHistoryPoint = (
@@ -41,24 +45,21 @@ const getHistoryUpdateFrequency = (speed: number): number => {
 
 const shouldLogTickStats = (tickCounter: number): boolean => tickCounter % UI_CONTROLS.SERVER_LOG_INTERVAL === 0;
 
-export const useSimulationStats = (engine: ISimulationEngine, speed: number): { stats: SimulationStats; history: PopulationDataPoint[]; resetHistory: () => void } => {
+export const useSimulationStats = (
+    engine: ISimulationEngine,
+    speed: number,
+    renderMetrics: RenderMetricsRecorder
+): { stats: SimulationStats; history: PopulationDataPoint[]; resetHistory: () => void } => {
     const [stats, setStats] = useState<SimulationStats>({ ...INITIAL_SIMULATION_STATS });
     const [history, setHistory] = useState<PopulationDataPoint[]>([]);
     const historyRef = useRef<PopulationDataPoint[]>([]);
-    const frameTimestampRef = useRef(performance.now());
-    const { updateFps } = useFpsCalculator();
 
     useEffect(() => {
         let tickCounter = 0;
         const unsubscribe = engine.addEventListener((event) => {
             if (event.type !== 'TickUpdated') return;
 
-            const now = performance.now();
-            const frameTime = now - frameTimestampRef.current;
-            frameTimestampRef.current = now;
-
-            const currentFps = updateFps();
-            setStats(createStatsWithPerf(event.stats, frameTime, currentFps));
+            setStats(mergeRenderMetrics(event.stats, renderMetrics.snapshot()));
             tickCounter++;
 
             const updateFreq = getHistoryUpdateFrequency(speed);
@@ -76,7 +77,15 @@ export const useSimulationStats = (engine: ISimulationEngine, speed: number): { 
         });
 
         return () => { unsubscribe(); };
-    }, [engine, speed, updateFps]);
+    }, [engine, speed, renderMetrics]);
+
+    // The canvas keeps drawing while the simulation is paused, so its numbers are refreshed on a timer and not only on ticks.
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setStats(prev => mergeRenderMetrics(prev, renderMetrics.snapshot()));
+        }, RENDER_METRICS_REFRESH_MS);
+        return () => { clearInterval(timer); };
+    }, [renderMetrics]);
 
     const resetHistory = useCallback(() => {
         historyRef.current = [];
@@ -85,3 +94,4 @@ export const useSimulationStats = (engine: ISimulationEngine, speed: number): { 
 
     return { stats, history, resetHistory };
 };
+

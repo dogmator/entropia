@@ -201,6 +201,7 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
   const meshMapRef = useRef<Map<string, THREE.Mesh>>(new Map());
   const counterRef = useRef(0);
   const totalsRef = useRef({ births: 0, deaths: 0, initialized: false, introPlayed: false });
+  const groupRef = useRef<THREE.Group>(null);
 
   const geometry = useMemo(() => new THREE.SphereGeometry(UNIT_SCALE, PULSE_SEGMENTS, PULSE_SEGMENTS), []);
 
@@ -210,6 +211,7 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
     };
   }, [geometry]);
 
+  // eslint-disable-next-line max-lines-per-function
   useEffect(() => {
     if (!totalsRef.current.initialized) {
       totalsRef.current = {
@@ -218,6 +220,13 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
         initialized: true,
         introPlayed: false
       };
+      return;
+    }
+
+    // While the effect is off it still follows the counters, so that turning it on does not replay the events it skipped.
+    if (!engine.config.showParticles) {
+      totalsRef.current.births = stats.totalBirths;
+      totalsRef.current.deaths = stats.totalDeaths;
       return;
     }
 
@@ -270,6 +279,19 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
   }, [engine, stats.preyCount, stats.predatorCount, stats.totalBirths, stats.totalDeaths]);
 
   useFrame((_, delta) => {
+    const isEnabled = engine.config.showParticles;
+    if (groupRef.current) {
+      groupRef.current.visible = isEnabled;
+    }
+    if (!isEnabled) {
+      if (renderPulses.length > 0) {
+        pulseMapRef.current.clear();
+        meshMapRef.current.clear();
+        setRenderPulses([]);
+      }
+      return;
+    }
+
     if (renderPulses.length === 0) {
       return;
     }
@@ -301,7 +323,7 @@ export const EvolutionPulse: React.FC<EvolutionPulseProps> = ({ engine }) => {
   });
 
   return (
-    <group>
+    <group ref={groupRef}>
       {renderPulses.map(item => (
         <mesh
           key={item.id}

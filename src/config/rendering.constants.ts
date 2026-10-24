@@ -120,8 +120,6 @@ export const RENDER = {
   },
 
   materials: {
-    opacity: 0.92,
-    foodOpacity: 0.85,
     shininess: {
       prey: 30,
       predator: 40,
@@ -154,6 +152,7 @@ export const ENVIRONMENT_RENDERING = {
   OBSTACLE_EMISSIVE_INTENSITY: 0.1,
   DEFAULT_ZONE_COLOR: 0xffffff,
   CENTER_DIVIDER: 2,
+  GRID_DIVISIONS: 10,
 } as const;
 
 export const BUFFER_LAYOUT = {

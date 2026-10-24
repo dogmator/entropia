@@ -143,6 +143,7 @@ export const en = {
         particles: 'Particles',
         microEffects: 'Background micro-effect systems',
         grid: 'Grid',
+        showGrid: 'Show grid',
         autoRotate: 'Cinematic camera rotation',
         rotationSpeed: 'Rotation speed',
         graphicsProfile: 'Graphics profile',

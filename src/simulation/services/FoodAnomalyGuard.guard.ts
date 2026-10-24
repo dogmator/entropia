@@ -2,7 +2,7 @@ import { logger } from '@/core';
 import type { EcologicalZone, WorldConfig } from '@/types';
 
 import type { Food, Obstacle } from '../Entity';
-import { FOOD_ANOMALY_PADDING, isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
+import { FOOD_ANOMALY_PADDING, foodForbiddingZones, isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
 
 interface SanitizeParams {
     food: Map<string, Food>;
@@ -30,7 +30,7 @@ export class FoodAnomalyGuard {
             if (isPositionBlockedByAnomalies({
                 position: foodItem.position,
                 obstacles: obstacleArr.values(),
-                zones: zoneArr.values(),
+                zones: foodForbiddingZones(zoneArr),
                 worldSize: this.worldConfig.WORLD_SIZE,
                 obstaclePadding: FOOD_ANOMALY_PADDING,
                 zonePadding: FOOD_ANOMALY_PADDING,

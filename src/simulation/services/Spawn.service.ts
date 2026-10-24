@@ -29,7 +29,7 @@ import type { Obstacle, Organism } from '../Entity';
 import { Food, OrganismFactory } from '../Entity';
 import type { GridManager } from '../managers/GridManager.manager';
 import { MathUtils } from '../MathUtils.utils';
-import { isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
+import { foodForbiddingZones, isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
 
 // ============================================================================
 // LOCAL CONSTANTS
@@ -234,12 +234,9 @@ export class SpawnService {
    * Determining food placement location according to strategy.
    */
   private getFoodSpawnPosition(): MutableVector3 | null {
-    const preferredPosition = this.getRawFoodSpawnPosition();
-    if (preferredPosition && this.isValidFoodPosition(preferredPosition)) {
-      return preferredPosition;
-    }
-
-    return this.getRandomValidPosition(FOOD_MIN_OBSTACLE_DISTANCE, true);
+    // Every strategy validates its own candidate. A generic re-check here would reject the oasis candidates, which are
+    // valid inside the oasis they were drawn for.
+    return this.getRawFoodSpawnPosition() ?? this.getRandomValidFoodPosition();
   }
 
   /**
@@ -255,7 +252,7 @@ export class SpawnService {
         return this.getUniformPosition();
       case FoodSpawnStrategy.RANDOM:
       default:
-        return this.getRandomValidPosition(FOOD_MIN_OBSTACLE_DISTANCE, true);
+        return this.getRandomValidFoodPosition();
     }
   }
 
@@ -272,7 +269,7 @@ export class SpawnService {
         }
       }
     }
-    return this.getRandomValidPosition(FOOD_MIN_OBSTACLE_DISTANCE, true);
+    return this.getRandomValidFoodPosition();
   }
 
   /** Cached neighbor buffer to avoid allocations. */
@@ -296,7 +293,7 @@ export class SpawnService {
     const foodEntities = this.nearbyBuffer.filter(e => e.type === EntityType.FOOD);
     if (foodEntities.length > 0) {
       const target = foodEntities[Math.floor(this.rand() * foodEntities.length)];
-      if (!target) { return this.getRandomValidPosition(FOOD_MIN_OBSTACLE_DISTANCE, true); }
+      if (!target) { return this.getRandomValidFoodPosition(); }
       const angle = this.rand() * Math.PI * SPHERICAL_SAMPLE_SCALE;
       const phi = Math.acos(SPHERICAL_SAMPLE_SCALE * this.rand() - 1);
       const r = CLUSTER_MIN_SPREAD + this.rand() * CLUSTER_MAX_SPREAD_DELTA;
@@ -312,12 +309,32 @@ export class SpawnService {
       }
     }
 
-    return this.getRandomValidPosition(FOOD_MIN_OBSTACLE_DISTANCE, true);
+    return this.getRandomValidFoodPosition();
   }
 
   // ============================================================================
   // TECHNICAL AND VALIDATION METHODS
   // ============================================================================
+
+  /**
+   * Random food coordinates. Food has its own validity rule, which an oasis does not forbid.
+   */
+  private getRandomValidFoodPosition(): MutableVector3 | null {
+    for (let attempt = 0; attempt < this.config.maxSpawnAttempts; attempt++) {
+      const ws = this.worldSize;
+      const pos: MutableVector3 = {
+        x: this.rand() * ws,
+        y: this.rand() * ws,
+        z: this.rand() * ws,
+      };
+
+      if (this.isValidFoodPosition(pos)) {
+        return pos;
+      }
+    }
+
+    return null;
+  }
 
   /**
    * Random coordinate generation with repeated validity checks.
@@ -361,7 +378,7 @@ export class SpawnService {
       return pos;
     }
 
-    return this.getRandomValidPosition(FOOD_MIN_OBSTACLE_DISTANCE, true);
+    return this.getRandomValidFoodPosition();
   }
 
   /**
@@ -407,7 +424,14 @@ export class SpawnService {
   }
 
   private isValidFoodPosition(pos: Vector3): boolean {
-    return this.isValidPosition(pos, FOOD_MIN_OBSTACLE_DISTANCE, true);
+    return !isPositionBlockedByAnomalies({
+      position: pos,
+      obstacles: this.obstacles.values(),
+      zones: foodForbiddingZones(this.zones.values()),
+      worldSize: this.worldSize,
+      obstaclePadding: FOOD_MIN_OBSTACLE_DISTANCE,
+      zonePadding: FOOD_MIN_OBSTACLE_DISTANCE,
+    });
   }
 
   /**
