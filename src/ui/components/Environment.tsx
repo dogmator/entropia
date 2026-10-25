@@ -1,5 +1,5 @@
- 
-import React, { useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 import { COLORS, ENVIRONMENT_RENDERING, ZONE_DEFAULTS } from '../../config';
@@ -7,6 +7,7 @@ import type { Obstacle } from '../../simulation/Entity';
 import type { IEntityInfo,ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import type { EcologicalZone } from '../../types';
 import { useSimulation } from '../context/SimulationContext';
+import { gridAppearance } from './environmentVisuals';
 
 interface EnvironmentProps {
     engine: ISimulationEngine;
@@ -34,6 +35,39 @@ const WorldBoundary = ({ size }: { size: number }) => {
     return <primitive object={boxLines} />;
 };
 
+/** The floor grid of the world. Its visibility and opacity follow the settings on every frame. */
+const WorldGrid = ({ engine }: { engine: ISimulationEngine }) => {
+    const size = engine.worldConfig.WORLD_SIZE;
+    const gridRef = useRef<THREE.GridHelper>(null);
+
+    const grid = useMemo(() => {
+        const helper = new THREE.GridHelper(size, ENVIRONMENT_RENDERING.GRID_DIVISIONS, COLORS.ui.accent, COLORS.ui.accent);
+        // The helper is centred on the origin, whereas the world spans from 0 to its size.
+        helper.position.set(size / ENVIRONMENT_RENDERING.CENTER_DIVIDER, 0, size / ENVIRONMENT_RENDERING.CENTER_DIVIDER);
+        const material = helper.material;
+        material.transparent = true;
+        material.depthWrite = false;
+        return helper;
+    }, [size]);
+
+    useEffect(() => {
+        return () => {
+            grid.geometry.dispose();
+            (grid.material as THREE.Material).dispose();
+        };
+    }, [grid]);
+
+    useFrame(() => {
+        const helper = gridRef.current;
+        if (!helper) return;
+        const appearance = gridAppearance(engine.config.showGrid, engine.config.gridOpacity);
+        helper.visible = appearance.visible;
+        (helper.material).opacity = appearance.opacity;
+    });
+
+    return <primitive ref={gridRef} object={grid} />;
+};
+
 const EcologicalZones = ({ engine }: { engine: ISimulationEngine }) => {
     const zones = useMemo(() => {
         const zoneValues = Array.from(engine.zones.values());
@@ -59,6 +93,13 @@ const EcologicalZones = ({ engine }: { engine: ISimulationEngine }) => {
 
 const StaticObstacles = ({ engine }: { engine: ISimulationEngine }) => {
     const { setHoveredEntity, setTooltipPos } = useSimulation();
+    const groupRef = useRef<THREE.Group>(null);
+
+    // The group follows the setting on every frame, so a change takes effect without a re-render. Hiding it does not
+    // change the obstacles' part in the simulation, which collides with them whether they are drawn or not.
+    useFrame(() => {
+        if (groupRef.current) groupRef.current.visible = engine.config.showObstacles;
+    });
 
     const obstacles = useMemo(() => {
         const obstacleValues = Array.from(engine.obstacles.values()) as Obstacle[];
@@ -67,6 +108,8 @@ const StaticObstacles = ({ engine }: { engine: ISimulationEngine }) => {
                 key={obs.id}
                 position={[obs.position.x, obs.position.y, obs.position.z]}
                 onPointerMove={(e) => {
+                    // Raycasting ignores visibility, so a hidden obstacle must not take the hover from the entity behind it.
+                    if (groupRef.current && !groupRef.current.visible) return;
                     e.stopPropagation();
                     setHoveredEntity(obs as unknown as IEntityInfo);
                     setTooltipPos({ x: e.clientX, y: e.clientY });
@@ -85,7 +128,7 @@ const StaticObstacles = ({ engine }: { engine: ISimulationEngine }) => {
         ));
     }, [engine.obstacles, setHoveredEntity, setTooltipPos]);
 
-    return <>{obstacles}</>;
+    return <group ref={groupRef}>{obstacles}</group>;
 };
 
 export const Environment: React.FC<EnvironmentProps> = ({ engine }) => {
@@ -94,6 +137,7 @@ export const Environment: React.FC<EnvironmentProps> = ({ engine }) => {
     return (
         <group>
             <WorldBoundary size={ws} />
+            <WorldGrid engine={engine} />
             <EcologicalZones engine={engine} />
             <StaticObstacles engine={engine} />
         </group>

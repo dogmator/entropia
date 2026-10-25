@@ -108,18 +108,42 @@ const MetricCard = ({ label, value, energy, colorClass, shadowClass }: { label: 
 );
 
 const PopulationDynamicChart = ({ history, visible }: { history: PopulationDataPoint[], visible: boolean }) => {
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => { setIsMounted(true); }, 0);
-    return () => { clearTimeout(timer); };
-  }, []);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [measuredSize, setMeasuredSize] = useState<{
+    node: HTMLDivElement;
+    width: number;
+    height: number;
+  } | null>(null);
 
-  if (!isMounted || !visible) return null;
+  useEffect(() => {
+    if (!visible) return;
+    if (!container) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      if (width <= 1 || height <= 1) {
+        setMeasuredSize(null);
+        return;
+      }
+      setMeasuredSize(previous => previous?.node === container && previous.width === width && previous.height === height
+        ? previous
+        : { node: container, width, height });
+    });
+    observer.observe(container);
+    return () => { observer.disconnect(); };
+  }, [container, visible]);
+
+  if (!visible) return null;
+
+  const initialDimension = measuredSize && container && measuredSize.node.isSameNode(container)
+    ? { width: measuredSize.width, height: measuredSize.height }
+    : null;
 
   return (
-    <div className="h-32 sm:h-36 lg:h-40 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
+    <div ref={setContainer} className="h-32 sm:h-36 lg:h-40 w-full bg-black/40 rounded-2xl overflow-hidden relative border border-white/5 p-4 group">
       <div className="absolute top-2 left-4 text-[8px] sm:text-[7px] text-gray-600 font-black uppercase tracking-[0.3em] z-10">{t.diagnostics.populationDynamics}</div>
-      <ResponsiveContainer width="100%" height="100%" debounce={DASHBOARD_CONFIG.CHART.DEBOUNCE_DELAY}>
+      {initialDimension && <ResponsiveContainer width="100%" height="100%" initialDimension={initialDimension} debounce={DASHBOARD_CONFIG.CHART.DEBOUNCE_DELAY}>
         <LineChart data={history} margin={DASHBOARD_CONFIG.CHART.MARGIN}>
           <CartesianGrid strokeDasharray="3 3" stroke="#111" vertical={false} />
           <XAxis dataKey="time" hide />
@@ -132,7 +156,7 @@ const PopulationDynamicChart = ({ history, visible }: { history: PopulationDataP
           <Line name={t.entity.herbivores} type="monotone" dataKey="prey" stroke={DIAGNOSTICS_CONFIG.CHART.COLORS.ENTITIES} dot={false} strokeWidth={DASHBOARD_CONFIG.CHART.STROKE_WIDTH} isAnimationActive={false} />
           <Line name={t.entity.predators} type="monotone" dataKey="pred" stroke="#f87171" dot={false} strokeWidth={DASHBOARD_CONFIG.CHART.STROKE_WIDTH} isAnimationActive={false} />
         </LineChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer>}
     </div>
   );
 };

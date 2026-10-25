@@ -72,22 +72,6 @@ export class EntityManager {
   }
 
   /**
-   * Get entity by instance ID from render buffer.
-   * @param type - Entity type
-   * @param index - Instance index
-   * @returns Entity or null
-   */
-  public getEntityByInstanceId(
-    type: 'prey' | 'predator' | 'food',
-    index: number
-  ): Organism | Food | null {
-    if (type === 'food') {
-      return this.getFoodByInstanceId(index);
-    }
-    return this.getOrganismByInstanceId(type, index);
-  }
-
-  /**
    * Remove dead organisms from collection.
    * @param deadIds - IDs of dead organisms
    * @returns Number of removed organisms
@@ -219,40 +203,6 @@ export class EntityManager {
       }
     }
     return closest;
-  }
-
-  private getFoodByInstanceId(index: number): Food | null {
-    let currentIdx = 0;
-    for (const foodItem of this.food.values()) {
-      if (!foodItem.consumed) {
-        if (currentIdx === index) {
-          return foodItem;
-        }
-        currentIdx++;
-      }
-    }
-    return null;
-  }
-
-  private getOrganismByInstanceId(
-    type: 'prey' | 'predator',
-    index: number
-  ): Organism | null {
-    let currentIdx = 0;
-    const isPrey = type === 'prey';
-
-    for (const org of this.organisms.values()) {
-      if (org.isDead) {
-        continue;
-      }
-      if (org.isPrey === isPrey) {
-        if (currentIdx === index) {
-          return org;
-        }
-        currentIdx++;
-      }
-    }
-    return null;
   }
 
   private calculateDistanceSq(

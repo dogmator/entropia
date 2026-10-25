@@ -11,7 +11,7 @@
 
 import { beforeEach,describe, expect, it, vi } from 'vitest';
 
-import { EntityType } from '@/types';
+import { EntityType, ZoneType } from '@/types';
 
 import { SimulationEngine } from '../engine/Engine';
 import { Food } from '../Entity';
@@ -126,7 +126,8 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
 
   it('повинен відкидати їжу в аномаліях під час importState', () => {
     const state = engine.exportState();
-    const zone = state.zones[0];
+    // The oasis admits food, so the zone that must reject it is one of the others.
+    const zone = state.zones.find(candidate => candidate.type !== ZoneType.OASIS);
     const obstacle = state.obstacles[0];
 
     expect(zone).toBeDefined();
@@ -189,7 +190,7 @@ describe('SimulationEngine — Адаптивні буфери рендерин�
   it('повинен виконувати one-shot runtime-санітизацію їжі в аномаліях', () => {
     engine.food.clear();
 
-    const zone = Array.from(engine.zones.values())[0];
+    const zone = Array.from(engine.zones.values()).find(candidate => candidate.type !== ZoneType.OASIS);
     expect(zone).toBeDefined();
     if (!zone) {
       return;

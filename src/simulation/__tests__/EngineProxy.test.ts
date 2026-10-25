@@ -145,13 +145,12 @@ describe('EngineProxy command optimization', () => {
 
     const setConfigIndex = postedMessages.findIndex((msg) => msg.type === 'setConfig');
     const resetIndex = postedMessages.findIndex((msg) => msg.type === 'reset');
-    const updateIndex = postedMessages.findIndex((msg) => msg.type === 'update');
 
     expect(setConfigIndex).toBeGreaterThanOrEqual(0);
     expect(resetIndex).toBeGreaterThanOrEqual(0);
-    expect(updateIndex).toBeGreaterThanOrEqual(0);
     expect(setConfigIndex).toBeLessThan(resetIndex);
-    expect(resetIndex).toBeLessThan(updateIndex);
+    // The reset answers with the new world's snapshot, so the proxy sends no update after it.
+    expect(postedMessages.some((msg) => msg.type === 'update')).toBe(false);
   });
 
   it('does not drop critical loop transitions while deduplicating duplicates', () => {
@@ -343,16 +342,16 @@ describe('EngineProxy command optimization', () => {
     await expect(pending).rejects.toThrow(/disposed/);
   });
 
-  it('sends getEntityByInstanceId command with correct fields', async () => {
-    const promise = proxy.getEntityByInstanceId('prey', 3, false).catch(() => null);
+  it('sends getEntityByNumericId command with correct fields', async () => {
+    const promise = proxy.getEntityByNumericId('prey', 3, false).catch(() => null);
 
-    const cmd = postedMessages.find((msg) => msg.type === 'getEntityByInstanceId') as
-      | { requestId?: string; entityType?: string; instanceId?: number; isDead?: boolean }
+    const cmd = postedMessages.find((msg) => msg.type === 'getEntityByNumericId') as
+      | { requestId?: string; entityType?: string; entityId?: number; isDead?: boolean }
       | undefined;
 
     expect(cmd).toBeDefined();
     expect(cmd?.entityType).toBe('prey');
-    expect(cmd?.instanceId).toBe(3);
+    expect(cmd?.entityId).toBe(3);
     expect(cmd?.isDead).toBe(false);
     expect(cmd?.requestId).toBeDefined();
 

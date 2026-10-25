@@ -8,6 +8,7 @@ import { logger } from '@/core';
 
 import { WORLD_SIZE } from '../../config';
 import type { CameraSnapshot } from '../context/hooks/useSimulationSettings';
+import type { RenderMetricsRecorder } from '../context/renderMetrics';
 import { useSimulation } from '../context/SimulationContext';
 
 const CAMERA_ZOOM_DIVISOR = 0.5;
@@ -97,6 +98,14 @@ const CameraTracker: React.FC = () => {
     return null;
 };
 
+/** Records every frame the canvas renders, so the UI reports what the renderer did and not what the simulation sent. */
+const RenderMetricsProbe: React.FC<{ recorder: RenderMetricsRecorder }> = ({ recorder }) => {
+    useFrame(({ gl }) => {
+        recorder.recordFrame(performance.now(), gl.info.render.calls);
+    });
+    return null;
+};
+
 const Lighting: React.FC<{ worldSize: number }> = ({ worldSize }) => (
     <>
         <ambientLight intensity={AMBIENT_INTENSITY} />
@@ -121,7 +130,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
     worldSize = WORLD_SIZE,
     children
 }) => {
-    const { isAutoRotate, autoRotateSpeed } = useSimulation();
+    const { isAutoRotate, autoRotateSpeed, renderMetrics } = useSimulation();
 
     return (
         <Canvas
@@ -156,6 +165,7 @@ export const SceneContainer: React.FC<SceneContainerProps> = ({
             />
 
             <CameraTracker />
+            <RenderMetricsProbe recorder={renderMetrics} />
             <Lighting worldSize={worldSize} />
             {children}
         </Canvas>

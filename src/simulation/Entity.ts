@@ -47,6 +47,7 @@ import {
 
 import type { IEntity } from './interfaces/IEntity';
 import { MathUtils } from './MathUtils.utils';
+import { foodIdOf, organismIdOf } from './utils/EntityIds';
 
 // ============================================================================
 // ABSTRACT BASE ENTITY
@@ -144,7 +145,7 @@ export class Food extends Entity {
   // eslint-disable-next-line max-params
   public static create(idCounter: number, x: number, y: number, z: number): Food {
     return new Food(
-      createFoodId(`food_${String(idCounter)}`),
+      createFoodId(foodIdOf(idCounter)),
       { x, y, z },
       FOOD_ENERGY_VALUE
     );
@@ -550,7 +551,7 @@ export class OrganismFactory {
 
   /** Generating a unique system identifier for the agent. */
   private nextId(): OrganismId {
-    return createOrganismId(`org_${String(++this.idCounter)}`);
+    return createOrganismId(organismIdOf(++this.idCounter));
   }
 
   public getIdCounter(): number {

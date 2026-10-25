@@ -215,7 +215,10 @@ function handleReset(): void {
 
     try {
         engine.reset();
-        sendResponse({ type: 'stats', stats: engine.getStats() });
+        // The reset answers with the new world itself: its render snapshot and its statistics together. A view that waited for a
+        // later update could show the statistics of one world beside the bodies of another, and a paused world would never send one.
+        const { buffers, transferables } = snapshotRenderBuffers(engine.getRenderData());
+        sendResponse({ type: 'updated', buffers, stats: engine.getStats(), tick: engine.getTick() }, transferables);
     } catch (error) {
         logger.error('worker reset failed', 'Worker:Reset', describeError(error));
         sendResponse({
@@ -288,8 +291,11 @@ function loop(): void {
         safetyCounter++;
     }
 
+    // The engine can stop itself inside the loop, for example at a fail-safe. Its snapshot then goes out at once, so that the
+    // UI learns of the stop, and the loop ends with it.
+    const isEngineRunning = engine.state === EngineState.RUNNING;
     if (isUpdated) {
-        const shouldSendSnapshot = shouldDispatchRenderSnapshot({
+        const shouldSendSnapshot = !isEngineRunning || shouldDispatchRenderSnapshot({
             updated: isUpdated,
             now,
             lastSnapshotTime,
@@ -306,9 +312,16 @@ function loop(): void {
                 buffers,
                 stats,
                 tick,
+                ...(isEngineRunning ? {} : { stoppedByEngine: true as const }),
             }, transferables);
             lastSnapshotTime = now;
         }
+    }
+
+    if (!isEngineRunning) {
+        isRunning = false;
+        timeoutId = null;
+        return;
     }
 
     timeoutId = self.setTimeout(loop, MILLISECONDS_PER_SECOND / WORKER_LOOP_FPS);
@@ -329,6 +342,8 @@ function startAutoUpdate(): void {
 
 function stopAutoUpdate(): void {
     isRunning = false;
+    // The engine leaves RUNNING together with the loop. Otherwise a direct update command would still advance a paused world.
+    engine?.stop();
     if (timeoutId !== null) {
         self.clearTimeout(timeoutId);
         timeoutId = null;
@@ -504,13 +519,13 @@ function importResult(restored: SimulationEngine): SnapshotImportResult {
 type LifecycleCommand = Extract<WorkerCommand, { type: 'init' | 'update' | 'reset' | 'setConfig' | 'getStats' }>;
 type QueryCommand = Extract<
     WorkerCommand,
-    { type: 'findEntityAt' | 'getEntityByInstanceId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' | 'commitImport' | 'probeImport' }
+    { type: 'findEntityAt' | 'getEntityByNumericId' | 'getGeneticNode' | 'getGeneticRoots' | 'exportState' | 'importState' | 'commitImport' | 'probeImport' }
 >;
 type ControlCommand = Extract<WorkerCommand, { type: 'syncCamera' | 'startLoop' | 'stopLoop' | 'setSpeed' | 'cancelImport' }>;
 
 const LIFECYCLE_TYPES: ReadonlySet<string> = new Set<LifecycleCommand['type']>(['init', 'update', 'reset', 'setConfig', 'getStats']);
 const QUERY_TYPES: ReadonlySet<string> = new Set<QueryCommand['type']>([
-    'findEntityAt', 'getEntityByInstanceId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState', 'commitImport', 'probeImport',
+    'findEntityAt', 'getEntityByNumericId', 'getGeneticNode', 'getGeneticRoots', 'exportState', 'importState', 'commitImport', 'probeImport',
 ]);
 const CONTROL_TYPES: ReadonlySet<string> = new Set<ControlCommand['type']>(['syncCamera', 'startLoop', 'stopLoop', 'setSpeed', 'cancelImport']);
 
@@ -535,8 +550,8 @@ function handleQueryCommand(command: QueryCommand): void {
         case 'findEntityAt':
             void handleAsyncCommand(e => e.findEntityAt(command.position, command.tolerance), command.requestId);
             break;
-        case 'getEntityByInstanceId':
-            void handleAsyncCommand(e => e.getEntityByInstanceId(command.entityType, command.instanceId, command.isDead), command.requestId);
+        case 'getEntityByNumericId':
+            void handleAsyncCommand(e => e.getEntityByNumericId(command.entityType, command.entityId, command.isDead), command.requestId);
             break;
         case 'getGeneticNode':
             void handleAsyncCommand(e => e.getGeneticNode(command.genomeId), command.requestId);

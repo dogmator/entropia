@@ -17,6 +17,7 @@ import type {
     WorldConfig,
 } from '@/types';
 
+import type { RenderedKind } from '../shared/interfaces/RenderedKind';
 import type { IEntity } from './interfaces/IEntity';
 
 // ============================================================================
@@ -52,12 +53,12 @@ export interface FindEntityAtCommand {
     readonly tolerance: number;
 }
 
-export interface GetEntityByInstanceIdCommand {
-    readonly type: 'getEntityByInstanceId';
+export interface GetEntityByNumericIdCommand {
+    readonly type: 'getEntityByNumericId';
     readonly requestId: string;
-    readonly entityType: 'prey' | 'predator' | 'food';
-    readonly instanceId: number;
-    readonly isDead?: boolean;
+    readonly entityType: RenderedKind;
+    readonly entityId: number;
+    readonly isDead: boolean;
 }
 
 export interface GetGeneticNodeCommand {
@@ -143,7 +144,7 @@ export type WorkerCommand =
     | SetConfigCommand
     | GetStatsCommand
     | FindEntityAtCommand
-    | GetEntityByInstanceIdCommand
+    | GetEntityByNumericIdCommand
     | GetGeneticNodeCommand
     | SyncCameraCommand
     | GetGeneticRootsCommand
@@ -174,6 +175,8 @@ export interface UpdatedResponse {
     readonly buffers: RenderBuffers;
     readonly stats: SimulationStats;
     readonly tick: number;
+    /** Set on the snapshot with which the engine stopped itself, for example at a fail-safe. The loop ends with it. */
+    readonly stoppedByEngine?: true;
 }
 
 export interface StatsResponse {

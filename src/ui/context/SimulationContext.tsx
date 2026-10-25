@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { ENGINE_CONSTANTS } from '@/config';
 import type { CameraState } from '@/shared/interfaces/CameraState';
@@ -17,6 +17,7 @@ import { useSimulationLifecycle } from './hooks/useSimulationLifecycle';
 import type { CameraSnapshot } from './hooks/useSimulationSettings';
 import { useSimulationSettings } from './hooks/useSimulationSettings';
 import { useSimulationStats } from './hooks/useSimulationStats';
+import { createRenderMetrics, type RenderMetricsRecorder } from './renderMetrics';
 
 interface SimulationContextValue {
     engine: ISimulationEngine;
@@ -47,6 +48,7 @@ interface SimulationContextValue {
     stopSimulation: () => void;
     checkpoints: CheckpointControls;
     worldRevision: number;
+    renderMetrics: RenderMetricsRecorder;
 }
 
 const SimulationContext = createContext<SimulationContextValue | null>(null);
@@ -64,7 +66,8 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
     const engine = useMemo(() => new EngineProxy({ tickRate: ENGINE_CONSTANTS.TICK_RATE }), []);
     const settings = useSimulationSettings(engine);
     const sync = useEngineSync(engine, settings.speed, settings.worldScale);
-    const statsInfo = useSimulationStats(engine, settings.speed);
+    const renderMetrics = useMemo(() => createRenderMetrics(), []);
+    const statsInfo = useSimulationStats(engine, settings.speed, renderMetrics);
     const hover = useHoverState();
     const lifecycle = useSimulationLifecycle({
         engine,
@@ -82,6 +85,12 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
 
     useHotkeys(lifecycle.setSpeedWithState);
 
+    // The engine can stop itself, for example at a fail-safe. The controls show that stop as the Stop button does.
+    const { stopSimulation } = lifecycle;
+    useEffect(() => engine.addEventListener((event) => {
+        if (event.type === 'EngineStopped') stopSimulation();
+    }), [engine, stopSimulation]);
+
     const value = useMemo(() => ({
         engine, stats: statsInfo.stats, history: statsInfo.history,
         speed: settings.speed, setSpeed: lifecycle.setSpeedWithState,
@@ -95,12 +104,12 @@ export const SimulationProvider = ({ children }: PropsWithChildren): React.JSX.E
         cameraSnapshot: settings.cameraSnapshot, setCameraSnapshot: settings.setCameraSnapshot,
         simulationState: lifecycle.simulationState, runSimulation: lifecycle.runSimulation,
         pauseSimulation: lifecycle.pauseSimulation, stopSimulation: lifecycle.stopSimulation,
-        checkpoints, worldRevision,
+        checkpoints, worldRevision, renderMetrics,
     }), [
         engine, statsInfo.stats, statsInfo.history, settings.speed, lifecycle,
         settings.worldScale, settings.setWorldScale, sync, hover, settings.isAutoRotate,
         settings.setAutoRotate, settings.autoRotateSpeed, settings.setAutoRotateSpeed,
-        settings.cameraSnapshot, settings.setCameraSnapshot, checkpoints, worldRevision
+        settings.cameraSnapshot, settings.setCameraSnapshot, checkpoints, worldRevision, renderMetrics
     ]);
 
     return (

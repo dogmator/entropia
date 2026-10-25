@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-magic-numbers */
 import { describe, expect, it } from 'vitest';
 
 import { createWorldConfig } from '@/config';
@@ -53,5 +54,38 @@ describe('StatisticsManager aggregation', () => {
     expect(stats.avgPredatorEnergy).toBe(AVG_PREDATOR_ENERGY);
     expect(stats.maxAge).toBe(MAX_AGE);
     expect(stats.maxGeneration).toBe(MAX_GENERATION);
+  });
+});
+
+describe('StatisticsManager freshness', () => {
+  const aggregationWithTotalEnergy = (totalEnergy: number): PopulationStatsAggregation => ({
+    preyCount: PREY_COUNT,
+    predatorCount: PREDATOR_COUNT,
+    totalEnergy,
+    preyEnergy: totalEnergy / 2,
+    predatorEnergy: totalEnergy / 2,
+    organismCount: 3,
+    maxAge: MAX_AGE,
+    maxGeneration: MAX_GENERATION,
+  });
+
+  it('reports the averages of the current tick, however quickly the ticks arrive', () => {
+    const manager = new StatisticsManager(createWorldConfig(1));
+    const organismCount = 3;
+
+    for (let tick = 1; tick <= 500; tick++) {
+      const totalEnergy = 30 * tick;
+      manager.update({
+        aggregation: aggregationWithTotalEnergy(totalEnergy),
+        foodSize: FOOD_COUNT,
+        obstacleSize: 0,
+        tick,
+        zones: EMPTY_ZONES,
+        gridManager: GRID_MANAGER_STUB as never,
+        config: CONFIG_STUB as never,
+      });
+
+      expect(manager.getStats().avgEnergy).toBeCloseTo(totalEnergy / organismCount, 10);
+    }
   });
 });

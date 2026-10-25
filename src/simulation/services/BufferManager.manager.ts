@@ -10,6 +10,7 @@
 import type { RenderBuffers } from '@/types';
 
 import type { Food, Organism } from '../Entity';
+import { numericIdOf } from '../utils/EntityIds';
 
 const BUFFER_CONSTANTS = {
     TRAIL_BUFFER_SIZE: 13,
@@ -70,6 +71,8 @@ export class BufferManager {
         this._preyBuffer = new Float32Array(0);
         this._predBuffer = new Float32Array(0);
         this._foodBuffer = new Float32Array(0);
+        // The shared buffer still holds the previous world's data, so the next render must not hand it out.
+        this._sharedBuffer = null;
     }
 
     // ============================================================================
@@ -180,7 +183,7 @@ export class BufferManager {
         buffer[offset + 5] = o.velocity.z;
         buffer[offset + 6] = o.radius;
         buffer[offset + 7] = isDead ? 1.0 : 0.0; // Death flag
-        buffer[offset + 8] = parseInt(o.id.split('_')[1] ?? '0', 10);
+        buffer[offset + 8] = numericIdOf(o.id);
         buffer[offset + 9] = 0;
         buffer[offset + 10] = 0;
         buffer[offset + 11] = 0;
@@ -192,7 +195,7 @@ export class BufferManager {
         buffer[offset + 1] = f.position.y;
         buffer[offset + 2] = f.position.z;
         buffer[offset + 3] = f.radius;
-        buffer[offset + 4] = parseInt(f.id.split('_')[1] ?? '0', 10);
+        buffer[offset + 4] = numericIdOf(f.id);
     }
     /* eslint-enable @typescript-eslint/no-magic-numbers */
 

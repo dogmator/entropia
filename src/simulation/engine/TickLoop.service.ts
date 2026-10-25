@@ -116,7 +116,7 @@ export class TickLoop {
         }
 
         c.performanceMonitor.registerTick(performance.now() - c.performanceMonitor.getFrameStartTime());
-        c.performanceMonitor.endFrame(c.organisms.size + c.food.size, this.calcDrawCalls());
+        c.performanceMonitor.endFrame(c.organisms.size + c.food.size);
     }
 
     private logTick(): void {
@@ -203,11 +203,6 @@ export class TickLoop {
             const item = spawnService.spawnFood(++this.ctx.foodIdCounter, position => resourceStock.admitFoodAt(position));
             if (item) entityManager.addFood(item);
         }
-    }
-
-    private calcDrawCalls(): number {
-        const { organisms, food, obstacles, zones, config } = this.ctx;
-        return organisms.size + food.size + (config.showObstacles ? obstacles.size : 0) + zones.size;
     }
 
     public resetFailsafeCounters(): void {

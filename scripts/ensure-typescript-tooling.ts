@@ -3,11 +3,12 @@ import { extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FORBIDDEN_TOOLING_EXTENSIONS = new Set(['.js', '.cjs', '.mjs', '.mts']);
-const IGNORED_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules', '.idea', '.pnpm-store']);
+const IGNORED_DIRECTORIES = new Set(['.git', 'coverage', 'dist', 'node_modules', '.idea', '.pnpm-store', '.tmp']);
 
 /**
- * Root-level tooling files that must stay JavaScript because their tool cannot load a TypeScript config.
- * Each entry names the limitation; remove the entry as soon as the tool supports a `.ts` config.
+ * Exact JavaScript exceptions with documented runtime constraints.
+ * Keep production tooling in TypeScript; research-only probes are direct Node ESM entrypoints.
+ * Remove an exception when its runtime supports the equivalent TypeScript entrypoint.
  */
 export const DOCUMENTED_EXCEPTIONS: ReadonlyMap<string, string> = new Map([
   [
@@ -17,6 +18,18 @@ export const DOCUMENTED_EXCEPTIONS: ReadonlyMap<string, string> = new Map([
   [
     'postcss.config.mjs',
     'Vitest bundles Vite 5, which loads a .ts PostCSS config through ts-node as CJS; this package is "type": "module", so it fails with ERR_REQUIRE_ESM.',
+  ],
+  [
+    'docs/specs/food-accessibility-and-budget/verify-review.mjs',
+    'Research-only verification: direct node ESM runner used in the documented reproducible food-spec review.',
+  ],
+  [
+    'docs/specs/food-accessibility-and-budget/m0-measure.mjs',
+    'Research-only benchmark: direct Node ESM with Vite SSR instrumentation, not an application module.',
+  ],
+  [
+    'docs/specs/food-accessibility-and-budget/collision-geometry-check.mjs',
+    'Research-only collision diagnostic: direct Node ESM with Vite SSR, not an application module.',
   ],
 ]);
 

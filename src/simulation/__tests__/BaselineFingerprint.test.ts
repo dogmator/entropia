@@ -26,10 +26,14 @@ const fingerprintsOf = (seed: number): string[] => {
 };
 
 // Recorded on stage I (5d4742f), before the resource stock existed.
+// Re-recorded for two corrections that change the trajectory from the first tick that uses them. Food may now lie in the
+// oasis, which the default oasis strategy places it in; the rules for other zones and obstacles are unchanged. And a parent's
+// radius follows its energy in the tick it reproduces, instead of lagging one tick behind the energy it spent.
+// The stage I values were 4242: 6b0efd50, e437215b; 1: 54086bcf, 1bd4766d; 3735928559: 57faeabd, 3f55111a.
 const RECORDED: Record<number, string[]> = {
-  4242: ['6b0efd50', 'e437215b'],
-  1: ['54086bcf', '1bd4766d'],
-  3735928559: ['57faeabd', '3f55111a'],
+  4242: ['d33c81bd', 'ce63bed1'],
+  1: ['37f34d1d', 'ef5ec3c7'],
+  3735928559: ['b2ec13f5', '50f4f152'],
 };
 
 describe('baseline trajectory with the resource stock off', () => {

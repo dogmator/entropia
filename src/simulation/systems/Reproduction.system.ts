@@ -103,8 +103,9 @@ export class ReproductionSystem {
    * Registering reproduction act and preparing for energy allocation.
    */
   private initiateReproduction(organism: Organism, newborns: NewbornData[]): void {
-    // Exothermic energy cost for creating offspring
+    // Exothermic energy cost for creating offspring. Growth follows energy, so it is refreshed with the new value.
     organism.energy *= REPRODUCTION.energyCostMultiplier;
+    organism.updateGrowthFromState();
 
     // Transition agent to transient state of reproductive activity
     organism.updateState('REPRODUCING');

@@ -23,7 +23,7 @@ import { isPredatorGenome,isPreyGenome } from '@/types';
 
 import { Food, Obstacle, Organism } from '../Entity';
 import type { IPersistableEngine } from '../interfaces/IPersistableEngine';
-import { FOOD_ANOMALY_PADDING, isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
+import { FOOD_ANOMALY_PADDING, foodForbiddingZones, isPositionBlockedByAnomalies } from '../utils/AnomalyValidation';
 import type { PopulationStatsAggregation } from './StatisticsManager.manager';
 
 interface PersistedOrganismRuntime {
@@ -33,7 +33,7 @@ interface PersistedOrganismRuntime {
 
 interface FoodAnomalyCheckParams {
     position: Vector3;
-    zones: Iterable<{ center: Vector3; radius: number }>;
+    zones: Iterable<EcologicalZone>;
     obstacles: Iterable<{ position: Vector3; radius: number }>;
     worldSize: number;
 }
@@ -188,7 +188,7 @@ export class PersistenceService {
         return isPositionBlockedByAnomalies({
             position,
             obstacles,
-            zones,
+            zones: foodForbiddingZones(zones),
             worldSize,
             obstaclePadding: minDistance,
             zonePadding: minDistance,

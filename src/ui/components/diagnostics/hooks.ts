@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { DIAGNOSTICS_CONFIG } from '@/config';
 import type { LogEntry } from '@/core/services/Logger.service';
@@ -8,28 +8,28 @@ import type { MemoryStats, PerformanceMetrics, SimulationStats, SystemMetrics } 
 interface SystemMetricsOptions {
     isOpen: boolean;
     performanceHistory: PerformanceMetrics[];
-    memoryStats: MemoryStats;
+    memoryStats: MemoryStats | null;
     currentStats: SimulationStats;
 }
+
+// What a metric shows before the canvas or the engine has reported anything.
+const NO_RENDER_METRICS = { fps: 0, frameTime: 0, drawCalls: 0 };
+const NO_ENGINE_METRICS = { tps: 0, simulationTime: 0 };
 
 const mapStatsToMetric = (
     p: PerformanceMetrics | undefined,
     mem: number,
     stats: SimulationStats
 ): SystemMetrics => {
-    if (!p) {
-        return {
-            timestamp: Date.now(),
-            fps: 0, tps: 0, frameTime: 0, simulationTime: 0,
-            entityCount: stats.preyCount + stats.predatorCount,
-            memoryUsage: mem, drawCalls: 0, cpu: 0, memory: mem
-        };
-    }
+    // fps, frame time and draw calls are measured by the canvas and reach the stats; the history carries the engine's values.
+    const render = stats.performance ?? NO_RENDER_METRICS;
+    const engine = p ?? NO_ENGINE_METRICS;
     return {
         timestamp: Date.now(),
-        fps: p.fps, tps: p.tps, frameTime: p.frameTime, simulationTime: p.simulationTime,
+        fps: render.fps, tps: stats.performance?.tps ?? engine.tps,
+        frameTime: render.frameTime, simulationTime: stats.performance?.simulationTime ?? engine.simulationTime,
         entityCount: stats.preyCount + stats.predatorCount,
-        memoryUsage: mem, drawCalls: p.drawCalls, cpu: 0, memory: mem
+        memoryUsage: mem, drawCalls: render.drawCalls, cpu: 0, memory: mem
     };
 };
 
@@ -40,30 +40,28 @@ export const useSystemMetrics = ({
     currentStats
 }: SystemMetricsOptions): SystemMetrics[] => {
     const [systemMetrics, setSystemMetrics] = useState<SystemMetrics[]>([]);
-    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    // Sample cadence must not reset every time the fast-changing simulation stats arrive.
+    const latestRef = useRef({ performanceHistory, memoryStats, currentStats });
 
-    const getNewMetric = useCallback((): SystemMetrics => {
-        const p = performanceHistory[performanceHistory.length - 1];
-        const mem = memoryStats.usedJSHeapSize;
-        return mapStatsToMetric(p, mem, currentStats);
+    useEffect(() => {
+        latestRef.current = { performanceHistory, memoryStats, currentStats };
     }, [performanceHistory, memoryStats, currentStats]);
 
     useEffect(() => {
         if (!isOpen) {
-            if (intervalRef.current) clearInterval(intervalRef.current);
             const timer = setTimeout(() => { setSystemMetrics([]); }, 0);
             return () => { clearTimeout(timer); };
         }
 
-        intervalRef.current = setInterval(() => {
-            const newMetric = getNewMetric();
-            setSystemMetrics(prev => [...prev, newMetric].slice(-DIAGNOSTICS_CONFIG.CHART.HISTORY_LENGTH));
+        const timer = setInterval(() => {
+            const latest = latestRef.current;
+            const history = latest.performanceHistory;
+            const metric = mapStatsToMetric(history[history.length - 1], latest.memoryStats?.usedJSHeapSize ?? 0, latest.currentStats);
+            setSystemMetrics(prev => [...prev, metric].slice(-DIAGNOSTICS_CONFIG.CHART.HISTORY_LENGTH));
         }, DIAGNOSTICS_CONFIG.CHART.REFRESH_RATE);
 
-        return () => {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        };
-    }, [isOpen, getNewMetric]);
+        return () => { clearInterval(timer); };
+    }, [isOpen]);
 
     return systemMetrics;
 };

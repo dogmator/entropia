@@ -1,3 +1,4 @@
+import type { RenderedKind } from '@shared/interfaces/RenderedKind';
 import type { Food, Obstacle, Organism } from '@simulation/Entity';
 import type { IPersistableEngine } from '@simulation/interfaces/IPersistableEngine';
 import { EntityManager, GridManager } from '@simulation/managers';
@@ -13,7 +14,7 @@ import { FoodAnomalyGuard } from '@simulation/services/FoodAnomalyGuard.guard';
 import { PersistenceService } from '@simulation/services/Persistence.service';
 import { ResourceStock } from '@simulation/services/ResourceStock.service';
 import { SpawnService } from '@simulation/services/Spawn.service';
-import { StatisticsManager } from '@simulation/services/StatisticsManager.manager';
+import { aggregatePopulation, StatisticsManager } from '@simulation/services/StatisticsManager.manager';
 import { BehaviorSystem } from '@simulation/systems/Behavior.system';
 import { CollisionSystem } from '@simulation/systems/Collision.system';
 import { MetabolismSystem } from '@simulation/systems/Metabolism.system';
@@ -211,6 +212,8 @@ export class SimulationEngine implements IPersistableEngine {
         logger.info('engine reset requested', 'Engine:Reset');
 
         this.entityManager.clear();
+        // Bodies of the previous world must not be drawn or resolved in the new one.
+        this.deadOrganisms.clear();
         this.zones.clear();
         this.geneticTree.clear();
         this.geneticRoots.length = 0;
@@ -236,6 +239,8 @@ export class SimulationEngine implements IPersistableEngine {
             reproductionSystem: this.reproductionSystem,
             worldConfig: this.worldConfig
         });
+
+        this.refreshStatistics();
 
         logger.info('engine reset complete', 'Engine:Reset', {
             organisms: this.entityManager.organisms.size,
@@ -294,8 +299,8 @@ export class SimulationEngine implements IPersistableEngine {
         return this.entityQuery.findFoodAt(pos, tolerance);
     }
 
-    public getEntityByInstanceId(type: 'prey' | 'predator' | 'food', index: number, isDead = false): Promise<Organism | Food | null> {
-        return this.entityQuery.getEntityByInstanceId(type, index, isDead);
+    public getEntityByNumericId(kind: RenderedKind, numericId: number, isDead: boolean): Promise<Organism | Food | null> {
+        return this.entityQuery.getEntityByNumericId(kind, numericId, isDead);
     }
 
     public getGeneticNode(genomeId: GenomeId): Promise<unknown> {
@@ -315,6 +320,7 @@ export class SimulationEngine implements IPersistableEngine {
         this.deadOrganisms.clear();
         this.foodAnomalyGuard.reset();
         this.resetResourceLedger();
+        this.refreshStatistics();
     }
     public getFailsafeCounters(): FailsafeCounters { return this.tickLoop.getFailsafeCounters(); }
     public setFailsafeCounters(counters: FailsafeCounters): void { this.tickLoop.setFailsafeCounters(counters); }
@@ -334,6 +340,22 @@ export class SimulationEngine implements IPersistableEngine {
             foodEnergyRemaining,
             openingFoodEnergy: this.openingFoodEnergy,
         };
+    }
+
+    /**
+     * Recomputes the population figures of the world as it now is. A world that is replaced while the loop is stopped has no
+     * tick to do this, and the view would show the figures of the world before.
+     */
+    private refreshStatistics(): void {
+        this.statisticsManager.update({
+            aggregation: aggregatePopulation(this.entityManager.organisms.values()),
+            foodSize: this.entityManager.food.size,
+            obstacleSize: this.entityManager.obstacles.size,
+            tick: this.tickLoop.tick,
+            zones: this.zones,
+            gridManager: this.gridManager,
+            config: this.config,
+        });
     }
 
     private liveFoodEnergy(): number {

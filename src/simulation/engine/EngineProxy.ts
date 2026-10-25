@@ -1,10 +1,12 @@
 import { ImportOutcomeUnknownError, logger } from '@/core';
 import type { EcologicalZone, GenomeId, RenderBuffers, SerializedSimulationStateV1, SimulationConfig, SimulationEvent, SimulationStats, Vector3, WorldConfig } from '@/types';
 
+import type { RenderedKind } from '../../shared/interfaces/RenderedKind';
 import type { IEntity } from '../interfaces/IEntity';
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../interfaces/ISimulationEngine';
 import type { ImportProbeResult, InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
 import { isWorkerConsoleMessage } from '../WorkerMessages';
+import { readBrowserHeapStats } from './browserMemory';
 import { ConfigBatcher } from './ConfigBatcher.service';
 import { CommandTimeoutError, WorkerChannel } from './WorkerChannel.service';
 
@@ -66,18 +68,20 @@ export class EngineProxy implements ISimulationEngine {
         this.latestCameraPayload = payload;
     }
     public getStatsWithWorldData(): SimulationStats { return this.getStats(); }
+    /** The worker answers a reset with the new world's render snapshot, so nothing else is needed to show it. */
     public reset(): void {
         this.configBatcher.flush();
         this.channel.sendCommand({ type: 'reset' }, () => { this.configBatcher.flush(); });
-        this.channel.sendCommand({ type: 'update' }, () => { this.configBatcher.flush(); });
     }
     public getPerformanceMonitor(): IPerformanceMonitor {
-        return { getMemoryStats: () => ({ usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 0, used: 0, total: 0, limit: 0 }), getPerformanceHistory: () => this.channel.performanceHistory };
+        return {
+            getMemoryStats: () => readBrowserHeapStats(typeof performance === 'undefined' ? undefined : performance),
+            getPerformanceHistory: () => this.channel.performanceHistory
+        };
     }
     public async findEntityAt(p: Vector3, d: number): Promise<IEntityInfo | null> { return this.channel.sendAsyncCommand('findEntityAt', { position: p, tolerance: d }); }
-    public async getEntityByInstanceId(t: string, i: number, d = false): Promise<IEntityInfo | null> {
-        if (t !== 'prey' && t !== 'predator' && t !== 'food') return null;
-        return this.channel.sendAsyncCommand('getEntityByInstanceId', { entityType: t, instanceId: i, isDead: d });
+    public async getEntityByNumericId(kind: RenderedKind, numericId: number, isDead: boolean): Promise<IEntityInfo | null> {
+        return this.channel.sendAsyncCommand('getEntityByNumericId', { entityType: kind, entityId: numericId, isDead });
     }
     public async getGeneticNode(id: GenomeId): Promise<unknown> { return this.channel.sendAsyncCommand('getGeneticNode', { genomeId: id }); }
     public async getGeneticRoots(): Promise<GenomeId[]> { return this.channel.sendAsyncCommand('getGeneticRoots', {}); }

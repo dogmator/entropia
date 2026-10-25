@@ -25,6 +25,7 @@ import type {
   WorldConfig,
 } from '@/types';
 
+import type { RenderedKind } from '../../shared/interfaces/RenderedKind';
 import type { IEntity as ISimulationEntity } from './IEntity';
 
 export interface IPerformanceMonitor {
@@ -94,23 +95,21 @@ export interface ISimulationEngine {
    * Find entity at world position.
    * @param worldPosition - 3D coordinates
    * @param maxDistance - Search radius
-   * @param maxDistance - Search radius
    * @returns Entity info or null
    */
   findEntityAt(worldPosition: Vector3, maxDistance: number): Promise<IEntityInfo | null>;
 
   /**
-   * Get entity by instance ID from render buffer.
-   * @param entityType - Type of entity
-   * @param instanceId - Instance ID from buffer
+   * Get an entity by the numeric id that a render buffer entry carries.
+   * @param entityType - Kind of the rendered entity
+   * @param numericId - Numeric part of the entity id, as the render buffer stores it
    * @param isDead - Whether to search in dead organisms
    * @returns Entity info or null
    */
-  getEntityByInstanceId(entityType: string, instanceId: number, isDead?: boolean): Promise<IEntityInfo | null>;
+  getEntityByNumericId(entityType: RenderedKind, numericId: number, isDead: boolean): Promise<IEntityInfo | null>;
 
   /**
    * Get genetic tree node by genome ID.
-   * @param genomeId - Genome identifier
    * @param genomeId - Genome identifier
    * @returns Tree node or undefined
    */

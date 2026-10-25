@@ -33,12 +33,13 @@ export const useSimulationSettings = (engine: ISimulationEngine): SimulationSett
     }, [engine]);
 
     const setSpeed = useCallback((val: number | ((prev: number) => number)) => {
+        // Keep React state updaters pure: calling the engine here synchronously logs to UI subscribers during render.
+        // useEngineSync applies the resulting speed to the engine in an effect after React commits.
         setState(prev => {
             const next = typeof val === 'function' ? val(prev.speed) : val;
-            engine.setSpeed(next);
             return { ...prev, speed: next };
         });
-    }, [engine]);
+    }, []);
 
     const setAutoRotate = useCallback((val: boolean) => {
         setState(prev => ({ ...prev, autoRotate: val }));

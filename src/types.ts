@@ -494,12 +494,19 @@ export interface CollisionEvent {
   readonly position: Vector3;
 }
 
+/** The engine stopped itself, for example at a fail-safe. Nothing advances after this event until the user resumes. */
+export interface EngineStoppedEvent {
+  readonly type: 'EngineStopped';
+  readonly tick: number;
+}
+
 export type SimulationEvent =
   | EntitySpawnedEvent
   | EntityDiedEvent
   | EntityReproducedEvent
   | TickUpdatedEvent
-  | CollisionEvent;
+  | CollisionEvent
+  | EngineStoppedEvent;
 
 // ============================================================================
 // SPATIAL GRID — SPATIAL DECOMPOSITION

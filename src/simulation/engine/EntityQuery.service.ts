@@ -1,7 +1,9 @@
+import type { RenderedKind } from '@shared/interfaces/RenderedKind';
 import type { Food, Organism } from '@simulation/Entity';
 import type { EntityManager } from '@simulation/managers/EntityManager.manager';
+import { foodIdOf, organismIdOf } from '@simulation/utils/EntityIds';
 
-import type { EcologicalZone, GeneticTreeNode,GenomeId } from '@/types';
+import type { EcologicalZone, GeneticTreeNode, GenomeId } from '@/types';
 
 export interface QueryCtx {
     readonly entityManager: EntityManager;
@@ -22,9 +24,12 @@ export class EntityQuery {
         return this.ctx.entityManager.findFoodAt(pos, tolerance);
     }
 
-    public getEntityByInstanceId(type: 'prey' | 'predator' | 'food', index: number, isDead = false): Promise<Organism | Food | null> {
-        if (isDead && type !== 'food') return this.findDeadByInstanceId(type, index);
-        return Promise.resolve(this.ctx.entityManager.getEntityByInstanceId(type, index));
+    /**
+     * Resolves the entity that a render buffer entry carries. The lookup goes by id, so the answer does not depend on where
+     * the entry sat in a buffer, which is rebuilt at every snapshot and filtered by the camera.
+     */
+    public getEntityByNumericId(kind: RenderedKind, numericId: number, isDead: boolean): Promise<Organism | Food | null> {
+        return Promise.resolve(this.findByNumericId(kind, numericId, isDead));
     }
 
     public getZones(): Map<string, EcologicalZone> { return this.ctx.zones; }
@@ -37,15 +42,13 @@ export class EntityQuery {
         return Promise.resolve(this.ctx.geneticRoots);
     }
 
-    private findDeadByInstanceId(type: 'prey' | 'predator', index: number): Promise<Organism | null> {
-        const isPrey = type === 'prey';
-        let idx = 0;
-        for (const org of this.ctx.deadOrganisms.values()) {
-            if (org.isPrey === isPrey) {
-                if (idx === index) return Promise.resolve(org);
-                idx++;
-            }
+    private findByNumericId(kind: RenderedKind, numericId: number, isDead: boolean): Organism | Food | null {
+        if (kind === 'food') {
+            const food = this.ctx.entityManager.food.get(foodIdOf(numericId));
+            return food && !food.consumed ? food : null;
         }
-        return Promise.resolve(null);
+        const id = organismIdOf(numericId);
+        const organism = isDead ? this.ctx.deadOrganisms.get(id) : this.ctx.entityManager.organisms.get(id);
+        return organism?.isPrey === (kind === 'prey') ? organism : null;
     }
 }

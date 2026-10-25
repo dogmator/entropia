@@ -108,17 +108,13 @@ export const Sidebar: React.FC = () => {
 const SidebarDiagnostics: React.FC<{ isOpen: boolean; onClose: () => void; stats: SimulationStats; engine: ISimulationEngine; }> = ({ isOpen, onClose, stats, engine }) => {
   const monitor = engine.getPerformanceMonitor();
   const memory = monitor.getMemoryStats();
-  if (!memory) return null;
 
   return (
     <Suspense fallback={<LazyFallback label={t.diagnostics.loadingPanel} />}>
       <DiagnosticsModal
         isOpen={isOpen} onClose={onClose} currentStats={stats}
         performanceHistory={monitor.getPerformanceHistory()}
-        memoryStats={{
-          usedJSHeapSize: memory.usedJSHeapSize, totalJSHeapSize: memory.totalJSHeapSize, jsHeapSizeLimit: memory.jsHeapSizeLimit,
-          used: memory.usedJSHeapSize, total: memory.totalJSHeapSize, limit: memory.jsHeapSizeLimit
-        }}
+        memoryStats={memory}
       />
     </Suspense>
   );
