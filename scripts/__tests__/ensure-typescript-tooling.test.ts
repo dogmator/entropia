@@ -10,6 +10,7 @@ const POSTCSS_JS_CONFIG = 'postcss.config.mjs';
 const POSTCSS_TS_CONFIG = 'postcss.config.ts';
 const WEBPACK_JS_CONFIG = 'webpack.config.mjs';
 const SOURCE_JS_FILE = 'src/app.js';
+const REVIEW_PROBE = 'docs/specs/food-accessibility-and-budget/m0-measure.mjs';
 
 const tempRoots: string[] = [];
 
@@ -43,6 +44,7 @@ describe('ensure-typescript-tooling', () => {
     expect(isForbiddenTooling('vite.config.ts')).toBe(false);
     expect(isForbiddenTooling(POSTCSS_JS_CONFIG)).toBe(false);
     expect(isForbiddenTooling(DEPENDENCY_CRUISER_CONFIG)).toBe(false);
+    expect(isForbiddenTooling(REVIEW_PROBE)).toBe(false);
   });
 
   it('documents a reason for every exception', () => {
@@ -53,6 +55,7 @@ describe('ensure-typescript-tooling', () => {
 
   it('applies exceptions only to the exact root file', () => {
     expect(isForbiddenTooling(`nested/${DEPENDENCY_CRUISER_CONFIG}`)).toBe(true);
+    expect(isForbiddenTooling(`nested/${REVIEW_PROBE}`)).toBe(true);
   });
 
   it('reports violations found by walking the tree and skips ignored directories', () => {
@@ -62,11 +65,14 @@ describe('ensure-typescript-tooling', () => {
       POSTCSS_JS_CONFIG,
       POSTCSS_TS_CONFIG,
       SOURCE_JS_FILE,
+      REVIEW_PROBE,
+      'docs/specs/food-accessibility-and-budget/unapproved.mjs',
+      '.tmp/local-research.mjs',
       'coverage/prettify.js',
       'node_modules/pkg/index.js',
     ]);
 
     const violations = findForbiddenFiles(root, root).sort((a, b) => a.localeCompare(b));
-    expect(violations).toEqual([path.join('src', 'app.js'), WEBPACK_JS_CONFIG]);
+    expect(violations).toEqual(['docs/specs/food-accessibility-and-budget/unapproved.mjs', path.join('src', 'app.js'), WEBPACK_JS_CONFIG]);
   });
 });
