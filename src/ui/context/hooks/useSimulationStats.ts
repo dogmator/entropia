@@ -94,4 +94,3 @@ export const useSimulationStats = (
 
     return { stats, history, resetHistory };
 };
-

@@ -1,4 +1,4 @@
- 
+
 /* eslint-disable max-lines-per-function */
 /* eslint-disable @typescript-eslint/no-magic-numbers */
 import * as THREE from 'three';

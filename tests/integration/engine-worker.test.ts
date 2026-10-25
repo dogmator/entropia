@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-magic-numbers */
- 
+
 /**
  * The real worker module and the real EngineProxy, linked in one process. A reset, a stop and a resume are checked the way the
  * view receives them: through the worker's messages, the proxy's state, and the instance writer that the canvas uses.

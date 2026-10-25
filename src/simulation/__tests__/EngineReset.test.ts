@@ -1,4 +1,4 @@
- 
+
 import { describe, expect, it } from 'vitest';
 
 import { BUFFER_LAYOUT } from '@/config';
