@@ -6,6 +6,7 @@ import type { IEntity } from '../interfaces/IEntity';
 import type { IEntityInfo, IPerformanceMonitor, ISimulationEngine } from '../interfaces/ISimulationEngine';
 import type { ImportProbeResult, InitializedResponse, SnapshotImportResult, WorkerConsoleMessage, WorkerResponse } from '../WorkerMessages';
 import { isWorkerConsoleMessage } from '../WorkerMessages';
+import { readBrowserHeapStats } from './browserMemory';
 import { ConfigBatcher } from './ConfigBatcher.service';
 import { CommandTimeoutError, WorkerChannel } from './WorkerChannel.service';
 
@@ -73,7 +74,10 @@ export class EngineProxy implements ISimulationEngine {
         this.channel.sendCommand({ type: 'reset' }, () => { this.configBatcher.flush(); });
     }
     public getPerformanceMonitor(): IPerformanceMonitor {
-        return { getMemoryStats: () => ({ usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 0, used: 0, total: 0, limit: 0 }), getPerformanceHistory: () => this.channel.performanceHistory };
+        return {
+            getMemoryStats: () => readBrowserHeapStats(typeof performance === 'undefined' ? undefined : performance),
+            getPerformanceHistory: () => this.channel.performanceHistory
+        };
     }
     public async findEntityAt(p: Vector3, d: number): Promise<IEntityInfo | null> { return this.channel.sendAsyncCommand('findEntityAt', { position: p, tolerance: d }); }
     public async getEntityByNumericId(kind: RenderedKind, numericId: number, isDead: boolean): Promise<IEntityInfo | null> {

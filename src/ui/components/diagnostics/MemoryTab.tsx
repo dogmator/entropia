@@ -8,7 +8,7 @@ import type { MemoryStats, SystemMetrics } from '@/types';
 import { MAX_PERCENTAGE, MetricCard, PerformanceChart } from './Shared';
 
 interface MemoryTabProps {
-    memoryStats: MemoryStats;
+    memoryStats: MemoryStats | null;
     systemMetrics: SystemMetrics[];
 }
 
@@ -22,17 +22,32 @@ const formatValue = (formatted: string) => {
     return match ? { value: match[MATCH_VALUE_INDEX] ?? '', unit: match[MATCH_UNIT_INDEX] ?? '' } : { value: formatted, unit: '' };
 };
 
+const MemoryHistory = ({ systemMetrics }: { systemMetrics: SystemMetrics[] }) => (
+    <PerformanceChart
+        title="JavaScript Heap Usage Over Time"
+        data={systemMetrics.slice(-DIAGNOSTICS_CONFIG.CHART.HISTORY_LENGTH / CHART_DISPLAY_DIVISOR)}
+        area
+        height={CHART_HEIGHT}
+        emptyMessage={t.diagnostics.memoryCollecting}
+        lines={[{
+            name: t.diagnostics.memory,
+            dataKey: 'memory',
+            stroke: '#8b5cf6'
+        }]}
+    />
+);
+
 export const MemoryTab: React.FC<MemoryTabProps> = ({ memoryStats, systemMetrics }) => {
     const formatBytes = useMemo(() => (bytes: number) => PerformanceHelpers.format.formatBytes(bytes), []);
     const getMemoryColor = useMemo(() => (pct: number) => PerformanceHelpers.color.getMemoryColor(pct), []);
 
-    // Use specific chart config
-    const chartData = systemMetrics.slice(-DIAGNOSTICS_CONFIG.CHART.HISTORY_LENGTH / CHART_DISPLAY_DIVISOR);
-    const usedPercentage = (memoryStats.usedJSHeapSize / memoryStats.jsHeapSizeLimit) * MAX_PERCENTAGE;
+    const usedPercentage = memoryStats
+        ? (memoryStats.usedJSHeapSize / memoryStats.jsHeapSizeLimit) * MAX_PERCENTAGE : undefined;
 
-    const used = formatValue(formatBytes(memoryStats.usedJSHeapSize));
-    const total = formatValue(formatBytes(memoryStats.totalJSHeapSize));
-    const limit = formatValue(formatBytes(memoryStats.jsHeapSizeLimit));
+    const unavailable = { value: 'N/A', unit: '' };
+    const used = memoryStats ? formatValue(formatBytes(memoryStats.usedJSHeapSize)) : unavailable;
+    const total = memoryStats ? formatValue(formatBytes(memoryStats.totalJSHeapSize)) : unavailable;
+    const limit = memoryStats ? formatValue(formatBytes(memoryStats.jsHeapSizeLimit)) : unavailable;
 
     return (
         <div className="space-y-6">
@@ -42,8 +57,8 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({ memoryStats, systemMetrics
                     title={t.diagnostics.used}
                     value={used.value}
                     unit={used.unit}
-                    color={getMemoryColor(usedPercentage)}
-                    trend={usedPercentage}
+                    color={usedPercentage === undefined ? 'text-gray-400' : getMemoryColor(usedPercentage)}
+                    {...(usedPercentage === undefined ? {} : { trend: usedPercentage })}
                 />
                 <MetricCard
                     title={t.diagnostics.totalAllocated}
@@ -59,18 +74,12 @@ export const MemoryTab: React.FC<MemoryTabProps> = ({ memoryStats, systemMetrics
                 />
             </div>
 
+            <p className="text-xs text-gray-500">{t.diagnostics.jsHeapScope}</p>
+
             {/* Memory Chart */}
-            <PerformanceChart
-                title="Memory Usage Over Time"
-                data={chartData}
-                area
-                height={CHART_HEIGHT}
-                lines={[{
-                    name: t.diagnostics.memory, // Changed from "Memory %" as it shows bytes usually
-                    dataKey: 'memory',
-                    stroke: '#8b5cf6'
-                }]}
-            />
+            {memoryStats === null
+                ? <p role="status" className="text-xs text-gray-400">{t.diagnostics.memoryUnsupported}</p>
+                : <MemoryHistory systemMetrics={systemMetrics} />}
         </div>
     );
 };

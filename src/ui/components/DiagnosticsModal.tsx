@@ -19,7 +19,7 @@ interface DiagnosticsModalProps {
   onClose: () => void;
   currentStats: SimulationStats;
   performanceHistory: PerformanceMetrics[];
-  memoryStats: MemoryStats;
+  memoryStats: MemoryStats | null;
 }
 
 export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
@@ -43,7 +43,6 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({
         <DiagnosticsContent
           activeTab={activeTab}
           currentStats={currentStats}
-          performanceHistory={performanceHistory}
           memoryStats={memoryStats}
           systemMetrics={systemMetrics}
           detailedLogs={detailedLogs}
@@ -76,18 +75,17 @@ const DiagnosticsHeader: React.FC<{ onClose: () => void }> = ({ onClose }) => (
 const DiagnosticsContent: React.FC<{
   activeTab: TabKey;
   currentStats: SimulationStats;
-  performanceHistory: PerformanceMetrics[];
-  memoryStats: MemoryStats;
+  memoryStats: MemoryStats | null;
   systemMetrics: SystemMetrics[];
   detailedLogs: LogEntry[];
 }> = ({
-  activeTab, currentStats, performanceHistory, memoryStats, systemMetrics, detailedLogs
+  activeTab, currentStats, memoryStats, systemMetrics, detailedLogs
 }) => (
     <div className="p-3 sm:p-6 overflow-y-auto max-h-[calc(95vh-180px)] sm:max-h-[calc(90vh-200px)] custom-scrollbar">
       {activeTab === 'performance' && (
         <PerformanceTab
           currentStats={currentStats}
-          performanceHistory={performanceHistory}
+          performanceHistory={systemMetrics}
         />
       )}
 

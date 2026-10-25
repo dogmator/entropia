@@ -1,6 +1,6 @@
 import type { ThreeEvent } from '@react-three/fiber';
 import { useFrame } from '@react-three/fiber';
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 
 import { COLORS, RENDER } from '../../config';
@@ -8,9 +8,11 @@ import type { RenderedKind } from '../../shared/interfaces/RenderedKind';
 import type { ISimulationEngine } from '../../simulation/interfaces/ISimulationEngine';
 import { useSimulation } from '../context/SimulationContext';
 import { writeFoodInstances, writeOrganismInstances } from './instanceMeshes';
+import { type HoverTarget,LiveHoverSession } from './LiveHoverSession';
 
 const MATRIX_ELEMENT_COUNT = 16;
 const MATRIX_CHANGE_EPSILON = 1e-6;
+const HOVER_REFRESH_SECONDS = 0.25;
 
 const PROJ_SCREEN_MATRIX = new THREE.Matrix4();
 const FRUSTUM = new THREE.Frustum();
@@ -36,7 +38,7 @@ interface OrganismMeshProps {
     emissiveIntensity: number;
     shininess: number;
     onPointerMove: (e: ThreeEvent<PointerEvent>) => void;
-    onPointerOut: () => void;
+    onPointerOut: (e: ThreeEvent<PointerEvent>) => void;
 }
 
 const OrganismMesh: React.FC<OrganismMeshProps> = ({
@@ -198,8 +200,9 @@ const useEntityGeometries = (): { orgGeo: THREE.BufferGeometry; foodGeo: THREE.B
     return { orgGeo, foodGeo };
 };
 
+// eslint-disable-next-line max-lines-per-function -- hovering requires the current mesh instance IDs and the scene frame loop
 export const Entities: React.FC = () => {
-    const { engine, setHoveredEntity, setTooltipPos } = useSimulation();
+    const { engine, setHoveredEntity, setTooltipPos, worldRevision } = useSimulation();
 
     const preyRef = useRef<THREE.InstancedMesh>(null);
     const deadPreyRef = useRef<THREE.InstancedMesh>(null);
@@ -220,35 +223,64 @@ export const Entities: React.FC = () => {
     useEntitiesAnimation({ refs, engine, ids });
     useBoundingSphereUpdates(refs);
 
+    const session = useMemo(() => new LiveHoverSession(
+        (kind, numericId, isDead) => engine.getEntityByNumericId(kind, numericId, isDead),
+        setHoveredEntity,
+        (error) => { console.error('Failed to get entity info:', error); },
+    ), [engine, setHoveredEntity]);
+
+    const lastHoverRefreshRef = useRef(0);
+    const lastWorldRevisionRef = useRef(worldRevision);
+    useFrame(({ clock }) => {
+        if (lastWorldRevisionRef.current !== worldRevision) {
+            lastWorldRevisionRef.current = worldRevision;
+            session.clear();
+        }
+        const now = clock.getElapsedTime();
+        if (now - lastHoverRefreshRef.current < HOVER_REFRESH_SECONDS) return;
+        lastHoverRefreshRef.current = now;
+        session.refresh();
+    });
+
+    // Reset/import can reuse entity IDs. Never retain a tooltip belonging to the replaced world.
+    useEffect(() => {
+        const unsubscribe = engine.addEventListener(event => {
+            if (event.type === 'TickUpdated' && event.tick === 0) session.clear();
+        });
+        return () => { unsubscribe(); session.dispose(); };
+    }, [engine, session]);
+
+    const targetFromEvent = useCallback((e: ThreeEvent<PointerEvent>, role: MeshRole): HoverTarget | null => {
+        if (e.instanceId === undefined) return null;
+        const numericId = ids[role][e.instanceId];
+        if (numericId === undefined) return null;
+        return { ...HOVER_TARGETS[role], numericId, role };
+    }, [ids]);
+
     const handlePointerMove = useCallback((e: ThreeEvent<PointerEvent>, role: MeshRole) => {
         e.stopPropagation();
-        if (e.instanceId === undefined) return;
-        // The instance index is only a position in the mesh. The id recorded for that position is what names the entity.
-        const numericId = ids[role][e.instanceId];
-        if (numericId === undefined) return;
-        const { kind, isDead } = HOVER_TARGETS[role];
-        engine.getEntityByNumericId(kind, numericId, isDead)
-            .then(entity => {
-                if (entity) {
-                    setHoveredEntity(entity);
-                    setTooltipPos({ x: e.clientX, y: e.clientY });
-                }
-            })
-            .catch((err: unknown) => { console.error('Failed to get entity info:', err); });
-    }, [engine, ids, setHoveredEntity, setTooltipPos]);
+        const target = targetFromEvent(e, role);
+        if (!target) return;
+        session.move(target);
+        setTooltipPos({ x: e.clientX, y: e.clientY });
+    }, [session, targetFromEvent, setTooltipPos]);
 
-    const handlePointerOut = useCallback(() => { setHoveredEntity(null); }, [setHoveredEntity]);
+    const handlePointerOut = useCallback((e: ThreeEvent<PointerEvent>, role: MeshRole) => {
+        const target = targetFromEvent(e, role);
+        if (target) session.leave(target);
+        else session.clear();
+    }, [session, targetFromEvent]);
 
     const { orgGeo, foodGeo } = useEntityGeometries();
 
     return (
         <group>
-            <OrganismMesh meshRef={preyRef} geo={orgGeo} color={COLORS.prey.base} emissiveIntensity={RENDER.materials.emissiveIntensity.prey} shininess={RENDER.materials.shininess.prey} onPointerMove={(e) => { handlePointerMove(e, 'prey'); }} onPointerOut={handlePointerOut} />
-            <OrganismMesh meshRef={deadPreyRef} geo={orgGeo} color={COLORS.prey.death} emissiveIntensity={0} shininess={RENDER.materials.shininess.dead} onPointerMove={(e) => { handlePointerMove(e, 'deadPrey'); }} onPointerOut={handlePointerOut} />
-            <OrganismMesh meshRef={predRef} geo={orgGeo} color={COLORS.predator.base} emissiveIntensity={RENDER.materials.emissiveIntensity.predator} shininess={RENDER.materials.shininess.predator} onPointerMove={(e) => { handlePointerMove(e, 'pred'); }} onPointerOut={handlePointerOut} />
-            <OrganismMesh meshRef={deadPredRef} geo={orgGeo} color={COLORS.predator.death} emissiveIntensity={0} shininess={RENDER.materials.shininess.dead} onPointerMove={(e) => { handlePointerMove(e, 'deadPred'); }} onPointerOut={handlePointerOut} />
+            <OrganismMesh meshRef={preyRef} geo={orgGeo} color={COLORS.prey.base} emissiveIntensity={RENDER.materials.emissiveIntensity.prey} shininess={RENDER.materials.shininess.prey} onPointerMove={(e) => { handlePointerMove(e, 'prey'); }} onPointerOut={(e) => { handlePointerOut(e, 'prey'); }} />
+            <OrganismMesh meshRef={deadPreyRef} geo={orgGeo} color={COLORS.prey.death} emissiveIntensity={0} shininess={RENDER.materials.shininess.dead} onPointerMove={(e) => { handlePointerMove(e, 'deadPrey'); }} onPointerOut={(e) => { handlePointerOut(e, 'deadPrey'); }} />
+            <OrganismMesh meshRef={predRef} geo={orgGeo} color={COLORS.predator.base} emissiveIntensity={RENDER.materials.emissiveIntensity.predator} shininess={RENDER.materials.shininess.predator} onPointerMove={(e) => { handlePointerMove(e, 'pred'); }} onPointerOut={(e) => { handlePointerOut(e, 'pred'); }} />
+            <OrganismMesh meshRef={deadPredRef} geo={orgGeo} color={COLORS.predator.death} emissiveIntensity={0} shininess={RENDER.materials.shininess.dead} onPointerMove={(e) => { handlePointerMove(e, 'deadPred'); }} onPointerOut={(e) => { handlePointerOut(e, 'deadPred'); }} />
 
-            <instancedMesh ref={foodRef} args={[foodGeo, undefined, RENDER.maxInstances * RENDER.foodInstanceMultiplier]} frustumCulled={false} onPointerMove={(e) => { handlePointerMove(e, 'food'); }} onPointerOut={handlePointerOut}>
+            <instancedMesh ref={foodRef} args={[foodGeo, undefined, RENDER.maxInstances * RENDER.foodInstanceMultiplier]} frustumCulled={false} onPointerMove={(e) => { handlePointerMove(e, 'food'); }} onPointerOut={(e) => { handlePointerOut(e, 'food'); }}>
                 <meshPhongMaterial color={COLORS.food.base} emissive={COLORS.food.base} emissiveIntensity={RENDER.materials.emissiveIntensity.food} shininess={RENDER.materials.shininess.food} transparent />
             </instancedMesh>
         </group>

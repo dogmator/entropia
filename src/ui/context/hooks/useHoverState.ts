@@ -1,11 +1,11 @@
 import { isFood } from '@ui/utils/EntityTypeGuards';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { logger } from '@/core';
 import type { IEntityInfo } from '@/shared/interfaces/IEntityInfo';
 
 const logHoverEvent = (entity: IEntityInfo, previousEntity: IEntityInfo | null): void => {
-    if (entity === previousEntity) return;
+    if (entity.id === previousEntity?.id && entity.type === previousEntity.type) return;
 
     const isFoodItem = isFood(entity);
     const isDead = 'isDead' in entity && (entity as { isDead?: boolean }).isDead === true;
@@ -41,11 +41,13 @@ export interface HoverState {
 export const useHoverState = (): HoverState => {
     const [hoveredEntity, setHoveredEntityState] = useState<IEntityInfo | null>(null);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const lastHoveredRef = useRef<IEntityInfo | null>(null);
 
     const setHoveredEntity = useCallback((entity: IEntityInfo | null) => {
-        if (entity) logHoverEvent(entity, hoveredEntity);
+        if (entity) logHoverEvent(entity, lastHoveredRef.current);
+        lastHoveredRef.current = entity;
         setHoveredEntityState(entity);
-    }, [hoveredEntity]);
+    }, []);
 
     const isTooltipVisible = !!hoveredEntity;
 

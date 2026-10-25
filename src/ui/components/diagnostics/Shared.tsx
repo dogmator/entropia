@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 
 import { DIAGNOSTICS_CONFIG } from '@/config';
+import { PerformanceHelpers } from '@/core/utils/PerformanceUtils.utils';
 import { t } from '@/i18n';
 import type { PerformanceMetrics } from '@/types';
 
@@ -60,6 +61,13 @@ const AreaChartContent = ({ data, lines }: { data: Partial<PerformanceMetrics>[]
         <YAxis hide />
         <Tooltip
             contentStyle={{ backgroundColor: '#000', border: '1px solid #222', borderRadius: '8px' }}
+            labelFormatter={(value: unknown) => `Time: ${new Date(Number(value)).toLocaleTimeString()}`}
+            formatter={(value, name) => [
+                lines.some(line => line.dataKey === 'memory') && typeof value === 'number'
+                    ? PerformanceHelpers.format.formatBytes(value)
+                    : value,
+                name
+            ]}
         />
         {lines.map((line) => (
             <Area
@@ -70,6 +78,7 @@ const AreaChartContent = ({ data, lines }: { data: Partial<PerformanceMetrics>[]
                 stroke={line.stroke}
                 fill={line.stroke}
                 fillOpacity={CHART_FILL_OPACITY}
+                isAnimationActive={false}
             />
         ))}
     </AreaChart>
@@ -93,6 +102,7 @@ const LineChartContent = ({ data, lines }: { data: Partial<PerformanceMetrics>[]
                 stroke={line.stroke}
                 strokeWidth={CHART_STROKE_WIDTH}
                 dot={false}
+                isAnimationActive={false}
             />
         ))}
     </LineChart>
@@ -103,19 +113,21 @@ export const PerformanceChart = React.memo(({
     data,
     lines,
     area = false,
-    height = CHART_HEIGHT
+    height = CHART_HEIGHT,
+    emptyMessage = t.diagnostics.dataUnavailable
 }: {
     title: string;
     data: Partial<PerformanceMetrics>[];
     lines: ChartLineProps[];
     area?: boolean;
     height?: number;
+    emptyMessage?: string;
 }) => (
     <div className="bg-white/5 rounded-xl p-4 border border-white/10">
         <h3 className="text-sm font-medium text-gray-300 mb-4">{title}</h3>
         {data.length === 0 ? (
             <div className="h-[200px] flex items-center justify-center text-xs text-gray-500 border border-dashed border-white/10 rounded-lg">
-                {t.diagnostics.dataUnavailable}
+                {emptyMessage}
             </div>
         ) : (
             <ResponsiveContainer width="100%" height={height}>
