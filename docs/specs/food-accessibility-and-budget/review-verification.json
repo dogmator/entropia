@@ -1,0 +1,53 @@
+{
+  "status": "PASS",
+  "commit": "afad92b84c9b547802a5a785588ba112a1a05331",
+  "baselineSourceCommit": "afad92b84c9b547802a5a785588ba112a1a05331",
+  "requirementCount": 61,
+  "counts": {
+    "R": 8,
+    "B": 8,
+    "I": 8,
+    "A": 14,
+    "D": 6,
+    "P": 5,
+    "T": 12
+  },
+  "recorded": {
+    "1": [
+      "37f34d1d",
+      "ef5ec3c7"
+    ],
+    "4242": [
+      "d33c81bd",
+      "ce63bed1"
+    ],
+    "3735928559": [
+      "b2ec13f5",
+      "50f4f152"
+    ]
+  },
+  "scripts": {
+    "depcruise": "depcruise src --config .dependency-cruiser.mjs --output-type err",
+    "check:dead-code": "knip",
+    "check:strict": "pnpm run typecheck && pnpm run lint && pnpm run check:canon && pnpm run test --run --coverage && pnpm run build"
+  },
+  "maxOrganismsAtScale1": 400,
+  "genomeInventory": [
+    "src/types.ts",
+    "src/config/genetics.constants.ts",
+    "src/config/reproduction.constants.ts",
+    "src/simulation/Entity.ts",
+    "src/simulation/MathUtils.utils.ts",
+    "src/simulation/systems/Reproduction.system.ts",
+    "src/simulation/services/Persistence.service.ts",
+    "src/simulation/engine/Engine.ts",
+    "src/simulation/engine/EngineProxy.ts",
+    "src/simulation/engine/EntityQuery.service.ts",
+    "src/simulation/interfaces/IPersistableEngine.ts",
+    "src/simulation/interfaces/ISimulationEngine.ts",
+    "src/simulation/WorkerMessages.ts",
+    "src/simulation/services/Spawn.service.ts",
+    "src/simulation/engine/TickLoop.service.ts"
+  ],
+  "requirementCheckScope": "structure-only; checks ID count and uniqueness, not semantic correctness"
+}

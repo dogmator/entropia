@@ -1,0 +1,18 @@
+{
+  "status": "PASS",
+  "positive": {
+    "expectedStatus": "PASS",
+    "observedStatus": "PASS",
+    "baselineDirtyIgnoredCount": 19,
+    "genomeHashesChecked": 15
+  },
+  "negative": {
+    "expectedStatus": "FAIL",
+    "observedStatus": "FAIL",
+    "untrackedContentsScanned": 1,
+    "errors": [
+      "Forbidden AI content in untracked file: src/simulation/systems/__tests__/FoodScopeUntrackedNegative.test.ts (UtilityAI)"
+    ]
+  },
+  "note": "Temporary untracked file removed after test. Positive case uses unapproved synthetic dirty manifest; not M6 approval."
+}

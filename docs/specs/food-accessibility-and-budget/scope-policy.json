@@ -1,0 +1,48 @@
+{
+  "genomeInventory": [
+    "src/types.ts",
+    "src/config/genetics.constants.ts",
+    "src/config/reproduction.constants.ts",
+    "src/simulation/Entity.ts",
+    "src/simulation/MathUtils.utils.ts",
+    "src/simulation/systems/Reproduction.system.ts",
+    "src/simulation/services/Persistence.service.ts",
+    "src/simulation/engine/Engine.ts",
+    "src/simulation/engine/EngineProxy.ts",
+    "src/simulation/engine/EntityQuery.service.ts",
+    "src/simulation/interfaces/IPersistableEngine.ts",
+    "src/simulation/interfaces/ISimulationEngine.ts",
+    "src/simulation/WorkerMessages.ts",
+    "src/simulation/services/Spawn.service.ts",
+    "src/simulation/engine/TickLoop.service.ts"
+  ],
+  "allowedExact": [
+    "src/simulation/systems/Behavior.system.ts",
+    "src/simulation/managers/GridManager.manager.ts",
+    "src/simulation/SpatialHashGrid.service.ts",
+    "src/simulation/services/Spawn.service.ts",
+    "src/simulation/services/ResourceStock.service.ts",
+    "src/simulation/services/Persistence.service.ts",
+    "src/simulation/services/FoodAnomalyGuard.guard.ts",
+    "src/simulation/engine/Engine.ts",
+    "src/simulation/engine/TickLoop.service.ts",
+    "src/simulation/utils/AnomalyValidation.ts",
+    "src/simulation/services/FoodAccessibility.policy.ts",
+    "src/simulation/services/FoodBudget.policy.ts",
+    "src/simulation/interfaces/IFoodAccessibility.ts",
+    "src/simulation/interfaces/IFoodBudget.ts",
+    "src/simulation/interfaces/IActionSelection.ts",
+    "src/simulation/systems/ActionSelection.policy.ts"
+  ],
+  "allowedPatterns": [
+    "^src/simulation/(?:[^/]+/)*__tests__/(?:Food|Behavior|Spawn|Resource|Budget|Accessibility)[^/]*\\.test\\.ts$",
+    "^tests/integration/(?:food|Food|behavior|Behavior)[^/]*\\.test\\.ts$"
+  ],
+  "genomeStrict": [
+    "src/types.ts",
+    "src/config/genetics.constants.ts",
+    "src/config/reproduction.constants.ts",
+    "src/simulation/Entity.ts",
+    "src/simulation/systems/Reproduction.system.ts"
+  ]
+}
