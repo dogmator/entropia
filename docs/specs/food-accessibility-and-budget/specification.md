@@ -1,597 +1,597 @@
-# SPEC-FOOD-001 — Доступность пищи и пищевой бюджет
+# SPEC-FOOD-001 — Food Accessibility and Food Budget
 
-**Статус:** требования утверждены 2026-10-25.
-**Реализация:** не начата.
-**Решения D-01…D-06:** архитектурно выбраны в [FOOD-ADR-001](./architecture-contract.md) после трёх ответов оператора.
-**Разрешение на реализацию:** не получено.
-**Версия:** 1.3-local; проект проверки рисков от 2026-10-25.
-**План:** [execution-plan.md](./execution-plan.md).
+**Status:** requirements approved 2026-10-25.
+**Implementation:** not started.
+**Decisions D-01…D-06:** architecturally selected in [FOOD-ADR-001](./architecture-contract.md) after three operator responses.
+**Implementation permission:** not received.
+**Version:** 1.3-local; risk-verification draft of 2026-10-25.
+**Plan:** [execution-plan.md](./execution-plan.md).
 
-**Публикация:** ЗАПРЕЩЕНА до утверждённого английского перевода.
+**Publication:** PROHIBITED until the English translation is approved.
 
-## 1. Цель и границы
+## 1. Purpose and Boundaries
 
-Обеспечьте потребление доступной пищи при наличии недоступной пищи.
+Ensure consumption of accessible food in the presence of inaccessible food.
 
-Сохраните размещение пищи внутри непроходимой аномалии.
+Preserve the placement of food inside an impassable anomaly.
 
-Сохраните непроходимость аномалии.
+Preserve the impassability of the anomaly.
 
-Сохраните `maxFood` как общий лимит объектов пищи.
+Preserve `maxFood` as the global limit on food objects.
 
-Разделите выбор пищевой цели и пищевой бюджет.
+Separate food target selection from the food budget.
 
-Сохраните возможность будущего расширения до Ecological Utility Evolution.
+Preserve the possibility of future extension to Ecological Utility Evolution.
 
-Не изменяйте физику без отдельного решения.
+Do not change physics without a separate decision.
 
-Не реализуйте Utility AI в рамках исправления.
+Do not implement Utility AI as part of the fix.
 
-## 1.1. Язык документации перед публикацией
+## 1.1. Documentation Language Before Publication
 
-Сохраняйте локальную русскую спецификацию как рабочий оригинал.
+Keep the local Russian specification as the working original.
 
-Переведите спецификацию на английский до публичной публикации.
+Translate the specification into English before public publication.
 
-Переведите план выполнения на английский до публичной публикации.
+Translate the execution plan into English before public publication.
 
-Переведите технические отчёты перед их публичной публикацией.
+Translate the technical reports before their public publication.
 
-Проверьте идентичность ID, формул, инвариантов и критериев в переводе.
+Verify the identity of IDs, formulas, invariants, and criteria in the translation.
 
-Получите отдельное утверждение оператора на английский перевод.
+Obtain a separate operator approval of the English translation.
 
-Не выполняйте push или PR до выполнения языкового барьера.
+Do not perform a push or PR until the language barrier is met.
 
-Не считайте утверждение русской спецификации разрешением на публикацию.
+Do not treat approval of the Russian specification as permission to publish.
 
-## 2. Единые термины
+## 2. Unified Terms
 
-| Термин | Значение |
+| Term | Meaning |
 |---|---|
-| `Food` | Объект пищи с конечным запасом энергии. |
-| `Anomaly` | Сферическая область, ограничивающая движение организма. |
-| `Obstacle` | Непроходимая сферическая сущность `Obstacle` или непроходимая зона `Anomaly`. |
-| `PathClearance` | Минимальный зазор между центром организма и поверхностью препятствия. |
-| `FoodCollisionRegion` | Множество положений центра организма с пересечением поверхности пищи по FOOD-I08. |
-| `AccessibilityResult` | Результат `REACHABLE`, `BLOCKED` или `UNKNOWN`. |
-| `ReachableFood` | Пища с результатом `REACHABLE` для конкретного организма. |
-| `TrappedFood` | Пища в области, утверждённой решением D-02. Классификация не зависит от организма. |
-| `FoodCapacity` | Максимальное количество объектов пищи во всём мире. Значение задаёт `maxFood`. |
-| `FoodAccessibilityPolicy` | Правило проверки доступности пищевой цели для организма. |
-| `FoodBudgetPolicy` | Правило допуска новой пищи при действующих лимитах. |
-| `ActionSelectionPolicy` | Контракт выбора действия организма. |
-| `Ecological Utility Evolution` | Перспективная модель Utility AI с наследуемыми параметрами и естественным отбором. |
+| `Food` | A food object with a finite energy reserve. |
+| `Anomaly` | A spherical region restricting organism movement. |
+| `Obstacle` | An impassable spherical `Obstacle` entity or an impassable `Anomaly` zone. |
+| `PathClearance` | The minimum clearance between the organism's center and the obstacle surface. |
+| `FoodCollisionRegion` | The set of organism-center positions that intersect the food surface per FOOD-I08. |
+| `AccessibilityResult` | The result `REACHABLE`, `BLOCKED`, or `UNKNOWN`. |
+| `ReachableFood` | Food with the result `REACHABLE` for a specific organism. |
+| `TrappedFood` | Food in the region approved by decision D-02. The classification does not depend on the organism. |
+| `FoodCapacity` | The maximum number of food objects in the entire world. The value is set by `maxFood`. |
+| `FoodAccessibilityPolicy` | The rule for checking the accessibility of a food target for an organism. |
+| `FoodBudgetPolicy` | The rule for admitting new food under the active limits. |
+| `ActionSelectionPolicy` | The contract for an organism's action selection. |
+| `Ecological Utility Evolution` | A prospective Utility AI model with heritable parameters and natural selection. |
 
-`ReachableFood` зависит от организма.
+`ReachableFood` depends on the organism.
 
-`TrappedFood` относится к размещению пищи.
+`TrappedFood` relates to food placement.
 
-Не используйте `ReachableFood` для подсчёта общего пищевого бюджета.
+Do not use `ReachableFood` to count the global food budget.
 
-Не считайте принадлежность пищи к аномалии готовой проверкой индивидуального пути.
+Do not treat food's membership in an anomaly as a completed check of the individual path.
 
-Используйте термин `Obstacle` во всех требованиях об изменении препятствий.
+Use the term `Obstacle` in all requirements about changing obstacles.
 
-Не считайте `UNKNOWN` подтверждением доступности.
+Do not treat `UNKNOWN` as confirmation of accessibility.
 
-### 2.1. Контракт доступности
+### 2.1. Accessibility Contract
 
-Проверяйте путь центра организма с учётом `PathClearance` и фактического `worldSize`.
+Check the path of the organism's center taking into account `PathClearance` and the actual `worldSize`.
 
-Используйте `FoodCollisionRegion` как конечную область допустимого пути.
+Use `FoodCollisionRegion` as the terminal region of an admissible path.
 
-Определяйте `FoodCollisionRegion` через `toroidalDistanceSq < (organism.radius + food.radius)^2`.
+Define `FoodCollisionRegion` via `toroidalDistanceSq < (organism.radius + food.radius)^2`.
 
-Используйте тот же строгий оператор `<`, что и `CollisionSystem.isColliding()`.
+Use the same strict operator `<` as `CollisionSystem.isColliding()`.
 
-Проверяйте согласованность `FoodCollisionRegion` и FOOD-I08 на каждом поддерживаемом масштабе.
+Verify the consistency of `FoodCollisionRegion` and FOOD-I08 at every supported scale.
 
-Не объявляйте проверку согласованности успешной при расхождении геометрии.
+Do not declare the consistency check successful when the geometry diverges.
 
-Считайте размеры мира `0.5` и `2` заблокированными до исправления физики.
+Treat world sizes `0.5` and `2` as blocked until the physics is fixed.
 
-Получите отдельное разрешение на изменение `CollisionSystem.isColliding()`.
+Obtain separate permission to change `CollisionSystem.isColliding()`.
 
-Записывайте обнаруженное расхождение в отчёт FOOD-T08.
+Record the discovered discrepancy in the FOOD-T08 report.
 
-Сохраняйте фактическую проверку укуса по FOOD-I08.
+Preserve the actual bite check per FOOD-I08.
 
-Не считайте достижение области автоматическим укусом.
+Do not treat reaching the region as an automatic bite.
 
-Применяйте одну тороидальную метрику для выбора цели и проверки пути.
+Apply a single toroidal metric for target selection and path checking.
 
-Считайте результат `BLOCKED` основанием для исключения пищевой цели.
+Treat the `BLOCKED` result as grounds for excluding a food target.
 
-Считайте результат `UNKNOWN` основанием для исключения пищевой цели.
+Treat the `UNKNOWN` result as grounds for excluding a food target.
 
-Определите `REACHABLE` как существование допустимого пути до области столкновения с пищей.
+Define `REACHABLE` as the existence of an admissible path to the food collision region.
 
-Требуйте отсутствие пересечения препятствий вдоль допустимого пути.
+Require the absence of obstacle intersection along the admissible path.
 
-Учитывайте радиус организма вдоль пути.
+Account for the organism radius along the path.
 
-Считайте путь допустимым только по утверждённому правилу D-01.
+Treat a path as admissible only by the approved D-01 rule.
 
-Определите `BLOCKED` как доказанное отсутствие допустимого пути.
+Define `BLOCKED` as the proven absence of an admissible path.
 
-Определите `UNKNOWN` как отсутствие доказательства для обоих результатов.
+Define `UNKNOWN` as the absence of proof for both results.
 
-Укажите в D-01 множество допустимых маршрутов.
+Specify in D-01 the set of admissible routes.
 
-Не считайте этот критерий окончательно утверждённым до D-01.
+Do not treat this criterion as finally approved before D-01.
 
-Укажите в D-01 допустимые маршруты и критерий существования пути.
+Specify in D-01 the admissible routes and the path-existence criterion.
 
-Укажите в D-01 правило `PathClearance` для организма конкретного радиуса.
+Specify in D-01 the `PathClearance` rule for an organism of a specific radius.
 
-Укажите в D-01 поведение при отсутствии маршрута.
+Specify in D-01 the behavior when no route exists.
 
-Не изменяйте правила движения при определении доступности.
+Do not change the movement rules when defining accessibility.
 
-## 3. Основание
+## 3. Basis
 
-В `Behavior.system.ts` организм выбирает ближайшую пищу без проверки доступности.
+In `Behavior.system.ts`, the organism selects the nearest food without checking accessibility.
 
-В `TickLoop.service.ts` спавн прекращается при `food.size >= maxFood`.
+In `TickLoop.service.ts`, spawning stops when `food.size >= maxFood`.
 
-В `Spawn.service.ts` оазис допускает размещение пищи внутри сферы.
+In `Spawn.service.ts`, the oasis permits food placement inside the sphere.
 
-В `Collision.system.ts` сфера остаётся непроходимой.
+In `Collision.system.ts`, the sphere remains impassable.
 
-Контрольные эксперименты с seed `1` и `4242` подтвердили локальную блокировку выбора доступной пищи.
+Control experiments with seeds `1` and `4242` confirmed a local blocking of accessible food selection.
 
-Удалённый организм продолжал питаться.
+A distant organism continued to feed.
 
-В трёх естественных прогонах на тике 1200 внутри оазиса находилось 170–189 объектов пищи из 400.
+In three natural runs at tick 1200, between 170 and 189 of 400 food objects were inside the oasis.
 
-| Seed | Масштаб | Режим `ResourceStock` | Тик | Всего пищи | Внутри оазиса | Вне оазиса |
+| Seed | Scale | `ResourceStock` mode | Tick | Total food | Inside oasis | Outside oasis |
 |---|---:|---|---:|---:|---:|---:|
-| `1` | 1 | выключен | 1200 | 400 | 170 | 230 |
-| `4242` | 1 | выключен | 1200 | 400 | 174 | 226 |
-| `3735928559` | 1 | выключен | 1200 | 400 | 189 | 211 |
+| `1` | 1 | off | 1200 | 400 | 170 | 230 |
+| `4242` | 1 | off | 1200 | 400 | 174 | 226 |
+| `3735928559` | 1 | off | 1200 | 400 | 189 | 211 |
 
-Конфигурация: настройки `SimulationEngine` по умолчанию; `maxFood=400`.
+Configuration: default `SimulationEngine` settings; `maxFood=400`.
 
-Классификация в измерениях: центр пищи внутри сферы `oasis_center` радиуса 90.
+Classification in the measurements: the food center is inside the `oasis_center` sphere of radius 90.
 
-Не считайте эти измерения проверкой будущей классификации D-02.
+Do not treat these measurements as verification of the future D-02 classification.
 
-Измерения получены из локальных прогонов до исправления.
+The measurements were obtained from local runs before the fix.
 
-Постоянный файл с первичными измерениями в предыдущем исследовании не создавался.
+A permanent file with the primary measurements was not created in the previous study.
 
-Повторите измерения в M0 с сохранением доказательств.
+Repeat the measurements in M0 with preservation of the evidence.
 
-Удаление запертой пищи повысило суммарное поглощение энергии в парных экспериментах.
+Removal of trapped food increased the total energy absorption in paired experiments.
 
-Глобальное отключение механизма укусов не подтверждено.
+A global disabling of the bite mechanism has not been confirmed.
 
-## 4. Требования к поведению
+## 4. Behavior Requirements
 
-### 4.1. Выбор пищевой цели
+### 4.1. Food Target Selection
 
-| ID | Требование |
+| ID | Requirement |
 |---|---|
-| FOOD-R01 | Проверяйте доступность рассматриваемой пищевой цели. |
-| FOOD-R02 | Исключайте недоступную пищу из кандидатов. |
-| FOOD-R03 | Сохраняйте недоступную пищу в мире. |
-| FOOD-R04 | Пересматривайте цель на первом тике после изменения положения организма или `Obstacle`. |
-| FOOD-R05 | Выбирайте доступную пищу при наличии более близкой недоступной пищи. |
-| FOOD-R06 | Сохраняйте независимый выбор цели для каждого организма. |
-| FOOD-R07 | Прекращайте преследование цели на текущем тике при результате `BLOCKED` или `UNKNOWN`. |
-| FOOD-R08 | Сохраняйте механизм укусов без доказанной причины для изменения. |
+| FOOD-R01 | Check the accessibility of the food target under consideration. |
+| FOOD-R02 | Exclude inaccessible food from the candidates. |
+| FOOD-R03 | Keep inaccessible food in the world. |
+| FOOD-R04 | Re-evaluate the target on the first tick after a change in the organism's position or an `Obstacle`. |
+| FOOD-R05 | Select accessible food when nearer inaccessible food exists. |
+| FOOD-R06 | Keep target selection independent for each organism. |
+| FOOD-R07 | Stop pursuing the target on the current tick on a `BLOCKED` or `UNKNOWN` result. |
+| FOOD-R08 | Preserve the bite mechanism absent a proven reason to change it. |
 
-Не используйте расстояние до пищи как единственный критерий доступности.
+Do not use distance to food as the sole accessibility criterion.
 
-Используйте фактический `worldSize` в геометрических расчётах.
+Use the actual `worldSize` in geometric computations.
 
-Считайте допустимую задержку FOOD-R04 равной одному тику симуляции.
+Treat the permissible delay of FOOD-R04 as one simulation tick.
 
-Применяйте изменение `Obstacle` до пересмотра цели следующего тика.
+Apply an `Obstacle` change before the target re-evaluation of the next tick.
 
-Не сохраняйте устаревшую цель после следующего тика.
+Do not retain a stale target after the next tick.
 
-Примените решение D-01 до запуска M1.
+Apply decision D-01 before starting M1.
 
-Не запускайте M2 до утверждения D-01.
+Do not start M2 before approval of D-01.
 
-### 4.1.1. Правила для FOOD-R07
+### 4.1.1. Rules for FOOD-R07
 
-Сбрасывайте текущую цель при результате `BLOCKED`.
+Reset the current target on a `BLOCKED` result.
 
-Сбрасывайте текущую цель при результате `UNKNOWN`.
+Reset the current target on an `UNKNOWN` result.
 
-Сбрасывайте текущую цель при удалении пищевого объекта.
+Reset the current target on removal of the food object.
 
-Выбирайте следующую доступную цель в этом же тике.
+Select the next accessible target on the same tick.
 
-Устанавливайте `IDLE` при отсутствии доступной пищевой цели.
+Set `IDLE` when no accessible food target exists.
 
-Не сохраняйте силу преследования прежней цели после сброса.
+Do not retain the pursuit force of the former target after the reset.
 
-### 4.2. Пищевой бюджет
+### 4.2. Food Budget
 
-| ID | Требование |
+| ID | Requirement |
 |---|---|
-| FOOD-B01 | Сохраняйте общий жёсткий лимит `maxFood`. |
-| FOOD-B02 | Резервируйте часть `maxFood` для пищи вне областей `TrappedFood`, утверждённых D-02. |
-| FOOD-B03 | Ограничивайте `TrappedFood` по классификации D-02 внутри `maxFood`. |
-| FOOD-B04 | Сохраняйте возможность размещения пищи внутри аномалии. |
-| FOOD-B05 | Сохраняйте бюджет после экспорта и импорта мира. |
-| FOOD-B06 | Определите размеры бюджетов экспериментально. |
-| FOOD-B07 | Применяйте классификацию D-02 и одно правило допуска ко всем стратегиям спавна. |
-| FOOD-B08 | Определите обработку старых миров с превышенным бюджетом до миграции. |
+| FOOD-B01 | Preserve the global hard limit `maxFood`. |
+| FOOD-B02 | Reserve part of `maxFood` for food outside the `TrappedFood` regions approved by D-02. |
+| FOOD-B03 | Limit `TrappedFood` per the D-02 classification within `maxFood`. |
+| FOOD-B04 | Preserve the ability to place food inside an anomaly. |
+| FOOD-B05 | Preserve the budget after world export and import. |
+| FOOD-B06 | Determine the budget sizes experimentally. |
+| FOOD-B07 | Apply the D-02 classification and a single admission rule to all spawn strategies. |
+| FOOD-B08 | Define the handling of old worlds with an exceeded budget before migration. |
 
-Не гарантируйте внешний спавн при заполненном внешнем бюджете.
+Do not guarantee outer spawning when the outer budget is full.
 
-Не назначайте числовые квоты без решения D-03.
+Do not assign numeric quotas without decision D-03.
 
-Не удаляйте существующую пищу автоматически без решения D-04.
+Do not delete existing food automatically without decision D-04.
 
-### 4.2.1. Баланс лимитов
+### 4.2.1. Limit Balance
 
-Обозначьте `C=maxFood` как общий лимит.
+Denote `C=maxFood` as the global limit.
 
-Обозначьте `C_trapped` как лимит категории `TrappedFood` по D-02.
+Denote `C_trapped` as the limit of the `TrappedFood` category per D-02.
 
-Применяйте D-02 к FOOD-B02, FOOD-B03, FOOD-B07 и FOOD-B08.
+Apply D-02 to FOOD-B02, FOOD-B03, FOOD-B07, and FOOD-B08.
 
-Обозначьте `C_outer` как лимит пищи вне `TrappedFood` по D-02.
+Denote `C_outer` as the limit of food outside `TrappedFood` per D-02.
 
-Обеспечьте `C_trapped + C_outer = C`.
+Ensure `C_trapped + C_outer = C`.
 
-Обеспечьте `N_trapped <= C_trapped` при штатном допуске пищи.
+Ensure `N_trapped <= C_trapped` under regular food admission.
 
-Обеспечьте `N_outer <= C_outer` при штатном допуске пищи.
+Ensure `N_outer <= C_outer` under regular food admission.
 
-Обеспечьте `N_trapped + N_outer <= C` при штатном допуске пищи.
+Ensure `N_trapped + N_outer <= C` under regular food admission.
 
-Определите целочисленное округление лимитов в D-03.
+Define the integer rounding of the limits in D-03.
 
-Пересчитывайте оба лимита при изменении `maxFood`.
+Recompute both limits when `maxFood` changes.
 
-Проверяйте оба лимита после изменения `maxFood`.
+Verify both limits after a `maxFood` change.
 
-Проверяйте целочисленность лимитов при нечётном `maxFood`.
+Verify that the limits are integers when `maxFood` is odd.
 
-Определите параметры `C_trapped` и `C_outer` в D-03.
+Define the parameters `C_trapped` and `C_outer` in D-03.
 
-Примените решение D-04 к существующим мирам с нарушенным балансом.
+Apply decision D-04 to existing worlds with a violated balance.
 
-Не переносите свободную ёмкость между бюджетами до отдельного решения.
+Do not transfer free capacity between budgets before a separate decision.
 
-### 4.2.2. Стратегии спавна для FOOD-B07
+### 4.2.2. Spawn Strategies for FOOD-B07
 
-Применяйте `FoodBudgetPolicy` к `FoodSpawnStrategy.RANDOM`.
+Apply `FoodBudgetPolicy` to `FoodSpawnStrategy.RANDOM`.
 
-Применяйте `FoodBudgetPolicy` к `FoodSpawnStrategy.UNIFORM`.
+Apply `FoodBudgetPolicy` to `FoodSpawnStrategy.UNIFORM`.
 
-Применяйте `FoodBudgetPolicy` к `FoodSpawnStrategy.CLUSTERED`.
+Apply `FoodBudgetPolicy` to `FoodSpawnStrategy.CLUSTERED`.
 
-Применяйте `FoodBudgetPolicy` к `FoodSpawnStrategy.OASIS_PREFERRED`.
+Apply `FoodBudgetPolicy` to `FoodSpawnStrategy.OASIS_PREFERRED`.
 
-Проверяйте бюджет перед оплатой единиц `ResourceStock`.
+Check the budget before charging `ResourceStock` units.
 
-Не тратьте `ResourceStock` при отказе `FoodBudgetPolicy`.
+Do not spend `ResourceStock` when `FoodBudgetPolicy` rejects.
 
-Сохраняйте совместимость с опциональным `ResourceStock`.
+Preserve compatibility with the optional `ResourceStock`.
 
-### 4.3. Инварианты
+### 4.3. Invariants
 
-| ID | Инвариант |
+| ID | Invariant |
 |---|---|
-| FOOD-I01 | Недоступная пища не блокирует укус доступной пищи другим организмом. |
-| FOOD-I02 | Пища внутри непроходимой аномалии допустима. |
-| FOOD-I03 | Непроходимость аномалии сохраняется. |
-| FOOD-I04 | Общий допуск не превышает `maxFood`. |
-| FOOD-I05 | Выбор цели не изменяет глобальный пищевой бюджет. |
-| FOOD-I06 | Пищевой бюджет не подменяет выбор цели. |
-| FOOD-I07 | Выбор цели организма не изменяет цель другого организма. |
-| FOOD-I08 | Укус требует столкновения с пищей. |
+| FOOD-I01 | Inaccessible food does not block another organism's bite of accessible food. |
+| FOOD-I02 | Food inside an impassable anomaly is permitted. |
+| FOOD-I03 | The impassability of the anomaly is preserved. |
+| FOOD-I04 | Total admission does not exceed `maxFood`. |
+| FOOD-I05 | Target selection does not change the global food budget. |
+| FOOD-I06 | The food budget does not substitute for target selection. |
+| FOOD-I07 | An organism's target selection does not change another organism's target. |
+| FOOD-I08 | A bite requires collision with the food. |
 
-## 5. SOLID, DRY и архитектура
+## 5. SOLID, DRY, and Architecture
 
-| ID | Принцип | Требование |
+| ID | Principle | Requirement |
 |---|---|---|
-| FOOD-A01 | SRP | Отделите проверку доступности от выбора действия. |
-| FOOD-A02 | SRP | Отделите пищевой бюджет от поведения организмов. |
-| FOOD-A03 | OCP | Обеспечьте замену алгоритма выбора действия без изменения физики. |
-| FOOD-A04 | LSP | Используйте один поведенческий контракт для каждой реализации. |
-| FOOD-A05 | ISP | Разделите наблюдение, выбор действия и исполнение действия. |
-| FOOD-A06 | DIP | Подключайте поведенческую стратегию через минимальный контракт. |
-| FOOD-A07 | DRY | Используйте единое геометрическое правило доступности. |
-| FOOD-A08 | DRY | Используйте единое правило допуска пищи. |
-| FOOD-A09 | Isolation | Храните изменяемое поведенческое состояние отдельно для каждого организма. |
-| FOOD-A10 | Evolution | Предусмотрите наследуемые поведенческие параметры в будущем геноме. |
-| FOOD-A11 | Persistence | Предусмотрите версионирование будущих параметров генома. |
-| FOOD-A12 | Performance | Используйте пространственный индекс для пищевых кандидатов. |
-| FOOD-A13 | Semantics | Разделите доступность цели и классификацию бюджета. |
-| FOOD-A14 | Testing | Используйте общие контрактные тесты для поведенческих стратегий. |
+| FOOD-A01 | SRP | Separate the accessibility check from action selection. |
+| FOOD-A02 | SRP | Separate the food budget from organism behavior. |
+| FOOD-A03 | OCP | Ensure the action selection algorithm can be replaced without changing physics. |
+| FOOD-A04 | LSP | Use a single behavioral contract for every implementation. |
+| FOOD-A05 | ISP | Separate observation, action selection, and action execution. |
+| FOOD-A06 | DIP | Plug in the behavioral strategy through a minimal contract. |
+| FOOD-A07 | DRY | Use a single geometric accessibility rule. |
+| FOOD-A08 | DRY | Use a single food admission rule. |
+| FOOD-A09 | Isolation | Store mutable behavioral state separately for each organism. |
+| FOOD-A10 | Evolution | Provide for heritable behavioral parameters in the future genome. |
+| FOOD-A11 | Persistence | Provide for versioning of future genome parameters. |
+| FOOD-A12 | Performance | Use a spatial index for food candidates. |
+| FOOD-A13 | Semantics | Separate target accessibility from the budget classification. |
+| FOOD-A14 | Testing | Use shared contract tests for behavioral strategies. |
 
-Соблюдайте направления зависимостей из `CONTRIBUTING.md`.
+Observe the dependency directions from `CONTRIBUTING.md`.
 
-Не добавляйте глобальный изменяемый кеш целей.
+Do not add a global mutable target cache.
 
-Не связывайте `SpawnService` с состоянием отдельного организма.
+Do not couple `SpawnService` to the state of an individual organism.
 
-Не создавайте универсальный AI Framework.
+Do not create a universal AI Framework.
 
-Не добавляйте интерфейс без необходимого контракта.
+Do not add an interface without a required contract.
 
-Не изменяйте геном в текущем исправлении.
+Do not modify the genome in the current fix.
 
-### 5.1. Расширение интеллекта
+### 5.1. Intelligence Extension
 
-Сохраните границу `Observation → ActionSelectionPolicy → Action → Execution`.
+Preserve the boundary `Observation → ActionSelectionPolicy → Action → Execution`.
 
-Сохраните текущую эвристику как начальную реализацию выбора.
+Preserve the current heuristic as the initial selection implementation.
 
-Предусмотрите подключение Utility AI через `ActionSelectionPolicy`.
+Provide for plugging in Utility AI via `ActionSelectionPolicy`.
 
-Предусмотрите наследуемые параметры голода, риска, группового поведения и размножения.
+Provide for heritable parameters of hunger, risk, group behavior, and reproduction.
 
-Сохраните возможность мутации этих параметров.
+Preserve the possibility of mutation of these parameters.
 
-Сохраните естественный отбор через выживание и размножение.
+Preserve natural selection through survival and reproduction.
 
-Не внедряйте память, обучение и коммуникацию в текущем исправлении.
+Do not introduce memory, learning, and communication in the current fix.
 
-Не внедряйте нейроэволюцию в текущем исправлении.
+Do not introduce neuroevolution in the current fix.
 
-## 6. Детерминизм
+## 6. Determinism
 
-| ID | Требование |
+| ID | Requirement |
 |---|---|
-| FOOD-D01 | Используйте генератор случайных чисел конкретного экземпляра мира. |
-| FOOD-D02 | Пересматривайте цель один раз на каждом тике для живого организма. |
-| FOOD-D03 | Выбирайте минимальную оценку; разрешайте равенство по стабильному ID пищи. |
-| FOOD-D04 | Сохраняйте поведение при экспорте и импорте. |
-| FOOD-D05 | Сравнивайте одинаковые seed и начальные состояния. |
-| FOOD-D06 | Анализируйте изменения baseline-фингерпринтов до утверждения. |
+| FOOD-D01 | Use the random number generator of the specific world instance. |
+| FOOD-D02 | Re-evaluate the target once per tick for a living organism. |
+| FOOD-D03 | Select the minimum score; resolve ties by stable food ID. |
+| FOOD-D04 | Preserve behavior across export and import. |
+| FOOD-D05 | Compare identical seeds and initial states. |
+| FOOD-D06 | Analyze changes in baseline fingerprints before approval. |
 
-Не используйте время браузера для выбора цели.
+Do not use browser time for target selection.
 
-### 6.1. Оценка FOOD-D03
+### 6.1. Score for FOOD-D03
 
-Рассматривайте только пищу с результатом `REACHABLE`.
+Consider only food with the result `REACHABLE`.
 
-Вычисляйте оценку `score=toroidalDistanceSq(organism.position, food.position, worldSize)`.
+Compute the score as `score=toroidalDistanceSq(organism.position, food.position, worldSize)`.
 
-Выбирайте наименьший `score`.
+Select the smallest `score`.
 
-Используйте лексикографический порядок полного `Food.id` при одинаковом `score`.
+Use the lexicographic order of the full `Food.id` when `score` is equal.
 
-Применяйте этот порядок независимо от порядка обхода пространственного индекса.
+Apply this order independently of the traversal order of the spatial index.
 
-Не используйте случайный выбор при равенстве оценок.
+Do not use random selection when scores are equal.
 
-### 6.2. Пересмотр FOOD-D02
+### 6.2. Re-evaluation FOOD-D02
 
-Проверяйте выбранную цель до расчёта силы преследования на каждом тике.
+Check the selected target before computing the pursuit force on every tick.
 
-Пересчитывайте `score` на каждом тике.
+Recompute `score` on every tick.
 
-Применяйте изменения препятствий на следующем тике.
+Apply obstacle changes on the next tick.
 
-Не оставляйте цель после смерти или удаления пищевого объекта.
+Do not retain a target after the death or removal of the food object.
 
-## 7. Производительность
+## 7. Performance
 
-| ID | Требование |
+| ID | Requirement |
 |---|---|
-| FOOD-P01 | Используйте пространственный индекс при поиске пищи. |
-| FOOD-P02 | Исключите полный перебор пищи каждым организмом на каждом тике. |
-| FOOD-P03 | Определите правила сброса кеша до внедрения кеша. |
-| FOOD-P04 | Измеряйте время выбора цели при максимальной популяции. |
-| FOOD-P05 | Сравнивайте время Worker до изменения и после изменения. |
+| FOOD-P01 | Use a spatial index when searching for food. |
+| FOOD-P02 | Exclude full enumeration of food by every organism on every tick. |
+| FOOD-P03 | Define cache invalidation rules before introducing a cache. |
+| FOOD-P04 | Measure target selection time at the maximum population. |
+| FOOD-P05 | Compare Worker time before and after the change. |
 
-Утвердите порог регрессии до приёмки.
+Approve the regression threshold before acceptance.
 
-### 7.1. Контракт кеширования FOOD-P03
+### 7.1. Caching Contract FOOD-P03
 
-Не используйте кеш результатов доступности в первом варианте.
+Do not use an accessibility result cache in the first variant.
 
-Добавляйте кеш только после измерения FOOD-P04.
+Add a cache only after measuring FOOD-P04.
 
-Включайте в ключ кеша ID организма и ID пищи.
+Include the organism ID and food ID in the cache key.
 
-Включайте в ключ кеша положение и радиус организма.
+Include the organism position and radius in the cache key.
 
-Включайте в ключ кеша положение пищи и фактический `worldSize`.
+Include the food position and the actual `worldSize` in the cache key.
 
-Включайте в ключ кеша версию геометрии препятствий.
+Include the obstacle geometry version in the cache key.
 
-Сбрасывайте кеш при изменении положения или радиуса организма.
+Invalidate the cache when the organism's position or radius changes.
 
-Сбрасывайте кеш при изменении пищи.
+Invalidate the cache when the food changes.
 
-Сбрасывайте кеш при изменении препятствий.
+Invalidate the cache when obstacles change.
 
-Сбрасывайте кеш при импорте или сбросе мира.
+Invalidate the cache on world import or reset.
 
-Не переиспользуйте результат после изменения любого компонента ключа.
+Do not reuse a result after any key component changes.
 
-### 7.2. Метрики FOOD-P04 и FOOD-P05
+### 7.2. Metrics FOOD-P04 and FOOD-P05
 
-Измеряйте `targetSelectionMs` отдельно от `workerTickMs`.
+Measure `targetSelectionMs` separately from `workerTickMs`.
 
-Измеряйте обе метрики при `maxOrganisms` и утверждённом `maxFood`.
+Measure both metrics at `maxOrganisms` and the approved `maxFood`.
 
-Сохраняйте p50 и p95 каждой метрики.
+Store p50 and p95 of each metric.
 
-Сравнивайте значения с baseline на том же оборудовании.
+Compare values with the baseline on the same hardware.
 
-Применяйте D-05 к `targetSelectionMsP95`.
+Apply D-05 to `targetSelectionMsP95`.
 
-Применяйте D-05 к `workerTickMsP95`.
+Apply D-05 to `workerTickMsP95`.
 
-Не принимайте FOOD-P04 без отдельного порога `targetSelectionMsP95`.
+Do not accept FOOD-P04 without a separate `targetSelectionMsP95` threshold.
 
-Не принимайте FOOD-P05 без отдельного порога `workerTickMsP95`.
+Do not accept FOOD-P05 without a separate `workerTickMsP95` threshold.
 
-## 8. Приёмочные сценарии
+## 8. Acceptance Scenarios
 
-| ID | Сценарий | Ожидаемый результат |
+| ID | Scenario | Expected result |
 |---|---|---|
-| FOOD-T01 | Доступная пища рядом. | Организм потребляет пищу. |
-| FOOD-T02 | Недоступная пища ближе. | Организм выбирает доступную пищу. |
-| FOOD-T03 | Вся пища недоступна. | Организм не преследует недоступную пищу. |
-| FOOD-T04 | Два удалённых организма. | Питание одного не зависит от цели другого. |
-| FOOD-T05 | Заполнен лимит `TrappedFood`. | Внешний резерв остаётся доступным. |
-| FOOD-T06 | Заполнен `maxFood`. | Общий лимит не превышен. |
-| FOOD-T07 | Экспорт и импорт мира. | Правила бюджета сохраняются. |
-| FOOD-T08 | Масштабы мира `0.5`, `1`, `2`. | Используется фактический `worldSize`. |
-| FOOD-T09 | Длительный прогон. | Спавн возможен при свободном внешнем резерве. |
-| FOOD-T10 | Повторный seed. | Результаты воспроизводятся. |
-| FOOD-T11 | Тестовая `ActionSelectionPolicy`. | Стратегия возвращает заранее заданный ID цели; физика выполняет переданное действие без изменения. |
-| FOOD-T12 | Включён `ResourceStock`. | Отказ бюджета не тратит единицы; разрешённый спавн сохраняет учёт затрат. |
+| FOOD-T01 | Accessible food nearby. | The organism consumes the food. |
+| FOOD-T02 | Inaccessible food is nearer. | The organism selects accessible food. |
+| FOOD-T03 | All food is inaccessible. | The organism does not pursue inaccessible food. |
+| FOOD-T04 | Two distant organisms. | One's feeding does not depend on the other's target. |
+| FOOD-T05 | The `TrappedFood` limit is full. | The outer reserve remains available. |
+| FOOD-T06 | `maxFood` is full. | The global limit is not exceeded. |
+| FOOD-T07 | World export and import. | The budget rules are preserved. |
+| FOOD-T08 | World scales `0.5`, `1`, `2`. | The actual `worldSize` is used. |
+| FOOD-T09 | Long run. | Spawning is possible with a free outer reserve. |
+| FOOD-T10 | Repeated seed. | Results are reproduced. |
+| FOOD-T11 | Test `ActionSelectionPolicy`. | The strategy returns a predefined target ID; physics executes the passed action without change. |
+| FOOD-T12 | `ResourceStock` enabled. | Budget rejection does not spend units; a permitted spawn preserves cost accounting. |
 
-Фиксируйте seed, конфигурацию, тик, объекты пищи, энергию и количество успешных укусов.
+Record the seed, configuration, tick, food objects, energy, and number of successful bites.
 
-### 8.1. Проверка FOOD-T11
+### 8.1. Verification of FOOD-T11
 
-Создайте тестовую `ActionSelectionPolicy` с фиксированной целью `food_out`.
+Create a test `ActionSelectionPolicy` with a fixed target `food_out`.
 
-Проверьте получение целью ID `food_out`.
+Verify that the target receives the ID `food_out`.
 
-Проверьте одинаковый результат исполнения одного действия текущей и тестовой стратегией.
+Verify the identical execution result of one action by the current and the test strategy.
 
-Не добавляйте Utility AI для проверки FOOD-T11.
+Do not add Utility AI to verify FOOD-T11.
 
-### 8.2. Проверка FOOD-T12
+### 8.2. Verification of FOOD-T12
 
-Проверьте неизменность `unitsSpent` при отказе пищевого бюджета.
+Verify that `unitsSpent` is unchanged on food budget rejection.
 
-Проверьте неизменность `zoneStocks` при отказе пищевого бюджета.
+Verify that `zoneStocks` is unchanged on food budget rejection.
 
-Проверьте уменьшение `zoneStocks` на `RESOURCE_STOCK_UNITS_PER_FOOD` при разрешённом спавне.
+Verify that `zoneStocks` decreases by `RESOURCE_STOCK_UNITS_PER_FOOD` on a permitted spawn.
 
-Проверьте увеличение `unitsSpent` на `RESOURCE_STOCK_UNITS_PER_FOOD` при разрешённом спавне.
+Verify that `unitsSpent` increases by `RESOURCE_STOCK_UNITS_PER_FOOD` on a permitted spawn.
 
-Проверьте отдельный режим с отключённым `ResourceStock`.
+Verify the separate mode with `ResourceStock` disabled.
 
-Проверьте восстановление `zoneStocks` после экспорта и импорта.
+Verify the restoration of `zoneStocks` after export and import.
 
-Разделяйте модульные, интеграционные и браузерные тесты.
+Separate unit, integration, and browser tests.
 
-Выполняйте `pnpm run check:strict` до предложения коммита с кодом.
+Run `pnpm run check:strict` before proposing a commit with code.
 
-## 9. Исторический реестр решений до архитектурного делегирования
+## 9. Historical Decision Registry Before Architectural Delegation
 
-**Актуальный контракт:** [FOOD-ADR-001](./architecture-contract.md).
+**Current contract:** [FOOD-ADR-001](./architecture-contract.md).
 
-Этот раздел сохраняет статус решений на момент первоначального исследования.
+This section preserves the status of the decisions at the time of the initial study.
 
-Не используйте исторические статусы таблицы для определения действующего допуска к M1–M5.
+Do not use the historical statuses in the table to determine the current admission to M1–M5.
 
-**Исторический статус каждого решения:** НЕ УТВЕРЖДЕНО.
+**Historical status of each decision:** NOT APPROVED.
 
-**Текущий статус D-01…D-06:** архитектурно выбраны по FOOD-ADR-001.
+**Current status of D-01…D-06:** architecturally selected under FOOD-ADR-001.
 
-**Текущий статус AUTH-01…AUTH-05:** не разрешены.
+**Current status of AUTH-01…AUTH-05:** not authorized.
 
-**Владелец каждого решения:** оператор Entropia.
+**Owner of each decision:** Entropia operator.
 
-**Дата регистрации каждого решения:** 2026-10-25.
+**Registration date of each decision:** 2026-10-25.
 
-**Дата утверждения каждого решения:** отсутствует.
+**Approval date of each decision:** absent.
 
-| ID | Предмет решения | Владелец | Дата регистрации | Дата утверждения | Статус | Блокирует |
+| ID | Decision subject | Owner | Registration date | Approval date | Status | Blocks |
 |---|---|---|---|---|---|---|
-| D-01 | Критерий существования пути. | Оператор | 2026-10-25 | — | Не утверждено | Старт M1 и M2 |
-| D-02 | Области классификации `TrappedFood`. | Оператор | 2026-10-25 | — | Не утверждено | Старт M3 |
-| D-03 | Числовые бюджеты и правило округления. | Оператор | 2026-10-25 | — | Не утверждено | Старт M3 |
-| D-04 | Сохранённые миры с превышенным бюджетом. | Оператор | 2026-10-25 | — | Не утверждено | Старт M3 |
-| D-05 | Допустимая регрессия `targetSelectionMs` и `workerTickMs`. | Оператор | 2026-10-25 | — | Не утверждено | Старт M5 |
-| D-06 | Сериализация и восстановление бюджета. | Оператор | 2026-10-25 | — | Не утверждено | Старт M3 |
+| D-01 | Path-existence criterion. | Operator | 2026-10-25 | — | Not approved | Start of M1 and M2 |
+| D-02 | `TrappedFood` classification regions. | Operator | 2026-10-25 | — | Not approved | Start of M3 |
+| D-03 | Numeric budgets and rounding rule. | Operator | 2026-10-25 | — | Not approved | Start of M3 |
+| D-04 | Saved worlds with an exceeded budget. | Operator | 2026-10-25 | — | Not approved | Start of M3 |
+| D-05 | Permissible regression of `targetSelectionMs` and `workerTickMs`. | Operator | 2026-10-25 | — | Not approved | Start of M5 |
+| D-06 | Budget serialization and restoration. | Operator | 2026-10-25 | — | Not approved | Start of M3 |
 
-### 9.1. D-01 — Критерий существования пути
+### 9.1. D-01 — Path-Existence Criterion
 
-Определите допустимый маршрут: прямой отрезок или путь вокруг препятствия.
+Define the admissible route: a straight segment or a path around an obstacle.
 
-Определите требование `PathClearance` с учётом радиуса организма.
+Define the `PathClearance` requirement taking the organism radius into account.
 
-Определите критерий `REACHABLE` для выбранного маршрута.
+Define the `REACHABLE` criterion for the chosen route.
 
-Определите критерий `BLOCKED` для выбранного маршрута.
+Define the `BLOCKED` criterion for the chosen route.
 
-Определите допустимость `UNKNOWN` при ограниченном времени расчёта.
+Define the admissibility of `UNKNOWN` under limited computation time.
 
-Утвердите один критерий до M1.
+Approve a single criterion before M1.
 
-### 9.2. D-02 — Классификация пищевого бюджета
+### 9.2. D-02 — Food Budget Classification
 
-Перечислите типы непроходимых аномалий для `TrappedFood`.
+List the types of impassable anomalies for `TrappedFood`.
 
-Определите правило для пересечения аномалий.
+Define the rule for intersecting anomalies.
 
-Определите правило для обычного препятствия `Obstacle`.
+Define the rule for an ordinary `Obstacle`.
 
-Примените классификацию D-02 ко всем проверкам FOOD-B02…FOOD-B08.
+Apply the D-02 classification to all checks FOOD-B02…FOOD-B08.
 
-Утвердите классификацию до M3.
+Approve the classification before M3.
 
-### 9.3. D-03 — Параметры пищевого бюджета
+### 9.3. D-03 — Food Budget Parameters
 
-Получите измерения M0 до принятия D-03.
+Obtain the M0 measurements before adopting D-03.
 
-Определите `C_trapped` в пределах `maxFood`.
+Define `C_trapped` within `maxFood`.
 
-Определите `C_outer` через `maxFood - C_trapped`.
+Define `C_outer` as `maxFood - C_trapped`.
 
-Определите округление при изменении `maxFood`.
+Define the rounding when `maxFood` changes.
 
-Определите режим свободной ёмкости между бюджетами.
+Define the mode of free capacity between budgets.
 
-Утвердите значения до M3.
+Approve the values before M3.
 
-### 9.4. D-04 — Миграция
+### 9.4. D-04 — Migration
 
-Определите поведение старого мира с превышенным `C_trapped`.
+Define the behavior of an old world with an exceeded `C_trapped`.
 
-Не удаляйте существующую пищу без решения оператора.
+Do not delete existing food without an operator decision.
 
-Утвердите правило до M3.
+Approve the rule before M3.
 
-### 9.5. D-05 — Производительность
+### 9.5. D-05 — Performance
 
-Получите исходные измерения `targetSelectionMs` и `workerTickMs` в M0.
+Obtain the baseline measurements of `targetSelectionMs` and `workerTickMs` in M0.
 
-Определите максимальную регрессию `targetSelectionMsP95` в процентах.
+Define the maximum regression of `targetSelectionMsP95` in percent.
 
-Определите максимальную регрессию `workerTickMsP95` в процентах.
+Define the maximum regression of `workerTickMsP95` in percent.
 
-Определите условия стенда и число повторов.
+Define the test bench conditions and the number of repetitions.
 
-Утвердите значения до M5.
+Approve the values before M5.
 
-### 9.6. D-06 — Сохранение состояния
+### 9.6. D-06 — State Persistence
 
-Определите источник параметров пищевого бюджета.
+Define the source of the food budget parameters.
 
-Определите поведение старого сохранения без параметров бюджета.
+Define the behavior for an old save without budget parameters.
 
-Определите правило проверки параметров при импорте.
+Define the parameter validation rule on import.
 
-Утвердите контракт до M3.
+Approve the contract before M3.
 
-## 10. Полномочия
+## 10. Authority
 
-Спецификация фиксирует утверждённые требования.
+The specification records the approved requirements.
 
-Спецификация не утверждает открытые решения D-01…D-06.
+The specification does not approve the open decisions D-01…D-06.
 
-Спецификация не разрешает изменение исходников.
+The specification does not permit modification of sources.
 
-Спецификация не разрешает изменение генома.
+The specification does not permit modification of the genome.
 
-Спецификация не разрешает реализацию Utility AI.
+The specification does not permit implementation of Utility AI.
 
-Показывайте изменения оператору до каждого коммита.
+Show changes to the operator before every commit.
 
-Запрашивайте разрешение перед каждым коммитом.
+Request permission before every commit.
 
-Не выполняйте push, PR или merge без отдельного разрешения.
+Do not perform push, PR, or merge without separate permission.
 
-См. [execution-plan.md](./execution-plan.md).
+See [execution-plan.md](./execution-plan.md).

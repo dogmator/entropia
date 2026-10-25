@@ -1,612 +1,612 @@
-# PLAN-FOOD-001 — План выполнения SPEC-FOOD-001
+# PLAN-FOOD-001 — Execution Plan for SPEC-FOOD-001
 
-**Статус:** проект исправленного плана для локального согласования.
-**Решения D-01…D-06:** архитектурно выбраны в [FOOD-ADR-001](./architecture-contract.md).
-**Разрешение на реализацию AUTH-01:** не получено.
-**Реализация:** не начата.
-**Проверка замечаний:** [review-verification.md](./review-verification.md).
-**Дата:** 2026-10-25.
-**Спецификация:** [specification.md](./specification.md).
+**Status:** draft of the corrected plan for local agreement.
+**Decisions D-01…D-06:** architecturally selected in [FOOD-ADR-001](./architecture-contract.md).
+**Implementation permission AUTH-01:** not received.
+**Implementation:** not started.
+**Review-comment verification:** [review-verification.md](./review-verification.md).
+**Date:** 2026-10-25.
+**Specification:** [specification.md](./specification.md).
 
-**Публикация:** ЗАПРЕЩЕНА до перевода на английский и утверждения перевода.
+**Publication:** PROHIBITED until the English translation is complete and approved.
 
-## 1. Условия выполнения
+## 1. Execution Conditions
 
-Работайте только в `~/projects/entropia`.
+Work only in `~/projects/entropia`.
 
-Не создавайте дополнительные Git worktree.
+Do not create additional Git worktrees.
 
-Не изменяйте существующие незакоммиченные файлы без анализа.
+Do not modify existing uncommitted files without analysis.
 
-Не начинайте реализацию без отдельного разрешения.
+Do not begin implementation without separate permission.
 
-Разделяйте выбор пищевой цели и пищевой бюджет.
+Separate food target selection from the food budget.
 
-Не изменяйте физику без отдельного согласования.
+Do not change physics without separate agreement.
 
-Показывайте изменения до коммита.
+Show changes before committing.
 
-Запрашивайте разрешение перед каждым коммитом.
+Request permission before every commit.
 
-Не выполняйте push, PR или merge без отдельного разрешения.
+Do not perform push, PR, or merge without separate permission.
 
-Переведите все публикуемые документы на английский.
+Translate all published documents into English.
 
-Проверьте английский перевод до публикации.
+Verify the English translation before publication.
 
-Получите разрешение оператора на публикацию после проверки перевода.
+Obtain the operator's permission to publish after the translation is verified.
 
-## 2. План этапов
+## 2. Stage Plan
 
-Действующий архитектурный выбор D-01…D-06 определён в [FOOD-ADR-001](./architecture-contract.md).
+The current architectural choice D-01…D-06 is defined in [FOOD-ADR-001](./architecture-contract.md).
 
-M0 остаётся невыполненным; утверждение архитектуры не является доказательством M0.
+M0 remains unexecuted; approval of the architecture is not evidence of M0.
 
-| Этап | Входные условия | Результат | Объективный критерий завершения | Статус |
+| Stage | Entry conditions | Result | Objective completion criterion | Status |
 |---|---|---|---|---|
-| M0 | Требования SPEC-FOOD-001. | Исходные доказательства и предложения решений. | Сохранены измерения, baseline и шесть записей решений. | Не начато |
-| D-01 | Доказательства M0. | Утверждён критерий пути. | Указаны владелец, дата утверждения и критерии. | Архитектурно выбрано; требуется AUTH-01 и M0 |
-| M1 | M0 завершён; D-01 утверждено. | Контракт доступности и регрессионные тесты. | Старый дефект воспроизводится; контракт проверяется тестами. | Заблокировано M0 и AUTH-01 |
-| M2 | M1 завершён; D-01 утверждено. | Исправлен выбор пищевой цели. | FOOD-T01…FOOD-T04 и FOOD-T08 пройдены. | Заблокировано M1 |
-| D-02, D-03, D-04, D-06 | Доказательства M0; результаты M2 при необходимости. | Утверждён бюджет и миграция. | Каждое решение содержит значение, владельца и дату. | Архитектурно выбрано; требуется AUTH-01, AUTH-03 и M0 |
-| M3 | D-02, D-03, D-04, D-06 утверждены. | Контракт `FoodBudgetPolicy` и его тесты. | Формулы и импорт проверяются без изменения механизма выбора цели. | Заблокировано M0 и AUTH-01/03 |
-| M4 | M3 завершён. | Реализован пищевой бюджет. | FOOD-T05…FOOD-T07 и FOOD-T12 пройдены. | Заблокировано M3 |
-| D-05 | Исходные измерения M0. | Утверждён предел регрессии Worker. | Зафиксированы пороги и условия измерения. | Архитектурно выбрано; baseline M0 обязателен |
-| M5 | M2 и M4 завершены; D-05 утверждено. | Приёмка детерминизма и производительности. | FOOD-T09…FOOD-T11, метрики P04/P05 и `check:strict` пройдены. | Заблокировано M0, M2 и M4 |
-| M6 | M5 завершён. | Автоматическая и ручная архитектурная проверка. | Все проверки раздела 7 имеют статус PASS. | Заблокировано M5 |
-| M7 | M6 завершён. | Пакет изменений для оператора. | Оператор просмотрел полный diff и явно разрешил конкретный коммит. | Заблокировано M6 |
+| M0 | Requirements of SPEC-FOOD-001. | Baseline evidence and decision proposals. | Measurements, baseline, and six decision records are saved. | Not started |
+| D-01 | M0 evidence. | Path criterion approved. | Owner, approval date, and criteria are specified. | Architecturally selected; AUTH-01 and M0 required |
+| M1 | M0 complete; D-01 approved. | Accessibility contract and regression tests. | The old defect is reproduced; the contract is verified by tests. | Blocked by M0 and AUTH-01 |
+| M2 | M1 complete; D-01 approved. | Food target selection fixed. | FOOD-T01…FOOD-T04 and FOOD-T08 pass. | Blocked by M1 |
+| D-02, D-03, D-04, D-06 | M0 evidence; M2 results if needed. | Budget and migration approved. | Each decision contains a value, owner, and date. | Architecturally selected; AUTH-01, AUTH-03, and M0 required |
+| M3 | D-02, D-03, D-04, D-06 approved. | `FoodBudgetPolicy` contract and its tests. | Formulas and import are verified without changing the target-selection mechanism. | Blocked by M0 and AUTH-01/03 |
+| M4 | M3 complete. | Food budget implemented. | FOOD-T05…FOOD-T07 and FOOD-T12 pass. | Blocked by M3 |
+| D-05 | Baseline M0 measurements. | Worker regression limit approved. | Thresholds and measurement conditions are recorded. | Architecturally selected; M0 baseline mandatory |
+| M5 | M2 and M4 complete; D-05 approved. | Determinism and performance acceptance. | FOOD-T09…FOOD-T11, metrics P04/P05, and `check:strict` pass. | Blocked by M0, M2, and M4 |
+| M6 | M5 complete. | Automated and manual architectural review. | All checks in Section 7 have PASS status. | Blocked by M5 |
+| M7 | M6 complete. | Change package for the operator. | The operator reviewed the full diff and explicitly permitted a specific commit. | Blocked by M6 |
 
-Выполняйте M0 до начала реализации. Проверяйте выбранную квоту D-03 измерениями M0.
+Execute M0 before implementation begins. Verify the selected D-03 quota with the M0 measurements.
 
-Не начинайте M1 до D-01.
+Do not start M1 before D-01.
 
-Не начинайте M2 до D-01.
+Do not start M2 before D-01.
 
-Не начинайте M3 до D-03.
+Do not start M3 before D-03.
 
-Не начинайте M3 до D-02, D-04 и D-06.
+Do not start M3 before D-02, D-04, and D-06.
 
-Не начинайте M5 до D-05.
+Do not start M5 before D-05.
 
-Не изменяйте физику в рамках M2.
+Do not change physics within M2.
 
-Не реализуйте Utility AI в рамках M6.
+Do not implement Utility AI within M6.
 
-## 3. M0 — Действия и исходные доказательства
+## 3. M0 — Actions and Baseline Evidence
 
-### 3.1. Действия M0
+### 3.1. M0 Actions
 
-- [ ] Сохраните исходный commit SHA.
-- [ ] Сохраните исходную конфигурацию симуляции.
-- [ ] Воспроизведите локальную блокировку пищевой цели на seed `1`.
-- [ ] Воспроизведите локальную блокировку пищевой цели на seed `4242`.
-- [ ] Измерьте количество пищи внутри оазиса на seed `1`.
-- [ ] Измерьте количество пищи внутри оазиса на seed `4242`.
-- [ ] Измерьте количество пищи внутри оазиса на seed `3735928559`.
-- [ ] Измерьте количество пищи снаружи оазиса на этих seed.
-- [ ] Измерьте заполнение `maxFood`.
-- [ ] Измерьте частоту появления пищи.
-- [ ] Измерьте фактическое количество успешных укусов.
-- [ ] Измерьте `targetSelectionMs` до изменения кода.
-- [ ] Измерьте `workerTickMs` до изменения кода.
-- [ ] Проверьте метод внешнего измерения без изменения исходников.
-- [ ] Проверьте существование файла `BaselineFingerprint.test.ts`.
-- [ ] Проверьте шесть значений `RECORDED` относительно исходников.
-- [ ] Проверьте существование скриптов `depcruise`, `check:dead-code`, `check:strict`.
-- [ ] Проверьте источник `maxOrganisms` для масштаба 1.
-- [ ] Сохраните результат проверок в `review-verification.json`.
-- [ ] Запустите `m0-measure.mjs`.
-- [ ] Проверьте отсутствие самостоятельного цикла в `engine.start()`.
-- [ ] Проверьте отсутствие регистрации в `spawnOrganism()`.
-- [ ] Проверьте отсутствие `getNearby()` внутри `scanNeighbors()`.
-- [ ] Проверьте точность `selectionCalls` относительно числа живых prey.
-- [ ] Проверьте ненулевое количество замеров обеих метрик.
-- [ ] Проверьте конечность p50 и p95.
-- [ ] Сохраните результат пробы отдельно от baseline.
-- [ ] Сохраните baseline-фингерпринты по разделу 6.
-- [ ] Подготовьте экспериментальные варианты `C_trapped` и `C_outer`.
-- [ ] Сохраните результаты каждого варианта в JSONL.
-- [ ] Заполните шесть отдельных записей решений D-01…D-06.
-- [ ] Передайте предложения решений оператору.
+- [ ] Save the source commit SHA.
+- [ ] Save the source simulation configuration.
+- [ ] Reproduce the local food target blocking on seed `1`.
+- [ ] Reproduce the local food target blocking on seed `4242`.
+- [ ] Measure the amount of food inside the oasis on seed `1`.
+- [ ] Measure the amount of food inside the oasis on seed `4242`.
+- [ ] Measure the amount of food inside the oasis on seed `3735928559`.
+- [ ] Measure the amount of food outside the oasis on these seeds.
+- [ ] Measure the `maxFood` fill level.
+- [ ] Measure the food appearance rate.
+- [ ] Measure the actual number of successful bites.
+- [ ] Measure `targetSelectionMs` before changing code.
+- [ ] Measure `workerTickMs` before changing code.
+- [ ] Verify the external measurement method without changing sources.
+- [ ] Verify that the file `BaselineFingerprint.test.ts` exists.
+- [ ] Verify the six `RECORDED` values against the sources.
+- [ ] Verify that the scripts `depcruise`, `check:dead-code`, `check:strict` exist.
+- [ ] Verify the source of `maxOrganisms` for scale 1.
+- [ ] Save the verification result in `review-verification.json`.
+- [ ] Run `m0-measure.mjs`.
+- [ ] Verify the absence of a self-driven loop in `engine.start()`.
+- [ ] Verify the absence of registration in `spawnOrganism()`.
+- [ ] Verify the absence of `getNearby()` inside `scanNeighbors()`.
+- [ ] Verify the accuracy of `selectionCalls` relative to the number of living prey.
+- [ ] Verify a nonzero number of samples for both metrics.
+- [ ] Verify that p50 and p95 are finite.
+- [ ] Save the probe result separately from the baseline.
+- [ ] Save the baseline fingerprints per Section 6.
+- [ ] Prepare experimental variants of `C_trapped` and `C_outer`.
+- [ ] Save the results of each variant in JSONL.
+- [ ] Fill in six separate decision records D-01…D-06.
+- [ ] Pass the decision proposals to the operator.
 
-### 3.2. Метод измерения без изменения исходников
+### 3.2. Measurement Method Without Changing Sources
 
-Используйте внешний скрипт `m0-measure.mjs` из каталога спецификации.
+Use the external script `m0-measure.mjs` from the specification directory.
 
-Запускайте скрипт через Node.js из корня репозитория.
+Run the script via Node.js from the repository root.
 
-Загружайте исходные модули через Vite SSR API `ssrLoadModule`.
+Load the source modules via the Vite SSR API `ssrLoadModule`.
 
-Создавайте `SimulationEngine` с фиксированным seed.
+Create a `SimulationEngine` with a fixed seed.
 
-Измеряйте `targetSelectionMs` через временные обёртки экземпляра `BehaviorSystem.scanNeighbors` и `GridManager.getNearby`.
+Measure `targetSelectionMs` via temporary wrappers of the `BehaviorSystem.scanNeighbors` instance and `GridManager.getNearby`.
 
-Учитывайте только вызовы `getNearby` из поведения организма.
+Account only for `getNearby` calls from organism behavior.
 
-Суммируйте время выборки соседей и время `scanNeighbors` для организмов `prey`.
+Sum the neighbor-query time and the `scanNeighbors` time for `prey` organisms.
 
-Измеряйте `workerTickMs` вокруг синхронного вызова `engine.update()`.
+Measure `workerTickMs` around the synchronous call of `engine.update()`.
 
-Не включайте передачу сообщений браузерного Worker в `workerTickMs`.
+Do not include browser Worker message passing in `workerTickMs`.
 
-Маркируйте метод `measurementMethod=ssr-instrumentation`.
+Label the method `measurementMethod=ssr-instrumentation`.
 
-Применяйте одинаковую инструментализацию к baseline и кандидату.
+Apply identical instrumentation to the baseline and the candidate.
 
-Повторяйте измерения после прогрева исполнения.
+Repeat measurements after execution warm-up.
 
-Проверяйте наличие ненулевого числа замеров каждой метрики.
+Verify that each metric has a nonzero number of samples.
 
-Сохраняйте p50 и p95 в JSONL.
+Save p50 and p95 in JSONL.
 
-Не интерпретируйте `workerTickMs` как задержку браузерного Worker.
+Do not interpret `workerTickMs` as browser Worker latency.
 
-Не изменяйте исходные файлы ради M0.
+Do not modify source files for M0.
 
-### 3.3. Объективный выход M0
+### 3.3. Objective Output of M0
 
-Сохраните запись JSONL для каждого проведённого эксперимента.
+Save a JSONL record for each experiment conducted.
 
-Проверьте наличие трёх seed в исходных измерениях.
+Verify the presence of three seeds in the baseline measurements.
 
-Проверьте наличие `targetSelectionMs` и `workerTickMs`.
+Verify the presence of `targetSelectionMs` and `workerTickMs`.
 
-Проверьте `measurementMethod=ssr-instrumentation`.
+Verify `measurementMethod=ssr-instrumentation`.
 
-Проверьте `selectionCallsMatchedPreyPerTick=true`.
+Verify `selectionCallsMatchedPreyPerTick=true`.
 
-Проверьте `startAdvancedTick=false`.
+Verify `startAdvancedTick=false`.
 
-Проверьте `spawnOrganismRegistered=false`.
+Verify `spawnOrganismRegistered=false`.
 
-Проверьте `scanNeighborsCallsGetNearby=false`.
+Verify `scanNeighborsCallsGetNearby=false`.
 
-Проверьте наличие `hardwareId` в отчёте пробного измерения.
+Verify the presence of `hardwareId` in the probe measurement report.
 
-Проверьте ненулевое число замеров обеих метрик.
+Verify a nonzero number of samples for both metrics.
 
-Проверьте валидность полей p50 и p95.
+Verify the validity of the p50 and p95 fields.
 
-Проверьте существование файла baseline.
+Verify that the baseline file exists.
 
-Проверьте шесть значений `RECORDED`.
+Verify the six `RECORDED` values.
 
-Проверьте существование трёх команд в `package.json`.
+Verify that the three commands exist in `package.json`.
 
-Проверьте `MAX_TOTAL_ORGANISMS=400` для масштаба 1.
+Verify `MAX_TOTAL_ORGANISMS=400` for scale 1.
 
-Выполните `node docs/specs/food-accessibility-and-budget/verify-review.mjs preflight`.
+Run `node docs/specs/food-accessibility-and-budget/verify-review.mjs preflight`.
 
-Выполните `node docs/specs/food-accessibility-and-budget/m0-measure.mjs 4242 12 3`.
+Run `node docs/specs/food-accessibility-and-budget/m0-measure.mjs 4242 12 3`.
 
-Проверьте `status=PASS` из `verify-review.mjs`.
+Verify `status=PASS` from `verify-review.mjs`.
 
-Проверьте `measurementMethod=ssr-instrumentation`.
+Verify `measurementMethod=ssr-instrumentation`.
 
-Не считайте пробу полным выполнением M0.
+Do not treat the probe as full completion of M0.
 
-Проверьте наличие шести предложений решений в реестре спецификации.
+Verify the presence of six decision proposals in the specification registry.
 
-Проверьте наличие владельца и даты регистрации каждого решения.
+Verify the presence of an owner and registration date for each decision.
 
-Проверьте статус «Не утверждено» для всех решений без разрешения оператора.
+Verify the status "Not approved" for all decisions without operator permission.
 
-Не считайте утверждение D-01…D-06 условием завершения M0.
+Do not treat approval of D-01…D-06 as a condition for completing M0.
 
-Используйте внешний диагностический скрипт для M0 при необходимости.
+Use an external diagnostic script for M0 if needed.
 
-Не меняйте исходники при подготовке измерений M0 без отдельного разрешения.
+Do not change sources when preparing the M0 measurements without separate permission.
 
-### 3.4. Исторический список решений до FOOD-ADR-001
+### 3.4. Historical List of Decisions Before FOOD-ADR-001
 
-D-01 определяет критерий доступности до M1.
+D-01 defines the accessibility criterion before M1.
 
-D-02 определяет классификацию `TrappedFood` до M3.
+D-02 defines the `TrappedFood` classification before M3.
 
-D-03 устанавливает числовой лимит после измерений M0.
+D-03 sets the numeric limit after the M0 measurements.
 
-D-04 определяет обработку старых миров до M3.
+D-04 defines the handling of old worlds before M3.
 
-D-05 устанавливает порог времени Worker до M5.
+D-05 sets the Worker time threshold before M5.
 
-D-06 определяет контракт сохранения до M3.
+D-06 defines the persistence contract before M3.
 
-Владелец каждого решения: оператор Entropia.
+Owner of each decision: Entropia operator.
 
-Дата регистрации каждого решения: 2026-10-25.
+Registration date of each decision: 2026-10-25.
 
-Дата утверждения каждого решения: не указана.
+Approval date of each decision: not specified.
 
-Исторический статус каждого решения: НЕ УТВЕРЖДЕНО.
+Historical status of each decision: NOT APPROVED.
 
-Действующий статус: архитектурно выбрано в [FOOD-ADR-001](./architecture-contract.md).
+Current status: architecturally selected in [FOOD-ADR-001](./architecture-contract.md).
 
-Разрешение на изменение кода отсутствует.
+There is no permission to change code.
 
-## 4. M1–M2 — Выбор пищевой цели
+## 4. M1–M2 — Food Target Selection
 
-### 4.1. Входные условия
+### 4.1. Entry Conditions
 
-Проверьте утверждение D-01 перед началом M1.
+Verify approval of D-01 before starting M1.
 
-Проверьте наличие доказательств M0.
+Verify the presence of M0 evidence.
 
-### 4.2. Действия
+### 4.2. Actions
 
-- [ ] Добавьте тест с доступной пищей рядом.
-- [ ] Добавьте тест с более близкой недоступной пищей.
-- [ ] Добавьте тест с двумя удалёнными организмами.
-- [ ] Добавьте тест без доступной пищи.
-- [ ] Добавьте тест изменения препятствия между тиками.
-- [ ] Добавьте тест удаления выбранной пищи.
-- [ ] Проверьте геометрию для масштаба `0.5`.
-- [ ] Проверьте геометрию для масштаба `1`.
-- [ ] Проверьте геометрию для масштаба `2`.
-- [ ] Определите контракт `FoodAccessibilityPolicy` по решению D-01.
-- [ ] Добавьте регрессионный тест для FOOD-R07.
-- [ ] Добавьте проверку FOOD-D02.
-- [ ] Добавьте проверку FOOD-D03.
-- [ ] Подключите `FoodAccessibilityPolicy` к выбору цели.
-- [ ] Сохраните независимость `CollisionSystem`.
-- [ ] Подключите тестовую `ActionSelectionPolicy`.
-- [ ] Сравните поглощение энергии до изменения и после изменения.
+- [ ] Add a test with accessible food nearby.
+- [ ] Add a test with nearer inaccessible food.
+- [ ] Add a test with two distant organisms.
+- [ ] Add a test without accessible food.
+- [ ] Add a test of an obstacle changing between ticks.
+- [ ] Add a test of removal of the selected food.
+- [ ] Verify the geometry for scale `0.5`.
+- [ ] Verify the geometry for scale `1`.
+- [ ] Verify the geometry for scale `2`.
+- [ ] Define the `FoodAccessibilityPolicy` contract per decision D-01.
+- [ ] Add a regression test for FOOD-R07.
+- [ ] Add the FOOD-D02 check.
+- [ ] Add the FOOD-D03 check.
+- [ ] Wire `FoodAccessibilityPolicy` into target selection.
+- [ ] Preserve the independence of `CollisionSystem`.
+- [ ] Wire in a test `ActionSelectionPolicy`.
+- [ ] Compare energy absorption before and after the change.
 
-### 4.3. Приёмка
+### 4.3. Acceptance
 
-Подтвердите выбор доступной цели на тике пересмотра.
+Confirm the selection of an accessible target on the re-evaluation tick.
 
-Подтвердите сброс недоступной цели на том же тике.
+Confirm the reset of an inaccessible target on the same tick.
 
-Подтвердите потребление пищи независимым организмом.
+Confirm food consumption by an independent organism.
 
-Подтвердите стабильный выбор при равных оценках.
+Confirm stable selection on equal scores.
 
-Подтвердите FOOD-T01…FOOD-T04.
+Confirm FOOD-T01…FOOD-T04.
 
-Подтвердите FOOD-T08.
+Confirm FOOD-T08.
 
-Сравните `FoodCollisionRegion` и `CollisionSystem.isColliding()`.
+Compare `FoodCollisionRegion` and `CollisionSystem.isColliding()`.
 
-Запустите `node docs/specs/food-accessibility-and-budget/collision-geometry-check.mjs`.
+Run `node docs/specs/food-accessibility-and-budget/collision-geometry-check.mjs`.
 
-Сохраните результат в `collision-geometry-smoke.json`.
+Save the result in `collision-geometry-smoke.json`.
 
-Проверьте оператор `<` в обеих проверках.
+Verify the `<` operator in both checks.
 
-Зафиксируйте различие размера мира при масштабах `0.5` и `2`.
+Record the difference in world size at scales `0.5` and `2`.
 
-Не принимайте FOOD-T08 при расхождении.
+Do not accept FOOD-T08 when there is a discrepancy.
 
-Согласуйте исправление физики отдельно.
+Agree on the physics fix separately.
 
-## 5. M3–M4 — Пищевой бюджет
+## 5. M3–M4 — Food Budget
 
-### 5.1. Входные условия
+### 5.1. Entry Conditions
 
-Проверьте утверждение D-02 до начала M3.
+Verify approval of D-02 before starting M3.
 
-Проверьте утверждение D-03 до начала M3.
+Verify approval of D-03 before starting M3.
 
-Проверьте утверждение D-04 до начала M3.
+Verify approval of D-04 before starting M3.
 
-Проверьте утверждение D-06 до начала M3.
+Verify approval of D-06 before starting M3.
 
-Используйте результаты измерений M0.
+Use the M0 measurement results.
 
-Не переносите получение D-03 в M3.
+Do not defer obtaining D-03 to M3.
 
-### 5.2. Действия
+### 5.2. Actions
 
-- [ ] Реализуйте контракт `FoodBudgetPolicy`.
-- [ ] Проверьте уравнение `C_trapped + C_outer = maxFood`.
-- [ ] Проверьте пересчёт лимитов после увеличения `maxFood`.
-- [ ] Проверьте пересчёт лимитов после уменьшения `maxFood`.
-- [ ] Проверьте округление при нечётном `maxFood`.
-- [ ] Проверьте граничные значения `maxFood=0` и `maxFood=1`.
-- [ ] Проверьте миграцию при уменьшении `maxFood` по D-04.
-- [ ] Добавьте тест верхнего лимита `C_trapped`.
-- [ ] Добавьте тест внешнего бюджета `C_outer`.
-- [ ] Добавьте тест общего лимита `maxFood`.
-- [ ] Подключите `FoodSpawnStrategy.RANDOM`.
-- [ ] Подключите `FoodSpawnStrategy.UNIFORM`.
-- [ ] Подключите `FoodSpawnStrategy.CLUSTERED`.
-- [ ] Подключите `FoodSpawnStrategy.OASIS_PREFERRED`.
-- [ ] Сохраните возможность размещения пищи внутри аномалии.
-- [ ] Добавьте проверку отказа бюджета до оплаты `ResourceStock`.
-- [ ] Проверьте режим с отключённым `ResourceStock`.
-- [ ] Проверьте экспорт и импорт.
-- [ ] Примените утверждённое правило D-04.
-- [ ] Проверьте отсутствие скрытого удаления пищи.
+- [ ] Implement the `FoodBudgetPolicy` contract.
+- [ ] Verify the equation `C_trapped + C_outer = maxFood`.
+- [ ] Verify the recomputation of limits after increasing `maxFood`.
+- [ ] Verify the recomputation of limits after decreasing `maxFood`.
+- [ ] Verify rounding with an odd `maxFood`.
+- [ ] Verify the boundary values `maxFood=0` and `maxFood=1`.
+- [ ] Verify migration on decreasing `maxFood` per D-04.
+- [ ] Add a test of the upper limit `C_trapped`.
+- [ ] Add a test of the outer budget `C_outer`.
+- [ ] Add a test of the total limit `maxFood`.
+- [ ] Wire in `FoodSpawnStrategy.RANDOM`.
+- [ ] Wire in `FoodSpawnStrategy.UNIFORM`.
+- [ ] Wire in `FoodSpawnStrategy.CLUSTERED`.
+- [ ] Wire in `FoodSpawnStrategy.OASIS_PREFERRED`.
+- [ ] Preserve the ability to place food inside an anomaly.
+- [ ] Add a check that budget rejection occurs before `ResourceStock` is charged.
+- [ ] Verify the mode with `ResourceStock` disabled.
+- [ ] Verify export and import.
+- [ ] Apply the approved D-04 rule.
+- [ ] Verify the absence of hidden food removal.
 
-### 5.3. Приёмка
+### 5.3. Acceptance
 
-Подтвердите `N_trapped <= C_trapped` при штатном допуске.
+Confirm `N_trapped <= C_trapped` under regular admission.
 
-Подтвердите `N_outer <= C_outer` при штатном допуске.
+Confirm `N_outer <= C_outer` under regular admission.
 
-Подтвердите `N_trapped + N_outer <= maxFood` при штатном допуске.
+Confirm `N_trapped + N_outer <= maxFood` under regular admission.
 
-Подтвердите корректность лимитов после изменения `maxFood`.
+Confirm the correctness of the limits after a `maxFood` change.
 
-Подтвердите правило округления из D-03.
+Confirm the rounding rule from D-03.
 
-Подтвердите классификацию D-02 при наличии `Obstacle`.
+Confirm the D-02 classification in the presence of `Obstacle`.
 
-Подтвердите независимость пищевого бюджета от выбора пищевой цели.
+Confirm the independence of the food budget from food target selection.
 
-Подтвердите FOOD-T05…FOOD-T07.
+Confirm FOOD-T05…FOOD-T07.
 
-Подтвердите FOOD-T12.
+Confirm FOOD-T12.
 
-## 6. M5 — Доказательства, baseline и производительность
+## 6. M5 — Evidence, Baseline, and Performance
 
-### 6.1. Входные условия
+### 6.1. Entry Conditions
 
-Проверьте утверждение D-05 до начала M5.
+Verify approval of D-05 before starting M5.
 
-Проверьте выполнение M2.
+Verify completion of M2.
 
-Проверьте выполнение M4.
+Verify completion of M4.
 
-### 6.2. Baseline-фингерпринт
+### 6.2. Baseline Fingerprint
 
-Используйте `src/simulation/__tests__/BaselineFingerprint.test.ts` как источник baseline.
+Use `src/simulation/__tests__/BaselineFingerprint.test.ts` as the baseline source.
 
-Используйте масштаб `1`.
+Use scale `1`.
 
-Используйте commit `afad92b84c9b547802a5a785588ba112a1a05331` как проверенный источник текущего baseline.
+Use commit `afad92b84c9b547802a5a785588ba112a1a05331` as the verified source of the current baseline.
 
-Проверьте существование файла в исходном commit.
+Verify that the file exists in the source commit.
 
-Проверьте значения `RECORDED` внешней командой `verify-review.mjs preflight`.
+Verify the `RECORDED` values with the external command `verify-review.mjs preflight`.
 
-Команда проверяет шесть констант против исходного commit.
+The command checks six constants against the source commit.
 
-Команда не исполняет baseline-тесты.
+The command does not execute the baseline tests.
 
-Повторите эту проверку до M5.
+Repeat this check before M5.
 
-Применяйте `RECORDED` только к тикам `100` и `300`.
+Apply `RECORDED` only to ticks `100` and `300`.
 
-Считайте тики `600`, `1200` и `2100` наблюдаемыми точками.
+Treat ticks `600`, `1200`, and `2100` as observed points.
 
-Сохраняйте фингерпринты поздних тиков в JSONL без сравнения с `RECORDED`.
+Save the fingerprints of the later ticks in JSONL without comparing to `RECORDED`.
 
-Не называйте фингерпринты поздних тиков утверждённым baseline.
+Do not call the fingerprints of the later ticks an approved baseline.
 
-Отключите `ResourceStock`.
+Disable `ResourceStock`.
 
-Используйте seed `4242`, `1` и `3735928559`.
+Use seeds `4242`, `1`, and `3735928559`.
 
-Используйте тики `100` и `300`.
+Use ticks `100` and `300`.
 
-Сериализуйте `engine.exportState()` через `JSON.stringify`.
+Serialize `engine.exportState()` via `JSON.stringify`.
 
-Исключите поле `spawnTime` через replacer.
+Exclude the `spawnTime` field via a replacer.
 
-Вычислите `checksumOf` от полученной строки.
+Compute `checksumOf` of the resulting string.
 
-Сравните результат с исходным `RECORDED`.
+Compare the result with the original `RECORDED`.
 
-| Seed | Тик 100 | Тик 300 |
+| Seed | Tick 100 | Tick 300 |
 |---|---|---|
 | `4242` | `d33c81bd` | `ce63bed1` |
 | `1` | `37f34d1d` | `ef5ec3c7` |
 | `3735928559` | `b2ec13f5` | `50f4f152` |
 
-Эти значения закреплены существующим тестом.
+These values are pinned by the existing test.
 
-Не изменяйте `RECORDED` для прохождения теста.
+Do not modify `RECORDED` to make the test pass.
 
-Сохраняйте новое значение при ожидаемом изменении поведения отдельно.
+Save a new value under an expected behavior change separately.
 
-Запрашивайте разрешение на изменение baseline.
+Request permission to change the baseline.
 
-### 6.3. Формат доказательств
+### 6.3. Evidence Format
 
-Используйте JSONL.
+Use JSONL.
 
-Планируемый путь: `docs/specs/food-accessibility-and-budget/evidence/<run-id>.jsonl`.
+Planned path: `docs/specs/food-accessibility-and-budget/evidence/<run-id>.jsonl`.
 
-Сохраняйте одну JSON-запись на одну контрольную точку.
+Save one JSON record per checkpoint.
 
-Указывайте `runId`, `variant`, `seed`, `commit`, `tick`.
+Specify `runId`, `variant`, `seed`, `commit`, `tick`.
 
-Указывайте `config`, `worldSize`, `resourceStockEnabled`.
+Specify `config`, `worldSize`, `resourceStockEnabled`.
 
-Включайте в `config` ключ `maxOrganisms`.
+Include the key `maxOrganisms` in `config`.
 
-Включайте в `config` ключ `maxFood`.
+Include the key `maxFood` in `config`.
 
-Включайте в `config` ключ `foodSpawnRate`.
+Include the key `foodSpawnRate` in `config`.
 
-Включайте в `config` ключ `worldScale`.
+Include the key `worldScale` in `config`.
 
-Включайте в `config` ключ `seed`.
+Include the key `seed` in `config`.
 
-Включайте в `config` ключ `resourceStock`.
+Include the key `resourceStock` in `config`.
 
-Включайте в `config` ключ `foodStrategy`.
+Include the key `foodStrategy` in `config`.
 
-Включайте в `config` ключ `organismStrategy`.
+Include the key `organismStrategy` in `config`.
 
-Проверяйте отсутствие пропущенных ключей `config`.
+Verify the absence of missing `config` keys.
 
-Сохраняйте значение `null` только для неприменимого ключа.
+Store the value `null` only for a non-applicable key.
 
-Указывайте `foodTotal`, `foodTrapped`, `foodOuter`.
+Specify `foodTotal`, `foodTrapped`, `foodOuter`.
 
-Указывайте `foodSpawnRateObserved` и `foodSpawnRateFormula`.
+Specify `foodSpawnRateObserved` and `foodSpawnRateFormula`.
 
-Вычисляйте `foodSpawnRateObserved=spawnAccepted / sampledTicks`.
+Compute `foodSpawnRateObserved=spawnAccepted / sampledTicks`.
 
-Учитывайте успешные события создания пищи для `spawnAccepted`.
+Count successful food creation events for `spawnAccepted`.
 
-Сохраняйте `sampledTicks` как число измеренных тиков.
+Store `sampledTicks` as the number of measured ticks.
 
-Не используйте `config.foodSpawnRate` вместо измеренной частоты.
+Do not use `config.foodSpawnRate` in place of the measured rate.
 
-Сохраняйте формулу `spawnAccepted / sampledTicks` в каждом JSONL.
+Store the formula `spawnAccepted / sampledTicks` in every JSONL.
 
-Указывайте `biteCount`, `energyAbsorbed`, `spawnAccepted`, `spawnDenied`.
+Specify `biteCount`, `energyAbsorbed`, `spawnAccepted`, `spawnDenied`.
 
-Указывайте `targetSelectionMsP50` и `targetSelectionMsP95`.
+Specify `targetSelectionMsP50` and `targetSelectionMsP95`.
 
-Указывайте `workerTickMsP50` и `workerTickMsP95`.
+Specify `workerTickMsP50` and `workerTickMsP95`.
 
-Указывайте `fingerprint` для контрольного тика.
+Specify `fingerprint` for the control tick.
 
-Указывайте `measurementMethod` и `hardwareId` для временных измерений.
+Specify `measurementMethod` and `hardwareId` for timing measurements.
 
-Формируйте `hardwareId` как SHA256 от платформы, архитектуры, CPU и версии Node.js.
+Form `hardwareId` as the SHA256 of the platform, architecture, CPU, and Node.js version.
 
-Сохраняйте первые 16 шестнадцатеричных символов SHA256.
+Store the first 16 hexadecimal characters of the SHA256.
 
-Не записывайте имя хоста в `hardwareId`.
+Do not write the host name into `hardwareId`.
 
-Не сохраняйте вымышленные значения при отсутствии измерений.
+Do not store fabricated values in the absence of measurements.
 
-Используйте `null` для неприменимой метрики.
+Use `null` for a non-applicable metric.
 
-Пример структуры записи:
+Example record structure:
 
 ```json
 {"runId":"example","variant":"baseline","seed":4242,"commit":"afad92b84c9b547802a5a785588ba112a1a05331","tick":100,"config":{"maxOrganisms":400,"maxFood":400,"foodSpawnRate":0.8,"worldScale":1,"seed":4242,"resourceStock":false,"foodStrategy":"oasis_preferred","organismStrategy":"ecological"},"worldSize":600,"resourceStockEnabled":false,"foodTotal":null,"foodTrapped":null,"foodOuter":null,"biteCount":null,"energyAbsorbed":null,"spawnAccepted":null,"spawnDenied":null,"sampledTicks":null,"foodSpawnRateObserved":null,"foodSpawnRateFormula":"spawnAccepted / sampledTicks","targetSelectionMsP50":null,"targetSelectionMsP95":null,"workerTickMsP50":null,"workerTickMsP95":null,"fingerprint":"d33c81bd","measurementMethod":"unmeasured","hardwareId":null}
 ```
 
-Не считайте пример измерением.
+Do not treat the example as a measurement.
 
-### 6.4. Методика производительности
+### 6.4. Performance Methodology
 
-Измеряйте `targetSelectionMs` отдельно от `workerTickMs`.
+Measure `targetSelectionMs` separately from `workerTickMs`.
 
-Используйте максимальную популяцию `maxOrganisms`.
+Use the maximum population `maxOrganisms`.
 
-Используйте `maxOrganisms=400` при масштабе `1`.
+Use `maxOrganisms=400` at scale `1`.
 
-Получайте значение из `MAX_TOTAL_ORGANISMS` в `src/config/population.constants.ts`.
+Obtain the value from `MAX_TOTAL_ORGANISMS` in `src/config/population.constants.ts`.
 
-Проверяйте пересчёт значения через `src/config/world.config.ts`.
+Verify the recomputation of the value via `src/config/world.config.ts`.
 
-Проверяйте `engine.config.maxOrganisms === 400` перед измерением.
+Verify `engine.config.maxOrganisms === 400` before measurement.
 
-Проверяйте реальное количество организмов при нагрузочном измерении.
+Verify the actual number of organisms during the load measurement.
 
-Проверяйте `engine.config.maxFood === 400` при нагрузочном измерении.
+Verify `engine.config.maxFood === 400` during the load measurement.
 
-Используйте одинаковую конфигурацию до изменения и после изменения.
+Use an identical configuration before and after the change.
 
-Измеряйте p50 и p95 для каждой метрики.
+Measure p50 and p95 for each metric.
 
-Фиксируйте оборудование и режим исполнения.
+Record the hardware and execution mode.
 
-Фиксируйте число повторов.
+Record the number of repetitions.
 
-Применяйте отдельный порог D-05 к `targetSelectionMsP95`.
+Apply a separate D-05 threshold to `targetSelectionMsP95`.
 
-Применяйте отдельный порог D-05 к `workerTickMsP95`.
+Apply a separate D-05 threshold to `workerTickMsP95`.
 
-Не используйте один порог для обеих метрик без отдельного решения.
+Do not use a single threshold for both metrics without a separate decision.
 
-Не объявляйте PASS без утверждённого порога D-05.
+Do not declare PASS without an approved D-05 threshold.
 
-### 6.5. Прогоны
+### 6.5. Runs
 
-Используйте seed `1`, `4242` и `3735928559`.
+Use seeds `1`, `4242`, and `3735928559`.
 
-Проверяйте тик `20`.
+Check tick `20`.
 
-Проверяйте тик `100`.
+Check tick `100`.
 
-Проверяйте тик `600`.
+Check tick `600`.
 
-Проверяйте тик `1200`.
+Check tick `1200`.
 
-Проверяйте тик `2100`.
+Check tick `2100`.
 
-Повторите каждый seed.
+Repeat each seed.
 
-Сравните парные прогоны с одинаковым исходным состоянием.
+Compare paired runs with the same initial state.
 
-- [ ] Проверьте FOOD-T09…FOOD-T11.
-- [ ] Проверьте экспорт и импорт.
-- [ ] Сравните baseline-фингерпринты.
-- [ ] Выполните `pnpm run check:strict`.
-- [ ] Выполните браузерный smoke-тест.
-- [ ] Измерьте `targetSelectionMs` для FOOD-P04.
-- [ ] Измерьте `workerTickMs` для FOOD-P05.
-- [ ] Сохраните JSONL.
-- [ ] Примените утверждённый D-05.
+- [ ] Verify FOOD-T09…FOOD-T11.
+- [ ] Verify export and import.
+- [ ] Compare the baseline fingerprints.
+- [ ] Run `pnpm run check:strict`.
+- [ ] Perform the browser smoke test.
+- [ ] Measure `targetSelectionMs` for FOOD-P04.
+- [ ] Measure `workerTickMs` for FOOD-P05.
+- [ ] Save the JSONL.
+- [ ] Apply the approved D-05.
 
-## 7. M6 — Проверяемые критерии SOLID, DRY и расширения
+## 7. M6 — Verifiable SOLID, DRY, and Extension Criteria
 
-### 7.1. Автоматические проверки
+### 7.1. Automated Checks
 
-| ID | Критерий | Автоматическая проверка | Условие PASS |
+| ID | Criterion | Automated check | PASS condition |
 |---|---|---|---|
-| M6-A01 | Архитектурные слои. | `pnpm run depcruise`. | Нет нарушений зависимостей. |
-| M6-A02 | Типы и контракты. | `pnpm run typecheck`. | Код возврата 0. |
-| M6-A03 | Качество исходников. | `pnpm run lint`. | Код возврата 0. |
-| M6-A04 | Отсутствие лишних экспортов. | `pnpm run check:dead-code`. | Код возврата 0. |
-| M6-A05 | Взаимозаменяемость стратегий. | Vitest-контракт для двух реализаций `ActionSelectionPolicy`. | Одинаковая форма действия. |
-| M6-A06 | Раздельное состояние организмов. | Vitest-контракт с двумя организмами. | Нет записи в чужое состояние. |
-| M6-A07 | Единый бюджет. | Vitest-контракт всех четырёх `FoodSpawnStrategy`. | Одинаковое решение бюджета для одинаковой категории. |
-| M6-A08 | Единая геометрия. | Vitest-контракт на масштабах `0.5`, `1`, `2`. | Одинаковое правило доступности. |
-| M6-A09 | Неизменность генома. | `verify-review.mjs scope <baseline-ref> <dirty-manifest>`. | Все защищённые файлы и генетические строки неизменны. |
-| M6-A10 | Ограничение состава изменений. | `verify-review.mjs scope <baseline-ref> <dirty-manifest>`. | Изменены только пути из `scope-policy.json`. |
-| M6-A11 | Полная приёмка. | `pnpm run check:strict`. | Код возврата 0. |
+| M6-A01 | Architectural layers. | `pnpm run depcruise`. | No dependency violations. |
+| M6-A02 | Types and contracts. | `pnpm run typecheck`. | Exit code 0. |
+| M6-A03 | Source quality. | `pnpm run lint`. | Exit code 0. |
+| M6-A04 | No superfluous exports. | `pnpm run check:dead-code`. | Exit code 0. |
+| M6-A05 | Interchangeability of strategies. | Vitest contract for two implementations of `ActionSelectionPolicy`. | Identical action shape. |
+| M6-A06 | Separate organism state. | Vitest contract with two organisms. | No writes to another's state. |
+| M6-A07 | Single budget. | Vitest contract of all four `FoodSpawnStrategy` values. | Identical budget decision for the same category. |
+| M6-A08 | Single geometry. | Vitest contract at scales `0.5`, `1`, `2`. | Identical accessibility rule. |
+| M6-A09 | Genome immutability. | `verify-review.mjs scope <baseline-ref> <dirty-manifest>`. | All protected files and genetic lines are unchanged. |
+| M6-A10 | Limit on change composition. | `verify-review.mjs scope <baseline-ref> <dirty-manifest>`. | Only paths from `scope-policy.json` are changed. |
+| M6-A11 | Full acceptance. | `pnpm run check:strict`. | Exit code 0. |
 
-Определите `<baseline-ref>` как commit SHA перед реализацией.
+Define `<baseline-ref>` as the commit SHA before implementation.
 
-Используйте `afad92b84c9b547802a5a785588ba112a1a05331` для текущего состояния.
+Use `afad92b84c9b547802a5a785588ba112a1a05331` for the current state.
 
-Сохраните SHA256 всех предшествующих незакоммиченных файлов перед M1.
+Save the SHA256 of all preceding uncommitted files before M1.
 
-Сохраните список в `review-baseline-dirty.json`.
+Save the list in `review-baseline-dirty.json`.
 
-Получите разрешение оператора на исключение этих файлов из проверки scope.
+Obtain the operator's permission to exclude these files from the scope check.
 
-Не исключайте файл при несовпадении сохранённого SHA256.
+Do not exclude a file if the saved SHA256 does not match.
 
-Сохраните результаты каждого теста в журнале M6.
+Save the results of each test in the M6 log.
 
-Используйте `scope-policy.json` как единый источник разрешённых файлов.
+Use `scope-policy.json` as the single source of permitted files.
 
-Используйте `verify-review.mjs scope` для проверки изменённых файлов.
+Use `verify-review.mjs scope` to check changed files.
 
-Запрещайте новые модули вне `allowedExact` и `allowedPatterns`.
+Prohibit new modules outside `allowedExact` and `allowedPatterns`.
 
-Запрещайте новые модули Utility AI.
+Prohibit new Utility AI modules.
 
-Читайте содержимое каждого нового untracked файла.
+Read the content of each new untracked file.
 
-Проверяйте содержимое untracked файлов по запрещённым маркерам Utility AI.
+Check the content of untracked files for prohibited Utility AI markers.
 
-Сохраняйте `untrackedScanned` в отчёте scope.
+Save `untrackedScanned` in the scope report.
 
-Не приравнивайте совпадение имени файла к проверке содержимого.
+Do not equate a file-name match with a content check.
 
-### 7.1.1. Файлы генома
+### 7.1.1. Genome Files
 
-Проверяйте все пути `genomeInventory` из `scope-policy.json`.
+Check all `genomeInventory` paths from `scope-policy.json`.
 
-Сравнивайте SHA256 каждого файла генома с исходным commit.
+Compare the SHA256 of each genome file with the source commit.
 
-Сохраняйте `genome-sha256.json` с результатом сравнения.
+Save `genome-sha256.json` with the comparison result.
 
-Запускайте `verify-review.mjs genome-sha256 <baseline-ref>`.
+Run `verify-review.mjs genome-sha256 <baseline-ref>`.
 
-Сохраняйте список `baselineSha256`, `currentSha256` и `status`.
+Save the list `baselineSha256`, `currentSha256`, and `status`.
 
-Проверяйте целостность каждого файла генома.
+Verify the integrity of each genome file.
 
-Проверяйте diff каждого изменённого файла генома.
+Verify the diff of each changed genome file.
 
-Проверяйте изменения строк с маркерами `genome`, `genetic`, `mutat`, `reproduc` и `inherit`.
+Verify changes to lines with the markers `genome`, `genetic`, `mutat`, `reproduc`, and `inherit`.
 
-Не ограничивайте проверку файлом `src/types.ts`.
+Do not limit the check to the file `src/types.ts`.
 
-Реестр файлов генома:
+Genome file registry:
 
 - `src/types.ts`
 - `src/config/genetics.constants.ts`
@@ -624,205 +624,205 @@ D-06 определяет контракт сохранения до M3.
 - `src/simulation/services/Spawn.service.ts`
 - `src/simulation/engine/TickLoop.service.ts`
 
-Применяйте полную блокировку изменений к `genomeStrict`.
+Apply a full change lock to `genomeStrict`.
 
-Проверяйте смешанные файлы автоматически по изменённым генетическим строкам.
+Check mixed files automatically by changed genetic lines.
 
-Проверяйте смешанные файлы вручную по полному diff.
+Check mixed files manually by the full diff.
 
-Считайте изменение SHA256 файла `Persistence.service.ts` причиной блокировки M6-A09.
+Treat a change in the SHA256 of `Persistence.service.ts` as a cause of the M6-A09 block.
 
-Считайте изменение SHA256 файла `Spawn.service.ts` причиной блокировки M6-A09.
+Treat a change in the SHA256 of `Spawn.service.ts` as a cause of the M6-A09 block.
 
-Считайте изменение SHA256 файла `TickLoop.service.ts` причиной блокировки M6-A09.
+Treat a change in the SHA256 of `TickLoop.service.ts` as a cause of the M6-A09 block.
 
-Запрашивайте отдельное разрешение на изменения смешанных файлов генома.
+Request separate permission for changes to mixed genome files.
 
-Не считайте отсутствие генетических слов в diff достаточным доказательством.
+Do not treat the absence of genetic words in the diff as sufficient evidence.
 
-Фиксируйте результат ручного анализа в пакете изменений.
+Record the result of the manual analysis in the change package.
 
-Не считайте строковую проверку доказательством полной семантической неизменности.
+Do not treat a string check as proof of complete semantic immutability.
 
-### 7.1.2. Список разрешённых файлов
+### 7.1.2. List of Permitted Files
 
-Используйте `allowedExact` для фиксированных путей.
+Use `allowedExact` for fixed paths.
 
-Используйте `allowedPatterns` для тестов с ограниченными именами.
+Use `allowedPatterns` for tests with restricted names.
 
-Разрешайте изменения `Behavior.system.ts` для выбора пищевой цели.
+Permit changes to `Behavior.system.ts` for food target selection.
 
-Разрешайте изменения `Spawn.service.ts` и `TickLoop.service.ts` для пищевого бюджета.
+Permit changes to `Spawn.service.ts` and `TickLoop.service.ts` for the food budget.
 
-Разрешайте изменения `Persistence.service.ts` для пищевого бюджета только после отдельного согласования.
+Permit changes to `Persistence.service.ts` for the food budget only after separate agreement.
 
-Проверяйте генетическую сериализацию `Persistence.service.ts` до изменения.
+Verify the genetic serialization of `Persistence.service.ts` before the change.
 
-Проверяйте генетическую сериализацию `Persistence.service.ts` после изменения.
+Verify the genetic serialization of `Persistence.service.ts` after the change.
 
-Проверяйте SHA256 `Persistence.service.ts` до изменения.
+Verify the SHA256 of `Persistence.service.ts` before the change.
 
-Проверяйте SHA256 `Persistence.service.ts` после изменения.
+Verify the SHA256 of `Persistence.service.ts` after the change.
 
-Считайте изменение SHA256 препятствием M6-A09 до отдельного разрешения.
+Treat a SHA256 change as an obstacle to M6-A09 until separate permission is granted.
 
-Разрешайте новые контракты `FoodAccessibility`, `FoodBudget` и `ActionSelection`.
+Permit new `FoodAccessibility`, `FoodBudget`, and `ActionSelection` contracts.
 
-Отклоняйте файлы вне `scope-policy.json`.
+Reject files outside `scope-policy.json`.
 
-Запросите отдельное разрешение для расширения `scope-policy.json`.
+Request separate permission to extend `scope-policy.json`.
 
-Проверьте отсутствие новых модулей Utility AI в отчёте скрипта.
+Verify the absence of new Utility AI modules in the script report.
 
-Сохраните JSON-отчёт `verify-review.mjs scope`.
+Save the JSON report of `verify-review.mjs scope`.
 
-Сохраните ручной результат проверки смешанных файлов.
+Save the manual verification result for mixed files.
 
-Не считайте поиск текста единственным доказательством отсутствия Utility AI.
+Do not treat text search as the sole evidence of the absence of Utility AI.
 
-### 7.2. Ручной обзор
+### 7.2. Manual Review
 
-Проверьте одну ответственность каждого изменённого компонента.
+Verify the single responsibility of each changed component.
 
-Проверьте отсутствие дублирования геометрического правила.
+Verify the absence of duplication of the geometric rule.
 
-Проверьте отсутствие дублирования пищевого бюджета.
+Verify the absence of duplication of the food budget.
 
-Проверьте отсутствие связи `SpawnService` с `ActionSelectionPolicy`.
+Verify the absence of coupling between `SpawnService` and `ActionSelectionPolicy`.
 
-Проверьте отсутствие связи `CollisionSystem` с `FoodBudgetPolicy`.
+Verify the absence of coupling between `CollisionSystem` and `FoodBudgetPolicy`.
 
-Проверьте отсутствие изменений генетической фабрики.
+Verify the absence of changes to the genetic factory.
 
-Проверьте контракт будущих наследуемых параметров без их реализации.
+Verify the contract of future heritable parameters without implementing them.
 
-Не принимайте M6 при отказе автоматической проверки.
+Do not accept M6 if an automated check fails.
 
-## 8. Матрица приёмочных доказательств
+## 8. Acceptance Evidence Matrix
 
-| ID | Метод | Ожидаемый результат | Обязательное доказательство |
+| ID | Method | Expected result | Required evidence |
 |---|---|---|---|
-| FOOD-T01 | Интеграционный тест | Доступная пища потребляется. | Укус, энергия, tick, ID пищи. |
-| FOOD-T02 | Контрактный тест | Выбрана доступная пища. | ID цели; результат `REACHABLE`. |
-| FOOD-T03 | Контрактный тест | Недоступная цель сброшена при отсутствии других действий. | `BLOCKED` или `UNKNOWN`; состояние `IDLE`. |
-| FOOD-T04 | Парный интеграционный тест | Удалённый организм потребляет пищу независимо. | Энергия обоих организмов; независимые цели. |
-| FOOD-T05 | Тест бюджета | При `N_trapped=C_trapped` внешняя пища допускается при свободном `C_outer`. | Остатки бюджетов; решение спавна. |
-| FOOD-T06 | Тест бюджета | При `N_trapped+N_outer=maxFood` новый объект не допускается. | Число объектов до и после попытки. |
-| FOOD-T07 | Тест импорта | После восстановления применяются те же ограничения бюджета. | Снимок до экспорта и после импорта. |
-| FOOD-T08 | Геометрический тест | Используется фактический `worldSize`. | Масштаб, координаты, результат. |
-| FOOD-T09 | Длительный прогон | Спавн возможен при свободном внешнем бюджете. | Счётчики спавна по тикам. |
-| FOOD-T10 | Повторный seed | Результаты одинаковых прогонов совпадают. | Фингерпринты по контрольным тикам. |
-| FOOD-T11 | Контрактный тест | Тестовая политика возвращает `food_out`; исполнение одинаково. | ID цели; состояние физики после исполнения. |
-| FOOD-T12 | Тест `ResourceStock` | Отказ бюджета не тратит единицы; разрешённый спавн учитывает расход. | `zoneStocks`, `unitsSpent`, `RESOURCE_STOCK_UNITS_PER_FOOD`. |
+| FOOD-T01 | Integration test | Accessible food is consumed. | Bite, energy, tick, food ID. |
+| FOOD-T02 | Contract test | Accessible food is selected. | Target ID; `REACHABLE` result. |
+| FOOD-T03 | Contract test | An inaccessible target is reset in the absence of other actions. | `BLOCKED` or `UNKNOWN`; `IDLE` state. |
+| FOOD-T04 | Paired integration test | A distant organism consumes food independently. | Energy of both organisms; independent targets. |
+| FOOD-T05 | Budget test | At `N_trapped=C_trapped`, outer food is admitted while `C_outer` is free. | Budget remainders; spawn decision. |
+| FOOD-T06 | Budget test | At `N_trapped+N_outer=maxFood`, a new object is not admitted. | Object count before and after the attempt. |
+| FOOD-T07 | Import test | After restoration, the same budget constraints apply. | Snapshot before export and after import. |
+| FOOD-T08 | Geometry test | The actual `worldSize` is used. | Scale, coordinates, result. |
+| FOOD-T09 | Long run | Spawning is possible with a free outer budget. | Spawn counters by tick. |
+| FOOD-T10 | Repeated seed | Results of identical runs match. | Fingerprints at control ticks. |
+| FOOD-T11 | Contract test | The test policy returns `food_out`; execution is identical. | Target ID; physics state after execution. |
+| FOOD-T12 | `ResourceStock` test | Budget rejection does not spend units; a permitted spawn accounts for the expenditure. | `zoneStocks`, `unitsSpent`, `RESOURCE_STOCK_UNITS_PER_FOOD`. |
 
-Сохраняйте значения измерений в JSONL раздела 6.
+Save the measurement values in the JSONL of Section 6.
 
-Не отмечайте тест как PASS без фактического доказательства.
+Do not mark a test as PASS without actual evidence.
 
-## 9. Отдельный дефект физики
+## 9. Separate Physics Defect
 
-Диагностика выявила ошибку тороидального столкновения при нестандартном `worldSize`.
+Diagnostics revealed a toroidal collision error at a non-standard `worldSize`.
 
-`Collision.system.ts` использует размер мира по умолчанию в `isColliding()`.
+`Collision.system.ts` uses the default world size in `isColliding()`.
 
-Не исправляйте эту ошибку внутри пищевого бюджета.
+Do not fix this error within the food budget.
 
-Согласуйте изменение физики отдельно.
+Agree on the physics change separately.
 
-## 10. Проверка перед коммитом
+## 10. Pre-Commit Verification
 
-1. Покажите полный список изменённых файлов.
-2. Покажите diff каждого предлагаемого файла.
-3. Покажите результаты проверок.
-4. Покажите результат архитектурного обзора.
-5. Укажите точный состав предлагаемого коммита.
-6. Запросите разрешение оператора.
-7. Выполните коммит после явного разрешения.
+1. Show the full list of changed files.
+2. Show the diff of each proposed file.
+3. Show the results of the checks.
+4. Show the result of the architectural review.
+5. State the exact composition of the proposed commit.
+6. Request the operator's permission.
+7. Perform the commit after explicit permission.
 
-8. Переведите публичную документацию на английский до публикации.
+8. Translate public documentation into English before publication.
 
-9. Проверьте соответствие перевода рабочему оригиналу.
+9. Verify the translation against the working original.
 
-10. Получите отдельное разрешение на публичную публикацию.
+10. Obtain separate permission for public publication.
 
-Не включайте несвязанные локальные изменения.
+Do not include unrelated local changes.
 
-Не выполняйте `git add` до согласования состава коммита.
+Do not run `git add` before the commit composition is agreed.
 
-Не считайте утверждение требований разрешением на коммит.
+Do not treat approval of the requirements as permission to commit.
 
-### 10.1. Формат пакета изменений
+### 10.1. Change Package Format
 
-Сохраняйте полный diff в `review/full.patch`.
+Save the full diff in `review/full.patch`.
 
-Используйте `git diff --binary --full-index` для отслеживаемых файлов.
+Use `git diff --binary --full-index` for tracked files.
 
-Используйте `git diff --no-index --binary /dev/null <file>` для новых файлов.
+Use `git diff --no-index --binary /dev/null <file>` for new files.
 
-Сохраняйте имена файлов в `review/files.txt`.
+Save the file names in `review/files.txt`.
 
-Сохраняйте SHA256 каждого файла в `review/checksums.sha256`.
+Save the SHA256 of each file in `review/checksums.sha256`.
 
-Сохраняйте результаты тестов в `review/tests.txt`.
+Save the test results in `review/tests.txt`.
 
-Сохраняйте решение оператора в `review/approval.md` после утверждения.
+Save the operator's decision in `review/approval.md` after approval.
 
-Проверяйте соответствие `full.patch` и `files.txt`.
+Verify the correspondence between `full.patch` and `files.txt`.
 
-Не включайте изменения за пределами утверждённого состава.
+Do not include changes outside the approved composition.
 
-Не выполняйте `git add` при подготовке пакета.
+Do not run `git add` when preparing the package.
 
-### 10.2. Команды самостоятельной проверки
+### 10.2. Self-Verification Commands
 
-Запустите структурную проверку 61 ID требований:
+Run the structural check of the 61 requirement IDs:
 
-Команда проверяет количество ID и отсутствие повторов.
+The command checks the number of IDs and the absence of duplicates.
 
-Команда не проверяет смысл требований.
+The command does not check the meaning of the requirements.
 
-Проверяйте семантику требования по соответствующему тесту FOOD-T01…FOOD-T12.
+Verify the semantics of a requirement via the corresponding test FOOD-T01…FOOD-T12.
 
-Проводите ручной обзор нетестируемых требований FOOD-A01…FOOD-A14.
+Conduct manual review of the untestable requirements FOOD-A01…FOOD-A14.
 
 ```bash
 node docs/specs/food-accessibility-and-budget/verify-review.mjs preflight
 ```
 
-Сохраните результат проверки:
+Save the verification result:
 
 ```bash
 node docs/specs/food-accessibility-and-budget/verify-review.mjs preflight > docs/specs/food-accessibility-and-budget/review-verification.json
 ```
 
-Запустите проверку состава изменений перед M6:
+Run the change-composition check before M6:
 
 ```bash
 node docs/specs/food-accessibility-and-budget/verify-review.mjs scope afad92b84c9b547802a5a785588ba112a1a05331 docs/specs/food-accessibility-and-budget/review-baseline-dirty.json
 ```
 
-Не заявляйте scope PASS до M6.
+Do not claim scope PASS before M6.
 
-Запустите сравнение SHA256 всех файлов генома:
+Run the SHA256 comparison of all genome files:
 
 ```bash
 node docs/specs/food-accessibility-and-budget/verify-review.mjs genome-sha256 afad92b84c9b547802a5a785588ba112a1a05331
 ```
 
-Учитывайте существующие незакоммиченные изменения по согласованному манифесту.
+Account for existing uncommitted changes per the agreed manifest.
 
-Не публикуйте русскую документацию в публичном репозитории.
+Do not publish the Russian documentation in the public repository.
 
-## 11. Текущее состояние
+## 11. Current State
 
-SPEC-FOOD-001 утверждает требования.
+SPEC-FOOD-001 approves the requirements.
 
-D-01…D-06 архитектурно выбраны по FOOD-ADR-001; реализация требует AUTH-01.
+D-01…D-06 are architecturally selected under FOOD-ADR-001; implementation requires AUTH-01.
 
-Реализация не начата.
+Implementation is not started.
 
-Следующий шаг: согласовать AUTH-01 и завершить M0.
+Next step: agree on AUTH-01 and complete M0.
 
-Перед M1 необходимы результаты M0 и разрешение AUTH-01.
+Before M1, the M0 results and the AUTH-01 permission are required.
 
-См. [specification.md](./specification.md).
+See [specification.md](./specification.md).

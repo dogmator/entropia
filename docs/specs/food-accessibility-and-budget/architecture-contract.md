@@ -1,467 +1,467 @@
-# FOOD-ADR-001 — Минимальный экологический контракт Entropia
+# FOOD-ADR-001 — Entropia Minimal Ecological Contract
 
-**Дата:** 2026-10-25.
-**Статус:** ARCHITECTURE_SELECTED. Реализация не разрешена этим документом.
-**Основание:** три решения оператора в диалоге 2026-10-25.
-**Предел делегирования:** архитектура D-01…D-06; не изменение исходников или публикация.
-**Исходная ветка:** `dogma/laughing-goodall-mm3c44`.
-**Исходный HEAD при подготовке:** `41b09a349c508f5edfe7307f747d0a33b3aa6669`.
-**Предшествующий анализ:** [consolidated-four-cycle-review.md](./consolidated-four-cycle-review.md).
-**Базовая спецификация:** [specification.md](./specification.md).
-**План:** [execution-plan.md](./execution-plan.md).
-**Публичная публикация:** запрещена до английского перевода и утверждения перевода.
+**Date:** 2026-10-25.
+**Status:** ARCHITECTURE_SELECTED. This document does not authorize implementation.
+**Basis:** three operator decisions in the 2026-10-25 conversation.
+**Delegation limit:** architecture D-01…D-06; not modification of source code or publication.
+**Source branch:** `dogma/laughing-goodall-mm3c44`.
+**Source HEAD at preparation:** `41b09a349c508f5edfe7307f747d0a33b3aa6669`.
+**Prior analysis:** [consolidated-four-cycle-review.md](./consolidated-four-cycle-review.md).
+**Base specification:** [specification.md](./specification.md).
+**Plan:** [execution-plan.md](./execution-plan.md).
+**Public publication:** prohibited until the English translation is complete and approved.
 
-## 1. Три утверждённых принципа оператора
+## 1. Three Approved Operator Principles
 
-| ID | Решение оператора | Последствие |
+| ID | Operator decision | Consequence |
 |---|---|---|
-| OP-01 | Саморегулируемая экосистема. | Ресурсы естественно регенерируют; вымирание возможно. |
-| OP-02 | Научно обоснованный минимум. | Ограниченный запас, регенерация, бюджеты; без искусственного переноса пищи. |
-| OP-03 | Непрерывность миров. | Сохраняйте организмы, геномы, энергию и историю при изменении правил. |
+| OP-01 | Self-regulating ecosystem. | Resources regenerate naturally; extinction is possible. |
+| OP-02 | Scientifically grounded minimum. | Bounded stock, regeneration, budgets; no artificial food relocation. |
+| OP-03 | Continuity of worlds. | Preserve organisms, genomes, energy, and history when rules change. |
 
-Не добавляйте искусственное спасение популяций.
+Do not add artificial population rescue.
 
-Не создавайте пищу без действующего правила регенерации в научном режиме.
+Do not create food without an active regeneration rule in scientific mode.
 
-Не удаляйте, не перемещайте и не преобразуйте пищу скрыто.
+Do not remove, move, or transform food covertly.
 
-Не сбрасывайте мир для применения нового бюджета.
+Do not reset the world to apply a new budget.
 
-Сохраняйте возможность естественного вымирания и восстановления среды.
+Preserve the possibility of natural extinction and environmental recovery.
 
-Не вводите P2P, обмен мигрантами или распределённый консенсус на этом этапе.
+Do not introduce P2P, migrant exchange, or distributed consensus at this stage.
 
-Обеспечьте детерминированность локального мира как основу будущей сети.
+Ensure determinism of the local world as the foundation for a future network.
 
-## 2. Область минимальной реализации
+## 2. Minimal Implementation Scope
 
-**Включено:** выбор доступной пищевой цели.
+**Included:** selection of an accessible food target.
 
-**Включено:** контроль числа новых объектов пищи по зонам.
+**Included:** control of the number of new food objects by zone.
 
-**Включено:** проверяемое восстановление мира и изменения конфигурации.
+**Included:** verifiable world restoration and configuration changes.
 
-**Включено:** детерминированные тесты и метрики нагрузки.
+**Included:** deterministic tests and load metrics.
 
-**Не включено:** Utility AI, A*, глобальный навигатор или генетические изменения.
+**Not included:** Utility AI, A*, a global navigator, or genetic changes.
 
-**Не включено:** разложение, миграция веществ между зонами и новая схема сохранений.
+**Not included:** decomposition, migration of substances between zones, and a new save schema.
 
-**Не включено:** автоматическая коррекция численности популяции.
+**Not included:** automatic correction of population size.
 
-**Не включено:** автоматическое переселение пищи или перераспределение энергии.
+**Not included:** automatic relocation of food or redistribution of energy.
 
-**Не включено:** изменение физики в составе пищевого бюджета.
+**Not included:** changes to physics as part of the food budget.
 
-## 3. Утверждённые архитектурные решения D-01…D-06
+## 3. Approved Architectural Decisions D-01…D-06
 
-### D-01 — Доступность пищи: прямой исполнимый коридор
+### D-01 — Food Accessibility: Direct Executable Corridor
 
-**Выбор архитектора:** A+ без построения маршрута обхода.
+**Architect's choice:** A+ without building a detour route.
 
-Проверяйте прямой тороидальный коридор от организма до `FoodCollisionRegion`.
+Check the direct toroidal corridor from the organism to the `FoodCollisionRegion`.
 
-Используйте фактический `worldSize`.
+Use the actual `worldSize`.
 
-Учитывайте радиус организма вдоль коридора.
+Account for the organism's radius along the corridor.
 
-Учитывайте препятствия `Obstacle` и непроходимые `Anomaly`.
+Account for `Obstacle` obstacles and impassable `Anomaly` entities.
 
-Учитывайте действующую зону отталкивания `Obstacle`.
+Account for the active repulsion zone of an `Obstacle`.
 
-Возвращайте `REACHABLE` только при геометрически свободном коридоре и подтверждённой исполнимости текущим steering.
+Return `REACHABLE` only when the corridor is geometrically free and executability by the current steering is confirmed.
 
-Возвращайте `BLOCKED` при доказанной полной недоступности области укуса.
+Return `BLOCKED` when complete inaccessibility of the bite region is proven.
 
-Возвращайте `UNKNOWN` при возможном обходе без реализации навигации.
+Return `UNKNOWN` when a detour is possible without implementing navigation.
 
-Возвращайте `UNKNOWN` при неподтверждённой исполнимости прямого коридора.
+Return `UNKNOWN` when executability of the direct corridor is unconfirmed.
 
-Исключайте `BLOCKED` и `UNKNOWN` из пищевых целей на текущем тике.
+Exclude `BLOCKED` and `UNKNOWN` from food targets on the current tick.
 
-Не удаляйте пищу из-за результата `BLOCKED` или `UNKNOWN`.
+Do not remove food because of a `BLOCKED` or `UNKNOWN` result.
 
-Не смешивайте этот результат с глобальной категорией бюджета.
+Do not mix this result with the global budget category.
 
-Пересматривайте текущую цель на каждом тике.
+Re-evaluate the current target on every tick.
 
-Сбрасывайте недоступную цель до расчёта силы движения.
+Reset an inaccessible target before computing the movement force.
 
-Сохраняйте независимое состояние выбора у каждого организма.
+Keep the selection state independent for each organism.
 
-Разрешайте равенство расстояний по стабильному ID пищи.
+Resolve distance ties by stable food ID.
 
-Не запускайте поиск пути вокруг сфер в MVP.
+Do not run pathfinding around spheres in the MVP.
 
-Не утверждайте, что отсутствие прямого пути означает отсутствие маршрута вообще.
+Do not claim that the absence of a direct path means the absence of any route at all.
 
-**Проверка:** тесты с препятствиями, оазисом, тороидальным швом и независимыми организмами.
+**Verification:** tests with obstacles, an oasis, the toroidal seam, and independent organisms.
 
-**Ограничение:** доступность на масштабах `0.5` и `2` нельзя окончательно принять до PHY-01.
+**Limitation:** accessibility at scales `0.5` and `2` cannot be finally accepted before PHY-01.
 
-**Ограничение:** правильный геометрический тест сам по себе не гарантирует выполнение steering.
+**Limitation:** a correct geometric test alone does not guarantee that steering will execute.
 
-### D-02 — Категория пищевого бюджета: размещение, не достижимость
+### D-02 — Food Budget Category: Placement, Not Reachability
 
-**Выбор архитектора:** вариант A, геометрическая категория области оазиса.
+**Architect's choice:** option A, geometric category of the oasis region.
 
-Считайте `BudgetInnerFood` пищу с центром внутри непроходимой сферы `ZoneType.OASIS`.
+Count as `BudgetInnerFood` any food whose center lies inside the impassable `ZoneType.OASIS` sphere.
 
-Используйте строгое расстояние `d < R_oasis`.
+Use the strict distance `d < R_oasis`.
 
-Используйте тороидальное расстояние с фактическим `worldSize`.
+Use the toroidal distance with the actual `worldSize`.
 
-Считайте `BudgetOuterFood` всю остальную допустимую пищу.
+Count as `BudgetOuterFood` all other valid food.
 
-Не используйте радиус организма при бюджетной классификации.
+Do not use the organism radius in budget classification.
 
-Не используйте индивидуальный результат `REACHABLE` для бюджета.
+Do not use the individual `REACHABLE` result for the budget.
 
-Считайте пищу внутри нескольких оазисов один раз.
+Count food inside multiple oases once.
 
-Считайте обычный `Obstacle` препятствием движения, но не отдельной категорией бюджетного резерва.
+Treat an ordinary `Obstacle` as a movement obstacle, but not as a separate budget reserve category.
 
-Не разрешайте спавн внутри обычного `Obstacle`.
+Do not permit spawning inside an ordinary `Obstacle`.
 
-Не классифицируйте другие зоны как внутренние без отдельного расширения контракта.
+Do not classify other zones as inner without a separate extension of the contract.
 
-Сохраните ранее разрешённый спавн внутри оазиса.
+Preserve the previously permitted spawning inside an oasis.
 
-Не называйте `BudgetInnerFood` полностью несъедобной пищей.
+Do not call `BudgetInnerFood` completely inedible food.
 
-Сопоставьте `BudgetInnerFood` с историческим именем `TrappedFood` только в бюджетном контексте.
+Map `BudgetInnerFood` to the historical name `TrappedFood` only in the budget context.
 
-**Проверка:** граница сферы, пересечение сфер, тороидальный шов, пища внутри и снаружи.
+**Verification:** sphere boundary, sphere intersection, toroidal seam, food inside and outside.
 
-### D-03 — Квоты: модель M-1 с жёстким разделением
+### D-03 — Quotas: Model M-1 with Hard Separation
 
-**Выбор архитектора:** пилотная квота 5% / 95%.
+**Architect's choice:** pilot quota 5% / 95%.
 
-Определите `C = maxFood`.
+Define `C = maxFood`.
 
-Проверяйте конечность, целочисленность и неотрицательность `C` до применения.
+Verify that `C` is finite, an integer, and non-negative before applying it.
 
-Определите `C_inner = floor(0.05 * C)`.
+Define `C_inner = floor(0.05 * C)`.
 
-Определите `C_outer = C - C_inner`.
+Define `C_outer = C - C_inner`.
 
-При `C=400` используйте `C_inner=20` и `C_outer=380`.
+For `C=400`, use `C_inner=20` and `C_outer=380`.
 
-При `C=50` используйте `C_inner=2` и `C_outer=48`.
+For `C=50`, use `C_inner=2` and `C_outer=48`.
 
-При `C=0` используйте нулевые квоты.
+For `C=0`, use zero quotas.
 
-При `0<C<20` используйте `C_inner=0`.
+For `0<C<20`, use `C_inner=0`.
 
-Запрещайте штатное добавление пищи при заполненном бюджете её категории.
+Prohibit regular addition of food when the budget of its category is full.
 
-Запрещайте добавление пищи при `N_total >= C`.
+Prohibit adding food when `N_total >= C`.
 
-Не переносите незанятую квоту между категориями.
+Do not transfer unused quota between categories.
 
-Не переселяйте уже существующую пищу.
+Do not relocate already existing food.
 
-Не выполняйте повторный выбор места спавна после бюджетного отказа.
+Do not re-select the spawn location after a budget rejection.
 
-Сохраняйте исходный порядок потребления RNG для одной попытки спавна.
+Preserve the original RNG consumption order for a single spawn attempt.
 
-Отклоняйте попытку до списания `ResourceStock`.
+Reject the attempt before debiting `ResourceStock`.
 
-Не увеличивайте счётчики успешного спавна при отказе бюджета.
+Do not increment successful-spawn counters on budget rejection.
 
-Применяйте правило ко всем четырём `FoodSpawnStrategy`.
+Apply the rule to all four `FoodSpawnStrategy` values.
 
-Пересчитывайте квоты при утверждённом изменении `maxFood`.
+Recompute quotas upon an approved change of `maxFood`.
 
-Относитесь к 5% как к контролируемому стартовому параметру.
+Treat 5% as a controlled starting parameter.
 
-Не заявляйте научную оптимальность квоты без долгосрочных экспериментов.
+Do not claim scientific optimality of the quota without long-term experiments.
 
-**Проверка:** 50, 100, 400, 2000; нечётные значения через API; заполненный и частично заполненный бюджет.
+**Verification:** 50, 100, 400, 2000; odd values via the API; full and partially full budget.
 
-### D-04 — Непрерывность старых миров и уменьшение лимита
+### D-04 — Continuity of Old Worlds and Limit Reduction
 
-**Выбор архитектора:** сохранение существующих объектов; управляемый бюджетный долг.
+**Architect's choice:** preservation of existing objects; managed budget debt.
 
-При загрузке сохранённого мира сохраняйте существующие объекты пищи.
+When loading a saved world, preserve existing food objects.
 
-Определяйте бюджетный долг отдельно для внутренней и внешней категорий.
+Define budget debt separately for the inner and outer categories.
 
-Допускайте исходное превышение новой квоты как `LegacyOverQuota`.
+Allow an initial excess over the new quota as `LegacyOverQuota`.
 
-Не используйте `LegacyOverQuota` как разрешение на новые объекты в переполненной категории.
+Do not use `LegacyOverQuota` as permission for new objects in an overfull category.
 
-Разрешайте штатный спавн в другой категории только при свободной квоте этой категории и общем свободном `C`.
+Allow regular spawning in the other category only when that category has free quota and the total `C` has free capacity.
 
-Не нарушайте общий лимит `C` ради восстановления внешнего спавна.
+Do not violate the total limit `C` in order to restore outer spawning.
 
-Не удаляйте `LegacyOverQuota` автоматически.
+Do not delete `LegacyOverQuota` automatically.
 
-Не переносите `LegacyOverQuota` наружу.
+Do not move `LegacyOverQuota` outward.
 
-Не запускайте спасательные механизмы для компенсации `LegacyOverQuota`.
+Do not trigger rescue mechanisms to compensate for `LegacyOverQuota`.
 
-Отклоняйте уменьшение `maxFood`, если текущее `N_total` превышает новый общий лимит.
+Reject a reduction of `maxFood` if the current `N_total` exceeds the new total limit.
 
-Отклоняйте уменьшение `maxFood`, если оно переводит любую категорию в новое превышение квоты.
+Reject a reduction of `maxFood` if it puts any category into a new quota excess.
 
-Не сбрасывайте текущий мир при отклонении изменения конфигурации.
+Do not reset the current world when a configuration change is rejected.
 
-Возвращайте диагностическую причину отказа.
+Return a diagnostic reason for the rejection.
 
-При импорте разрешайте уже существовавшее превышение квоты.
+On import, allow a pre-existing quota excess.
 
-Не считайте импорт основанием для сброса истории, генома и накопленной энергии.
+Do not treat import as grounds for resetting history, genome, and accumulated energy.
 
-Проверяйте полное содержание снимка до применения его к работающему миру.
+Verify the full content of a snapshot before applying it to a running world.
 
-Не отбрасывайте объекты пищи при импорте без явного отказа всего импорта.
+Do not discard food objects on import without an explicit rejection of the entire import.
 
-Оставляйте работающий мир неизменным при несовместимом снимке.
+Leave the running world unchanged when the snapshot is incompatible.
 
-Учитывайте текущий дефект фильтрации пищи в `Persistence.service.ts`.
+Account for the current food-filtering defect in `Persistence.service.ts`.
 
-Не заявляйте полную совместимость до регрессионного теста этого дефекта.
+Do not claim full compatibility until a regression test for this defect exists.
 
-**Явный компромисс:** старое состояние может временно нарушать новую квоту.
+**Explicit trade-off:** the old state may temporarily violate the new quota.
 
-**Явный компромисс:** при заполненном `maxFood` новый спавн невозможен без естественного освобождения ёмкости.
+**Explicit trade-off:** when `maxFood` is full, new spawning is impossible without natural freeing of capacity.
 
-**Проверка:** 115 внутренней пищи при `maxFood=100`; импорт старого мира; отказ изменения параметров.
+**Verification:** 115 inner food at `maxFood=100`; import of an old world; rejection of a parameter change.
 
-### D-05 — Раздельные ограничения производительности
+### D-05 — Separate Performance Constraints
 
-**Выбор архитектора:** стартовый приёмочный предел `targetSelectionMsP95 <= baseline * 1.25`.
+**Architect's choice:** starting acceptance limit `targetSelectionMsP95 <= baseline * 1.25`.
 
-**Выбор архитектора:** стартовый приёмочный предел `workerTickMsP95 <= baseline * 1.15`.
+**Architect's choice:** starting acceptance limit `workerTickMsP95 <= baseline * 1.15`.
 
-Измеряйте обе метрики отдельно.
+Measure both metrics separately.
 
-Используйте один и тот же `hardwareId` для сравнения.
+Use the same `hardwareId` for comparison.
 
-Используйте три независимых прогона.
+Use three independent runs.
 
-Используйте 15 тиков прогрева и 60 измеренных тиков.
+Use 15 warm-up ticks and 60 measured ticks.
 
-Используйте медиану трёх значений p95.
+Use the median of the three p95 values.
 
-Измеряйте естественный профиль спавна.
+Measure the natural spawn profile.
 
-Измеряйте профиль с `food.size=400` и `maxOrganisms=400`.
+Measure the profile with `food.size=400` and `maxOrganisms=400`.
 
-Проверяйте фактические размеры коллекций перед измерением.
+Verify the actual collection sizes before measurement.
 
-Не используйте прежний `m0-measure.mjs` как полный нагрузочный baseline без заполнения пищи.
+Do not use the former `m0-measure.mjs` as a full load baseline without populating food.
 
-Проверяйте корректность инструментирования после каждой модификации поведения.
+Verify instrumentation correctness after each behavior modification.
 
-Не принимайте работу при превышении любого из двух порогов.
+Do not accept the work if either of the two thresholds is exceeded.
 
-Не увеличивайте пороги автоматически.
+Do not raise thresholds automatically.
 
-Сохраняйте численные значения в JSONL вместе с конфигурацией и исходным SHA.
+Store numeric values in JSONL together with the configuration and the source SHA.
 
-**Условие:** выполнение M5 требует фактического baseline на согласованном профиле.
+**Condition:** execution of M5 requires an actual baseline on the agreed profile.
 
-### D-06 — Производный бюджет без новой схемы снимка
+### D-06 — Derived Budget Without a New Snapshot Schema
 
-**Выбор архитектора:** D-06-A; `maxFood` и геометрия зон остаются источниками правил.
+**Architect's choice:** D-06-A; `maxFood` and zone geometry remain the sources of the rules.
 
-Не добавляйте в снимок поле `foodBudget`.
+Do not add a `foodBudget` field to the snapshot.
 
-Восстанавливайте квоты из `config.maxFood` и зон мира.
+Restore quotas from `config.maxFood` and the world zones.
 
-Определяйте текущую занятость по объектам пищи.
+Determine current occupancy from food objects.
 
-Определяйте `LegacyOverQuota` из занятости и действующих квот.
+Determine `LegacyOverQuota` from occupancy and active quotas.
 
-Не сериализуйте дублирующие счётчики занятости как вторую истину.
+Do not serialize duplicate occupancy counters as a second source of truth.
 
-Не объявляйте полный пересчёт занятости операцией O(1).
+Do not declare a full occupancy recount to be an O(1) operation.
 
-Измеряйте стоимость O(N) перед введением кеша.
+Measure the O(N) cost before introducing a cache.
 
-Сбрасывайте производный кеш после импорта, спавна, удаления и изменения зон.
+Invalidate the derived cache after import, spawn, removal, and zone changes.
 
-Сбрасывайте производный кеш после изменения `maxFood`.
+Invalidate the derived cache after a change of `maxFood`.
 
-Сохраняйте исходный формат снимка при отсутствии обоснованной миграции.
+Preserve the original snapshot format absent a justified migration.
 
-Сохраняйте неизменность генетической сериализации.
+Preserve the immutability of genetic serialization.
 
-**Проверка:** экспорт, импорт, продолжение симуляции, повторный экспорт и совпадение контрольного состояния.
+**Verification:** export, import, simulation continuation, re-export, and match of the control state.
 
-## 4. PHY-01 — Согласованность тороидальных расстояний
+## 4. PHY-01 — Consistency of Toroidal Distances
 
-**Архитектурный выбор:** использовать фактический `worldSize` во всех физических проверках столкновений.
+**Architectural choice:** use the actual `worldSize` in all physical collision checks.
 
-**Разрешение на изменение кода:** ОТДЕЛЬНОЕ РАЗРЕШЕНИЕ НЕ ПОЛУЧЕНО.
+**Permission to change code:** SEPARATE PERMISSION NOT RECEIVED.
 
-Подготовьте отдельный минимальный diff `Collision.system.ts`.
+Prepare a separate minimal diff of `Collision.system.ts`.
 
-Используйте единый тороидальный расчёт со значением мира из экземпляра симуляции.
+Use a single toroidal computation with the world value from the simulation instance.
 
-Не изменяйте законы движения, радиусы или энергию вместе с этим исправлением.
+Do not change the laws of motion, radii, or energy together with this fix.
 
-Проверьте масштаб `0.5`, `1` и `2`.
+Verify scales `0.5`, `1`, and `2`.
 
-Проверьте наличие и отсутствие ложных коллизий через шов.
+Verify the presence and absence of false collisions across the seam.
 
-Проверьте старые baseline-фингерпринты на масштабе 1.
+Verify the old baseline fingerprints at scale 1.
 
-Не принимайте FOOD-T08 до исправления PHY-01.
+Do not accept FOOD-T08 before PHY-01 is fixed.
 
-## 5. M6-01 — Допуск к смешанным файлам
+## 5. M6-01 — Admission to Mixed Files
 
-**Архитектурный выбор:** разрешать только целевые изменения, сохраняющие генетическую семантику.
+**Architectural choice:** permit only targeted changes that preserve genetic semantics.
 
-**Разрешение на изменение кода:** ОТДЕЛЬНОЕ РАЗРЕШЕНИЕ НЕ ПОЛУЧЕНО.
+**Permission to change code:** SEPARATE PERMISSION NOT RECEIVED.
 
-Считайте `Spawn.service.ts` и `TickLoop.service.ts` необходимыми кандидатами для бюджета.
+Treat `Spawn.service.ts` and `TickLoop.service.ts` as necessary candidates for the budget.
 
-Считайте `Persistence.service.ts` кандидатом для проверки совместимости импорта.
+Treat `Persistence.service.ts` as a candidate for import compatibility verification.
 
-Не меняйте `Genome`, наследование, мутацию или генетическую сериализацию.
+Do not change `Genome`, inheritance, mutation, or genetic serialization.
 
-Сравните SHA256 всех файлов `genomeInventory` до и после.
+Compare the SHA256 of all `genomeInventory` files before and after.
 
-Представьте полный diff смешанных файлов оператору.
+Present the full diff of mixed files to the operator.
 
-Не обходите M6-A09 исключением файлов из списка.
+Do not bypass M6-A09 by excluding files from the list.
 
-Допустите исключение только как явно утверждённое решение с доказательством.
+Permit an exception only as an explicitly approved decision with evidence.
 
-## 6. Научные ограничения MVP
+## 6. Scientific Constraints of the MVP
 
-### 6.1. Энергия и регенерация
+### 6.1. Energy and Regeneration
 
-Используйте существующий `ResourceStock` как ограниченную модель регенерации.
+Use the existing `ResourceStock` as a bounded regeneration model.
 
-Не включайте автоматически аварийный спавн при активном `ResourceStock`.
+Do not automatically enable emergency spawning while `ResourceStock` is active.
 
-Не допускайте расхода `ResourceStock` сверх доступного запаса.
+Do not permit `ResourceStock` expenditure beyond the available stock.
 
-Не изменяйте режим `ResourceStock` старого мира без миграционного решения.
+Do not change the `ResourceStock` mode of an old world without a migration decision.
 
-Сохраните старый режим с отключённым `ResourceStock` для воспроизводимости старых запусков.
+Preserve the old mode with `ResourceStock` disabled for reproducibility of old runs.
 
-Зафиксируйте существующий failsafe со спавном пищи без `ResourceStock` как режим совместимости.
+Record the existing failsafe that spawns food without `ResourceStock` as a compatibility mode.
 
-Не называйте этот failsafe физически замкнутым круговоротом.
+Do not call this failsafe a physically closed cycle.
 
-Не превращайте аварийный спавн в механизм спасения популяции.
+Do not turn emergency spawning into a population rescue mechanism.
 
-Не добавляйте распад трупов или обмен веществами между зонами сейчас.
+Do not add corpse decomposition or inter-zone exchange of substances now.
 
-### 6.2. Детерминизм и самостоятельные миры
+### 6.2. Determinism and Independent Worlds
 
-Проверяйте идентичность контрольных состояний при одинаковом seed.
+Verify identity of control states under the same seed.
 
-Проверяйте продолжение после сохранения с тем же результатом.
+Verify that continuation after saving yields the same result.
 
-Не используйте системное время для выбора цели или спавна.
+Do not use system time for target selection or spawning.
 
-Не вводите межмировое взаимодействие без отдельного проекта.
+Do not introduce inter-world interaction without a separate project.
 
-Сохраняйте локальную независимость каждого мира.
+Preserve the local independence of each world.
 
-Отложите P2P, консенсус и синхронизацию до отдельной архитектурной фазы.
+Defer P2P, consensus, and synchronization to a separate architectural phase.
 
-## 7. Инварианты приёмки
+## 7. Acceptance Invariants
 
-| ID | Критерий PASS |
+| ID | PASS criterion |
 |---|---|
-| AC-01 | Доступная цель выбирается вместо ближайшей недоступной. |
-| AC-02 | Недоступная пища остаётся в мире и занимает исходную энергию. |
-| AC-03 | Пища в оазисе допустима; обычный `Obstacle` остаётся непроходимым. |
-| AC-04 | Новая пища не нарушает действующие квоты и общий лимит. |
-| AC-05 | Отказ бюджета не расходует `ResourceStock`. |
-| AC-06 | Существующие объекты пищи не удаляются миграцией бюджета. |
-| AC-07 | Несовместимый снимок не заменяет работающий мир. |
-| AC-08 | Импорт сохраняет геномы, энергию и историю. |
-| AC-09 | Детерминированные контрольные прогоны совпадают. |
-| AC-10 | FOOD-T08 проходит на трёх масштабах после PHY-01. |
-| AC-11 | `targetSelectionMsP95` проходит D-05. |
-| AC-12 | `workerTickMsP95` проходит D-05. |
-| AC-13 | М6 подтверждает отсутствие изменений генетической семантики. |
-| AC-14 | `pnpm run check:strict` и браузерный smoke проходят. |
+| AC-01 | An accessible target is selected instead of the nearest inaccessible one. |
+| AC-02 | Inaccessible food remains in the world and retains its original energy. |
+| AC-03 | Food in an oasis is permitted; an ordinary `Obstacle` remains impassable. |
+| AC-04 | New food does not violate the active quotas and the total limit. |
+| AC-05 | A budget rejection does not consume `ResourceStock`. |
+| AC-06 | Existing food objects are not deleted by the budget migration. |
+| AC-07 | An incompatible snapshot does not replace the running world. |
+| AC-08 | Import preserves genomes, energy, and history. |
+| AC-09 | Deterministic control runs match. |
+| AC-10 | FOOD-T08 passes at three scales after PHY-01. |
+| AC-11 | `targetSelectionMsP95` passes D-05. |
+| AC-12 | `workerTickMsP95` passes D-05. |
+| AC-13 | M6 confirms the absence of changes to genetic semantics. |
+| AC-14 | `pnpm run check:strict` and the browser smoke test pass. |
 
-Не подменяйте тесты исходной физики тестами политики выбора целей.
+Do not substitute tests of the original physics with tests of the target-selection policy.
 
-Не обновляйте эталонные фингерпринты только ради PASS.
+Do not update reference fingerprints merely to obtain a PASS.
 
-Документируйте каждое намеренное отклонение baseline.
+Document every intentional baseline deviation.
 
-## 8. Последовательность минимальной реализации
+## 8. Minimal Implementation Sequence
 
-| Этап | Работа | Необходимая блокировка |
+| Stage | Work | Required blocker |
 |---|---|---|
-| M0 | Перепроверить baseline, обе нагрузки, импорт и аномалии. | Требуется разрешение на исследования с изменением файлов. |
-| M1 | Контракт `FoodAccessibilityPolicy` и регрессионные тесты. | Разрешение на реализацию. |
-| M2 | Подключить проверку пути к выбору цели. | M1 PASS; смешанные файлы — только по допуску. |
-| PHY | Исправить тороидальную геометрию отдельным изменением. | Отдельное разрешение PHY-01. |
-| M3 | Контракт `FoodBudgetPolicy` и миграционные тесты. | Разрешение M6-01 для смешанных файлов. |
-| M4 | Подключить лимиты к четырём стратегиям спавна. | M3 PASS; импорт и `ResourceStock` проверены. |
-| M5 | Измерить две метрики и детерминизм. | D-05; оба профиля нагрузки. |
-| M6 | Проверить SOLID/DRY, SHA256, тесты и smoke. | Все предыдущие блокировки сняты. |
-| M7 | Показать diff и зафиксировать согласованные изменения. | Отдельное разрешение на каждый коммит. |
+| M0 | Re-verify the baseline, both loads, import, and anomalies. | Permission for research involving file changes is required. |
+| M1 | `FoodAccessibilityPolicy` contract and regression tests. | Implementation permission. |
+| M2 | Wire the path check into target selection. | M1 PASS; mixed files — only with admission. |
+| PHY | Fix the toroidal geometry as a separate change. | Separate PHY-01 permission. |
+| M3 | `FoodBudgetPolicy` contract and migration tests. | M6-01 permission for mixed files. |
+| M4 | Wire the limits into the four spawn strategies. | M3 PASS; import and `ResourceStock` verified. |
+| M5 | Measure the two metrics and determinism. | D-05; both load profiles. |
+| M6 | Verify SOLID/DRY, SHA256, tests, and smoke. | All previous blockers lifted. |
+| M7 | Show the diff and record the agreed changes. | Separate permission for each commit. |
 
-Не объединяйте исправление PHY-01 с бюджетной реализацией в один коммит.
+Do not combine the PHY-01 fix with the budget implementation in a single commit.
 
-Не начинайте M1 или M3 до завершения воспроизводимых условий M0.
+Do not start M1 or M3 before the reproducible conditions of M0 are complete.
 
-Не начинайте производственную публикацию до проверки всех критериев.
+Do not start production publication before all criteria are verified.
 
-## 9. Разрешения, которых ещё нет
+## 9. Permissions Not Yet Granted
 
-| ID | Действие | Статус |
+| ID | Action | Status |
 |---|---|---|
-| AUTH-01 | Изменить исходники и тесты для M1–M4 по этому контракту. | НЕ РАЗРЕШЕНО |
-| AUTH-02 | Исправить `Collision.system.ts` и физические расстояния по PHY-01. | НЕ РАЗРЕШЕНО |
-| AUTH-03 | Изменить смешанные файлы из `genomeInventory` без изменения генетической семантики. | НЕ РАЗРЕШЕНО |
-| AUTH-04 | Подготовить отдельный коммит после просмотра точного diff. | НЕ РАЗРЕШЕНО |
-| AUTH-05 | Сделать push/PR/merge и развёртывание. | НЕ РАЗРЕШЕНО |
+| AUTH-01 | Modify sources and tests for M1–M4 under this contract. | NOT AUTHORIZED |
+| AUTH-02 | Fix `Collision.system.ts` and physical distances per PHY-01. | NOT AUTHORIZED |
+| AUTH-03 | Modify mixed files from `genomeInventory` without changing genetic semantics. | NOT AUTHORIZED |
+| AUTH-04 | Prepare a separate commit after reviewing the exact diff. | NOT AUTHORIZED |
+| AUTH-05 | Perform push/PR/merge and deployment. | NOT AUTHORIZED |
 
-Оператор делегировал выбор архитектуры D-01…D-06.
+The operator delegated the choice of architecture D-01…D-06.
 
-Оператор не давал отдельного разрешения на изменение исходников в ответах OP-01…OP-03.
+The operator did not give separate permission to modify sources in the answers OP-01…OP-03.
 
-Оператор не давал разрешения на изменение физики PHY-01.
+The operator did not give permission to change the PHY-01 physics.
 
-Оператор не давал разрешения на смешанные файлы M6-01.
+The operator did not give permission for the M6-01 mixed files.
 
-Не считать утверждение этого контракта разрешением на выполнение AUTH-01…AUTH-05.
+Do not treat approval of this contract as permission to perform AUTH-01…AUTH-05.
 
-## 10. Локальные блокировки репозитория
+## 10. Local Repository Blockers
 
-Существующие незакоммиченные изменения интерфейса и диагностики не относятся к этому контракту.
+The existing uncommitted interface and diagnostics changes do not belong to this contract.
 
-Не добавляйте их в коммит пищевой системы без отдельного рассмотрения.
+Do not add them to the food-system commit without separate review.
 
-Текущий `check:strict` отказывает на сохранённых `.mjs`-скриптах.
+The current `check:strict` fails on the saved `.mjs` scripts.
 
-Проверка `check:tooling` также видит исследовательские `.mjs` в локальном `.tmp/`.
+The `check:tooling` check also sees research `.mjs` files in the local `.tmp/`.
 
-Исправьте нарушение tooling в отдельном разрешённом изменении до публикации.
+Fix the tooling violation in a separate authorized change before publication.
 
-Не отключайте проверку ради проходящего CI.
+Do not disable the check in order to get CI to pass.
 
-Переведите все публикуемые документы на английский до push в публичный репозиторий.
+Translate all published documents into English before pushing to the public repository.
 
-Сохраните русские рабочие оригиналы локально.
+Keep the Russian working originals locally.
 
-## 11. История и приоритет
+## 11. History and Precedence
 
-Этот контракт формализует три решения оператора от 2026-10-25.
+This contract formalizes the three operator decisions of 2026-10-25.
 
-Архитектура D-01…D-06 выбрана в пределах делегированных полномочий.
+Architecture D-01…D-06 was selected within the delegated authority.
 
-Документ [consolidated-four-cycle-review.md](./consolidated-four-cycle-review.md) остаётся первичным исследовательским заключением.
+The document [consolidated-four-cycle-review.md](./consolidated-four-cycle-review.md) remains the primary research conclusion.
 
-Ранее указанные в SPEC-FOOD-001 и PLAN-FOOD-001 статусы `НЕ УТВЕРЖДЕНО` устарели только для D-01…D-06.
+The `NOT APPROVED` statuses previously stated in SPEC-FOOD-001 and PLAN-FOOD-001 are outdated only for D-01…D-06.
 
-Не меняйте исторические цитаты исследований задним числом.
+Do not alter historical research quotations retroactively.
 
-При расхождении проекта и настоящего документа для D-01…D-06 применяйте настоящий контракт.
+In case of a discrepancy between the draft and this document for D-01…D-06, apply this contract.
 
-Исполнение M0…M7 остаётся закрытым до отдельных разрешений.
+Execution of M0…M7 remains closed pending separate permissions.

@@ -1,112 +1,112 @@
-# Проверка рисков SPEC-FOOD-001 — 2026-10-25
+# SPEC-FOOD-001 Risk Verification — 2026-10-25
 
-**Состояние:** проверка документации и диагностических инструментов выполнена.
+**State:** verification of documentation and diagnostic tools completed.
 
-**Приёмка M0:** не выполнена.
+**M0 acceptance:** not performed.
 
-**Приёмка M6:** не выполнена.
+**M6 acceptance:** not performed.
 
-**Публикация:** заблокирована до английского перевода.
+**Publication:** blocked until the English translation is complete.
 
-**Проверенный исходный commit:** `afad92b84c9b547802a5a785588ba112a1a05331`.
+**Verified source commit:** `afad92b84c9b547802a5a785588ba112a1a05331`.
 
-## Структурная проверка
+## Structural Verification
 
-**Количество ID требований:** 61.
+**Number of requirement IDs:** 61.
 
-Проверено отсутствие повторов ID.
+The absence of duplicate IDs was verified.
 
-Смысл требований автоматически не проверен.
+The meaning of the requirements was not verified automatically.
 
-Семантику проверяют тесты и ручной архитектурный обзор.
+Semantics are verified by tests and manual architectural review.
 
-**Проверенные команды:** `depcruise`, `check:dead-code`, `check:strict`.
+**Verified commands:** `depcruise`, `check:dead-code`, `check:strict`.
 
-**Источник:** `src/simulation/__tests__/BaselineFingerprint.test.ts`.
+**Source:** `src/simulation/__tests__/BaselineFingerprint.test.ts`.
 
-**RECORDED:** шесть значений совпали с исходным commit.
+**RECORDED:** six values matched the source commit.
 
-**Ранние baseline-тики:** `100` и `300`.
+**Early baseline ticks:** `100` and `300`.
 
-Поздние тики `600`, `1200` и `2100` не имеют утверждённых значений RECORDED.
+The later ticks `600`, `1200`, and `2100` have no approved RECORDED values.
 
-## Проверка метода M0
+## M0 Method Verification
 
-**Метод:** `ssr-instrumentation`.
+**Method:** `ssr-instrumentation`.
 
 **Seed:** `4242`.
 
-**Тики измерения:** 12.
+**Measurement ticks:** 12.
 
-**Тики прогрева:** 3.
+**Warm-up ticks:** 3.
 
 **hardwareId:** `d8d7c2383531639c`.
 
-**Количество вызовов выбора цели:** 4740.
+**Number of target selection calls:** 4740.
 
-**Частота вызовов:** true.
+**Call frequency:** true.
 
-**targetSelectionMs p50:** 8.101 мс.
+**targetSelectionMs p50:** 8.101 ms.
 
-**targetSelectionMs p95:** 10.094 мс.
+**targetSelectionMs p95:** 10.094 ms.
 
-**workerTickMs p50:** 10.878 мс.
+**workerTickMs p50:** 10.878 ms.
 
-**workerTickMs p95:** 12.888 мс.
+**workerTickMs p95:** 12.888 ms.
 
-`engine.start()` не запустил самостоятельный цикл.
+`engine.start()` did not start a self-driven loop.
 
-`spawnOrganism()` не добавил организм автоматически.
+`spawnOrganism()` did not add an organism automatically.
 
-`scanNeighbors()` не вызвал `getNearby()`.
+`scanNeighbors()` did not call `getNearby()`.
 
-Замеры не включают обмен сообщениями браузерного Worker.
+The measurements do not include browser Worker message exchange.
 
-Пробный запуск не заменяет измерения M0.
+The probe run does not replace the M0 measurements.
 
-## Сравнение SHA256 файлов генома
+## Comparison of Genome File SHA256 Values
 
-**Файлов проверено:** 15.
+**Files checked:** 15.
 
-**Расхождений относительно исходного commit:** 1.
+**Discrepancies relative to the source commit:** 1.
 
-**Существующее расхождение:** `src/simulation/engine/EngineProxy.ts`.
+**Existing discrepancy:** `src/simulation/engine/EngineProxy.ts`.
 
-Расхождение не создано текущей задачей.
+The discrepancy was not created by the current task.
 
-Не считайте все файлы генома неизменными.
+Do not assume that all genome files are unchanged.
 
-Не утверждайте M6-A09 без согласования этого расхождения.
+Do not assert M6-A09 without resolving this discrepancy.
 
-## Проверка содержимого новых файлов
+## Verification of New File Content
 
-**Положительный сценарий:** PASS.
+**Positive scenario:** PASS.
 
-**Отрицательный сценарий:** FAIL.
+**Negative scenario:** FAIL.
 
-**Ожидаемый отрицательный результат:** FAIL.
+**Expected negative result:** FAIL.
 
-Тестовый untracked файл содержал `UtilityAI`.
+The test untracked file contained `UtilityAI`.
 
-Проверка нашла запрещённый маркер.
+The check found the prohibited marker.
 
-Тестовый файл удалён.
+The test file was deleted.
 
-Тестовый манифест не утверждён оператором.
+The test manifest was not approved by the operator.
 
-## Согласованность геометрии
+## Geometry Consistency
 
-**Результат:** `CONFIRMED_GEOMETRY_DEFECT`.
+**Result:** `CONFIRMED_GEOMETRY_DEFECT`.
 
-На масштабе `1` сравнение совпало.
+At scale `1`, the comparison matched.
 
-На масштабе `0.5` сравнение не совпало.
+At scale `0.5`, the comparison did not match.
 
-На масштабе `2` сравнение не совпало.
+At scale `2`, the comparison did not match.
 
-FOOD-T08 нельзя принимать до отдельного решения об изменении физики.
+FOOD-T08 cannot be accepted until a separate decision on changing physics.
 
-## Повторение
+## Reproduction
 
 ```bash
 node docs/specs/food-accessibility-and-budget/verify-review.mjs preflight
@@ -115,22 +115,22 @@ node docs/specs/food-accessibility-and-budget/m0-measure.mjs 4242 12 3
 node docs/specs/food-accessibility-and-budget/collision-geometry-check.mjs
 ```
 
-Результат genome-sha256 сейчас ожидаемо содержит одно расхождение.
+The genome-sha256 result is currently expected to contain one discrepancy.
 
-## Файлы доказательств
+## Evidence Files
 
-[Проверка ID и RECORDED](./review-verification.json).
+[ID and RECORDED verification](./review-verification.json).
 
-[Проверка измерений](./measurement-method-smoke.json).
+[Measurement verification](./measurement-method-smoke.json).
 
-[Сравнение SHA256](./genome-sha256.json).
+[SHA256 comparison](./genome-sha256.json).
 
-[Проверка новых файлов](./scope-guard-smoke.json).
+[New-file verification](./scope-guard-smoke.json).
 
-[Проверка геометрии](./collision-geometry-smoke.json).
+[Geometry verification](./collision-geometry-smoke.json).
 
-[Список контролируемых файлов](./scope-policy.json).
+[List of controlled files](./scope-policy.json).
 
-Все D-01…D-06 остаются неутверждёнными.
+All D-01…D-06 remain unapproved.
 
-Коммит и публикация не выполнялись.
+No commit or publication was performed.
